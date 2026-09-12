@@ -158,7 +158,7 @@ Selecting a **campaign** (and its playlist) applies that campaign’s **CSS toke
 
 **Publish must not steal Base:** Demo PCF ensure/import may refresh demo documents, but it must **not** reset `active_brand_id` after an operator has chosen a brand (first-run empty pointer only).
 
-**Player chrome (brand-owned):** Playlist selector style (`player.playlist_selector`: `dropdown` | `buttons` | `coverflow`, default `coverflow`), cover reflection (`player.cover_reflection`, default `true`), and Beggars banquet visibility (`player.beggars_banquet`, default `true`) live on the **Base brand** document and travel with brands/PCFs. Cover reflection is the mirrored still under the main flip-card on large split layouts. Beggars banquet is the in-flow support CTA under the player transport; Settings → Support still owns destination, label, and colours. Shell backdrop has **no Still|Living toggle** — if the brand assigns living video, `/play` prefers it (still paints first; reduced-motion / slow-connection stay on still). Track living covers follow the same assignment-is-intent rule.
+**Player chrome (brand-owned):** Cover reflection (`player.cover_reflection`, default `true`) and Beggars banquet visibility (`player.beggars_banquet`, default `true`) live under Branding → Player. **Playlist selector** style (`player.playlist_selector`: `dropdown` | `buttons` | `coverflow`, default `coverflow`) lives under Branding → Content. All three travel on the **Base brand** document with brands/PCFs. Cover reflection is the mirrored still under the main flip-card on large split layouts. Beggars banquet is the in-flow support CTA under the player transport; Settings → Support still owns destination, label, and colours. Shell backdrop has **no Still|Living toggle** — if the brand assigns living video, `/play` prefers it (still paints first; reduced-motion / slow-connection stay on still). Track living covers follow the same assignment-is-intent rule.
 
 **Player Campaign navigator (locked — v0.8 exit gate; chrome re-locked 2026-09-09):**
 
@@ -719,7 +719,7 @@ data/brands/registry.json
 data/brands/{brand-id}.json
 ```
 
-**Brand ids:** Seed/system identity stays `bandpromo-default` (legacy alias `setup-default`) and **cannot be renamed**. New operator brands allocate opaque `brd_{ulid}` ids (same ULID helper as `ast_*` assets). Legacy title-derived ids (`hitz-copy`, …) remain valid until migrated. **Titles are unique** on an install (case-insensitive). Content → Branding shows an editable **Storage id**; changing it runs an atomic runtime migrate (document file, registry, Base pointer, campaign `brand_id`, asset `brand_id`, playlist `brand_styles`) — title rename does **not** change the id. Listener analytics do not store brand ids (track title/artist only); admin audit keeps historical ids append-only.
+**Brand ids:** Seed/system identity stays `bandpromo-default` (legacy alias `setup-default`) and **cannot be renamed**. New operator brands allocate opaque `brd_{ulid}` ids (same ULID helper as `ast_*` assets). Legacy title-derived ids (`hitz-copy`, …) remain valid until migrated. **Titles are unique** on an install (case-insensitive). Storage ids are **not** operator-facing — they stay stable, unique, and travel with **PCF / PBF** export/import. Operators edit the brand **name** (and description); title rename does **not** change the id. Listener analytics do not store brand ids (track title/artist only); admin audit keeps historical ids append-only.
 
 Migration: `data/themes/` → `data/brands/`; brand documents use `campaign_id` (legacy container `release_id` migrate-and-delete). Asset catalogue-home field remains `release_id` until a later schema cut.
 
@@ -737,37 +737,46 @@ Brand containers expose tokens that map to CSS custom properties on `:root` (pla
 
 | Token | CSS variable | Purpose |
 |-------|--------------|---------|
-| `color.primary` | `--primary-color` | Accent, active controls, progress, active nav tabs |
-| `color.secondary` | `--secondary-color` | Page headings/callouts, visited-link fallback — not transport chrome |
+| `color.primary` | `--primary-color` | Accent; default for heading / button / blockquote **roles**; transport accents |
+| `color.secondary` | `--secondary-color` | Default for subheading role; visited-link fallback — not hard-wired to H1–H3 |
 | `color.background` | `--bg-color` | Page background |
-| `color.text` | `--text-color` | Primary text |
-| `color.text_muted` | `--color-text-muted` | Idle nav tabs, artist line, secondary copy |
+| `color.text` | `--text-color` | Main text (default body role) |
+| `color.text_muted` | `--color-text-muted` | Muted / small copy (default muted role); idle nav when not overridden |
 | `color.surface_mid` | `--color-surface-mid` (+ derived `--panel-fill`) | Panels colour: glass fills at Panel dim; also gradient mid tone |
 | `color.surface_deep` | `--color-surface-deep` | Gradient deep tone |
 | `color.link` | `--color-link` | Page/body prose links |
 | `color.link_hover` | `--color-link-hover` | Link hover |
 | `color.link_visited` | `--color-link-visited` | Visited links on dark backgrounds |
 
+**Element colour roles (`tokens.roles`):** operators map palette keys (`primary` \| `secondary` \| `text` \| `text_muted` \| `surface_mid`) onto headings, subheadings, body, muted, blockquote, button outline/fill/active, and panel border. Emitted as `--role-heading`, `--role-heading-sub`, `--role-body`, `--role-muted`, `--role-blockquote`, `--role-button-outline`, `--role-button-fill`, `--role-button-active`, `--role-panel-border`. Defaults match legacy hard-wiring (headings → primary, subheadings → secondary, buttons/panel border → primary). Soft button fill is a fixed **50%** mix of the fill role. Selected/active content tabs use the Active role solid (`--content-control-bg-active`); hover still mixes from Active.
+
 **Readability effects (v0.8+):**
 
 | Token | CSS variable | Purpose |
 |-------|--------------|---------|
-| `effects.backdrop_dim` | `--shell-scrim-strength` (0–1) | Dim still/living **shell background only** (full-page black overlay; 0–100 in editor; default 72) |
-| `effects.panel_dim` | `--panel-scrim-strength` (0–1) + `--panel-fill` | Strength of Panels colour on transport, lyrics, playlists, pages, gallery, login glass (0–100; default 72; missing → seed from `backdrop_dim`) |
-| `effects.panel_blur` | `--panel-blur` | Glass blur on those same panels (cover art stays sharp; 0–24px; default 5) |
+| `effects.backdrop_dim` | `--shell-scrim-strength` (0–1) | Dim still/living **shell background only** (Common → Backdrop; 0–100; default 72) |
+| `effects.player_panel_dim` | `--player-panel-scrim-strength` + `--player-panel-fill` | Transport glass fill strength (Player → Readability; legacy `panel_dim` seeds when missing) |
+| `effects.player_panel_blur` | `--player-panel-blur` | Transport glass blur (0–24px; legacy `panel_blur` seeds when missing) |
+| `effects.content_panel_dim` | `--content-panel-scrim-strength` + `--content-panel-fill` | Content/login panel fill (Content → Panels; legacy `panel_dim` seeds when missing) |
+| `effects.content_panel_blur` | `--content-panel-blur` | Content/login panel blur (0–24px; legacy `panel_blur` seeds when missing) |
+| `effects.content_panel_density` | `--content-panel-pad-y` / `--content-panel-pad-x` / `--content-panel-gap` | Inner padding and gaps on panels (Dense→Spacious) |
+| `effects.content_panel_corners` | `--content-panel-radius` | Square / Shaved (10px); legacy Pill migrates to Shaved |
+| `effects.content_panel_border` | `--content-panel-border-width` + `--content-panel-border` | None / Thin / Normal / Fat; colour from `roles.panel_border` when not None |
 
-Accent **alpha** variants (`--primary-a**`) are **derived** from Primary/Secondary via `color-mix` — not separate operator tokens. `--panel-fill` is derived from `color.surface_mid` × Panel dim.
+Accent **alpha** variants (`--primary-a**`) are **derived** from Primary/Secondary via `color-mix` — not separate operator tokens. `--player-panel-fill` / `--content-panel-fill` are derived from `color.surface_mid` × the matching Panel dim.
 
-**Player layout contract:** `#mediaplayer` layout is platform-owned (cover scene, transport, scrubber). `#content-container` (logo, nav tabs, pages, playlist/lyrics/gallery) is freer for operators. Both share the brand colour scheme. **Content chrome** (`tokens.content`): style (`outline`/`filled`/`soft`), corner roundness as **0–50%**, border width 1–4px, density **minimal|compact|normal** (padding/gap presets — no raw margin fields). Applies to `#content-container` controls only. **Later:** sellable mediaplayer skins once player vs content styling stays separable.
+**Player layout contract:** `#mediaplayer` layout is platform-owned (cover scene, transport, scrubber). `#content-container` (logo, nav tabs, pages, playlist/lyrics/gallery) is freer for operators. Both share the brand colour scheme. **Buttons** (`tokens.content`): named presets only — style, corners, borders, density — no raw px/% fields. Applies to `#content-container` controls only. **Playlist selector** is a separate Content panel (`player.playlist_selector`). **Later:** sellable mediaplayer skins once player vs content styling stays separable.
 
-**Content chrome tokens:**
+**Buttons tokens (`tokens.content`):**
 
 | Token | Values | Purpose |
 |-------|--------|---------|
-| `content.style` | `outline` \| `filled` \| `soft` | Idle/hover fill for content buttons and tabs |
-| `content.radius_percent` | 0–50 | `border-radius` as % of control box (50% ≈ pill) |
-| `content.border_width` | 1–4 px | Control border thickness |
-| `content.density` | `minimal` \| `compact` \| `normal` | Padding, min-height, and inter-control gap presets |
+| `content.style` | `outline` \| `soft` \| `filled` | Idle fill (UI: Outline / Soft fill / Solid) |
+| `content.corners` | `square` \| `shaved` \| `pill` | Corner roundness: `0px` / `6px` / `999px` |
+| `content.border` | `thin` \| `normal` \| `fat` | Border thickness presets (1 / 2 / 3 px) |
+| `content.density` | `dense` \| `compact` \| `normal` \| `comfortable` \| `spacious` | Uniform button padding Dense→Spacious: 2px → 8px (same five steps as Typography); gap matches pad; min-height = 20 + 2×pad |
+
+Legacy brands with `radius_percent` / `border_width` / density `minimal` migrate on normalize.
 
 **Layout:** Player cover art size (`--card-size`) is **not** a brand token. The public shell is stacked by default and enters a split player/content layout only when both viewport width and height can support it. Cover size, player rail, content gutter, readable prose/Tracklist measures, touch targets, overflow, and breakpoints are platform-owned in `biblioteca/style.css`. Content policies differ intentionally: prose and Notes stay centered at readable measures, playlist lists may run wider, and galleries/media blocks may use the full content canvas.
 
@@ -791,8 +800,9 @@ Accent **alpha** variants (`--primary-a**`) are **derived** from Primary/Seconda
 
 - `typography.font_family_base` — body/UI stack
 - `typography.font_family_heading` — optional; falls back to base
-- Runtime exposes these as `--brand-font-body` and `--brand-font-heading`; custom family stacks are syntax-validated and receive a generic fallback.
-- Operators choose font families. The platform owns sizes, heading scale, line-height, spacing, wrapping, readable measures, and control geometry so a brand font cannot redefine the responsive shell.
+- `typography.density` — Dense→Spacious presets → `--content-type-line-height` and `--content-type-block-gap` (platform still owns font sizes and heading scale)
+- Runtime exposes families as `--brand-font-body` and `--brand-font-heading`; custom family stacks are syntax-validated and receive a generic fallback.
+- Operators choose font families and typography density. The platform owns sizes, heading scale, wrapping, readable measures, and control geometry so a brand font cannot redefine the responsive shell.
 
 Renderer injects tokens as `:root` overrides when a brand is active.
 
@@ -863,7 +873,7 @@ Path-based URLs (no query strings for core navigation).
 ```
 
 - **Hard cut (v0.8 Campaign navigator):** playlist-first paths (`/play/{playlist-slug}/…`) are **not** supported. No silent remap. See [AGENTS.md](AGENTS.md) — no speculative fallbacks.
-- Campaign **storage id** and public **slug** live on the campaign document (`data/campaigns/`). Playlist **storage id** and public **slug** remain separate; Content → Playlists Base info edits both.
+- Campaign **storage id** and public **slug** live on the campaign document (`data/campaigns/`). Playlist **storage id** and public **slug** remain separate: operators edit **name** and **slug**; storage ids stay opaque, unique, and travel with PCF (not shown in Content → Playlists Base info).
 - `track-slug` is unique **per campaign** (release membership).
 - Deep links override browser memory and select campaign + playlist (+ track).
 - OG/share metadata for track links: track + campaign identity from containers/registry.
@@ -891,7 +901,7 @@ Content editors use one pattern (shipped for playlist/gallery/pages):
 2. Right: preview of selected container.
 3. **Add** or **edit** replaces the container list with a pool of **assets** (or block types) to insert.
 
-Edit views group settings in **section cards** (`.content-editor-section`) with `--border2` chrome headers. Pages use **Base info** then **Page builder**. Playlists use **Base info**. Branding uses Base info, Typography, Colours, Readability, Shell media, and Player chrome.
+Edit views group settings in **section cards** (`.content-editor-section`) with `--border2` chrome headers. Pages use **Base info** then **Page builder**. Playlists use **Base info**. Branding uses Common | Player | Content subnav (Content: Buttons, Playlist selector, Panels, Typography). A **Panel** is one frosted box; typography and links sit inside it — there is no separate “panel glass vs panel content” type.
 
 ### Gallery assembly (v0.8)
 

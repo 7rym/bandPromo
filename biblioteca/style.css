@@ -35,10 +35,34 @@
     --secondary-a20: color-mix(in srgb, var(--secondary-color) 20%, transparent);
     --secondary-a30: color-mix(in srgb, var(--secondary-color) 30%, transparent);
     --shell-scrim-strength: 0.72;
-    --panel-scrim-strength: 0.72;
-    --panel-blur: 5px;
-    --panel-fill: color-mix(in srgb, var(--color-surface-mid) 72%, transparent);
-    --content-control-radius: 50%;
+    --player-panel-scrim-strength: 0.72;
+    --player-panel-blur: 5px;
+    --player-panel-fill: color-mix(in srgb, var(--color-surface-mid) 72%, transparent);
+    --content-panel-scrim-strength: 0.72;
+    --content-panel-blur: 5px;
+    --content-panel-fill: color-mix(in srgb, var(--color-surface-mid) 72%, transparent);
+    --content-panel-pad-y: 12px;
+    --content-panel-pad-x: 14px;
+    --content-panel-gap: 8px;
+    --content-panel-radius: 10px;
+    --content-panel-border-width: 0px;
+    --content-panel-border: transparent;
+    --content-type-line-height: 1.2;
+    --content-type-block-gap: 6px;
+    --role-heading: var(--primary-color);
+    --role-heading-sub: var(--secondary-color);
+    --role-body: var(--text-color);
+    --role-muted: var(--color-text-muted);
+    --role-button-outline: var(--primary-color);
+    --role-button-fill: var(--primary-color);
+    --role-button-active: var(--primary-color);
+    --role-panel-border: var(--primary-color);
+    --role-blockquote: var(--primary-color);
+    /* Legacy aliases → content panel */
+    --panel-scrim-strength: var(--content-panel-scrim-strength);
+    --panel-blur: var(--content-panel-blur);
+    --panel-fill: var(--content-panel-fill);
+    --content-control-radius: 999px;
     --content-control-border-width: 2px;
     --content-control-pad-y: 8px;
     --content-control-pad-x: 14px;
@@ -49,6 +73,10 @@
     --content-control-fg: var(--primary-color);
     --content-control-bg-hover: var(--primary-color);
     --content-control-fg-hover: #000000;
+    --content-control-bg-active: var(--role-button-active, var(--primary-color));
+    --content-control-border-active: var(--role-button-active, var(--primary-color));
+    --content-control-fg-active: #000000;
+    --content-control-glow-active: color-mix(in srgb, var(--role-button-active, var(--primary-color)) 55%, transparent);
 }
 
 body {
@@ -572,10 +600,10 @@ body.debug-modal-open {
     padding: 12px 14px 14px;
     box-sizing: border-box;
     border-radius: 10px;
-    /* Brand Backdrop dim + Panel blur (cover art stays outside / sharp). */
-    background: var(--panel-fill, color-mix(in srgb, var(--color-surface-mid) calc(var(--panel-scrim-strength, 0.72) * 100%), transparent));
-    -webkit-backdrop-filter: blur(var(--panel-blur, 5px));
-    backdrop-filter: blur(var(--panel-blur, 5px));
+    /* Brand Player panel dim + blur (cover art stays outside / sharp). */
+    background: var(--player-panel-fill, var(--panel-fill));
+    -webkit-backdrop-filter: blur(var(--player-panel-blur, var(--panel-blur, 5px)));
+    backdrop-filter: blur(var(--player-panel-blur, var(--panel-blur, 5px)));
     z-index: 20;
     position: relative;
     flex-shrink: 0;
@@ -977,10 +1005,10 @@ button.pulse-guide {
 }
 
 .content-toggle button.active {
-    background: var(--primary-color);
-    color: #000;
-    border-color: var(--primary-color);
-    box-shadow: 0 0 10px var(--primary-color);
+    background: var(--content-control-bg-active, var(--primary-color));
+    color: var(--content-control-fg-active, #000);
+    border-color: var(--content-control-border-active, var(--primary-color));
+    box-shadow: 0 0 10px var(--content-control-glow-active, var(--primary-color));
 }
 
 .content-toggle button[hidden] {
@@ -1020,12 +1048,13 @@ button.pulse-guide {
 
 /* Dim + blur hug the lyrics/notes measure — not the full content column. */
 .lyrics-box .player-markdown {
-    padding: 14px 18px;
-    border-radius: 10px;
+    padding: var(--content-panel-pad-y, 14px) var(--content-panel-pad-x, 18px);
+    border-radius: var(--content-panel-radius, 10px);
+    border: var(--content-panel-border-width, 0) solid var(--content-panel-border, transparent);
     box-sizing: border-box;
-    background: var(--panel-fill, color-mix(in srgb, var(--color-surface-mid) calc(var(--panel-scrim-strength, 0.72) * 100%), transparent));
-    -webkit-backdrop-filter: blur(var(--panel-blur, 5px));
-    backdrop-filter: blur(var(--panel-blur, 5px));
+    background: var(--content-panel-fill, var(--panel-fill));
+    -webkit-backdrop-filter: blur(var(--content-panel-blur, var(--panel-blur, 5px)));
+    backdrop-filter: blur(var(--content-panel-blur, var(--panel-blur, 5px)));
 }
 
 .player-markdown {
@@ -1059,7 +1088,7 @@ button.pulse-guide {
 .player-markdown h5,
 .player-markdown h6 {
     margin: 0.7em 0 0.15em;
-    color: var(--primary-color);
+    color: var(--role-heading, var(--primary-color));
     font-style: normal;
     line-height: 1.15;
     font-weight: 700;
@@ -1097,11 +1126,15 @@ button.pulse-guide {
     padding-left: 1.25em;
 }
 
+.player-markdown h4 {
+    color: var(--role-heading-sub, var(--secondary-color));
+}
+
 .player-markdown blockquote {
     margin: 0 0 0.45em;
     padding-left: 0.75em;
-    border-left: 2px solid var(--primary-a40);
-    color: var(--color-text-muted);
+    border-left: 2px solid var(--role-blockquote, var(--primary-a40));
+    color: var(--role-muted, var(--color-text-muted));
 }
 
 .player-markdown code {
@@ -1141,7 +1174,7 @@ button.pulse-guide {
 .lyrics-box:has(.player-markdown--notes) {
     font-style: normal;
     text-align: left;
-    line-height: 1.35;
+    line-height: var(--content-type-line-height, 1.35);
     color: var(--text-color, #fff);
     padding: 12px var(--content-gutter) 48px;
 }
@@ -1149,7 +1182,7 @@ button.pulse-guide {
 .player-markdown.player-markdown--notes {
     text-align: left;
     font-style: normal;
-    line-height: 1.35;
+    line-height: var(--content-type-line-height, 1.35);
     width: 100%;
     max-width: var(--tracklist-measure);
     margin-inline: auto;
@@ -1157,8 +1190,8 @@ button.pulse-guide {
 }
 
 .player-markdown.player-markdown--notes p {
-    margin: 0 0 0.55em;
-    line-height: 1.35;
+    margin: 0 0 calc(var(--content-type-block-gap, 10px) * 0.55);
+    line-height: var(--content-type-line-height, 1.35);
     font-weight: 400;
     color: color-mix(in srgb, var(--text-color, #fff) 78%, transparent);
 }
@@ -1285,16 +1318,17 @@ button.pulse-guide {
 .playlist-tracks {
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: var(--content-panel-gap, 8px);
     width: 100%;
     max-width: var(--list-measure);
     margin-inline: auto;
-    padding: 10px 12px;
+    padding: var(--content-panel-pad-y, 10px) var(--content-panel-pad-x, 12px);
     box-sizing: border-box;
-    border-radius: 10px;
-    background: var(--panel-fill, color-mix(in srgb, var(--color-surface-mid) calc(var(--panel-scrim-strength, 0.72) * 100%), transparent));
-    -webkit-backdrop-filter: blur(var(--panel-blur, 5px));
-    backdrop-filter: blur(var(--panel-blur, 5px));
+    border-radius: var(--content-panel-radius, 10px);
+    border: var(--content-panel-border-width, 0) solid var(--content-panel-border, transparent);
+    background: var(--content-panel-fill, var(--panel-fill));
+    -webkit-backdrop-filter: blur(var(--content-panel-blur, var(--panel-blur, 5px)));
+    backdrop-filter: blur(var(--content-panel-blur, var(--panel-blur, 5px)));
 }
 
 /* Playlist Items (Album Tracks Style) */
@@ -1924,12 +1958,13 @@ audio {
     width: fit-content;
     max-width: 100%;
     margin-inline: auto;
-    padding: 10px;
+    padding: var(--content-panel-pad-y, 10px) var(--content-panel-pad-x, 10px);
     box-sizing: border-box;
-    border-radius: 10px;
-    background: var(--panel-fill, color-mix(in srgb, var(--color-surface-mid) calc(var(--panel-scrim-strength, 0.72) * 100%), transparent));
-    -webkit-backdrop-filter: blur(var(--panel-blur, 5px));
-    backdrop-filter: blur(var(--panel-blur, 5px));
+    border-radius: var(--content-panel-radius, 10px);
+    border: var(--content-panel-border-width, 0) solid var(--content-panel-border, transparent);
+    background: var(--content-panel-fill, var(--panel-fill));
+    -webkit-backdrop-filter: blur(var(--content-panel-blur, var(--panel-blur, 5px)));
+    backdrop-filter: blur(var(--content-panel-blur, var(--panel-blur, 5px)));
 }
 
 /* Album Tracks */

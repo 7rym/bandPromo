@@ -138,9 +138,9 @@ Pages and Branding edit views group fields in `.content-editor-section` cards:
 - Chrome header: `.content-editor-section-head` with `--border2` fill (same bar as Page/Branding Back/name and Live preview headers, and block card headers)
 - Body: `.content-editor-section-body`
 
-Pages: **Base info** (player tab, descriptions, share image) then **Page builder** (hint, add-block buttons, blocks). Playlists: **Base info** (publish date, package type, play order, slug, descriptions). Default playlist is **★ Set as default** in the Playlist header (same as Branding **★ Set as base**), not a checkbox. Branding: Base info, Typography, Colours, Readability, **Content chrome**, Shell media, Player chrome.
+Pages: **Base info** (player tab, descriptions, share image) then **Page builder** (hint, add-block buttons, blocks). Playlists: **Base info** (publish date, package type, play order, slug, descriptions). Default playlist is **★ Set as default** in the Playlist header (same as Branding **★ Set as base**), not a checkbox. Branding: Common | Player | Content (Content: **Buttons**, **Playlist selector**, **Panels**, **Typography**).
 
-**Player colour contract:** `#mediaplayer` keeps platform layout (scene, transport, scrubber) but paints from brand colours. `#content-container` (logo, tabs, pages, playlist/lyrics/gallery) shares the colour scheme and has **Content chrome** tokens (style, %-radius, border width, density presets). Separate Player skins remain a future sellable add-on. **Panels** + **Panel dim** drive glass fills (`--panel-fill`); muted text drives idle tab labels when not overridden by Content chrome style.
+**Player colour contract:** `#mediaplayer` keeps platform layout (scene, transport, scrubber) but paints from brand colours. `#content-container` shares the palette; **Buttons** and **Typography** use role swatches (outline/fill, headings/body/blockquote) from that palette. Soft fill = 50% of the Fill role. **Panels** (dim, blur, corners Square/Shaved, border width + colour role, density) drive the frosted boxes — content sits inside that one surface.
 
 ## Drag-and-drop rows
 

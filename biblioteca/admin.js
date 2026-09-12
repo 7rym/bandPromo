@@ -9653,7 +9653,6 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 const playlistSettingsSlug = document.getElementById('playlistSettingsSlug');
                 const playlistSettingsSlugPreview = document.getElementById('playlistSettingsSlugPreview');
                 const playlistSettingsCampaignSlugPreview = document.getElementById('playlistSettingsCampaignSlugPreview');
-                const playlistSettingsStorageId = document.getElementById('playlistSettingsStorageId');
                 const playlistSettingsDescription = document.getElementById('playlistSettingsDescription');
                 const playlistSettingsShortDescription = document.getElementById('playlistSettingsShortDescription');
                 const playlistSettingsShortDescriptionCount = document.getElementById('playlistSettingsShortDescriptionCount');
@@ -9679,7 +9678,6 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     publish_date: '',
                     package_type: 'other',
                     play_order: 'stored',
-                    storage_id: '',
                     slug: '',
                     description: '',
                     short_description: '',
@@ -9756,9 +9754,6 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     const slug = playlistSettingsSlug instanceof HTMLInputElement
                         ? String(playlistSettingsSlug.value || '').trim()
                         : String(entry?.slug || entry?.id || '').trim();
-                    const storageId = playlistSettingsStorageId instanceof HTMLInputElement
-                        ? String(playlistSettingsStorageId.value || '').trim().toLowerCase()
-                        : String(entry?.id || selectedPlaylistId || '').trim().toLowerCase();
                     const description = playlistSettingsDescription instanceof HTMLTextAreaElement
                         ? String(playlistSettingsDescription.value || '').trim()
                         : String(entry?.description || '').trim();
@@ -9774,7 +9769,6 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                         publish_date: publishDate,
                         package_type: packageType || 'other',
                         play_order: playOrder,
-                        storage_id: storageId,
                         slug,
                         description,
                         short_description: shortDescription,
@@ -9985,7 +9979,6 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                         ? 'reverse'
                         : 'stored';
                     const slug = String(entry?.slug || entry?.id || playlistId || '').trim();
-                    const storageId = String(entry?.id || playlistId || '').trim();
                     const description = String(entry?.description || '').trim();
                     const shortDescription = String(entry?.short_description || '').trim();
                     const posterAssetId = String(entry?.poster_asset_id || '').trim();
@@ -10008,9 +10001,6 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     }
                     if (playlistSettingsPlayOrder instanceof HTMLSelectElement) {
                         playlistSettingsPlayOrder.value = playOrder;
-                    }
-                    if (playlistSettingsStorageId instanceof HTMLInputElement) {
-                        playlistSettingsStorageId.value = storageId;
                     }
                     if (playlistSettingsSlug instanceof HTMLInputElement) {
                         playlistSettingsSlug.value = slug;
@@ -10055,7 +10045,6 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                         publish_date: publishDate,
                         package_type: packageType,
                         play_order: playOrder,
-                        storage_id: storageId,
                         slug,
                         description,
                         short_description: shortDescription,
@@ -10085,14 +10074,6 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                         return false;
                     }
 
-                    const storageError = validatePlaylistSlug(storageId);
-                    if (storageError) {
-                        if (!silent && playlistSettingsStatus) {
-                            playlistSettingsStatus.textContent = storageError.replace(/slug/i, 'Storage id');
-                        }
-                        return false;
-                    }
-
                     if (!playlistSettingsDirty()) {
                         if (!silent && playlistSettingsStatus) {
                             playlistSettingsStatus.textContent = '';
@@ -10100,27 +10081,16 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                         return true;
                     }
 
-                    const previousId = String(selectedPlaylistId || '').trim();
-                    const migrating = storageId !== previousId.toLowerCase();
-                    if (migrating && !silent) {
-                        const ok = window.confirm(
-                            `Change playlist storage id from "${previousId}" to "${storageId}"?\n\n`
-                            + 'This rewrites data/playlists/, the registry, and the default-playlist pointer when needed. '
-                            + 'Listener analytics are unchanged. Admin audit history keeps the old id.'
-                        );
-                        if (!ok) {
-                            return false;
-                        }
-                    }
+                    const playlistId = String(selectedPlaylistId || '').trim();
 
                     playlistSettingsSaving = true;
                     playlistSettingsSaveQueued = false;
                     if (!silent && playlistSettingsStatus) {
-                        playlistSettingsStatus.textContent = migrating ? 'Migrating…' : 'Saving…';
+                        playlistSettingsStatus.textContent = 'Saving…';
                     }
 
                     try {
-                        const resp = await fetch('/biblioteca/manage-playlist.php?playlist=' + encodeURIComponent(previousId), {
+                        const resp = await fetch('/biblioteca/manage-playlist.php?playlist=' + encodeURIComponent(playlistId), {
                             method: 'PATCH',
                             headers: { 'Content-Type': 'application/json' },
                             credentials: 'same-origin',
@@ -10129,7 +10099,6 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                                 publish_date: publishDate,
                                 package_type: packageType,
                                 play_order: playOrder,
-                                storage_id: storageId,
                                 slug,
                                 description,
                                 short_description: shortDescription,
@@ -10146,7 +10115,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                             defaultPlaylistId = String(pinned.id || defaultPlaylistId);
                         }
 
-                        const nextId = String(data?.playlist?.id || storageId || previousId).trim();
+                        const nextId = String(data?.playlist?.id || playlistId).trim();
                         selectedPlaylistId = nextId;
                         const url = new URL(window.location.href);
                         url.searchParams.set('playlist', nextId);
@@ -10168,7 +10137,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
 
                         syncPlaylistSettingsPanel(selectedPlaylistId);
                         if (!silent && playlistSettingsStatus) {
-                            playlistSettingsStatus.textContent = migrating ? 'Migrated.' : 'Saved.';
+                            playlistSettingsStatus.textContent = 'Saved.';
                         }
                         renderPlaylistPoolList();
                         return true;

@@ -2,13 +2,14 @@
 
 ## Resume point
 
-**Branding preview focus** — Content chrome sample is now early in the live preview; the sticky preview scrolls. Site-update to **build 465**, open Branding → Content chrome, tweak radius — preview should scroll to the labelled Content chrome sample.
+**Content Branding layout** — Buttons/Playlist/Panels/Typography: every control row is `Label:` + control on one line. Reload Branding.
 
 ### Also pending
 
 - Favicon/PWA from Branding; Spandexual Visual pool confirm
 - Timed Lyrics/Notes; legacy audit
 - Future: mediaplayer skins add-on
+- Checkpoint/publish for branding preview + chrome + subnav + readability split
 
 ### Active fleet
 

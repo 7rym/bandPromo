@@ -131,27 +131,36 @@ function bandpromo_brand_default_effects_tokens(): array
     return [
         // Percent 0–100 → --shell-scrim-strength (shell still/living overlay only).
         'backdrop_dim' => '72',
-        // Percent 0–100 → --panel-scrim-strength (content panel fill). Separate so dim is not stacked twice.
-        'panel_dim' => '72',
-        // Pixels 0–24 for glass panels (playlist rows, lyrics, pages, gallery, login).
-        'panel_blur' => '5',
+        // Player transport glass (#mediaplayer).
+        'player_panel_dim' => '72',
+        'player_panel_blur' => '5',
+        // Content / login panels (#content-container).
+        'content_panel_dim' => '72',
+        'content_panel_blur' => '5',
+        // dense | compact | normal | comfortable | spacious → panel padding/gap
+        'content_panel_density' => 'normal',
+        // square | shaved (pill migrates to shaved on normalize)
+        'content_panel_corners' => 'shaved',
+        // none | thin | normal | fat
+        'content_panel_border' => 'none',
     ];
 }
 
 /**
  * Content-container chrome (tabs / content buttons). Not applied to #mediaplayer.
  *
- * @return array{style: string, radius_percent: string, border_width: string, density: string}
+ * @return array{style: string, corners: string, border: string, density: string}
  */
 function bandpromo_brand_default_content_tokens(): array
 {
     return [
-        // outline | filled | soft
+        // outline | soft | filled (UI: Outline | Soft fill | Solid)
         'style' => 'outline',
-        // 0–50 → border-radius percentage (50% ≈ pill on typical control height).
-        'radius_percent' => '50',
-        'border_width' => '2',
-        // minimal | compact | normal
+        // square | shaved | pill
+        'corners' => 'pill',
+        // thin | normal | fat
+        'border' => 'normal',
+        // dense | compact | normal | comfortable | spacious
         'density' => 'normal',
     ];
 }
@@ -159,6 +168,9 @@ function bandpromo_brand_default_content_tokens(): array
 function bandpromo_brand_normalize_content_style(mixed $value): string
 {
     $style = strtolower(trim((string) $value));
+    if ($style === 'solid') {
+        return 'filled';
+    }
     if (in_array($style, ['outline', 'filled', 'soft'], true)) {
         return $style;
     }
@@ -166,10 +178,57 @@ function bandpromo_brand_normalize_content_style(mixed $value): string
     return 'outline';
 }
 
+function bandpromo_brand_normalize_content_corners(mixed $value, mixed $legacyRadius = null): string
+{
+    $corners = strtolower(trim((string) $value));
+    if (in_array($corners, ['square', 'shaved', 'pill'], true)) {
+        return $corners;
+    }
+
+    if ($legacyRadius !== null && $legacyRadius !== '' && is_numeric($legacyRadius)) {
+        $radius = (int) round((float) $legacyRadius);
+        if ($radius <= 8) {
+            return 'square';
+        }
+        if ($radius <= 30) {
+            return 'shaved';
+        }
+
+        return 'pill';
+    }
+
+    return 'pill';
+}
+
+function bandpromo_brand_normalize_content_border(mixed $value, mixed $legacyWidth = null): string
+{
+    $border = strtolower(trim((string) $value));
+    if (in_array($border, ['thin', 'normal', 'fat'], true)) {
+        return $border;
+    }
+
+    if ($legacyWidth !== null && $legacyWidth !== '' && is_numeric($legacyWidth)) {
+        $width = (int) round((float) $legacyWidth);
+        if ($width <= 1) {
+            return 'thin';
+        }
+        if ($width >= 3) {
+            return 'fat';
+        }
+
+        return 'normal';
+    }
+
+    return 'normal';
+}
+
 function bandpromo_brand_normalize_content_density(mixed $value): string
 {
     $density = strtolower(trim((string) $value));
-    if (in_array($density, ['minimal', 'compact', 'normal'], true)) {
+    if ($density === 'minimal') {
+        return 'dense';
+    }
+    if (in_array($density, ['dense', 'compact', 'normal', 'comfortable', 'spacious'], true)) {
         return $density;
     }
 
@@ -177,25 +236,292 @@ function bandpromo_brand_normalize_content_density(mixed $value): string
 }
 
 /**
- * Density → padding / min-height / gap (operators never edit raw px).
+ * Corners preset → border-radius in px (pill uses a large value so it always caps).
+ */
+function bandpromo_brand_content_corners_radius_px(string $corners): int
+{
+    $corners = bandpromo_brand_normalize_content_corners($corners);
+    if ($corners === 'square') {
+        return 0;
+    }
+    if ($corners === 'shaved') {
+        // Small fixed radius — readable soft corners without looking pill-like.
+        return 6;
+    }
+
+    return 999;
+}
+
+/**
+ * Panel corners → square | shaved only (Pill is Buttons-only; legacy pill → shaved).
+ */
+function bandpromo_brand_normalize_panel_corners(mixed $value): string
+{
+    $corners = strtolower(trim((string) $value));
+    if ($corners === 'square') {
+        return 'square';
+    }
+    if ($corners === 'shaved' || $corners === 'pill') {
+        return 'shaved';
+    }
+
+    return 'shaved';
+}
+
+/**
+ * Panel corners → border-radius in px. Shaved stays 10px (legacy page-panel look).
+ */
+function bandpromo_brand_panel_corners_radius_px(string $corners): int
+{
+    $corners = bandpromo_brand_normalize_panel_corners($corners);
+    if ($corners === 'square') {
+        return 0;
+    }
+
+    return 10;
+}
+
+/**
+ * Border preset → px thickness.
+ */
+function bandpromo_brand_content_border_width_px(string $border): int
+{
+    $border = bandpromo_brand_normalize_content_border($border);
+    if ($border === 'thin') {
+        return 1;
+    }
+    if ($border === 'fat') {
+        return 3;
+    }
+
+    return 2;
+}
+
+/**
+ * Panel border preset including none.
+ */
+function bandpromo_brand_normalize_panel_border(mixed $value): string
+{
+    $border = strtolower(trim((string) $value));
+    if (in_array($border, ['none', 'thin', 'normal', 'fat'], true)) {
+        return $border;
+    }
+
+    return 'none';
+}
+
+/**
+ * Panel border preset → px thickness (none = 0).
+ */
+function bandpromo_brand_panel_border_width_px(string $border): int
+{
+    $border = bandpromo_brand_normalize_panel_border($border);
+    if ($border === 'none') {
+        return 0;
+    }
+    if ($border === 'thin') {
+        return 1;
+    }
+    if ($border === 'fat') {
+        return 3;
+    }
+
+    return 2;
+}
+
+/**
+ * Shared density scale (Dense→Spacious): 1 / 1.1 / 1.2 / 1.3 / 1.4.
+ * Used for typography line-height and button chrome padding scale.
+ */
+function bandpromo_brand_density_scale(string $density): float
+{
+    $density = bandpromo_brand_normalize_content_density($density);
+    if ($density === 'dense') {
+        return 1.0;
+    }
+    if ($density === 'compact') {
+        return 1.1;
+    }
+    if ($density === 'comfortable') {
+        return 1.3;
+    }
+    if ($density === 'spacious') {
+        return 1.4;
+    }
+
+    return 1.2;
+}
+
+/**
+ * Density → padding / min-height / gap on content controls only (not the page shell).
+ * Uniform padding Dense→Spacious: 2px → 8px (same five steps as Typography).
  *
  * @return array{pad_y: int, pad_x: int, min_height: int, gap: int}
  */
 function bandpromo_brand_content_density_metrics(string $density): array
 {
-    $density = bandpromo_brand_normalize_content_density($density);
-    if ($density === 'minimal') {
-        return ['pad_y' => 4, 'pad_x' => 8, 'min_height' => 32, 'gap' => 4];
-    }
-    if ($density === 'compact') {
-        return ['pad_y' => 6, 'pad_x' => 10, 'min_height' => 36, 'gap' => 5];
-    }
+    $scale = bandpromo_brand_density_scale($density);
+    // Dense (1.0) = 2px all sides; Spacious (1.4) = 8px all sides.
+    $pad = (int) max(2, min(8, round(2 + ($scale - 1.0) * 15)));
 
-    return ['pad_y' => 8, 'pad_x' => 14, 'min_height' => 40, 'gap' => 6];
+    return [
+        'pad_y' => $pad,
+        'pad_x' => $pad,
+        'min_height' => 20 + (2 * $pad),
+        'gap' => $pad,
+    ];
 }
 
 /**
- * CSS vars for #content-container chrome (style + radius% + border + density).
+ * Density → inner padding / row gap on content panel glass.
+ *
+ * @return array{pad_y: int, pad_x: int, gap: int}
+ */
+function bandpromo_brand_panel_density_metrics(string $density): array
+{
+    $density = bandpromo_brand_normalize_content_density($density);
+    if ($density === 'dense') {
+        return ['pad_y' => 6, 'pad_x' => 8, 'gap' => 4];
+    }
+    if ($density === 'compact') {
+        return ['pad_y' => 8, 'pad_x' => 10, 'gap' => 6];
+    }
+    if ($density === 'comfortable') {
+        return ['pad_y' => 16, 'pad_x' => 20, 'gap' => 12];
+    }
+    if ($density === 'spacious') {
+        return ['pad_y' => 22, 'pad_x' => 28, 'gap' => 16];
+    }
+
+    return ['pad_y' => 12, 'pad_x' => 14, 'gap' => 8];
+}
+
+/**
+ * Density → prose line-height and block spacing (platform still owns font sizes).
+ * Line-height uses the shared 1 / 1.1 / 1.2 / 1.3 / 1.4 scale.
+ *
+ * @return array{line_height: string, block_gap: int}
+ */
+function bandpromo_brand_typography_density_metrics(string $density): array
+{
+    $density = bandpromo_brand_normalize_content_density($density);
+    $scale = bandpromo_brand_density_scale($density);
+    if ($scale === 1.0) {
+        $lineHeight = '1';
+    } else {
+        $lineHeight = sprintf('%.1f', $scale);
+    }
+    $blockGap = 6;
+    if ($density === 'dense') {
+        $blockGap = 2;
+    } elseif ($density === 'compact') {
+        $blockGap = 4;
+    } elseif ($density === 'comfortable') {
+        $blockGap = 10;
+    } elseif ($density === 'spacious') {
+        $blockGap = 14;
+    }
+
+    return [
+        'line_height' => $lineHeight,
+        'block_gap' => $blockGap,
+    ];
+}
+
+/**
+ * Palette role keys operators may assign to typography / button chrome.
+ *
+ * @return list<string>
+ */
+function bandpromo_brand_role_palette_keys(): array
+{
+    return ['primary', 'secondary', 'text', 'text_muted', 'surface_mid'];
+}
+
+/**
+ * @return array{
+ *   heading: string,
+ *   heading_sub: string,
+ *   body: string,
+ *   muted: string,
+ *   button_outline: string,
+ *   button_fill: string,
+ *   button_active: string,
+ *   panel_border: string,
+ *   blockquote: string
+ * }
+ */
+function bandpromo_brand_default_role_tokens(): array
+{
+    return [
+        'heading' => 'primary',
+        'heading_sub' => 'secondary',
+        'body' => 'text',
+        'muted' => 'text_muted',
+        'button_outline' => 'primary',
+        'button_fill' => 'primary',
+        'button_active' => 'primary',
+        'panel_border' => 'primary',
+        'blockquote' => 'primary',
+    ];
+}
+
+function bandpromo_brand_normalize_role_palette_key(mixed $value, string $fallback): string
+{
+    $key = strtolower(trim((string) $value));
+    if (in_array($key, bandpromo_brand_role_palette_keys(), true)) {
+        return $key;
+    }
+
+    return $fallback;
+}
+
+/**
+ * Map a palette role key to a CSS colour variable reference.
+ */
+function bandpromo_brand_role_palette_css_ref(string $key): string
+{
+    $key = bandpromo_brand_normalize_role_palette_key($key, 'primary');
+    if ($key === 'secondary') {
+        return 'var(--secondary-color)';
+    }
+    if ($key === 'text') {
+        return 'var(--text-color)';
+    }
+    if ($key === 'text_muted') {
+        return 'var(--color-text-muted)';
+    }
+    if ($key === 'surface_mid') {
+        return 'var(--color-surface-mid)';
+    }
+
+    return 'var(--primary-color)';
+}
+
+/**
+ * @param array<string, mixed> $document
+ * @return array<string, string>
+ */
+function bandpromo_brand_roles_css_variables(array $document): array
+{
+    $defaults = bandpromo_brand_default_role_tokens();
+    $roles = [];
+    $tokens = is_array($document['tokens'] ?? null) ? $document['tokens'] : [];
+    if (is_array($tokens['roles'] ?? null)) {
+        $roles = $tokens['roles'];
+    }
+
+    $out = [];
+    foreach ($defaults as $role => $fallback) {
+        $key = bandpromo_brand_normalize_role_palette_key($roles[$role] ?? $fallback, $fallback);
+        $out['--role-' . str_replace('_', '-', $role)] = bandpromo_brand_role_palette_css_ref($key);
+    }
+
+    return $out;
+}
+
+/**
+ * CSS vars for #content-container chrome (named presets → concrete metrics).
  *
  * @return array<string, string>
  */
@@ -209,53 +535,78 @@ function bandpromo_brand_content_css_variables(array $document): array
     }
 
     $style = bandpromo_brand_normalize_content_style($content['style'] ?? $defaults['style']);
-    $radius = (int) bandpromo_brand_normalize_int_token(
-        $content['radius_percent'] ?? $defaults['radius_percent'],
-        0,
-        50,
-        (int) $defaults['radius_percent']
+    $corners = bandpromo_brand_normalize_content_corners(
+        $content['corners'] ?? '',
+        $content['radius_percent'] ?? null
     );
-    $borderWidth = (int) bandpromo_brand_normalize_int_token(
-        $content['border_width'] ?? $defaults['border_width'],
-        1,
-        4,
-        (int) $defaults['border_width']
+    $border = bandpromo_brand_normalize_content_border(
+        $content['border'] ?? '',
+        $content['border_width'] ?? null
     );
     $density = bandpromo_brand_normalize_content_density($content['density'] ?? $defaults['density']);
+    $radius = bandpromo_brand_content_corners_radius_px($corners);
+    $borderWidth = bandpromo_brand_content_border_width_px($border);
     $metrics = bandpromo_brand_content_density_metrics($density);
 
+    $outline = 'var(--role-button-outline)';
+    $fill = 'var(--role-button-fill)';
+    $active = 'var(--role-button-active)';
+
     if ($style === 'filled') {
-        $bg = 'var(--primary-color)';
-        $border = 'var(--primary-color)';
+        $bg = $fill;
+        $borderColor = $fill;
         $fg = '#000000';
-        $bgHover = 'color-mix(in srgb, var(--primary-color) 88%, white)';
+        $bgHover = 'color-mix(in srgb, ' . $active . ' 88%, white)';
         $fgHover = '#000000';
     } elseif ($style === 'soft') {
-        $bg = 'var(--primary-a15)';
-        $border = 'var(--primary-a30)';
-        $fg = 'var(--color-text-muted)';
-        $bgHover = 'var(--primary-a30)';
-        $fgHover = 'var(--text-color)';
+        // Soft fill = fixed 50% mix of the fill role (not a separate opacity control).
+        $bg = 'color-mix(in srgb, ' . $fill . ' 50%, transparent)';
+        $borderColor = $outline;
+        $fg = 'var(--role-muted)';
+        $bgHover = 'color-mix(in srgb, ' . $active . ' 72%, transparent)';
+        $fgHover = 'var(--role-body)';
     } else {
         $bg = 'transparent';
-        $border = 'var(--primary-color)';
-        $fg = 'var(--primary-color)';
-        $bgHover = 'var(--primary-color)';
+        $borderColor = $outline;
+        $fg = $outline;
+        $bgHover = $active;
         $fgHover = '#000000';
     }
 
     return [
-        '--content-control-radius' => $radius . '%',
+        '--content-control-radius' => $radius . 'px',
         '--content-control-border-width' => $borderWidth . 'px',
         '--content-control-pad-y' => $metrics['pad_y'] . 'px',
         '--content-control-pad-x' => $metrics['pad_x'] . 'px',
         '--content-control-min-height' => $metrics['min_height'] . 'px',
         '--content-control-gap' => $metrics['gap'] . 'px',
         '--content-control-bg' => $bg,
-        '--content-control-border' => $border,
+        '--content-control-border' => $borderColor,
         '--content-control-fg' => $fg,
         '--content-control-bg-hover' => $bgHover,
         '--content-control-fg-hover' => $fgHover,
+        '--content-control-bg-active' => $active,
+        '--content-control-border-active' => $active,
+        '--content-control-fg-active' => '#000000',
+        '--content-control-glow-active' => 'color-mix(in srgb, ' . $active . ' 55%, transparent)',
+    ];
+}
+
+/**
+ * CSS vars for typography density (line-height / block gap only).
+ *
+ * @return array<string, string>
+ */
+function bandpromo_brand_typography_css_variables(array $document): array
+{
+    $density = bandpromo_brand_normalize_content_density(
+        bandpromo_brand_token_value($document, 'typography.density')
+    );
+    $metrics = bandpromo_brand_typography_density_metrics($density);
+
+    return [
+        '--content-type-line-height' => $metrics['line_height'],
+        '--content-type-block-gap' => $metrics['block_gap'] . 'px',
     ];
 }
 
@@ -305,28 +656,89 @@ function bandpromo_brand_effects_css_variables(array $document): array
         100,
         72
     );
-    // Older brands only had backdrop_dim (applied to shell + panels). Keep panel fill in sync until set.
-    $panelRaw = bandpromo_brand_token_value($document, 'effects.panel_dim');
-    if (trim((string) $panelRaw) === '') {
-        $panelRaw = $dim;
+
+    $legacyPanelRaw = bandpromo_brand_token_value($document, 'effects.panel_dim');
+    if (trim((string) $legacyPanelRaw) === '') {
+        $legacyPanelRaw = $dim;
     }
-    $panelDim = (int) bandpromo_brand_normalize_int_token($panelRaw, 0, 100, $dim);
-    $blur = (int) bandpromo_brand_normalize_int_token(
+    $legacyPanelDim = (int) bandpromo_brand_normalize_int_token($legacyPanelRaw, 0, 100, $dim);
+    $legacyBlur = (int) bandpromo_brand_normalize_int_token(
         bandpromo_brand_token_value($document, 'effects.panel_blur'),
         0,
         24,
         5
     );
 
+    $playerDimRaw = bandpromo_brand_token_value($document, 'effects.player_panel_dim');
+    if (trim((string) $playerDimRaw) === '') {
+        $playerDimRaw = $legacyPanelDim;
+    }
+    $playerDim = (int) bandpromo_brand_normalize_int_token($playerDimRaw, 0, 100, $legacyPanelDim);
+
+    $playerBlurRaw = bandpromo_brand_token_value($document, 'effects.player_panel_blur');
+    if (trim((string) $playerBlurRaw) === '') {
+        $playerBlurRaw = $legacyBlur;
+    }
+    $playerBlur = (int) bandpromo_brand_normalize_int_token($playerBlurRaw, 0, 24, $legacyBlur);
+
+    $contentDimRaw = bandpromo_brand_token_value($document, 'effects.content_panel_dim');
+    if (trim((string) $contentDimRaw) === '') {
+        $contentDimRaw = $legacyPanelDim;
+    }
+    $contentDim = (int) bandpromo_brand_normalize_int_token($contentDimRaw, 0, 100, $legacyPanelDim);
+
+    $contentBlurRaw = bandpromo_brand_token_value($document, 'effects.content_panel_blur');
+    if (trim((string) $contentBlurRaw) === '') {
+        $contentBlurRaw = $legacyBlur;
+    }
+    $contentBlur = (int) bandpromo_brand_normalize_int_token($contentBlurRaw, 0, 24, $legacyBlur);
+
+    $playerFill = sprintf(
+        'color-mix(in srgb, var(--color-surface-mid) %d%%, transparent)',
+        $playerDim
+    );
+    $contentFill = sprintf(
+        'color-mix(in srgb, var(--color-surface-mid) %d%%, transparent)',
+        $contentDim
+    );
+
+    $panelDensity = bandpromo_brand_normalize_content_density(
+        bandpromo_brand_token_value($document, 'effects.content_panel_density')
+    );
+    $panelMetrics = bandpromo_brand_panel_density_metrics($panelDensity);
+    $panelCornersRaw = bandpromo_brand_token_value($document, 'effects.content_panel_corners');
+    if (trim((string) $panelCornersRaw) === '') {
+        $panelCornersRaw = 'shaved';
+    }
+    $panelCorners = bandpromo_brand_normalize_panel_corners($panelCornersRaw);
+    $panelBorderRaw = bandpromo_brand_token_value($document, 'effects.content_panel_border');
+    if (trim((string) $panelBorderRaw) === '') {
+        $panelBorderRaw = 'none';
+    }
+    $panelBorder = bandpromo_brand_normalize_panel_border($panelBorderRaw);
+    $panelRadius = bandpromo_brand_panel_corners_radius_px($panelCorners);
+    $panelBorderWidth = bandpromo_brand_panel_border_width_px($panelBorder);
+
     return [
         '--shell-scrim-strength' => number_format($dim / 100, 2, '.', ''),
-        '--panel-scrim-strength' => number_format($panelDim / 100, 2, '.', ''),
-        '--panel-blur' => $blur . 'px',
-        // Panels colour (surface_mid) at Panel dim strength — not black glass.
-        '--panel-fill' => sprintf(
-            'color-mix(in srgb, var(--color-surface-mid) %d%%, transparent)',
-            $panelDim
-        ),
+        '--player-panel-scrim-strength' => number_format($playerDim / 100, 2, '.', ''),
+        '--player-panel-blur' => $playerBlur . 'px',
+        '--player-panel-fill' => $playerFill,
+        '--content-panel-scrim-strength' => number_format($contentDim / 100, 2, '.', ''),
+        '--content-panel-blur' => $contentBlur . 'px',
+        '--content-panel-fill' => $contentFill,
+        '--content-panel-pad-y' => $panelMetrics['pad_y'] . 'px',
+        '--content-panel-pad-x' => $panelMetrics['pad_x'] . 'px',
+        '--content-panel-gap' => $panelMetrics['gap'] . 'px',
+        '--content-panel-radius' => $panelRadius . 'px',
+        '--content-panel-border-width' => $panelBorderWidth . 'px',
+        '--content-panel-border' => $panelBorderWidth > 0
+            ? 'var(--role-panel-border)'
+            : 'transparent',
+        // Legacy aliases → content panel (older stylesheets / third-party leftovers).
+        '--panel-scrim-strength' => number_format($contentDim / 100, 2, '.', ''),
+        '--panel-blur' => $contentBlur . 'px',
+        '--panel-fill' => $contentFill,
     ];
 }
 
@@ -375,12 +787,15 @@ function bandpromo_brand_default_document(): array
             'color' => bandpromo_brand_default_color_tokens(),
             'effects' => bandpromo_brand_default_effects_tokens(),
             'content' => bandpromo_brand_default_content_tokens(),
+            'roles' => bandpromo_brand_default_role_tokens(),
             'layout' => [
                 'card_size_base' => '400px',
             ],
             'typography' => [
                 'font_family_base' => "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif",
                 'font_family_heading' => '',
+                // dense | compact | normal | comfortable | spacious
+                'density' => 'normal',
             ],
         ],
         // Paths are delivery URLs only (filled from asset_ids). No /media/special seeds.
@@ -543,9 +958,11 @@ function bandpromo_brand_normalize_tokens(array $tokens): array
     $content = is_array($tokens['content'] ?? null) ? $tokens['content'] : [];
     $layout = is_array($tokens['layout'] ?? null) ? $tokens['layout'] : [];
     $typography = is_array($tokens['typography'] ?? null) ? $tokens['typography'] : [];
+    $roles = is_array($tokens['roles'] ?? null) ? $tokens['roles'] : [];
     $defaultColor = bandpromo_brand_default_color_tokens();
     $defaultEffects = bandpromo_brand_default_effects_tokens();
     $defaultContent = bandpromo_brand_default_content_tokens();
+    $defaultRoles = bandpromo_brand_default_role_tokens();
 
     $normalizedColor = [];
     foreach ($defaultColor as $key => $fallback) {
@@ -558,36 +975,65 @@ function bandpromo_brand_normalize_tokens(array $tokens): array
         100,
         (int) $defaultEffects['backdrop_dim']
     );
+    // Legacy single panel_dim / panel_blur → seed both player and content when new keys missing.
+    $legacyPanelDim = bandpromo_brand_normalize_int_token(
+        $effects['panel_dim'] ?? $backdropDim,
+        0,
+        100,
+        (int) $backdropDim
+    );
+    $legacyPanelBlur = bandpromo_brand_normalize_int_token(
+        $effects['panel_blur'] ?? $defaultEffects['player_panel_blur'],
+        0,
+        24,
+        (int) $defaultEffects['player_panel_blur']
+    );
     $normalizedEffects = [
         'backdrop_dim' => $backdropDim,
-        // Missing panel_dim → seed from backdrop_dim (legacy single-slider brands).
-        'panel_dim' => bandpromo_brand_normalize_int_token(
-            $effects['panel_dim'] ?? $backdropDim,
+        'player_panel_dim' => bandpromo_brand_normalize_int_token(
+            $effects['player_panel_dim'] ?? $legacyPanelDim,
             0,
             100,
-            (int) $backdropDim
+            (int) $legacyPanelDim
         ),
-        'panel_blur' => bandpromo_brand_normalize_int_token(
-            $effects['panel_blur'] ?? $defaultEffects['panel_blur'],
+        'player_panel_blur' => bandpromo_brand_normalize_int_token(
+            $effects['player_panel_blur'] ?? $legacyPanelBlur,
             0,
             24,
-            (int) $defaultEffects['panel_blur']
+            (int) $legacyPanelBlur
+        ),
+        'content_panel_dim' => bandpromo_brand_normalize_int_token(
+            $effects['content_panel_dim'] ?? $legacyPanelDim,
+            0,
+            100,
+            (int) $legacyPanelDim
+        ),
+        'content_panel_blur' => bandpromo_brand_normalize_int_token(
+            $effects['content_panel_blur'] ?? $legacyPanelBlur,
+            0,
+            24,
+            (int) $legacyPanelBlur
+        ),
+        'content_panel_density' => bandpromo_brand_normalize_content_density(
+            $effects['content_panel_density'] ?? $defaultEffects['content_panel_density']
+        ),
+        'content_panel_corners' => bandpromo_brand_normalize_panel_corners(
+            $effects['content_panel_corners'] ?? $defaultEffects['content_panel_corners']
+        ),
+        'content_panel_border' => bandpromo_brand_normalize_panel_border(
+            $effects['content_panel_border'] ?? $defaultEffects['content_panel_border']
         ),
     ];
 
     $normalizedContent = [
         'style' => bandpromo_brand_normalize_content_style($content['style'] ?? $defaultContent['style']),
-        'radius_percent' => bandpromo_brand_normalize_int_token(
-            $content['radius_percent'] ?? $defaultContent['radius_percent'],
-            0,
-            50,
-            (int) $defaultContent['radius_percent']
+        'corners' => bandpromo_brand_normalize_content_corners(
+            $content['corners'] ?? '',
+            $content['radius_percent'] ?? null
         ),
-        'border_width' => bandpromo_brand_normalize_int_token(
-            $content['border_width'] ?? $defaultContent['border_width'],
-            1,
-            4,
-            (int) $defaultContent['border_width']
+        'border' => bandpromo_brand_normalize_content_border(
+            $content['border'] ?? '',
+            $content['border_width'] ?? null
         ),
         'density' => bandpromo_brand_normalize_content_density($content['density'] ?? $defaultContent['density']),
     ];
@@ -607,17 +1053,30 @@ function bandpromo_brand_normalize_tokens(array $tokens): array
         '',
         true
     );
+    $typeDensity = bandpromo_brand_normalize_content_density(
+        $typography['density'] ?? ($defaults['typography']['density'] ?? 'normal')
+    );
+
+    $normalizedRoles = [];
+    foreach ($defaultRoles as $role => $fallback) {
+        $normalizedRoles[$role] = bandpromo_brand_normalize_role_palette_key(
+            $roles[$role] ?? $fallback,
+            $fallback
+        );
+    }
 
     return [
         'color' => $normalizedColor,
         'effects' => $normalizedEffects,
         'content' => $normalizedContent,
+        'roles' => $normalizedRoles,
         'layout' => [
             'card_size_base' => $cardSize,
         ],
         'typography' => [
             'font_family_base' => $fontBase,
             'font_family_heading' => $fontHeading,
+            'density' => $typeDensity,
         ],
     ];
 }
@@ -1930,7 +2389,15 @@ function bandpromo_brand_css_variables(array $document): array
         $vars[$cssVar] = $value;
     }
 
+    foreach (bandpromo_brand_roles_css_variables($document) as $cssVar => $value) {
+        $vars[$cssVar] = $value;
+    }
+
     foreach (bandpromo_brand_content_css_variables($document) as $cssVar => $value) {
+        $vars[$cssVar] = $value;
+    }
+
+    foreach (bandpromo_brand_typography_css_variables($document) as $cssVar => $value) {
         $vars[$cssVar] = $value;
     }
 
@@ -2093,7 +2560,15 @@ function bandpromo_brand_render_css(string $root): string
         $rules[] = $cssVar . ':' . $value;
     }
 
+    foreach (bandpromo_brand_roles_css_variables($document) as $cssVar => $value) {
+        $rules[] = $cssVar . ':' . $value;
+    }
+
     foreach (bandpromo_brand_content_css_variables($document) as $cssVar => $value) {
+        $rules[] = $cssVar . ':' . $value;
+    }
+
+    foreach (bandpromo_brand_typography_css_variables($document) as $cssVar => $value) {
         $rules[] = $cssVar . ':' . $value;
     }
 

@@ -32,10 +32,8 @@
         return typeof value === 'string' || typeof value === 'number' ? String(value).trim() : '';
     }
 
-    function renderShellPreviewChrome(document) {
+    function renderShellBackdrop(document) {
         const assets = document?.assets && typeof document.assets === 'object' ? document.assets : {};
-        const logo = String(assets.logo || '').trim();
-        const poster = String(assets.poster || '').trim();
         const background = String(assets.background_image || '').trim();
         const backgroundVideo = String(assets.background_video || '').trim();
         const posterAttr = background
@@ -44,16 +42,23 @@
         const backgroundAttribute = background && !backgroundVideo
             ? ` style="background-image:url('${escapeHtml(background)}');"`
             : '';
-        const logoMarkup = logo
-            ? `<img class="theme-preview-shell-logo" src="${escapeHtml(logo)}" alt="" loading="lazy" onerror="this.style.opacity=0.25">`
-            : '<span class="theme-preview-muted">No logo assigned</span>';
-        const coverMarkup = poster
-            ? `<img class="theme-preview-cover-art" src="${escapeHtml(poster)}" alt="" loading="lazy" onerror="this.style.opacity=0.35">`
-            : '<span class="theme-preview-cover-label">Cover art</span>';
         const livingVideoMarkup = backgroundVideo
             ? `<video class="theme-preview-shell-video" src="${escapeHtml(backgroundVideo)}"${posterAttr} muted loop playsinline autoplay preload="auto" aria-hidden="true"></video>`
             : '';
+        const livingClass = backgroundVideo ? ' theme-preview-shell-chrome--living' : '';
 
+        return {
+            openTag: `<div class="theme-preview-shell-chrome${livingClass}"${backgroundAttribute}>`,
+            videoMarkup: livingVideoMarkup,
+        };
+    }
+
+    function renderPlayerPreviewChrome(document) {
+        const assets = document?.assets && typeof document.assets === 'object' ? document.assets : {};
+        const poster = String(assets.poster || '').trim();
+        const coverMarkup = poster
+            ? `<img class="theme-preview-cover-art" src="${escapeHtml(poster)}" alt="" loading="lazy" onerror="this.style.opacity=0.35">`
+            : '<span class="theme-preview-cover-label">Cover art</span>';
         const beggarsBanquet = document?.player?.beggars_banquet !== false;
         const coverReflection = document?.player?.cover_reflection !== false;
         const beggarsMarkup = beggarsBanquet
@@ -64,41 +69,363 @@
         const reflectionMarkup = coverReflection
             ? `<div class="theme-preview-cover-reflection" aria-hidden="true">${coverMarkup}</div>`
             : '';
+        const backdrop = renderShellBackdrop(document);
 
         return `
-            <div class="theme-preview-shell-chrome${backgroundVideo ? ' theme-preview-shell-chrome--living' : ''}"${backgroundAttribute}>
-                ${livingVideoMarkup}
-                <div class="theme-preview-player-chrome" aria-hidden="true">
-                    <div class="theme-preview-scene">
-                        <div class="theme-preview-cover theme-preview-cover--player">
-                            ${coverMarkup}
+            <div class="theme-preview-shell theme-preview-shell--player">
+                ${backdrop.openTag}
+                    ${backdrop.videoMarkup}
+                    <div class="theme-preview-player-chrome" aria-hidden="true">
+                        <div class="theme-preview-scene">
+                            <div class="theme-preview-cover theme-preview-cover--player">
+                                ${coverMarkup}
+                            </div>
+                            ${reflectionMarkup}
                         </div>
-                        ${reflectionMarkup}
+                        <div class="theme-preview-player-transport">
+                            <div class="theme-preview-track-info">
+                                <span class="theme-preview-artist">Artist name</span>
+                                <span class="theme-preview-track-title">Track title</span>
+                            </div>
+                            <div class="theme-preview-player-controls">
+                                <button type="button" class="theme-preview-player-btn" tabindex="-1">&#9664; Previous</button>
+                                <button type="button" class="theme-preview-player-btn theme-preview-player-btn--play" tabindex="-1">Play</button>
+                                <button type="button" class="theme-preview-player-btn" tabindex="-1">Next &#9654;</button>
+                            </div>
+                            <div class="theme-preview-scrubber">
+                                <span class="theme-preview-scrubber-time">0:42</span>
+                                <span class="theme-preview-scrubber-track" aria-hidden="true">
+                                    <span class="theme-preview-scrubber-fill"></span>
+                                    <span class="theme-preview-scrubber-thumb"></span>
+                                </span>
+                                <span class="theme-preview-scrubber-time">3:24</span>
+                            </div>
+                        </div>
+                        ${beggarsMarkup}
                     </div>
-                    <div class="theme-preview-player-transport">
-                        <div class="theme-preview-track-info">
-                            <span class="theme-preview-artist">Artist name</span>
-                            <span class="theme-preview-track-title">Track title</span>
-                        </div>
-                        <div class="theme-preview-player-controls">
-                            <button type="button" class="theme-preview-player-btn" tabindex="-1">&#9664; Previous</button>
-                            <button type="button" class="theme-preview-player-btn theme-preview-player-btn--play" tabindex="-1">Play</button>
-                            <button type="button" class="theme-preview-player-btn" tabindex="-1">Next &#9654;</button>
-                        </div>
-                        <div class="theme-preview-scrubber">
-                            <span class="theme-preview-scrubber-time">0:42</span>
-                            <span class="theme-preview-scrubber-track" aria-hidden="true">
-                                <span class="theme-preview-scrubber-fill"></span>
-                                <span class="theme-preview-scrubber-thumb"></span>
-                            </span>
-                            <span class="theme-preview-scrubber-time">3:24</span>
-                        </div>
-                    </div>
-                    ${beggarsMarkup}
                 </div>
-                <div class="theme-preview-shell-header">
-                    ${logoMarkup}
-                </div>`;
+            </div>`;
+    }
+
+    function renderContentPreviewChrome(document) {
+        const assets = document?.assets && typeof document.assets === 'object' ? document.assets : {};
+        const logo = String(assets.logo || '').trim();
+        const logoMarkup = logo
+            ? `<img class="theme-preview-shell-logo" src="${escapeHtml(logo)}" alt="" loading="lazy" onerror="this.style.opacity=0.25">`
+            : '<span class="theme-preview-muted">No logo assigned</span>';
+        const backdrop = renderShellBackdrop(document);
+
+        return `
+            <div class="theme-preview-shell theme-preview-shell--content">
+                ${backdrop.openTag}
+                    ${backdrop.videoMarkup}
+                    <div class="theme-preview-shell-header">
+                        ${logoMarkup}
+                    </div>
+                    <section class="theme-preview-section theme-preview-section--content-chrome" data-preview-focus="content-chrome" aria-label="Buttons sample">
+                        <p class="theme-preview-section-label">Buttons</p>
+                        <div class="theme-preview-content-toggle" role="presentation">
+                            <button type="button" class="theme-preview-nav-btn" tabindex="-1">Idle</button>
+                            <button type="button" class="theme-preview-nav-btn theme-preview-nav-btn--hover" tabindex="-1">Hover</button>
+                            <button type="button" class="theme-preview-nav-btn theme-preview-nav-btn--active" tabindex="-1">Active</button>
+                        </div>
+                    </section>
+                    ${renderPlaylistSelectorPreview(document)}
+                    <section class="theme-preview-section theme-preview-section--panel-sample" data-preview-focus="content-panels" aria-label="Panel sample">
+                        <p class="theme-preview-section-label">Panels</p>
+                        <div class="page-richtext theme-preview-panel page-box-panel">
+                            <h1>Heading 1</h1>
+                            <h2>Heading 2</h2>
+                            <h3>Heading 3</h3>
+                            <h4>Heading 4</h4>
+                            <p>Paragraph with <strong>bold</strong> and <em>italic</em> emphasis, plus inline <code>code</code>.</p>
+                            <p class="page-text-small">Small — secondary notes and fine print.</p>
+                            <pre class="page-text-code">Code — monospace sample text</pre>
+                            <blockquote>
+                                <p>Cited text — a blockquote for call-outs and quotes.</p>
+                            </blockquote>
+                            <ul>
+                                <li>Unordered list item</li>
+                                <li>Another bullet</li>
+                            </ul>
+                            <ol>
+                                <li>Ordered list item</li>
+                                <li>Second step</li>
+                            </ol>
+                            <hr>
+                            <p class="theme-preview-panel-links">
+                                <a href="#" class="theme-preview-link" onclick="return false;">Default link</a>
+                                <a href="#" class="theme-preview-link theme-preview-link--hover" onclick="return false;">Hover state</a>
+                                <a href="#" class="theme-preview-link theme-preview-link--visited" onclick="return false;">Visited state</a>
+                            </p>
+                        </div>
+                    </section>
+                </div>
+            </div>`;
+    }
+
+    function normalizePreviewMode(mode) {
+        return String(mode || '').trim().toLowerCase() === 'content' ? 'content' : 'player';
+    }
+
+    function renderMarkup(document, mode) {
+        if (!document) {
+            return '<p class="brand-editor-empty">No brand selected.</p>';
+        }
+        return normalizePreviewMode(mode) === 'content'
+            ? renderContentPreviewChrome(document)
+            : renderPlayerPreviewChrome(document);
+    }
+
+    function render(container, document, options = {}) {
+        if (!(container instanceof HTMLElement)) {
+            return;
+        }
+        const styleId = String(options.styleId || 'bandpromo-shared-brand-preview-style');
+        const selector = String(options.selector || `#${container.id} .theme-preview-shell-chrome`);
+        const previewMode = normalizePreviewMode(options.mode);
+        let style = document?.ownerDocument?.getElementById(styleId)
+            || window.document.getElementById(styleId);
+        if (!style) {
+            style = window.document.createElement('style');
+            style.id = styleId;
+            window.document.head.appendChild(style);
+        }
+
+        if (!document) {
+            style.textContent = '';
+            container.innerHTML = renderMarkup(null);
+            return;
+        }
+
+        const rules = [];
+        Object.entries(CSS_VAR_MAP).forEach(([tokenPath, cssVariable]) => {
+            const value = tokenValue(document, tokenPath);
+            if (value) {
+                rules.push(`${cssVariable}:${value}`);
+            }
+        });
+        const baseFont = tokenValue(document, 'typography.font_family_base');
+        const headingFont = tokenValue(document, 'typography.font_family_heading');
+        if (baseFont) {
+            rules.push(`--theme-body-font:${baseFont}`);
+        }
+        if (headingFont) {
+            rules.push(`--theme-heading-font:${headingFont}`);
+        } else if (baseFont) {
+            rules.push(`--theme-heading-font:${baseFont}`);
+        }
+        const dimRaw = tokenValue(document, 'effects.backdrop_dim');
+        const legacyPanelDimRaw = tokenValue(document, 'effects.panel_dim');
+        const legacyBlurRaw = tokenValue(document, 'effects.panel_blur');
+        const playerDimRaw = tokenValue(document, 'effects.player_panel_dim') || legacyPanelDimRaw;
+        const playerBlurRaw = tokenValue(document, 'effects.player_panel_blur') || legacyBlurRaw;
+        const contentDimRaw = tokenValue(document, 'effects.content_panel_dim') || legacyPanelDimRaw;
+        const contentBlurRaw = tokenValue(document, 'effects.content_panel_blur') || legacyBlurRaw;
+        const dimParsed = parseInt(String(dimRaw), 10);
+        const dim = Number.isFinite(dimParsed) ? Math.max(0, Math.min(100, dimParsed)) : 72;
+        const playerPanelParsed = parseInt(String(playerDimRaw || dim), 10);
+        const playerPanelDim = Number.isFinite(playerPanelParsed)
+            ? Math.max(0, Math.min(100, playerPanelParsed))
+            : dim;
+        const contentPanelParsed = parseInt(String(contentDimRaw || dim), 10);
+        const contentPanelDim = Number.isFinite(contentPanelParsed)
+            ? Math.max(0, Math.min(100, contentPanelParsed))
+            : dim;
+        const playerBlurParsed = parseInt(String(playerBlurRaw), 10);
+        const playerBlur = Number.isFinite(playerBlurParsed) ? Math.max(0, Math.min(24, playerBlurParsed)) : 5;
+        const contentBlurParsed = parseInt(String(contentBlurRaw), 10);
+        const contentBlur = Number.isFinite(contentBlurParsed) ? Math.max(0, Math.min(24, contentBlurParsed)) : 5;
+        rules.push(`--shell-scrim-strength:${(dim / 100).toFixed(2)}`);
+        rules.push(`--player-panel-scrim-strength:${(playerPanelDim / 100).toFixed(2)}`);
+        rules.push(`--player-panel-blur:${playerBlur}px`);
+        rules.push(`--player-panel-fill:color-mix(in srgb, var(--color-surface-mid) ${playerPanelDim}%, transparent)`);
+        rules.push(`--content-panel-scrim-strength:${(contentPanelDim / 100).toFixed(2)}`);
+        rules.push(`--content-panel-blur:${contentBlur}px`);
+        rules.push(`--content-panel-fill:color-mix(in srgb, var(--color-surface-mid) ${contentPanelDim}%, transparent)`);
+        rules.push(`--panel-scrim-strength:${(contentPanelDim / 100).toFixed(2)}`);
+        rules.push(`--panel-blur:${contentBlur}px`);
+        rules.push(`--panel-fill:color-mix(in srgb, var(--color-surface-mid) ${contentPanelDim}%, transparent)`);
+        rules.push('--primary-a15:color-mix(in srgb, var(--primary-color) 15%, transparent)');
+        rules.push('--primary-a20:color-mix(in srgb, var(--primary-color) 20%, transparent)');
+        rules.push('--primary-a30:color-mix(in srgb, var(--primary-color) 30%, transparent)');
+        rules.push('--primary-a50:color-mix(in srgb, var(--primary-color) 50%, transparent)');
+
+        const ROLE_DEFAULTS = {
+            heading: 'primary',
+            heading_sub: 'secondary',
+            body: 'text',
+            muted: 'text_muted',
+            button_outline: 'primary',
+            button_fill: 'primary',
+            button_active: 'primary',
+            panel_border: 'primary',
+            blockquote: 'primary',
+        };
+        const ROLE_CSS = {
+            primary: 'var(--primary-color)',
+            secondary: 'var(--secondary-color)',
+            text: 'var(--text-color)',
+            text_muted: 'var(--color-text-muted)',
+            surface_mid: 'var(--color-surface-mid)',
+        };
+        function roleCssRef(roleKey, fallback) {
+            let key = String(tokenValue(document, `roles.${roleKey}`) || fallback || 'primary').trim().toLowerCase();
+            if (!ROLE_CSS[key]) {
+                key = fallback || 'primary';
+            }
+            return ROLE_CSS[key] || ROLE_CSS.primary;
+        }
+        Object.keys(ROLE_DEFAULTS).forEach((role) => {
+            const cssName = `--role-${role.replace(/_/g, '-')}`;
+            rules.push(`${cssName}:${roleCssRef(role, ROLE_DEFAULTS[role])}`);
+        });
+
+        const contentStyle = String(tokenValue(document, 'content.style') || 'outline').toLowerCase();
+        let corners = String(tokenValue(document, 'content.corners') || '').trim().toLowerCase();
+        if (!['square', 'shaved', 'pill'].includes(corners)) {
+            const radiusParsed = parseInt(String(tokenValue(document, 'content.radius_percent') || '50'), 10);
+            const radiusLegacy = Number.isFinite(radiusParsed) ? radiusParsed : 50;
+            corners = radiusLegacy <= 8 ? 'square' : (radiusLegacy <= 30 ? 'shaved' : 'pill');
+        }
+        const radius = corners === 'square' ? 0 : (corners === 'shaved' ? 6 : 999);
+        let borderPreset = String(tokenValue(document, 'content.border') || '').trim().toLowerCase();
+        if (!['thin', 'normal', 'fat'].includes(borderPreset)) {
+            const borderParsed = parseInt(String(tokenValue(document, 'content.border_width') || '2'), 10);
+            const widthLegacy = Number.isFinite(borderParsed) ? borderParsed : 2;
+            borderPreset = widthLegacy <= 1 ? 'thin' : (widthLegacy >= 3 ? 'fat' : 'normal');
+        }
+        const borderWidth = borderPreset === 'thin' ? 1 : (borderPreset === 'fat' ? 3 : 2);
+        let densityRaw = String(tokenValue(document, 'content.density') || 'normal').toLowerCase();
+        if (densityRaw === 'minimal') {
+            densityRaw = 'dense';
+        }
+        let densityScale = 1.2;
+        if (densityRaw === 'dense') {
+            densityScale = 1;
+        } else if (densityRaw === 'compact') {
+            densityScale = 1.1;
+        } else if (densityRaw === 'comfortable') {
+            densityScale = 1.3;
+        } else if (densityRaw === 'spacious') {
+            densityScale = 1.4;
+        }
+        // Uniform padding Dense→Spacious: 2px → 8px (same five steps as Typography).
+        const pad = Math.max(2, Math.min(8, Math.round(2 + (densityScale - 1) * 15)));
+        const padY = pad;
+        const padX = pad;
+        const minHeight = 20 + (2 * pad);
+        const gap = pad;
+        const outline = 'var(--role-button-outline)';
+        const fill = 'var(--role-button-fill)';
+        const active = 'var(--role-button-active)';
+        let bg = 'transparent';
+        let border = outline;
+        let fg = outline;
+        let bgHover = active;
+        let fgHover = '#000000';
+        if (contentStyle === 'filled' || contentStyle === 'solid') {
+            bg = fill;
+            border = fill;
+            fg = '#000000';
+            bgHover = `color-mix(in srgb, ${active} 88%, white)`;
+            fgHover = '#000000';
+        } else if (contentStyle === 'soft') {
+            bg = `color-mix(in srgb, ${fill} 50%, transparent)`;
+            border = outline;
+            fg = 'var(--role-muted)';
+            bgHover = `color-mix(in srgb, ${active} 72%, transparent)`;
+            fgHover = 'var(--role-body)';
+        }
+        rules.push(`--content-control-radius:${radius}px`);
+        rules.push(`--content-control-border-width:${borderWidth}px`);
+        rules.push(`--content-control-pad-y:${padY}px`);
+        rules.push(`--content-control-pad-x:${padX}px`);
+        rules.push(`--content-control-min-height:${minHeight}px`);
+        rules.push(`--content-control-gap:${gap}px`);
+        rules.push(`--content-control-bg:${bg}`);
+        rules.push(`--content-control-border:${border}`);
+        rules.push(`--content-control-fg:${fg}`);
+        rules.push(`--content-control-bg-hover:${bgHover}`);
+        rules.push(`--content-control-fg-hover:${fgHover}`);
+        rules.push(`--content-control-bg-active:${active}`);
+        rules.push(`--content-control-border-active:${active}`);
+        rules.push('--content-control-fg-active:#000000');
+        rules.push(`--content-control-glow-active:color-mix(in srgb, ${active} 55%, transparent)`);
+
+        let panelDensityRaw = String(tokenValue(document, 'effects.content_panel_density') || 'normal').toLowerCase();
+        if (panelDensityRaw === 'minimal') {
+            panelDensityRaw = 'dense';
+        }
+        let panelPadY = 12;
+        let panelPadX = 14;
+        let panelGap = 8;
+        if (panelDensityRaw === 'dense') {
+            panelPadY = 6;
+            panelPadX = 8;
+            panelGap = 4;
+        } else if (panelDensityRaw === 'compact') {
+            panelPadY = 8;
+            panelPadX = 10;
+            panelGap = 6;
+        } else if (panelDensityRaw === 'comfortable') {
+            panelPadY = 16;
+            panelPadX = 20;
+            panelGap = 12;
+        } else if (panelDensityRaw === 'spacious') {
+            panelPadY = 22;
+            panelPadX = 28;
+            panelGap = 16;
+        }
+        rules.push(`--content-panel-pad-y:${panelPadY}px`);
+        rules.push(`--content-panel-pad-x:${panelPadX}px`);
+        rules.push(`--content-panel-gap:${panelGap}px`);
+
+        let panelCorners = String(tokenValue(document, 'effects.content_panel_corners') || 'shaved').trim().toLowerCase();
+        if (panelCorners === 'pill') {
+            panelCorners = 'shaved';
+        }
+        if (!['square', 'shaved'].includes(panelCorners)) {
+            panelCorners = 'shaved';
+        }
+        const panelRadius = panelCorners === 'square' ? 0 : 10;
+        let panelBorderPreset = String(tokenValue(document, 'effects.content_panel_border') || 'none').trim().toLowerCase();
+        if (!['none', 'thin', 'normal', 'fat'].includes(panelBorderPreset)) {
+            panelBorderPreset = 'none';
+        }
+        const panelBorderWidth = panelBorderPreset === 'none'
+            ? 0
+            : (panelBorderPreset === 'thin' ? 1 : (panelBorderPreset === 'fat' ? 3 : 2));
+        rules.push(`--content-panel-radius:${panelRadius}px`);
+        rules.push(`--content-panel-border-width:${panelBorderWidth}px`);
+        rules.push(`--content-panel-border:${panelBorderWidth > 0 ? 'var(--role-panel-border)' : 'transparent'}`);
+
+        let typeDensityRaw = String(tokenValue(document, 'typography.density') || 'normal').toLowerCase();
+        if (typeDensityRaw === 'minimal') {
+            typeDensityRaw = 'dense';
+        }
+        let typeLineHeight = '1.2';
+        let typeBlockGap = 6;
+        if (typeDensityRaw === 'dense') {
+            typeLineHeight = '1';
+            typeBlockGap = 2;
+        } else if (typeDensityRaw === 'compact') {
+            typeLineHeight = '1.1';
+            typeBlockGap = 4;
+        } else if (typeDensityRaw === 'comfortable') {
+            typeLineHeight = '1.3';
+            typeBlockGap = 10;
+        } else if (typeDensityRaw === 'spacious') {
+            typeLineHeight = '1.4';
+            typeBlockGap = 14;
+        }
+        rules.push(`--content-type-line-height:${typeLineHeight}`);
+        rules.push(`--content-type-block-gap:${typeBlockGap}px`);
+
+        style.textContent = rules.length ? `${selector}{${rules.join(';')};}` : '';
+        container.innerHTML = renderMarkup(document, previewMode);
+        container.dataset.previewMode = previewMode;
+        startPreviewVideos(container);
     }
 
     function normalizePlaylistSelectorMode(document) {
@@ -144,164 +471,12 @@
         }
 
         return `
-            <section class="theme-preview-section theme-preview-section--playlist-selector" aria-hidden="true">
+            <section class="theme-preview-section theme-preview-section--playlist-selector" data-preview-focus="playlist-selector" aria-label="Playlist selector sample">
+                <p class="theme-preview-section-label">Playlist selector</p>
                 <div class="theme-preview-playlist-selector theme-preview-playlist-selector--${escapeHtml(mode)}">
                     ${body}
                 </div>
             </section>`;
-    }
-
-    function renderMarkup(document) {
-        if (!document) {
-            return '<p class="brand-editor-empty">No brand selected.</p>';
-        }
-
-        return `
-            <div class="theme-preview-shell">
-                ${renderShellPreviewChrome(document)}
-                    <section class="theme-preview-section theme-preview-section--content-chrome" data-preview-focus="content-chrome" aria-label="Content chrome sample">
-                        <p class="theme-preview-section-label">Content chrome</p>
-                        <div class="theme-preview-controls">
-                            <button type="button" class="theme-preview-btn theme-preview-btn--primary">Primary action</button>
-                            <button type="button" class="theme-preview-btn theme-preview-btn--secondary">Secondary</button>
-                            <span class="theme-preview-tab theme-preview-tab--active">Active tab</span>
-                            <span class="theme-preview-tab">Tab</span>
-                        </div>
-                    </section>
-                    ${renderPlaylistSelectorPreview(document)}
-                    <section class="theme-preview-section">
-                        <div class="page-richtext theme-preview-richtext">
-                            <h1>Heading 1</h1>
-                            <h2>Heading 2</h2>
-                            <h3>Heading 3</h3>
-                            <p>Paragraph — regular body text for pages, captions, and player content.</p>
-                            <p class="page-text-small">Small — secondary notes and fine print.</p>
-                            <pre class="page-text-code">Code — monospace sample text</pre>
-                        </div>
-                    </section>
-
-                    <section class="theme-preview-section">
-                        <div class="theme-preview-links">
-                            <a href="#" class="theme-preview-link" onclick="return false;">Default link</a>
-                            <a href="#" class="theme-preview-link theme-preview-link--hover" onclick="return false;">Hover state</a>
-                            <a href="#" class="theme-preview-link theme-preview-link--visited" onclick="return false;">Visited state</a>
-                        </div>
-                    </section>
-            </div>
-        </div>`;
-    }
-
-    function render(container, document, options = {}) {
-        if (!(container instanceof HTMLElement)) {
-            return;
-        }
-        const styleId = String(options.styleId || 'bandpromo-shared-brand-preview-style');
-        const selector = String(options.selector || `#${container.id} .theme-preview-shell-chrome`);
-        let style = document?.ownerDocument?.getElementById(styleId)
-            || window.document.getElementById(styleId);
-        if (!style) {
-            style = window.document.createElement('style');
-            style.id = styleId;
-            window.document.head.appendChild(style);
-        }
-
-        if (!document) {
-            style.textContent = '';
-            container.innerHTML = renderMarkup(null);
-            return;
-        }
-
-        const rules = [];
-        Object.entries(CSS_VAR_MAP).forEach(([tokenPath, cssVariable]) => {
-            const value = tokenValue(document, tokenPath);
-            if (value) {
-                rules.push(`${cssVariable}:${value}`);
-            }
-        });
-        const baseFont = tokenValue(document, 'typography.font_family_base');
-        const headingFont = tokenValue(document, 'typography.font_family_heading');
-        if (baseFont) {
-            rules.push(`--theme-body-font:${baseFont}`);
-        }
-        if (headingFont) {
-            rules.push(`--theme-heading-font:${headingFont}`);
-        } else if (baseFont) {
-            rules.push(`--theme-heading-font:${baseFont}`);
-        }
-        const dimRaw = tokenValue(document, 'effects.backdrop_dim');
-        const panelDimRaw = tokenValue(document, 'effects.panel_dim');
-        const blurRaw = tokenValue(document, 'effects.panel_blur');
-        const dimParsed = parseInt(String(dimRaw), 10);
-        const dim = Number.isFinite(dimParsed) ? Math.max(0, Math.min(100, dimParsed)) : 72;
-        const panelParsed = parseInt(String(panelDimRaw), 10);
-        const panelDim = Number.isFinite(panelParsed)
-            ? Math.max(0, Math.min(100, panelParsed))
-            : dim;
-        const blurParsed = parseInt(String(blurRaw), 10);
-        const blur = Number.isFinite(blurParsed) ? Math.max(0, Math.min(24, blurParsed)) : 5;
-        rules.push(`--shell-scrim-strength:${(dim / 100).toFixed(2)}`);
-        rules.push(`--panel-scrim-strength:${(panelDim / 100).toFixed(2)}`);
-        rules.push(`--panel-blur:${blur}px`);
-        rules.push(`--panel-fill:color-mix(in srgb, var(--color-surface-mid) ${panelDim}%, transparent)`);
-        rules.push('--primary-a15:color-mix(in srgb, var(--primary-color) 15%, transparent)');
-        rules.push('--primary-a20:color-mix(in srgb, var(--primary-color) 20%, transparent)');
-        rules.push('--primary-a30:color-mix(in srgb, var(--primary-color) 30%, transparent)');
-        rules.push('--primary-a50:color-mix(in srgb, var(--primary-color) 50%, transparent)');
-
-        const contentStyle = String(tokenValue(document, 'content.style') || 'outline').toLowerCase();
-        const radiusParsed = parseInt(String(tokenValue(document, 'content.radius_percent') || '50'), 10);
-        const radius = Number.isFinite(radiusParsed) ? Math.max(0, Math.min(50, radiusParsed)) : 50;
-        const borderParsed = parseInt(String(tokenValue(document, 'content.border_width') || '2'), 10);
-        const borderWidth = Number.isFinite(borderParsed) ? Math.max(1, Math.min(4, borderParsed)) : 2;
-        const densityRaw = String(tokenValue(document, 'content.density') || 'normal').toLowerCase();
-        let padY = 8;
-        let padX = 14;
-        let minHeight = 40;
-        let gap = 6;
-        if (densityRaw === 'minimal') {
-            padY = 4;
-            padX = 8;
-            minHeight = 32;
-            gap = 4;
-        } else if (densityRaw === 'compact') {
-            padY = 6;
-            padX = 10;
-            minHeight = 36;
-            gap = 5;
-        }
-        let bg = 'transparent';
-        let border = 'var(--primary-color)';
-        let fg = 'var(--primary-color)';
-        let bgHover = 'var(--primary-color)';
-        let fgHover = '#000000';
-        if (contentStyle === 'filled') {
-            bg = 'var(--primary-color)';
-            border = 'var(--primary-color)';
-            fg = '#000000';
-            bgHover = 'color-mix(in srgb, var(--primary-color) 88%, white)';
-            fgHover = '#000000';
-        } else if (contentStyle === 'soft') {
-            bg = 'var(--primary-a15)';
-            border = 'var(--primary-a30)';
-            fg = 'var(--color-text-muted)';
-            bgHover = 'var(--primary-a30)';
-            fgHover = 'var(--text-color)';
-        }
-        rules.push(`--content-control-radius:${radius}%`);
-        rules.push(`--content-control-border-width:${borderWidth}px`);
-        rules.push(`--content-control-pad-y:${padY}px`);
-        rules.push(`--content-control-pad-x:${padX}px`);
-        rules.push(`--content-control-min-height:${minHeight}px`);
-        rules.push(`--content-control-gap:${gap}px`);
-        rules.push(`--content-control-bg:${bg}`);
-        rules.push(`--content-control-border:${border}`);
-        rules.push(`--content-control-fg:${fg}`);
-        rules.push(`--content-control-bg-hover:${bgHover}`);
-        rules.push(`--content-control-fg-hover:${fgHover}`);
-
-        style.textContent = rules.length ? `${selector}{${rules.join(';')};}` : '';
-        container.innerHTML = renderMarkup(document);
-        startPreviewVideos(container);
     }
 
     function startPreviewVideos(root) {
@@ -335,4 +510,6 @@
         renderMarkup,
         startVideos: startPreviewVideos,
     };
+    // Legacy alias used by campaign branding preview.
+    window.bandpromoThemePreview = window.bandpromoBrandPreview;
 }());

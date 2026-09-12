@@ -58,6 +58,26 @@
             ['link_visited', 'Visited links'],
         ];
 
+        const ROLE_PALETTE = [
+            ['primary', 'Primary'],
+            ['secondary', 'Secondary'],
+            ['text', 'Main text'],
+            ['text_muted', 'Muted text'],
+            ['surface_mid', 'Panels'],
+        ];
+
+        const ROLE_DEFAULTS = {
+            heading: 'primary',
+            heading_sub: 'secondary',
+            body: 'text',
+            muted: 'text_muted',
+            button_outline: 'primary',
+            button_fill: 'primary',
+            button_active: 'primary',
+            panel_border: 'primary',
+            blockquote: 'primary',
+        };
+
         const FONT_PRESETS = [
             { id: 'segoe', label: 'Segoe UI (recommended)', value: "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif" },
             { id: 'system', label: 'System default', value: "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" },
@@ -77,7 +97,7 @@
         let previewDocument = null;
         let editorDocument = null;
         let isEditing = false;
-        let brandSettingsBaseline = { title: '', storageId: '' };
+        let brandSettingsBaseline = { title: '' };
         let brandSettingsSaving = false;
         let brandSettingsSaveQueued = false;
         let pendingBrandDeleteId = '';
@@ -117,11 +137,130 @@
         }
 
         let previewFocusTimer = null;
+        const PREVIEW_MODE_STORAGE_KEY = 'bandpromo_brand_preview_mode';
+
+        function normalizePreviewMode(mode) {
+            return String(mode || '').trim().toLowerCase() === 'content' ? 'content' : 'player';
+        }
+
+        function readStoredPreviewMode() {
+            try {
+                return normalizePreviewMode(window.localStorage.getItem(PREVIEW_MODE_STORAGE_KEY));
+            } catch (error) {
+                return 'player';
+            }
+        }
+
+        let previewMode = readStoredPreviewMode();
+        const EDITOR_TAB_STORAGE_KEY = 'bandpromo_brand_editor_tab';
+
+        function normalizeEditorTab(tab) {
+            const value = String(tab || '').trim().toLowerCase();
+            if (value === 'player' || value === 'content') {
+                return value;
+            }
+            return 'common';
+        }
+
+        function readStoredEditorTab() {
+            try {
+                return normalizeEditorTab(window.localStorage.getItem(EDITOR_TAB_STORAGE_KEY));
+            } catch (error) {
+                return 'common';
+            }
+        }
+
+        let editorTab = readStoredEditorTab();
+
+        function syncEditorTabUi() {
+            if (!(formEl instanceof HTMLElement)) {
+                return;
+            }
+            formEl.querySelectorAll('[data-brand-editor-tab]').forEach((button) => {
+                if (!(button instanceof HTMLElement)) {
+                    return;
+                }
+                const tab = normalizeEditorTab(button.getAttribute('data-brand-editor-tab'));
+                const active = tab === editorTab;
+                button.classList.toggle('is-active', active);
+                button.setAttribute('aria-pressed', active ? 'true' : 'false');
+            });
+            formEl.querySelectorAll('[data-brand-editor-panel]').forEach((panel) => {
+                if (!(panel instanceof HTMLElement)) {
+                    return;
+                }
+                const tab = normalizeEditorTab(panel.getAttribute('data-brand-editor-panel'));
+                panel.hidden = tab !== editorTab;
+            });
+        }
+
+        function setEditorTab(tab, options = {}) {
+            const next = normalizeEditorTab(tab);
+            const changed = next !== editorTab;
+            editorTab = next;
+            try {
+                window.localStorage.setItem(EDITOR_TAB_STORAGE_KEY, editorTab);
+            } catch (error) {}
+            syncEditorTabUi();
+            if (options.syncPreview) {
+                if (editorTab === 'player' && previewMode !== 'player') {
+                    setPreviewMode('player', { forceRender: true });
+                } else if (editorTab === 'content' && previewMode !== 'content') {
+                    setPreviewMode('content', { forceRender: true });
+                }
+            }
+            if (changed && typeof options.onChanged === 'function') {
+                options.onChanged(editorTab);
+            }
+        }
+
+        function bindEditorTabUi() {
+            if (!(formEl instanceof HTMLElement)) {
+                return;
+            }
+            const nav = formEl.querySelector('#brandEditorSubnav');
+            if (!(nav instanceof HTMLElement) || nav.dataset.bound === 'true') {
+                syncEditorTabUi();
+                return;
+            }
+            nav.dataset.bound = 'true';
+            nav.addEventListener('click', (event) => {
+                const button = event.target instanceof Element
+                    ? event.target.closest('[data-brand-editor-tab]')
+                    : null;
+                if (!(button instanceof HTMLElement)) {
+                    return;
+                }
+                setEditorTab(button.getAttribute('data-brand-editor-tab') || 'common', { syncPreview: true });
+            });
+            syncEditorTabUi();
+        }
+
+        function setPreviewMode(mode, options = {}) {
+            const next = normalizePreviewMode(mode);
+            const changed = next !== previewMode;
+            previewMode = next;
+            try {
+                window.localStorage.setItem(PREVIEW_MODE_STORAGE_KEY, previewMode);
+            } catch (error) {}
+            if (changed || options.forceRender) {
+                const doc = isEditing ? editorDocument : previewDocument;
+                if (doc) {
+                    renderPreview(doc);
+                }
+            }
+        }
 
         function revealPreviewFocus(focusId) {
             const id = String(focusId || '').trim();
             if (id === '' || !(previewEl instanceof HTMLElement)) {
                 return;
+            }
+            if ((id === 'content-chrome' || id === 'playlist-selector' || id === 'content-panels') && previewMode !== 'content') {
+                setPreviewMode('content', { forceRender: true });
+            }
+            if ((id === 'content-chrome' || id === 'playlist-selector' || id === 'content-panels') && editorTab !== 'content') {
+                setEditorTab('content');
             }
             const target = previewEl.querySelector(`[data-preview-focus="${id}"]`);
             if (!(target instanceof HTMLElement)) {
@@ -325,16 +464,12 @@
             });
             options.push(`<option value="__custom__"${presetId === '__custom__' ? ' selected' : ''}>Custom…</option>`);
             const tokenPath = isHeading ? 'typography.font_family_heading' : 'typography.font_family_base';
-            const label = isHeading ? 'Heading font' : 'Main font';
-            const hint = isHeading
-                ? 'Used for page headings. Choose Same as main font unless you want headings to stand out.'
-                : 'Used on pages, the player, login screens, and most site text.';
+            const label = isHeading ? 'Heading font:' : 'Main font:';
             return `
-                <div class="brand-token-field brand-token-field--preset">
+                <div class="brand-token-field brand-token-field--preset brand-token-field--inline">
                     <label for="brand-font-preset-${kind}">${label}</label>
                     <select id="brand-font-preset-${kind}" data-font-preset-select="${kind}" ${locked ? 'disabled' : ''}>${options.join('')}</select>
                     <input type="text" class="brand-custom-token-input" id="brand-font-custom-${kind}" data-token-path="${tokenPath}" value="${escapeHtml(currentValue)}" placeholder="e.g. Georgia, serif" ${locked || !customVisible ? 'hidden' : ''} ${locked ? 'disabled' : ''}>
-                    <p class="brand-field-hint">${hint}</p>
                 </div>
             `;
         }
@@ -387,6 +522,76 @@
             }).join('')}</div>`;
         }
 
+        function normalizeRoleKey(value, fallback) {
+            const key = String(value || '').trim().toLowerCase();
+            if (ROLE_PALETTE.some(([id]) => id === key)) {
+                return key;
+            }
+            return fallback || 'primary';
+        }
+
+        function rolePaletteHex(roleKey) {
+            const key = normalizeRoleKey(roleKey, 'primary');
+            const hex = normalizeHexColor(tokenValue(editorDocument, `color.${key}`) || '');
+            if (hex) {
+                return hex;
+            }
+            if (key === 'text') {
+                return normalizeHexColor(tokenValue(editorDocument, 'color.text') || '#ffffff') || '#ffffff';
+            }
+            if (key === 'text_muted') {
+                return normalizeHexColor(tokenValue(editorDocument, 'color.text_muted') || '#dddddd') || '#dddddd';
+            }
+            if (key === 'surface_mid') {
+                return normalizeHexColor(tokenValue(editorDocument, 'color.surface_mid') || '#1e1e24') || '#1e1e24';
+            }
+            if (key === 'secondary') {
+                return normalizeHexColor(tokenValue(editorDocument, 'color.secondary') || '#3a7bd5') || '#3a7bd5';
+            }
+            return normalizeHexColor(tokenValue(editorDocument, 'color.primary') || '#00d2ff') || '#00d2ff';
+        }
+
+        function roleLabel(roleKey) {
+            const match = ROLE_PALETTE.find(([id]) => id === roleKey);
+            return match ? match[1] : roleKey;
+        }
+
+        function renderRoleSwatch(rolePath, label, fallback, locked, options) {
+            const opts = options && typeof options === 'object' ? options : {};
+            const swatchOnly = !!opts.swatchOnly;
+            const selected = normalizeRoleKey(tokenValue(editorDocument, rolePath), fallback);
+            const hex = rolePaletteHex(selected);
+            const labelClean = String(label || '').replace(/:\s*$/, '');
+            const name = roleLabel(selected);
+            const menuOptions = ROLE_PALETTE.map(([id, optionName]) => {
+                const optionHex = rolePaletteHex(id);
+                return `
+                    <button type="button" class="brand-role-option${id === selected ? ' is-selected' : ''}"
+                            data-role-pick="${escapeHtml(id)}" ${locked ? 'disabled' : ''}>
+                        <span class="brand-role-option-swatch" style="background:${escapeHtml(optionHex)}"></span>
+                        <span class="brand-role-option-label">${escapeHtml(optionName)}</span>
+                    </button>`;
+            }).join('');
+            return `
+                <div class="brand-role-field" data-role-path="${escapeHtml(rolePath)}">
+                    <span class="brand-effect-label">${escapeHtml(label)}</span>
+                    <div class="brand-role-swatch-wrap">
+                        <button type="button" class="brand-role-swatch${swatchOnly ? ' brand-role-swatch--chip' : ''}"
+                                aria-expanded="false"
+                                aria-label="${escapeHtml(labelClean)}: ${escapeHtml(name)}"
+                                title="${escapeHtml(name)}"
+                                style="--brand-role-swatch:${escapeHtml(hex)}"
+                                ${locked ? 'disabled' : ''}>
+                            ${swatchOnly ? '' : `<span class="brand-role-swatch-name">${escapeHtml(name)}</span>`}
+                        </button>
+                        <div class="brand-role-menu" hidden role="listbox" aria-label="${escapeHtml(labelClean)} palette">
+                            ${menuOptions}
+                        </div>
+                    </div>
+                    <input type="hidden" data-token-path="${escapeHtml(rolePath)}" value="${escapeHtml(selected)}" ${locked ? 'disabled' : ''}>
+                </div>`;
+        }
+
         function effectIntToken(path, fallback) {
             const raw = tokenValue(editorDocument, path);
             if (raw === '') {
@@ -396,27 +601,104 @@
             return Number.isFinite(parsed) ? String(parsed) : String(fallback);
         }
 
-        function renderEffectsFields(locked) {
+        function renderBackdropFields(locked) {
             const dim = effectIntToken('effects.backdrop_dim', 72);
-            const panelDim = effectIntToken('effects.panel_dim', dim);
-            const blur = effectIntToken('effects.panel_blur', 5);
             return `
                 <div class="brand-effects-grid">
                     <label class="brand-effect-field">
                         <span class="brand-effect-label">Backdrop dim <strong data-effect-value="backdrop_dim">${escapeHtml(dim)}</strong>%</span>
                         <input type="range" min="0" max="100" step="1" value="${escapeHtml(dim)}" data-token-path="effects.backdrop_dim" data-effect-range="backdrop_dim" ${locked ? 'disabled' : ''}>
-                        <span class="brand-field-hint">Darkens only the still/living shell background (full-page overlay).</span>
+                        <span class="brand-field-hint">Darkens only the still/living shell background (shared by Media player and Content).</span>
+                    </label>
+                </div>
+            `;
+        }
+
+        function renderPlayerReadabilityFields(locked) {
+            const legacyDim = effectIntToken('effects.panel_dim', effectIntToken('effects.backdrop_dim', 72));
+            const panelDim = effectIntToken('effects.player_panel_dim', legacyDim);
+            const blur = effectIntToken('effects.player_panel_blur', effectIntToken('effects.panel_blur', 5));
+            return `
+                <div class="brand-effects-grid">
+                    <label class="brand-effect-field">
+                        <span class="brand-effect-label">Panel dim <strong data-effect-value="player_panel_dim">${escapeHtml(panelDim)}</strong>%</span>
+                        <input type="range" min="0" max="100" step="1" value="${escapeHtml(panelDim)}" data-token-path="effects.player_panel_dim" data-effect-range="player_panel_dim" ${locked ? 'disabled' : ''}>
+                        <span class="brand-field-hint">Strength of the Panels colour on the media player transport glass.</span>
                     </label>
                     <label class="brand-effect-field">
-                        <span class="brand-effect-label">Panel dim <strong data-effect-value="panel_dim">${escapeHtml(panelDim)}</strong>%</span>
-                        <input type="range" min="0" max="100" step="1" value="${escapeHtml(panelDim)}" data-token-path="effects.panel_dim" data-effect-range="panel_dim" ${locked ? 'disabled' : ''}>
-                        <span class="brand-field-hint">Strength of the Panels colour on transport, lyrics, playlists, pages, gallery, and login glass. Separate from backdrop so the two do not stack as one control.</span>
+                        <span class="brand-effect-label">Panel blur <strong data-effect-value="player_panel_blur">${escapeHtml(blur)}</strong>px</span>
+                        <input type="range" min="0" max="24" step="1" value="${escapeHtml(blur)}" data-token-path="effects.player_panel_blur" data-effect-range="player_panel_blur" ${locked ? 'disabled' : ''}>
+                        <span class="brand-field-hint">Glass blur on the transport (cover art stays sharp).</span>
                     </label>
-                    <label class="brand-effect-field">
-                        <span class="brand-effect-label">Panel blur <strong data-effect-value="panel_blur">${escapeHtml(blur)}</strong>px</span>
-                        <input type="range" min="0" max="24" step="1" value="${escapeHtml(blur)}" data-token-path="effects.panel_blur" data-effect-range="panel_blur" ${locked ? 'disabled' : ''}>
-                        <span class="brand-field-hint">Glass blur on those same content panels (player chrome stays sharp).</span>
-                    </label>
+                </div>
+            `;
+        }
+
+        function renderContentReadabilityFields(locked) {
+            const legacyDim = effectIntToken('effects.panel_dim', effectIntToken('effects.backdrop_dim', 72));
+            const panelDim = effectIntToken('effects.content_panel_dim', legacyDim);
+            const blur = effectIntToken('effects.content_panel_blur', effectIntToken('effects.panel_blur', 5));
+            const density = normalizeDensityToken(tokenValue(editorDocument, 'effects.content_panel_density'), 'normal');
+            let corners = String(tokenValue(editorDocument, 'effects.content_panel_corners') || 'shaved').trim().toLowerCase();
+            if (corners === 'pill') {
+                corners = 'shaved';
+            }
+            if (!['square', 'shaved'].includes(corners)) {
+                corners = 'shaved';
+            }
+            let border = String(tokenValue(editorDocument, 'effects.content_panel_border') || 'none').trim().toLowerCase();
+            if (!['none', 'thin', 'normal', 'fat'].includes(border)) {
+                border = 'none';
+            }
+
+            function panelToggle(path, name, selected, options) {
+                return `
+                    <div class="brand-player-setting-toggle" role="group" aria-label="${escapeHtml(name)}">
+                        ${options.map(([value, label]) => `
+                            <label class="brand-player-setting-option">
+                                <input type="radio" name="${escapeHtml(name)}" value="${escapeHtml(value)}"
+                                       data-token-path="${escapeHtml(path)}"
+                                       ${selected === value ? 'checked' : ''}
+                                       ${locked ? 'disabled' : ''}>
+                                <span>${escapeHtml(label)}</span>
+                            </label>
+                        `).join('')}
+                    </div>`;
+            }
+
+            return `
+                <div class="brand-content-chrome-grid">
+                    <div class="brand-effect-field brand-effect-field--inline">
+                        <span class="brand-effect-label">Dim: <strong data-effect-value="content_panel_dim">${escapeHtml(panelDim)}</strong>%</span>
+                        <input type="range" min="0" max="100" step="1" value="${escapeHtml(panelDim)}" data-token-path="effects.content_panel_dim" data-effect-range="content_panel_dim" ${locked ? 'disabled' : ''}>
+                    </div>
+                    <div class="brand-effect-field brand-effect-field--inline">
+                        <span class="brand-effect-label">Blur: <strong data-effect-value="content_panel_blur">${escapeHtml(blur)}</strong>px</span>
+                        <input type="range" min="0" max="24" step="1" value="${escapeHtml(blur)}" data-token-path="effects.content_panel_blur" data-effect-range="content_panel_blur" ${locked ? 'disabled' : ''}>
+                    </div>
+                    <div class="brand-effect-field brand-effect-field--inline">
+                        <span class="brand-effect-label">Corners:</span>
+                        ${panelToggle('effects.content_panel_corners', 'brandPanelCorners', corners, [
+                            ['square', 'Square'],
+                            ['shaved', 'Shaved'],
+                        ])}
+                    </div>
+                    <div class="brand-chrome-inline-row">
+                        <div class="brand-effect-field brand-effect-field--inline">
+                            <span class="brand-effect-label">Border:</span>
+                            ${panelToggle('effects.content_panel_border', 'brandPanelBorder', border, [
+                                ['none', 'None'],
+                                ['thin', 'Thin'],
+                                ['normal', 'Normal'],
+                                ['fat', 'Fat'],
+                            ])}
+                        </div>
+                        ${renderRoleSwatch('roles.panel_border', 'Colour:', ROLE_DEFAULTS.panel_border, locked, { swatchOnly: true })}
+                    </div>
+                    <div class="brand-effect-field brand-effect-field--inline">
+                        <span class="brand-effect-label">Density:</span>
+                        ${renderDensityToggle('effects.content_panel_density', 'brandPanelDensity', density, locked)}
+                    </div>
                 </div>
             `;
         }
@@ -426,50 +708,130 @@
             return raw !== '' ? raw : fallback;
         }
 
-        function renderContentChromeFields(locked) {
-            const style = contentToken('content.style', 'outline');
-            const radius = effectIntToken('content.radius_percent', 50);
-            const border = effectIntToken('content.border_width', 2);
-            const density = contentToken('content.density', 'normal');
-            const styleOptions = [
-                ['outline', 'Outline'],
-                ['filled', 'Filled'],
-                ['soft', 'Soft'],
-            ];
-            const densityOptions = [
-                ['minimal', 'Minimal'],
+        function normalizeDensityToken(value, fallback) {
+            let density = String(value || '').trim().toLowerCase();
+            if (density === 'minimal') {
+                density = 'dense';
+            }
+            if (['dense', 'compact', 'normal', 'comfortable', 'spacious'].includes(density)) {
+                return density;
+            }
+            return fallback || 'normal';
+        }
+
+        function renderDensityToggle(path, name, selected, locked) {
+            const options = [
+                ['dense', 'Dense'],
                 ['compact', 'Compact'],
                 ['normal', 'Normal'],
+                ['comfortable', 'Comfortable'],
+                ['spacious', 'Spacious'],
             ];
             return `
-                <div class="brand-effects-grid">
-                    <label class="brand-effect-field">
-                        <span class="brand-effect-label">Button style</span>
-                        <select data-token-path="content.style" ${locked ? 'disabled' : ''}>
-                            ${styleOptions.map(([value, label]) => `
-                                <option value="${value}" ${style === value ? 'selected' : ''}>${label}</option>
-                            `).join('')}
-                        </select>
-                        <span class="brand-field-hint">Outline, filled, or soft fill for nav tabs and content buttons (Primary colour).</span>
-                    </label>
-                    <label class="brand-effect-field">
-                        <span class="brand-effect-label">Corner roundness <strong data-effect-value="radius_percent">${escapeHtml(radius)}</strong>%</span>
-                        <input type="range" min="0" max="50" step="1" value="${escapeHtml(radius)}" data-token-path="content.radius_percent" data-effect-range="radius_percent" ${locked ? 'disabled' : ''}>
-                        <span class="brand-field-hint">0% = square; ~50% ≈ pill. Scales with the control size.</span>
-                    </label>
-                    <label class="brand-effect-field">
-                        <span class="brand-effect-label">Border thickness <strong data-effect-value="border_width">${escapeHtml(border)}</strong>px</span>
-                        <input type="range" min="1" max="4" step="1" value="${escapeHtml(border)}" data-token-path="content.border_width" data-effect-range="border_width" ${locked ? 'disabled' : ''}>
-                    </label>
-                    <label class="brand-effect-field">
-                        <span class="brand-effect-label">Density</span>
-                        <select data-token-path="content.density" ${locked ? 'disabled' : ''}>
-                            ${densityOptions.map(([value, label]) => `
-                                <option value="${value}" ${density === value ? 'selected' : ''}>${label}</option>
-                            `).join('')}
-                        </select>
-                        <span class="brand-field-hint">Minimal / Compact / Normal — padding and gaps only (no raw margin fields).</span>
-                    </label>
+                <div class="brand-player-setting-toggle" role="group" aria-label="Density">
+                    ${options.map(([value, label]) => `
+                        <label class="brand-player-setting-option">
+                            <input type="radio" name="${escapeHtml(name)}" value="${escapeHtml(value)}"
+                                   data-token-path="${escapeHtml(path)}"
+                                   ${selected === value ? 'checked' : ''}
+                                   ${locked ? 'disabled' : ''}>
+                            <span>${escapeHtml(label)}</span>
+                        </label>
+                    `).join('')}
+                </div>`;
+        }
+
+        function renderPlaylistSelectorFields(locked) {
+            const playlistSelected = normalizePlaylistSelectorMode(editorDocument?.player?.playlist_selector);
+            const playlistRadios = [
+                ['dropdown', 'Dropdown'],
+                ['buttons', 'Buttons'],
+                ['coverflow', 'Cover flow'],
+            ].map(([value, label]) => `
+                <label class="brand-player-setting-option">
+                    <input type="radio" name="brandPlaylistSelector" value="${escapeHtml(value)}"
+                           data-player-path="playlist_selector"
+                           ${playlistSelected === value ? 'checked' : ''}
+                           ${locked ? 'disabled' : ''}>
+                    <span>${escapeHtml(label)}</span>
+                </label>`).join('');
+
+            return `
+                <div class="brand-content-chrome-grid">
+                    <div class="brand-effect-field brand-effect-field--inline">
+                        <span class="brand-effect-label">Style:</span>
+                        <div class="brand-player-setting-toggle" role="group" aria-label="Playlist selector style">
+                            ${playlistRadios}
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderButtonsFields(locked) {
+            const style = contentToken('content.style', 'outline');
+            let corners = contentToken('content.corners', '');
+            if (!['square', 'shaved', 'pill'].includes(corners)) {
+                const radius = effectIntToken('content.radius_percent', 50);
+                corners = radius <= 8 ? 'square' : (radius <= 30 ? 'shaved' : 'pill');
+            }
+            let border = contentToken('content.border', '');
+            if (!['thin', 'normal', 'fat'].includes(border)) {
+                const width = effectIntToken('content.border_width', 2);
+                border = width <= 1 ? 'thin' : (width >= 3 ? 'fat' : 'normal');
+            }
+            const density = normalizeDensityToken(contentToken('content.density', 'normal'), 'normal');
+
+            function contentToggle(path, name, selected, options) {
+                return `
+                    <div class="brand-player-setting-toggle" role="group" aria-label="${escapeHtml(name)}">
+                        ${options.map(([value, label]) => `
+                            <label class="brand-player-setting-option">
+                                <input type="radio" name="${escapeHtml(name)}" value="${escapeHtml(value)}"
+                                       data-token-path="${escapeHtml(path)}"
+                                       ${selected === value ? 'checked' : ''}
+                                       ${locked ? 'disabled' : ''}>
+                                <span>${escapeHtml(label)}</span>
+                            </label>
+                        `).join('')}
+                    </div>`;
+            }
+
+            return `
+                <div class="brand-content-chrome-grid">
+                    <div class="brand-effect-field brand-effect-field--inline">
+                        <span class="brand-effect-label">Style:</span>
+                        ${contentToggle('content.style', 'brandContentStyle', style === 'filled' ? 'filled' : style, [
+                            ['outline', 'Outline'],
+                            ['soft', 'Soft fill'],
+                            ['filled', 'Solid'],
+                        ])}
+                    </div>
+                    <div class="brand-chrome-inline-row">
+                        ${renderRoleSwatch('roles.button_outline', 'Outline:', ROLE_DEFAULTS.button_outline, locked, { swatchOnly: true })}
+                        ${renderRoleSwatch('roles.button_fill', 'Fill:', ROLE_DEFAULTS.button_fill, locked, { swatchOnly: true })}
+                        ${renderRoleSwatch('roles.button_active', 'Active:', ROLE_DEFAULTS.button_active, locked, { swatchOnly: true })}
+                    </div>
+                    <div class="brand-effect-field brand-effect-field--inline">
+                        <span class="brand-effect-label">Corners:</span>
+                        ${contentToggle('content.corners', 'brandContentCorners', corners, [
+                            ['square', 'Square'],
+                            ['shaved', 'Shaved'],
+                            ['pill', 'Pill'],
+                        ])}
+                    </div>
+                    <div class="brand-effect-field brand-effect-field--inline">
+                        <span class="brand-effect-label">Borders:</span>
+                        ${contentToggle('content.border', 'brandContentBorder', border, [
+                            ['thin', 'Thin'],
+                            ['normal', 'Normal'],
+                            ['fat', 'Fat'],
+                        ])}
+                    </div>
+                    <div class="brand-effect-field brand-effect-field--inline">
+                        <span class="brand-effect-label">Density:</span>
+                        ${renderDensityToggle('content.density', 'brandContentDensity', density, locked)}
+                    </div>
                 </div>
             `;
         }
@@ -480,17 +842,8 @@
                 : '';
         }
 
-        function brandStorageIdValue() {
-            const input = formEl?.querySelector?.('#brandStorageId');
-            if (input instanceof HTMLInputElement) {
-                return String(input.value || '').trim().toLowerCase();
-            }
-            return String(editorDocument?.id || '').trim().toLowerCase();
-        }
-
         function brandSettingsDirty() {
-            return brandTitleValue() !== brandSettingsBaseline.title
-                || brandStorageIdValue() !== String(brandSettingsBaseline.storageId || '').trim().toLowerCase();
+            return brandTitleValue() !== brandSettingsBaseline.title;
         }
 
         function renderBrandHeadBadges(document) {
@@ -511,8 +864,7 @@
 
         function syncBrandSettingsPanel(document) {
             const title = String(document?.title || document?.id || '');
-            const storageId = String(document?.id || '');
-            brandSettingsBaseline = { title, storageId };
+            brandSettingsBaseline = { title };
             if (titleInput instanceof HTMLInputElement) {
                 titleInput.value = title;
                 titleInput.disabled = !brandMayEdit(document);
@@ -543,14 +895,6 @@
                 return false;
             }
 
-            const storageId = brandStorageIdValue();
-            if (!storageId) {
-                if (!silent && settingsStatus) {
-                    settingsStatus.textContent = 'Storage id is required.';
-                }
-                return false;
-            }
-
             if (!brandSettingsDirty()) {
                 if (!silent && settingsStatus) {
                     settingsStatus.textContent = '';
@@ -558,52 +902,32 @@
                 return true;
             }
 
-            const previousId = String(editorDocument.id || '').trim();
-            const migrating = storageId !== previousId.toLowerCase();
-            if (migrating && !silent) {
-                const ok = window.confirm(
-                    `Change brand storage id from "${previousId}" to "${storageId}"?\n\n`
-                    + 'This rewrites the Base pointer (if this is Base), campaign brand links, asset ownership, and playlist brand styles. '
-                    + 'Listener analytics are unchanged. Admin audit history keeps the old id.'
-                );
-                if (!ok) {
-                    return false;
-                }
-            }
-
+            const brandId = String(editorDocument.id || '').trim();
             brandSettingsSaving = true;
             if (!silent && settingsStatus) {
-                settingsStatus.textContent = migrating ? 'Migrating…' : 'Saving…';
+                settingsStatus.textContent = 'Saving…';
             }
 
             try {
-                const body = { title, storage_id: storageId };
-                const data = await fetchJson(`/biblioteca/manage-brand.php?brand=${encodeURIComponent(previousId)}`, {
+                const data = await fetchJson(`/biblioteca/manage-brand.php?brand=${encodeURIComponent(brandId)}`, {
                     method: 'PATCH',
                     headers: { 'Content-Type': 'application/json' },
                     credentials: 'same-origin',
-                    body: JSON.stringify(body),
+                    body: JSON.stringify({ title }),
                 });
-                const nextId = String(data?.brand?.id || storageId || previousId).trim();
                 if (data?.active_brand_id) {
                     activeBrandId = String(data.active_brand_id);
                 }
-                editorDocument.id = nextId;
                 editorDocument.title = title;
                 if (previewDocument) {
-                    previewDocument.id = nextId;
                     previewDocument.title = title;
                 }
                 brands = Array.isArray(data.brands) ? data.brands : brands;
-                brandSettingsBaseline = { title, storageId: nextId };
-                selectedBrandId = nextId;
-                const url = new URL(window.location.href);
-                url.searchParams.set('brand', nextId);
-                window.history.replaceState({}, '', url.toString());
+                brandSettingsBaseline = { title };
                 renderPoolList();
                 renderPreview(previewDocument);
                 if (!silent && settingsStatus) {
-                    settingsStatus.textContent = migrating ? 'Migrated.' : 'Saved.';
+                    settingsStatus.textContent = 'Saved.';
                 }
                 return true;
             } catch (error) {
@@ -655,7 +979,7 @@
                 }
                 renderPoolList();
                 saveUi?.markSaved();
-                brandSettingsBaseline = { title: editorDocument.title, storageId: String(editorDocument.id || '') };
+                brandSettingsBaseline = { title: editorDocument.title };
                 if (settingsStatus) {
                     settingsStatus.textContent = '';
                 }
@@ -886,7 +1210,7 @@
                 ? 'bandPromo Default is locked — shell media cannot be changed here.'
                 : 'Click ✎ on a slot to choose compatible media already curated under Files → Brand assets.';
 
-            return renderEditorSection('Shell media', `
+            return renderEditorSection('Media', `
                     <p class="brand-field-hint">${slotHint}</p>
                     <div class="brand-shell-media-grid" id="brandShellSlots">
                         ${slots}
@@ -902,31 +1226,12 @@
             return 'coverflow';
         }
 
-        function renderPlaylistSelectorFields(locked) {
-            const selected = normalizePlaylistSelectorMode(editorDocument?.player?.playlist_selector);
+        function renderPlayerChromeFields(locked) {
             const beggarsOn = editorDocument?.player?.beggars_banquet !== false;
             const reflectionOn = editorDocument?.player?.cover_reflection !== false;
-            const options = [
-                ['dropdown', 'Dropdown'],
-                ['buttons', 'Buttons'],
-                ['coverflow', 'Cover flow'],
-            ];
-            const radios = options.map(([value, label]) => `
-                <label class="brand-player-setting-option">
-                    <input type="radio" name="brandPlaylistSelector" value="${escapeHtml(value)}"
-                           data-player-path="playlist_selector"
-                           ${selected === value ? 'checked' : ''}
-                           ${locked ? 'disabled' : ''}>
-                    <span>${escapeHtml(label)}</span>
-                </label>`).join('');
 
             return renderEditorSection('Player chrome', `
-                    <p class="brand-field-hint">Playlist selector, cover mirror, and Beggars banquet. The Base brand's choices apply site-wide on /play.</p>
-                    <h6 class="brand-editor-subheading">Playlist selector</h6>
-                    <p class="brand-field-hint">Shown in the Playlists tab when more than one playlist is available. Cover flow uses each playlist's poster.</p>
-                    <div class="brand-player-setting-toggle" role="group" aria-label="Playlist selector style">
-                        ${radios}
-                    </div>
+                    <p class="brand-field-hint">Cover mirror and Beggars banquet. The Base brand's choices apply site-wide on /play.</p>
                     <label class="brand-player-checkbox">
                         <input type="checkbox" name="brandCoverReflection" data-player-path="cover_reflection"
                                ${reflectionOn ? 'checked' : ''} ${locked ? 'disabled' : ''}>
@@ -1052,6 +1357,7 @@
                 window.bandpromoBrandPreview.render(previewEl, document, {
                     styleId: 'bandpromo-brand-editor-preview-style',
                     selector: '#brandEditorPreview .theme-preview-shell-chrome',
+                    mode: previewMode,
                 });
             } else {
                 previewEl.innerHTML = '<p class="brand-editor-empty">Brand preview is unavailable.</p>';
@@ -1234,42 +1540,74 @@
                 ${!fieldsLocked && editorDocument.locked && brandIsPlatformDefault(editorDocument)
                     ? '<p class="brand-editor-locked-note">Localhost PCF edit: platform default is editable here. Remote installs stay locked.</p>'
                     : ''}
-                ${renderEditorSection('Base info', `
-                    <div class="brand-token-grid brand-token-grid--stacked">
-                        <div class="brand-token-field">
-                            <label for="brandStorageId">Storage id</label>
-                            <input type="text" id="brandStorageId" maxlength="48" autocomplete="off" spellcheck="false" value="${escapeHtml(String(editorDocument.id || ''))}" ${fieldsLocked || brandIsPlatformDefault(editorDocument) ? 'disabled' : ''} pattern="[a-z][a-z0-9_-]*" aria-label="Brand storage id">
-                            <p class="brand-field-hint">Durable file key under data/brands/. Changing it rewrites Base pointer, campaign brand links, asset ownership, and playlist brand styles. Title rename does not change this id.</p>
+                <div class="brand-editor-subnav" id="brandEditorSubnav" role="tablist" aria-label="Brand editor sections">
+                    <button type="button" class="brand-editor-subnav-btn" data-brand-editor-tab="common" aria-pressed="false">Common</button>
+                    <button type="button" class="brand-editor-subnav-btn" data-brand-editor-tab="player" aria-pressed="false">Player</button>
+                    <button type="button" class="brand-editor-subnav-btn" data-brand-editor-tab="content" aria-pressed="false">Content</button>
+                </div>
+                <div class="brand-editor-tab-panel" data-brand-editor-panel="common" role="tabpanel">
+                    ${renderEditorSection('Base info', `
+                        <div class="brand-token-grid brand-token-grid--stacked">
+                            <div class="brand-token-field">
+                                <label for="brandBrandDescription">Description</label>
+                                <textarea id="brandBrandDescription" data-brand-field="mood" maxlength="500" rows="3" ${fieldsLocked ? 'disabled' : ''}>${escapeHtml(description)}</textarea>
+                            </div>
                         </div>
-                        <div class="brand-token-field">
-                            <label for="brandBrandDescription">Description</label>
-                            <textarea id="brandBrandDescription" data-brand-field="mood" maxlength="500" rows="3" ${fieldsLocked ? 'disabled' : ''}>${escapeHtml(description)}</textarea>
+                    `)}
+                    ${renderEditorSection('Colours', `
+                        <p class="brand-field-hint">Type a hex colour (e.g. #FF6F61) or use the colour square. Both <code>#mediaplayer</code> and <code>#content-container</code> share this palette. Assign colours to headings, body, and buttons under Content → Typography / Buttons (role swatches). Links apply to page/body prose. Accent transparency (alpha) is derived from Primary/Secondary automatically.</p>
+                        ${renderCompactColors(fieldsLocked)}
+                    `, 'brand-editor-section--colors')}
+                    ${renderEditorSection('Backdrop', `
+                        <p class="brand-field-hint">Shared shell overlay behind both the media player and content.</p>
+                        ${renderBackdropFields(fieldsLocked)}
+                    `, 'brand-editor-section--backdrop')}
+                    ${renderShellMediaFields(fieldsLocked)}
+                </div>
+                <div class="brand-editor-tab-panel" data-brand-editor-panel="player" role="tabpanel" hidden>
+                    ${renderPlayerChromeFields(fieldsLocked)}
+                    ${renderEditorSection('Readability', `
+                        <p class="brand-field-hint">Transport glass only — cover art stays sharp.</p>
+                        ${renderPlayerReadabilityFields(fieldsLocked)}
+                    `, 'brand-editor-section--player-readability')}
+                </div>
+                <div class="brand-editor-tab-panel" data-brand-editor-panel="content" role="tabpanel" hidden>
+                    ${renderEditorSection('Buttons', `
+                        ${renderButtonsFields(fieldsLocked)}
+                    `, 'brand-editor-section--content-chrome', 'content-chrome')}
+                    ${renderEditorSection('Playlist selector', `
+                        ${renderPlaylistSelectorFields(fieldsLocked)}
+                    `, 'brand-editor-section--playlist-selector', 'playlist-selector')}
+                    ${renderEditorSection('Panels', `
+                        ${renderContentReadabilityFields(fieldsLocked)}
+                    `, 'brand-editor-section--content-panels', 'content-panels')}
+                    ${renderEditorSection('Typography', `
+                        <div class="brand-content-chrome-grid">
+                            ${renderFontPresetSelect('base', fontBase, fieldsLocked)}
+                            ${renderFontPresetSelect('heading', fontHeading, fieldsLocked)}
+                            <div class="brand-role-row">
+                                ${renderRoleSwatch('roles.heading', 'Headings:', ROLE_DEFAULTS.heading, fieldsLocked, { swatchOnly: true })}
+                                ${renderRoleSwatch('roles.heading_sub', 'Subheadings:', ROLE_DEFAULTS.heading_sub, fieldsLocked, { swatchOnly: true })}
+                                ${renderRoleSwatch('roles.body', 'Body:', ROLE_DEFAULTS.body, fieldsLocked, { swatchOnly: true })}
+                                ${renderRoleSwatch('roles.muted', 'Muted / small:', ROLE_DEFAULTS.muted, fieldsLocked, { swatchOnly: true })}
+                                ${renderRoleSwatch('roles.blockquote', 'Blockquote:', ROLE_DEFAULTS.blockquote, fieldsLocked, { swatchOnly: true })}
+                            </div>
+                            <div class="brand-effect-field brand-effect-field--inline">
+                                <span class="brand-effect-label">Density:</span>
+                                ${renderDensityToggle(
+                                    'typography.density',
+                                    'brandTypographyDensity',
+                                    normalizeDensityToken(tokenValue(editorDocument, 'typography.density'), 'normal'),
+                                    fieldsLocked
+                                )}
+                            </div>
                         </div>
-                    </div>
-                `)}
-                ${renderEditorSection('Typography', `
-                    <div class="brand-token-grid brand-token-grid--stacked">
-                        ${renderFontPresetSelect('base', fontBase, fieldsLocked)}
-                        ${renderFontPresetSelect('heading', fontHeading, fieldsLocked)}
-                    </div>
-                `)}
-                ${renderEditorSection('Colours', `
-                    <p class="brand-field-hint">Type a hex colour (e.g. #FF6F61) or use the colour square. Both <code>#mediaplayer</code> and <code>#content-container</code> share this scheme. Primary drives chrome accents (play controls, active tabs). Secondary accents page headings and callouts — not transport chrome. Panels tints glass fills with Panel dim. Links apply to page/body prose only. Accent transparency (alpha) is derived from Primary/Secondary automatically.</p>
-                    ${renderCompactColors(fieldsLocked)}
-                `, 'brand-editor-section--colors')}
-                ${renderEditorSection('Readability', `
-                    <p class="brand-field-hint">Backdrop dim darkens the still/living shell only. Panel dim sets how strongly the Panels colour fills transport, lyrics, playlists, pages, gallery, and login glass — tune blur separately so they do not stack as one control.</p>
-                    ${renderEffectsFields(fieldsLocked)}
-                `, 'brand-editor-section--effects')}
-                ${renderEditorSection('Content chrome', `
-                    <p class="brand-field-hint">Controls nav tabs and buttons inside <code>#content-container</code> only. Media player transport stays platform-styled (sellable player skins later). Uses Primary from Colours — no second palette. Adjusting these scrolls the live preview to the Content chrome sample.</p>
-                    ${renderContentChromeFields(fieldsLocked)}
-                `, 'brand-editor-section--content-chrome', 'content-chrome')}
-                ${renderShellMediaFields(fieldsLocked)}
-                ${renderPlaylistSelectorFields(fieldsLocked)}
+                    `, 'brand-editor-section--typography', 'content-panels')}
+                </div>
             `;
 
             syncBrandSettingsPanel(editorDocument);
+            bindEditorTabUi();
             bindShellMediaUi();
         }
 
@@ -1339,6 +1677,9 @@
             }
             formEl.querySelectorAll('[data-token-path]').forEach((input) => {
                 if (!(input instanceof HTMLInputElement || input instanceof HTMLSelectElement) || input.hidden) return;
+                if (input instanceof HTMLInputElement && input.type === 'radio' && !input.checked) {
+                    return;
+                }
                 const path = input.getAttribute('data-token-path') || '';
                 if (!path) return;
                 setTokenValue(editorDocument, path, String(input.value || '').trim());
@@ -1556,10 +1897,105 @@
             }
         });
 
+        formEl.addEventListener('click', (event) => {
+            const target = event.target instanceof HTMLElement ? event.target : null;
+            if (!target) {
+                return;
+            }
+
+            const pickBtn = target.closest('.brand-role-option');
+            if (pickBtn instanceof HTMLButtonElement && formEl.contains(pickBtn)) {
+                event.preventDefault();
+                const field = pickBtn.closest('.brand-role-field');
+                const pick = String(pickBtn.getAttribute('data-role-pick') || '').trim();
+                if (!field || !pick) {
+                    return;
+                }
+                const hidden = field.querySelector('input[data-token-path]');
+                const swatch = field.querySelector('.brand-role-swatch');
+                const menu = field.querySelector('.brand-role-menu');
+                const nameEl = field.querySelector('.brand-role-swatch-name');
+                if (hidden instanceof HTMLInputElement) {
+                    hidden.value = pick;
+                }
+                const hex = rolePaletteHex(pick);
+                if (swatch instanceof HTMLElement) {
+                    swatch.style.setProperty('--brand-role-swatch', hex);
+                    swatch.setAttribute('aria-expanded', 'false');
+                    swatch.title = roleLabel(pick);
+                    swatch.setAttribute('aria-label', `${field.querySelector('.brand-effect-label')?.textContent || 'Colour'}: ${roleLabel(pick)}`);
+                }
+                if (nameEl) {
+                    nameEl.textContent = roleLabel(pick);
+                }
+                field.querySelectorAll('.brand-role-option').forEach((btn) => {
+                    btn.classList.toggle('is-selected', btn.getAttribute('data-role-pick') === pick);
+                });
+                if (menu instanceof HTMLElement) {
+                    menu.hidden = true;
+                }
+                const focusId = previewFocusFromEventTarget(field);
+                if (focusId !== '') {
+                    revealPreviewFocus(focusId);
+                }
+                collectFormIntoDocument();
+                return;
+            }
+
+            const swatchBtn = target.closest('.brand-role-swatch');
+            if (swatchBtn instanceof HTMLButtonElement && formEl.contains(swatchBtn) && !swatchBtn.disabled) {
+                event.preventDefault();
+                const field = swatchBtn.closest('.brand-role-field');
+                const menu = field?.querySelector('.brand-role-menu');
+                if (!(menu instanceof HTMLElement)) {
+                    return;
+                }
+                const willOpen = menu.hidden;
+                formEl.querySelectorAll('.brand-role-menu').forEach((el) => {
+                    if (el instanceof HTMLElement) {
+                        el.hidden = true;
+                    }
+                });
+                formEl.querySelectorAll('.brand-role-swatch').forEach((el) => {
+                    if (el instanceof HTMLElement) {
+                        el.setAttribute('aria-expanded', 'false');
+                    }
+                });
+                if (willOpen) {
+                    menu.hidden = false;
+                    swatchBtn.setAttribute('aria-expanded', 'true');
+                }
+                return;
+            }
+
+            if (!target.closest('.brand-role-field')) {
+                formEl.querySelectorAll('.brand-role-menu').forEach((el) => {
+                    if (el instanceof HTMLElement) {
+                        el.hidden = true;
+                    }
+                });
+                formEl.querySelectorAll('.brand-role-swatch').forEach((el) => {
+                    if (el instanceof HTMLElement) {
+                        el.setAttribute('aria-expanded', 'false');
+                    }
+                });
+            }
+        });
+
         formEl.addEventListener('focusin', (event) => {
             const focusId = previewFocusFromEventTarget(event.target);
             if (focusId !== '') {
                 revealPreviewFocus(focusId);
+                return;
+            }
+            if (event.target instanceof Element
+                && event.target.closest('.brand-editor-section--player-chrome')
+            ) {
+                if (editorTab !== 'player') {
+                    setEditorTab('player', { syncPreview: true });
+                } else if (previewMode !== 'player') {
+                    setPreviewMode('player', { forceRender: true });
+                }
             }
         });
 
@@ -1594,11 +2030,29 @@
                 }
                 collectFormIntoDocument();
             }
+            if (target instanceof HTMLInputElement
+                && target.type === 'radio'
+                && target.hasAttribute('data-token-path')
+            ) {
+                const focusId = previewFocusFromEventTarget(target);
+                if (focusId !== '') {
+                    revealPreviewFocus(focusId);
+                }
+                collectFormIntoDocument();
+            }
             if (target instanceof HTMLInputElement && (
-                target.name === 'brandPlaylistSelector'
-                || target.name === 'brandBeggarsBanquet'
+                target.name === 'brandBeggarsBanquet'
                 || target.name === 'brandCoverReflection'
             )) {
+                if (editorTab !== 'player') {
+                    setEditorTab('player', { syncPreview: true });
+                } else if (previewMode !== 'player') {
+                    setPreviewMode('player', { forceRender: true });
+                }
+                collectFormIntoDocument();
+            }
+            if (target instanceof HTMLInputElement && target.name === 'brandPlaylistSelector') {
+                revealPreviewFocus('playlist-selector');
                 collectFormIntoDocument();
             }
         });

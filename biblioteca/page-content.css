@@ -35,7 +35,7 @@
     width: 100%;
     margin-left: 0;
     margin-right: 0;
-    margin-bottom: 14px;
+    margin-bottom: var(--content-type-block-gap, 14px);
     padding: 0;
     box-sizing: border-box;
     background: transparent;
@@ -61,25 +61,26 @@
     width: 100%;
     margin-left: auto;
     margin-right: auto;
-    padding: 12px 16px;
-    border-radius: 10px;
-    background: var(--panel-fill, color-mix(in srgb, var(--color-surface-mid) calc(var(--panel-scrim-strength, 0.72) * 100%), transparent));
-    -webkit-backdrop-filter: blur(var(--panel-blur, 5px));
-    backdrop-filter: blur(var(--panel-blur, 5px));
+    padding: var(--content-panel-pad-y, 12px) var(--content-panel-pad-x, 16px);
+    border-radius: var(--content-panel-radius, 10px);
+    border: var(--content-panel-border-width, 0) solid var(--content-panel-border, transparent);
+    background: var(--content-panel-fill, var(--panel-fill));
+    -webkit-backdrop-filter: blur(var(--content-panel-blur, var(--panel-blur, 5px)));
+    backdrop-filter: blur(var(--content-panel-blur, var(--panel-blur, 5px)));
     box-sizing: border-box;
 }
 
 .page-box .page-content > .page-list,
 .info-lightbox-text .page-content > .page-list {
-    padding-left: calc(16px + 1.2rem);
+    padding-left: calc(var(--content-panel-pad-x, 16px) + 1.2rem);
 }
 
 .page-box .page-content > .page-quote,
 .page-box .page-content > .page-callout,
 .info-lightbox-text .page-content > .page-quote,
 .info-lightbox-text .page-content > .page-callout {
-    padding-left: 18px;
-    padding-right: 16px;
+    padding-left: calc(var(--content-panel-pad-x, 16px) + 2px);
+    padding-right: var(--content-panel-pad-x, 16px);
 }
 
 .page-content::after {
@@ -91,12 +92,12 @@
 .page-richtext {
     width: 100%;
     max-width: var(--prose-measure, min(70ch, 52rem));
-    margin: 0 auto 14px;
+    margin: 0 auto var(--content-type-block-gap, 14px);
     padding: 2px;
     box-sizing: border-box;
     text-align: left;
-    line-height: 1.6;
-    color: var(--color-text-muted, #dddddd);
+    line-height: var(--content-type-line-height, 1.2);
+    color: var(--role-body, var(--color-text-muted, #dddddd));
 }
 
 .page-richtext h1,
@@ -144,50 +145,51 @@
 }
 
 .page-richtext h1 {
-    color: var(--primary-color);
+    color: var(--role-heading, var(--primary-color));
     font-size: 22px;
     font-weight: 700;
-    margin: 0 0 12px;
+    margin: 0 0 calc(var(--content-type-block-gap, 10px) + 2px);
     text-shadow: 0 0 10px var(--primary-a30);
 }
 
 .page-richtext h2 {
-    color: var(--primary-color);
+    color: var(--role-heading, var(--primary-color));
     font-size: 18px;
     font-weight: 700;
-    margin: 0 0 10px;
+    margin: 0 0 var(--content-type-block-gap, 10px);
 }
 
 .page-richtext h3 {
-    color: var(--primary-color);
+    color: var(--role-heading, var(--primary-color));
     font-size: 16px;
     font-weight: 700;
-    margin: 0 0 8px;
+    margin: 0 0 calc(var(--content-type-block-gap, 10px) - 2px);
 }
 
 .page-richtext h4 {
-    color: var(--secondary-color);
+    color: var(--role-heading-sub, var(--secondary-color));
     font-size: 15px;
     font-weight: 700;
-    margin: 0 0 8px;
+    margin: 0 0 calc(var(--content-type-block-gap, 10px) - 2px);
 }
 
 .page-richtext p.page-text-small {
     font-size: 13px;
-    line-height: 1.5;
-    margin: 0 0 10px;
+    line-height: calc(var(--content-type-line-height, 1.2) - 0.1);
+    margin: 0 0 var(--content-type-block-gap, 10px);
+    color: var(--role-muted, var(--color-text-muted));
 }
 
 .page-richtext pre.page-text-code {
     font-family: Consolas, "Courier New", monospace;
     font-size: 13px;
-    line-height: 1.45;
+    line-height: calc(var(--content-type-line-height, 1.2) - 0.15);
     color: #e8e8e8;
     background: rgba(255, 255, 255, 0.06);
     border: 1px solid rgba(255, 255, 255, 0.12);
     border-radius: 8px;
     padding: 10px 12px;
-    margin: 0 0 10px;
+    margin: 0 0 var(--content-type-block-gap, 10px);
     white-space: pre-wrap;
     overflow-x: auto;
 }
@@ -201,13 +203,27 @@
 }
 
 .page-richtext p {
-    margin: 0 0 10px;
+    margin: 0 0 var(--content-type-block-gap, 10px);
 }
 
 .page-richtext ul,
 .page-richtext ol {
-    margin: 0 0 10px;
+    margin: 0 0 var(--content-type-block-gap, 10px);
     padding-left: 1.2rem;
+    color: var(--role-body, var(--color-text-muted));
+}
+
+.page-richtext blockquote {
+    margin: 0 0 var(--content-type-block-gap, 10px);
+    padding: 0.35rem 0 0.35rem 0.85rem;
+    border-left: 3px solid var(--role-blockquote, var(--primary-color));
+    color: var(--role-muted, var(--color-text-muted));
+}
+
+.page-richtext hr {
+    border: 0;
+    border-top: 1px solid rgba(255, 255, 255, 0.16);
+    margin: var(--content-type-block-gap, 10px) 0;
 }
 
 .page-picture {
@@ -505,10 +521,10 @@
     margin: 0 auto 14px;
     max-width: var(--prose-measure, min(70ch, 52rem));
     padding: 12px 14px;
-    border-left: 3px solid var(--primary-color);
-    background: var(--primary-a08);
+    border-left: 3px solid var(--role-blockquote, var(--primary-color));
+    background: color-mix(in srgb, var(--role-blockquote, var(--primary-color)) 8%, transparent);
     border-radius: 10px;
-    color: var(--color-text-muted, #dddddd);
+    color: var(--role-muted, var(--color-text-muted, #dddddd));
     text-align: left;
 }
 
@@ -519,7 +535,7 @@
 .page-quote-attribution {
     margin-top: 8px;
     font-size: 13px;
-    color: var(--secondary-color);
+    color: var(--role-heading-sub, var(--secondary-color));
 }
 
 .page-figure {
@@ -685,11 +701,12 @@
     width: 100%;
     box-sizing: border-box;
     margin: 0 0 18px;
-    padding: 12px;
-    border-radius: 10px;
-    background: var(--panel-fill, color-mix(in srgb, var(--color-surface-mid) calc(var(--panel-scrim-strength, 0.72) * 100%), transparent));
-    -webkit-backdrop-filter: blur(var(--panel-blur, 5px));
-    backdrop-filter: blur(var(--panel-blur, 5px));
+    padding: var(--content-panel-pad-y, 12px) var(--content-panel-pad-x, 12px);
+    border-radius: var(--content-panel-radius, 10px);
+    border: var(--content-panel-border-width, 0) solid var(--content-panel-border, transparent);
+    background: var(--content-panel-fill, var(--panel-fill));
+    -webkit-backdrop-filter: blur(var(--content-panel-blur, var(--panel-blur, 5px)));
+    backdrop-filter: blur(var(--content-panel-blur, var(--panel-blur, 5px)));
 }
 
 .page-gallery-grid {

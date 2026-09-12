@@ -2,6 +2,76 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-09-13 00:36 - Typography Main/Heading font labels stay on the same line as their dropdowns (inline token field CSS specificity fix).
+
+2026-09-13 00:32 - Content Branding panels: restore Buttons rows (Corners/Borders/Density each keep label + control inline; Pill visible again); Playlist Style: label; Panels/Typography labels end with `:`; drop Playlist hints.
+
+2026-09-13 00:28 - Branding Typography: drop helper hints; role pickers are colour chips only (role name stays in title/aria).
+
+2026-09-13 00:22 - Panels: drop Pill corners (legacy Pill → Shaved); Border colour role chip (`roles.panel_border`); remove Panels helper hints.
+
+2026-09-13 00:15 - Buttons Active role paints the selected content-tab state (preview Active chip + `/play` `.content-toggle button.active`), not only hover.
+
+2026-09-13 00:12 - Branding Buttons: Outline/Fill/Active colour chips on row 2; Active role drives hover fill (`roles.button_active` → `--role-button-active`).
+
+2026-09-13 00:09 - Branding Buttons Outline/Fill pickers are colour chips only (role name stays in title/aria).
+
+2026-09-13 00:08 - Branding Buttons panel: Style + Outline + Fill on one row; Corners + Borders on the next; Density stays below.
+
+2026-09-13 00:04 - Branding Buttons role labels shortened to Outline: / Fill:.
+
+2026-09-13 00:02 - Branding Buttons panel: drop helper hints; labels use trailing colons; Outline/Fill colour pickers sit on the same line as their labels.
+
+2026-09-12 23:58 - Buttons density padding is uniform Dense→Spacious: 2px → 8px (2 / 4 / 5 / 7 / 8); gap matches pad; min-height = 20 + 2×pad.
+
+2026-09-12 23:55 - Buttons density uses the same Dense→Spacious scale as Typography (1 / 1.1 / 1.2 / 1.3 / 1.4) to scale pad/min-height/gap.
+
+2026-09-12 23:50 - Colour roles: operators assign Primary/Secondary/Main text/Muted/Panels to headings, body, blockquote, and button outline/fill via compact swatches. Soft fill = 50% of Fill colour. Panel Live preview shows H4, emphasis, lists, blockquote, inline code, hr, and links. Colours hint no longer claims Secondary always drives headings.
+
+2026-09-12 23:30 - Branding Content Live preview: section caption says **Panels**; link samples use higher-specificity styles so Default / Hover / Visited show distinct brand link colours inside the Panel.
+
+2026-09-12 23:20 - One Panel model: Content → Panels controls dim/blur/corners/border/density on the frosted boxes behind playlists, lyrics, pages, gallery, and login. Live preview shows one Panel with typography and links inside (no nested “Panel glass” / second type box). Shaved panel corners = 10px; border default None.
+
+2026-09-12 22:55 - Typography density line-heights set to 1 / 1.1 / 1.2 / 1.3 / 1.4 (Dense→Spacious).
+
+2026-09-12 22:50 - Content Live preview: Playlist selector sample sits under Buttons (matches editor panel order).
+
+2026-09-12 22:45 - Typography density scale tightened (Dense line-height 1 → Spacious 1.55). Content Live preview: no shell-header padding; link samples sit inside the richtext panel.
+
+2026-09-12 22:40 - Branding Content tab: order is Buttons, Playlist selector, Panels, Typography. Panels and Typography gain the same Dense→Spacious density control (panel padding/gap; typography line-height/block gap).
+
+2026-09-12 22:30 - Branding Content tab: rename Content chrome → **Buttons**; Playlist selector is its own panel. Order: Playlist selector, Buttons, Panels, Typography.
+
+2026-09-12 22:25 - Branding Content tab: rename Readability → **Panels**; order is Content chrome, Panels, Typography.
+
+2026-09-12 18:00 - Playlist selector moves from Player chrome to Content chrome (controls + Live preview sample). Player chrome keeps cover reflection and Beggars banquet.
+
+2026-09-12 17:55 - Branding Live preview backdrop is flush (no inset padding, margin, border, or rounded corners on the shell chrome / preview frame).
+
+2026-09-12 17:50 - Branding Live preview drops the Media player|Content toolbar; Common|Player|Content editor tabs drive the preview surface.
+
+2026-09-12 17:45 - Split brand glass: Common → Backdrop dim; Player / Content each have Panel dim + blur (`player_panel_*` / `content_panel_*`). Legacy `panel_dim` / `panel_blur` migrate into both. Transport uses player vars; playlists/lyrics/pages/gallery/login use content vars.
+
+2026-09-12 17:35 - Branding editor groups panels under Common | Player | Content subnav (Common: Base info, Colours, Media; Player: Player chrome; Content: Typography, Readability, Content chrome). Tab choice persists; Player/Content tabs sync the matching Live preview.
+
+2026-09-12 17:20 - Hide Storage id from Branding and Playlists Base info. Operators edit names and playlist slugs; storage ids stay unique, stable, and travel with PCF/PBF (migrate APIs remain for support, not the editor).
+
+2026-09-12 17:15 - Branding control toggles (Content chrome, playlist selector) use the same segmented control style as Live preview Media player | Content.
+
+2026-09-12 17:12 - Branding Live preview shell chrome fills the sticky column height so background image/video covers the full panel, not just content height.
+
+2026-09-12 17:10 - Branding Live preview sticky column fills the viewport height (`100vh − 24px`) so Media player / Content use the full vertical estate while scrolling the form.
+
+2026-09-12 17:05 - Content chrome Idle|Hover|Active sample sits on the shell (outside Panel glass), matching `.content-toggle` on /play.
+
+2026-09-12 17:00 - Content chrome live sample labels are Idle | Hover | Active (helper line removed).
+
+2026-09-12 16:55 - Content chrome button corners use fixed px again (`0` / `6` shaved / `999` pill) instead of `%`, so Shaved stays a small soft corner at every density.
+
+2026-09-12 16:45 - Content chrome uses named toggle presets only (Outline/Soft fill/Solid, Square/Shaved/Pill, Thin/Normal/Fat, Dense→Spacious). Live preview: desktop side-by-side note; Media player|Content under the header; Content sample shows Playlists/Lyrics/Pages (idle/hover/active); Typography section holds text + links. Density pads the nav buttons only.
+
+2026-09-12 16:20 - Branding Live preview splits into two surfaces toggled beside the header: **Media player** (cover, transport, playlist selector) and **Content** (content chrome, panel glass, typography, links). Mode persists in localStorage; focusing Content chrome or Player chrome auto-switches the matching preview.
+
 2026-09-12 16:05 - SESSION-HANDOFF points at Branding preview focus (**build 465**).
 
 2026-09-12 16:00 - Branding live preview: scrollable sticky frame; Content chrome sample moved up under the player chrome; focusing/adjusting Content chrome fields scrolls and briefly highlights that sample so operators can see style/radius/density changes.
