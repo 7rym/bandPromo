@@ -280,7 +280,7 @@ Policy — **locked 2026-09-08**; **chrome re-locked 2026-09-09** (see [PLATFORM
 - [x] Lock **chrome placement** — static header logo (identity only); campaign **logo strip** at top of Playlists panel (not tab row; not under header logo); no visible “Campaigns” label (a11y names only); wide ~2:1 campaign chips vs ~1:1 playlist covers.
 - [x] Lock **single-campaign installs** — hide campaign strip when only one public campaign.
 - [x] Lock **single-playlist campaigns** — hide playlist selector when the selected campaign has ≤1 public playlist.
-- [x] Lock **defaults** — `localStorage` last campaign + last playlist per campaign; else ★ default playlist’s campaign / playlist.
+- [x] Lock **defaults** — `localStorage` last campaign + last playlist per campaign + last track and position per playlist; else ★ default playlist’s campaign / playlist / first playable track (deep links start at 0).
 - [x] Lock **page tabs + brand** — selected campaign drives shell + tabs when idle; campaign change stops playback; playlist change may keep playing; deep links override memory.
 - [x] Lock **URLs** — `/play/{campaign}/{playlist}/{track}` hard cut; no playlist-first legacy paths ([AGENTS.md](AGENTS.md) no speculative fallbacks).
 - [x] Lock **scale** — Playlists-panel strip for a few campaigns; large-catalogue UI later.

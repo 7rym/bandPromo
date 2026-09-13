@@ -6,6 +6,8 @@
     --brand-font-body: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     --brand-font-heading: var(--brand-font-body);
     --card-size: clamp(200px, 56vw, 260px);
+    /* Branding → Cover → Size (Full|Medium|Half → 1|0.75|0.5). */
+    --cover-size-scale: 1;
     --player-rail: min(100%, 500px);
     --player-side-gutter: clamp(12px, 3vw, 32px);
     --content-gutter: clamp(12px, 2vw, 28px);
@@ -38,6 +40,12 @@
     --player-panel-scrim-strength: 0.72;
     --player-panel-blur: 5px;
     --player-panel-fill: color-mix(in srgb, var(--color-surface-mid) 72%, transparent);
+    --player-panel-pad-y: 12px;
+    --player-panel-pad-x: 14px;
+    --player-panel-gap: 8px;
+    --player-panel-radius: 10px;
+    --player-panel-border-width: 0px;
+    --player-panel-border: transparent;
     --content-panel-scrim-strength: 0.72;
     --content-panel-blur: 5px;
     --content-panel-fill: color-mix(in srgb, var(--color-surface-mid) 72%, transparent);
@@ -57,6 +65,7 @@
     --role-button-fill: var(--primary-color);
     --role-button-active: var(--primary-color);
     --role-panel-border: var(--primary-color);
+    --role-player-panel-border: var(--primary-color);
     --role-blockquote: var(--primary-color);
     /* Legacy aliases → content panel */
     --panel-scrim-strength: var(--content-panel-scrim-strength);
@@ -64,10 +73,10 @@
     --panel-fill: var(--content-panel-fill);
     --content-control-radius: 999px;
     --content-control-border-width: 2px;
-    --content-control-pad-y: 8px;
-    --content-control-pad-x: 14px;
-    --content-control-min-height: 40px;
-    --content-control-gap: 6px;
+    --content-control-pad-y: 5px;
+    --content-control-pad-x: 5px;
+    --content-control-min-height: 30px;
+    --content-control-gap: 5px;
     --content-control-bg: transparent;
     --content-control-border: var(--primary-color);
     --content-control-fg: var(--primary-color);
@@ -176,7 +185,7 @@ body.shell-bg-video::before {
     :root {
         --card-size: clamp(280px, min(32vw, 58dvh), 560px);
         --player-rail: min(
-            calc(var(--card-size) + 2 * var(--player-side-gutter)),
+            calc(var(--card-size) * var(--cover-size-scale, 1) + 2 * var(--player-side-gutter)),
             42vw
         );
     }
@@ -431,7 +440,7 @@ body.debug-modal-open {
 
 /* 3D Scene Container */
 .scene {
-    width: min(var(--card-size), 100%);
+    width: min(calc(var(--card-size) * var(--cover-size-scale, 1)), 100%);
     aspect-ratio: 1 / 1;
     height: auto;
     perspective: 1000px;
@@ -445,14 +454,16 @@ body.debug-modal-open {
     transform-style: preserve-3d;
 }
 
-/* Side cards (Previous/Next Preview) */
+/* Side cards (Previous/Next Preview) — Branding → Player → Cover */
 .side-card {
     position: absolute;
+    display: var(--side-cover-display, block);
     width: 100%;
     height: 100%;
     border-radius: 12px;
-    opacity: 0.2;
-    cursor: pointer;
+    opacity: var(--side-cover-opacity, 0.2);
+    cursor: var(--side-cover-cursor, pointer);
+    pointer-events: var(--side-cover-pointer-events, auto);
     transition: all 0.3s ease;
     z-index: 5;
     box-shadow: 0 5px 15px rgba(0,0,0,0.5);
@@ -463,23 +474,23 @@ body.debug-modal-open {
     height: 100%;
     object-fit: cover;
     border-radius: 12px;
-    filter: grayscale(0.5);
+    filter: grayscale(var(--side-cover-grayscale, 0.5));
 }
 
 @media (hover: hover) {
     .side-card:hover {
-        opacity: 0.6;
+        opacity: var(--side-cover-opacity-hover, 0.6);
         filter: brightness(1.2);
         z-index: 6;
     }
 }
 
 .side-card.prev {
-    transform: translateX(-120px) translateZ(-150px) rotateX(20deg);
+    transform: translateX(calc(-1 * var(--side-cover-offset, 120px) * var(--cover-size-scale, 1))) translateZ(-150px) rotateX(20deg);
 }
 
 .side-card.next {
-    transform: translateX(120px) translateZ(-150px) rotateX(20deg);
+    transform: translateX(calc(var(--side-cover-offset, 120px) * var(--cover-size-scale, 1))) translateZ(-150px) rotateX(20deg);
 }
 
 .card-wrapper {
@@ -593,14 +604,15 @@ body.debug-modal-open {
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 8px;
-    width: min(100%, calc(var(--card-size) + 48px));
+    gap: var(--player-panel-gap, 8px);
+    width: min(100%, calc(var(--card-size) * var(--cover-size-scale, 1) + 48px));
     max-width: 520px;
     margin: 0 auto 6px;
-    padding: 12px 14px 14px;
+    padding: var(--player-panel-pad-y, 12px) var(--player-panel-pad-x, 14px);
     box-sizing: border-box;
-    border-radius: 10px;
-    /* Brand Player panel dim + blur (cover art stays outside / sharp). */
+    border-radius: var(--player-panel-radius, 10px);
+    border: var(--player-panel-border-width, 0) solid var(--player-panel-border, transparent);
+    /* Brand Player Controls dim + blur (cover art stays outside / sharp). */
     background: var(--player-panel-fill, var(--panel-fill));
     -webkit-backdrop-filter: blur(var(--player-panel-blur, var(--panel-blur, 5px)));
     backdrop-filter: blur(var(--player-panel-blur, var(--panel-blur, 5px)));
@@ -679,8 +691,8 @@ h3 { margin: 5px 0 0; font-size: 1.2rem; color: var(--color-text-muted); font-we
     animation: pulseGlow 1.5s infinite;
 }
 
-/* Content-container controls — Branding → Content chrome tokens. */
-#content-container button,
+/* Content-container controls — Branding → Content → Buttons tokens. */
+#content-container .content-toggle button,
 #content-container .playlist-selector-btn {
     background: var(--content-control-bg);
     border: var(--content-control-border-width) solid var(--content-control-border);
@@ -698,7 +710,7 @@ h3 { margin: 5px 0 0; font-size: 1.2rem; color: var(--color-text-muted); font-we
 }
 
 @media (hover: hover) {
-    #content-container button:hover,
+    #content-container .content-toggle button:hover,
     #content-container .playlist-selector-btn:hover {
         background: var(--content-control-bg-hover);
         border-color: var(--content-control-border);
@@ -707,7 +719,7 @@ h3 { margin: 5px 0 0; font-size: 1.2rem; color: var(--color-text-muted); font-we
     }
 }
 
-#content-container button:active,
+#content-container .content-toggle button:active,
 #content-container .playlist-selector-btn:active {
     transform: scale(0.97);
 }
@@ -956,6 +968,100 @@ button.pulse-guide {
     padding: 0;
 }
 
+#player-user-area {
+    display: flex;
+    justify-content: center;
+    width: min(100%, calc(var(--card-size) * var(--cover-size-scale, 1) + 48px));
+    max-width: 520px;
+    margin: 0 auto 4px;
+    padding: 0 8px;
+    box-sizing: border-box;
+    flex-shrink: 0;
+    z-index: 20;
+}
+
+#player-user-area[hidden] {
+    display: none !important;
+}
+
+.player-user-status {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    width: 100%;
+    padding: 0.45rem 0.75rem;
+    box-sizing: border-box;
+    border-radius: var(--player-panel-radius, 10px);
+    border: var(--player-panel-border-width, 0) solid var(--player-panel-border, transparent);
+    background: var(--player-panel-fill, var(--panel-fill));
+    backdrop-filter: blur(var(--player-panel-blur, var(--panel-blur, 5px)));
+    -webkit-backdrop-filter: blur(var(--player-panel-blur, var(--panel-blur, 5px)));
+    color: var(--color-text-muted, #dddddd);
+    font-size: 0.78rem;
+    line-height: 1.3;
+}
+
+.player-user-status-name {
+    color: var(--text-color, #ffffff);
+    font-weight: 700;
+}
+
+.player-user-logout {
+    flex-shrink: 0;
+    color: var(--color-link, var(--primary-color));
+    text-decoration: none;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+    font-size: 0.72rem;
+}
+
+.player-user-logout:hover,
+.player-user-logout:focus-visible {
+    color: var(--color-link-hover, #5ce4ff);
+    outline: none;
+}
+
+.player-user-login-form {
+    display: flex;
+    flex-direction: column;
+    gap: 0.45rem;
+    width: 100%;
+    padding: 0.55rem 0.75rem;
+    box-sizing: border-box;
+    border-radius: var(--player-panel-radius, 10px);
+    border: var(--player-panel-border-width, 0) solid var(--player-panel-border, transparent);
+    background: var(--player-panel-fill, var(--panel-fill));
+    backdrop-filter: blur(var(--player-panel-blur, var(--panel-blur, 5px)));
+    -webkit-backdrop-filter: blur(var(--player-panel-blur, var(--panel-blur, 5px)));
+}
+
+.player-user-login-form input {
+    width: 100%;
+    box-sizing: border-box;
+    min-height: var(--content-control-min-height, 30px);
+    padding: var(--content-control-pad-y, 5px) var(--content-control-pad-x, 8px);
+    border-radius: var(--content-control-radius, 999px);
+    border: var(--content-control-border-width, 2px) solid var(--content-control-border, var(--primary-a30));
+    background: var(--content-control-bg, transparent);
+    color: var(--text-color, #ffffff);
+    font-size: 0.85rem;
+}
+
+.player-user-login-form button {
+    min-height: var(--content-control-min-height, 30px);
+    padding: var(--content-control-pad-y, 5px) var(--content-control-pad-x, 10px);
+    border-radius: var(--content-control-radius, 999px);
+    border: var(--content-control-border-width, 2px) solid var(--content-control-border-active, var(--primary-color));
+    background: var(--content-control-bg-active, var(--primary-color));
+    color: var(--content-control-fg-active, #000);
+    font-weight: 700;
+    text-transform: uppercase;
+    font-size: 0.78rem;
+    cursor: pointer;
+}
+
 .content-toggle {
     display: flex;
     gap: var(--content-control-gap, 6px);
@@ -1004,6 +1110,8 @@ button.pulse-guide {
     }
 }
 
+/* Must beat #content-container .content-toggle button (idle) so Active role paints. */
+#content-container .content-toggle button.active,
 .content-toggle button.active {
     background: var(--content-control-bg-active, var(--primary-color));
     color: var(--content-control-fg-active, #000);
@@ -1029,6 +1137,8 @@ button.pulse-guide {
     .content-toggle button {
         min-width: 0;
         font-size: 0.72rem;
+        padding: var(--content-control-pad-y) var(--content-control-pad-x);
+        min-height: var(--content-control-min-height);
     }
 }
 
@@ -1466,10 +1576,12 @@ button.pulse-guide {
     text-transform: none;
 }
 
+#content-container .playlist-selector-btn.is-active,
 .playlist-selector-btn.is-active {
-    border-color: var(--primary-color, #00d2ff);
-    background-color: color-mix(in srgb, var(--primary-color, #00d2ff) 18%, var(--color-surface-mid, #1e1e24));
-    color: var(--text-color, #ffffff);
+    background: var(--content-control-bg-active, var(--primary-color));
+    border-color: var(--content-control-border-active, var(--primary-color));
+    color: var(--content-control-fg-active, #000);
+    box-shadow: 0 0 10px var(--content-control-glow-active, var(--primary-color));
 }
 
 .playlist-selector-btn:focus-visible {
@@ -2105,7 +2217,7 @@ audio {
         gap: 6px;
         margin-bottom: 4px;
         padding: 10px 10px 12px;
-        width: min(100%, calc(var(--card-size) + 32px));
+        width: min(100%, calc(var(--card-size) * var(--cover-size-scale, 1) + 32px));
     }
 
     .track-info {
@@ -2149,6 +2261,17 @@ audio {
         padding: 0 6px 2px;
     }
 
+    #player-user-area {
+        width: min(100%, calc(var(--card-size) * var(--cover-size-scale, 1) + 32px));
+        margin-bottom: 2px;
+        padding: 0 6px;
+    }
+
+    .player-user-status {
+        padding: 0.4rem 0.65rem;
+        font-size: 0.72rem;
+    }
+
     .support-link-button {
         margin-top: 4px;
         min-height: 36px;
@@ -2165,8 +2288,8 @@ audio {
     }
 
     .content-toggle button {
-        min-height: 36px;
-        padding: 5px 4px;
+        min-height: var(--content-control-min-height);
+        padding: var(--content-control-pad-y) var(--content-control-pad-x);
         font-size: 0.7rem;
     }
 
@@ -2226,11 +2349,11 @@ audio {
     }
 
     .side-card.prev {
-        transform: translateX(-72px) translateZ(-120px) rotateX(18deg);
+        transform: translateX(calc(-1 * var(--side-cover-offset, 120px) * var(--cover-size-scale, 1) * 0.6)) translateZ(-120px) rotateX(18deg);
     }
 
     .side-card.next {
-        transform: translateX(72px) translateZ(-120px) rotateX(18deg);
+        transform: translateX(calc(var(--side-cover-offset, 120px) * var(--cover-size-scale, 1) * 0.6)) translateZ(-120px) rotateX(18deg);
     }
 
     .lyrics-box,
@@ -2252,11 +2375,11 @@ audio {
     }
 
     .side-card.prev {
-        transform: translateX(-95px) translateZ(-140px) rotateX(18deg);
+        transform: translateX(calc(-1 * var(--side-cover-offset, 120px) * var(--cover-size-scale, 1) * 0.8)) translateZ(-140px) rotateX(18deg);
     }
 
     .side-card.next {
-        transform: translateX(95px) translateZ(-140px) rotateX(18deg);
+        transform: translateX(calc(var(--side-cover-offset, 120px) * var(--cover-size-scale, 1) * 0.8)) translateZ(-140px) rotateX(18deg);
     }
 
     .page-box img {
@@ -2275,11 +2398,11 @@ audio {
     }
 
     .side-card.prev {
-        transform: translateX(-58px) translateZ(-90px) rotateX(18deg);
+        transform: translateX(calc(-1 * var(--side-cover-offset, 120px) * var(--cover-size-scale, 1) * 0.48)) translateZ(-90px) rotateX(18deg);
     }
 
     .side-card.next {
-        transform: translateX(58px) translateZ(-90px) rotateX(18deg);
+        transform: translateX(calc(var(--side-cover-offset, 120px) * var(--cover-size-scale, 1) * 0.48)) translateZ(-90px) rotateX(18deg);
     }
 
     .reflection {
@@ -2343,8 +2466,8 @@ audio {
     }
 
     .content-toggle button {
-        min-height: 34px;
-        padding: 4px 4px;
+        min-height: var(--content-control-min-height);
+        padding: var(--content-control-pad-y) var(--content-control-pad-x);
         font-size: 0.7rem;
     }
 

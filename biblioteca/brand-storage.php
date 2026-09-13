@@ -134,6 +134,9 @@ function bandpromo_brand_default_effects_tokens(): array
         // Player transport glass (#mediaplayer).
         'player_panel_dim' => '72',
         'player_panel_blur' => '5',
+        'player_panel_density' => 'normal',
+        'player_panel_corners' => 'shaved',
+        'player_panel_border' => 'none',
         // Content / login panels (#content-container).
         'content_panel_dim' => '72',
         'content_panel_blur' => '5',
@@ -448,6 +451,7 @@ function bandpromo_brand_role_palette_keys(): array
  *   button_fill: string,
  *   button_active: string,
  *   panel_border: string,
+ *   player_panel_border: string,
  *   blockquote: string
  * }
  */
@@ -462,6 +466,7 @@ function bandpromo_brand_default_role_tokens(): array
         'button_fill' => 'primary',
         'button_active' => 'primary',
         'panel_border' => 'primary',
+        'player_panel_border' => 'primary',
         'blockquote' => 'primary',
     ];
 }
@@ -702,6 +707,23 @@ function bandpromo_brand_effects_css_variables(array $document): array
         $contentDim
     );
 
+    $playerPanelDensity = bandpromo_brand_normalize_content_density(
+        bandpromo_brand_token_value($document, 'effects.player_panel_density')
+    );
+    $playerPanelMetrics = bandpromo_brand_panel_density_metrics($playerPanelDensity);
+    $playerCornersRaw = bandpromo_brand_token_value($document, 'effects.player_panel_corners');
+    if (trim((string) $playerCornersRaw) === '') {
+        $playerCornersRaw = 'shaved';
+    }
+    $playerCorners = bandpromo_brand_normalize_panel_corners($playerCornersRaw);
+    $playerBorderRaw = bandpromo_brand_token_value($document, 'effects.player_panel_border');
+    if (trim((string) $playerBorderRaw) === '') {
+        $playerBorderRaw = 'none';
+    }
+    $playerBorder = bandpromo_brand_normalize_panel_border($playerBorderRaw);
+    $playerRadius = bandpromo_brand_panel_corners_radius_px($playerCorners);
+    $playerBorderWidth = bandpromo_brand_panel_border_width_px($playerBorder);
+
     $panelDensity = bandpromo_brand_normalize_content_density(
         bandpromo_brand_token_value($document, 'effects.content_panel_density')
     );
@@ -724,6 +746,14 @@ function bandpromo_brand_effects_css_variables(array $document): array
         '--player-panel-scrim-strength' => number_format($playerDim / 100, 2, '.', ''),
         '--player-panel-blur' => $playerBlur . 'px',
         '--player-panel-fill' => $playerFill,
+        '--player-panel-pad-y' => $playerPanelMetrics['pad_y'] . 'px',
+        '--player-panel-pad-x' => $playerPanelMetrics['pad_x'] . 'px',
+        '--player-panel-gap' => $playerPanelMetrics['gap'] . 'px',
+        '--player-panel-radius' => $playerRadius . 'px',
+        '--player-panel-border-width' => $playerBorderWidth . 'px',
+        '--player-panel-border' => $playerBorderWidth > 0
+            ? 'var(--role-player-panel-border)'
+            : 'transparent',
         '--content-panel-scrim-strength' => number_format($contentDim / 100, 2, '.', ''),
         '--content-panel-blur' => $contentBlur . 'px',
         '--content-panel-fill' => $contentFill,
@@ -823,8 +853,18 @@ function bandpromo_brand_default_document(): array
             'playlist_selector' => 'coverflow',
             // In-flow support CTA (#beggars-banquet). Destination/label still from Settings → Support.
             'beggars_banquet' => true,
+            // In-flow account strip: status when signed in; compact login when anonymous (v0.9).
+            'login_status' => false,
             // Mirror under the main cover art (desktop split layout).
             'cover_reflection' => true,
+            // Cover scene scale vs platform --card-size (full=1, medium=0.75, half=0.5).
+            'cover_size' => 'full',
+            // Prev/next ghost covers flanking the main cover.
+            'side_covers' => true,
+            'side_covers_opacity' => 20,
+            'side_covers_spread' => 'normal',
+            'side_covers_colour' => 'soft',
+            'side_covers_navigate' => true,
         ],
     ];
 }
@@ -862,7 +902,18 @@ function bandpromo_brand_legacy_playlist_selector_fallback(): string
 
 /**
  * @param array<string, mixed> $input
- * @return array{playlist_selector: string, beggars_banquet: bool, cover_reflection: bool}
+ * @return array{
+ *   playlist_selector: string,
+ *   beggars_banquet: bool,
+ *   login_status: bool,
+ *   cover_reflection: bool,
+ *   cover_size: string,
+ *   side_covers: bool,
+ *   side_covers_opacity: int,
+ *   side_covers_spread: string,
+ *   side_covers_colour: string,
+ *   side_covers_navigate: bool
+ * }
  */
 function bandpromo_brand_normalize_player(array $input): array
 {
@@ -881,16 +932,144 @@ function bandpromo_brand_normalize_player(array $input): array
         $beggarsBanquet = filter_var($player['beggars_banquet'], FILTER_VALIDATE_BOOLEAN);
     }
 
+    // New optional chrome — missing key stays off so existing brands are unchanged.
+    if (!array_key_exists('login_status', $player)) {
+        $loginStatus = false;
+    } else {
+        $loginStatus = filter_var($player['login_status'], FILTER_VALIDATE_BOOLEAN);
+    }
+
     if (!array_key_exists('cover_reflection', $player)) {
         $coverReflection = true;
     } else {
         $coverReflection = filter_var($player['cover_reflection'], FILTER_VALIDATE_BOOLEAN);
     }
 
+    $coverSize = bandpromo_brand_normalize_cover_size($player['cover_size'] ?? 'full');
+
+    if (!array_key_exists('side_covers', $player)) {
+        $sideCovers = true;
+    } else {
+        $sideCovers = filter_var($player['side_covers'], FILTER_VALIDATE_BOOLEAN);
+    }
+
+    $opacity = (int) bandpromo_brand_normalize_int_token(
+        $player['side_covers_opacity'] ?? 20,
+        5,
+        60,
+        20
+    );
+    $spread = bandpromo_brand_normalize_side_covers_spread($player['side_covers_spread'] ?? 'normal');
+    $colour = bandpromo_brand_normalize_side_covers_colour($player['side_covers_colour'] ?? 'soft');
+
+    if (!array_key_exists('side_covers_navigate', $player)) {
+        $sideNavigate = true;
+    } else {
+        $sideNavigate = filter_var($player['side_covers_navigate'], FILTER_VALIDATE_BOOLEAN);
+    }
+
     return [
         'playlist_selector' => $selector,
         'beggars_banquet' => $beggarsBanquet,
+        'login_status' => $loginStatus,
         'cover_reflection' => $coverReflection,
+        'cover_size' => $coverSize,
+        'side_covers' => $sideCovers,
+        'side_covers_opacity' => $opacity,
+        'side_covers_spread' => $spread,
+        'side_covers_colour' => $colour,
+        'side_covers_navigate' => $sideNavigate,
+    ];
+}
+
+function bandpromo_brand_normalize_cover_size(mixed $value): string
+{
+    $size = strtolower(trim((string) $value));
+    if (in_array($size, ['full', 'medium', 'half'], true)) {
+        return $size;
+    }
+
+    return 'full';
+}
+
+function bandpromo_brand_cover_size_scale(string $size): string
+{
+    $map = [
+        'full' => '1',
+        'medium' => '0.75',
+        'half' => '0.5',
+    ];
+
+    return $map[bandpromo_brand_normalize_cover_size($size)] ?? '1';
+}
+
+function bandpromo_brand_normalize_side_covers_spread(mixed $value): string
+{
+    $spread = strtolower(trim((string) $value));
+    if (in_array($spread, ['close', 'normal', 'wide'], true)) {
+        return $spread;
+    }
+
+    return 'normal';
+}
+
+function bandpromo_brand_normalize_side_covers_colour(mixed $value): string
+{
+    $colour = strtolower(trim((string) $value));
+    if (in_array($colour, ['full', 'soft', 'grey'], true)) {
+        return $colour;
+    }
+    // Accept US spelling from older drafts.
+    if ($colour === 'gray') {
+        return 'grey';
+    }
+
+    return 'soft';
+}
+
+/**
+ * Cover scene + side-cover presentation vars for /play.
+ *
+ * @return array<string, string>
+ */
+function bandpromo_brand_side_covers_css_variables(array $document): array
+{
+    $player = bandpromo_brand_normalize_player($document);
+    $enabled = !empty($player['side_covers']);
+    $opacityPercent = (int) ($player['side_covers_opacity'] ?? 20);
+    $opacity = max(0.05, min(0.6, $opacityPercent / 100));
+    $hover = min(0.85, round($opacity * 3, 3));
+    if ($hover < $opacity + 0.15) {
+        $hover = min(0.85, $opacity + 0.25);
+    }
+
+    $spread = (string) ($player['side_covers_spread'] ?? 'normal');
+    $offsetMap = [
+        'close' => 72,
+        'normal' => 120,
+        'wide' => 168,
+    ];
+    $offset = $offsetMap[$spread] ?? 120;
+
+    $colour = (string) ($player['side_covers_colour'] ?? 'soft');
+    $grayscaleMap = [
+        'full' => '0',
+        'soft' => '0.5',
+        'grey' => '1',
+    ];
+    $grayscale = $grayscaleMap[$colour] ?? '0.5';
+    $navigate = !empty($player['side_covers_navigate']);
+    $coverScale = bandpromo_brand_cover_size_scale((string) ($player['cover_size'] ?? 'full'));
+
+    return [
+        '--cover-size-scale' => $coverScale,
+        '--side-cover-display' => $enabled ? 'block' : 'none',
+        '--side-cover-opacity' => (string) $opacity,
+        '--side-cover-opacity-hover' => (string) $hover,
+        '--side-cover-offset' => $offset . 'px',
+        '--side-cover-grayscale' => $grayscale,
+        '--side-cover-pointer-events' => ($enabled && $navigate) ? 'auto' : 'none',
+        '--side-cover-cursor' => ($enabled && $navigate) ? 'pointer' : 'default',
     ];
 }
 
@@ -1001,6 +1180,15 @@ function bandpromo_brand_normalize_tokens(array $tokens): array
             0,
             24,
             (int) $legacyPanelBlur
+        ),
+        'player_panel_density' => bandpromo_brand_normalize_content_density(
+            $effects['player_panel_density'] ?? $defaultEffects['player_panel_density']
+        ),
+        'player_panel_corners' => bandpromo_brand_normalize_panel_corners(
+            $effects['player_panel_corners'] ?? $defaultEffects['player_panel_corners']
+        ),
+        'player_panel_border' => bandpromo_brand_normalize_panel_border(
+            $effects['player_panel_border'] ?? $defaultEffects['player_panel_border']
         ),
         'content_panel_dim' => bandpromo_brand_normalize_int_token(
             $effects['content_panel_dim'] ?? $legacyPanelDim,
@@ -2401,6 +2589,10 @@ function bandpromo_brand_css_variables(array $document): array
         $vars[$cssVar] = $value;
     }
 
+    foreach (bandpromo_brand_side_covers_css_variables($document) as $cssVar => $value) {
+        $vars[$cssVar] = $value;
+    }
+
     return $vars;
 }
 
@@ -2519,6 +2711,7 @@ function bandpromo_brand_player_styles_for_ids(string $root, array $brandIds): a
                 'title' => (string) ($document['title'] ?? $brandId),
                 'css_variables' => bandpromo_brand_css_variables($document),
                 'assets' => bandpromo_brand_player_shell_assets($root, $document),
+                'player' => bandpromo_brand_normalize_player($document),
             ];
         } catch (Throwable $throwable) {
             continue;
@@ -2569,6 +2762,10 @@ function bandpromo_brand_render_css(string $root): string
     }
 
     foreach (bandpromo_brand_typography_css_variables($document) as $cssVar => $value) {
+        $rules[] = $cssVar . ':' . $value;
+    }
+
+    foreach (bandpromo_brand_side_covers_css_variables($document) as $cssVar => $value) {
         $rules[] = $cssVar . ':' . $value;
     }
 

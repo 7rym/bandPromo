@@ -2,6 +2,46 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-09-13 12:15 - Checkpoint/publish Branding + player batch: Cover size and side covers, panel Fill labels, Login / status, soft-nav brand/URL/track/position fixes, Content Active paint, operator toggle/slider prefs. Live preview parity (Shell|Player|Content shared DOM) deferred until after Site update hotfixes.
+
+2026-09-13 11:24 - Branding → User area: **Login / status** On|Off (`player.login_status`, default Off). When On, `/play` shows a signed-in strip with Log out under the transport (compact login form deferred to anonymous entry).
+
+2026-09-13 11:18 - Branding Cover → Side covers: rename operator label `Dim:` → `Fill:` (opacity of the ghost covers).
+
+2026-09-13 11:14 - Branding → Cover → Size: Full|Medium|Half (100%|75%|50% of platform `--card-size`) via `--cover-size-scale`. Scales scene, transport width, split rail, and side-cover offsets across breakpoints; live preview matches.
+
+2026-09-13 11:08 - Branding Controls/Panels: rename operator label `Dim:` → `Fill:` (it sets panel fill opacity via `--*-panel-fill`, not a darken scrim). Common → Backdrop stays `Dim:`. Token keys `*_panel_dim` unchanged.
+
+2026-09-13 11:00 - Branding → Player → Cover: optional Side covers (prev/next ghost covers) with Dim, Spread (Close|Normal|Wide), Colour (Full|Soft|Grey), and Navigate On|Off. Defaults keep today’s look; Off hides the flanks. CSS vars drive /play; preview mirrors the controls.
+
+2026-09-13 10:48 - Player nav memory also stores mid-track position per playlist; campaign/playlist switch resumes scrubber/seek (paused). Deep links still start at 0; near-end positions restart at 0.
+
+2026-09-13 10:42 - Player nav memory restores last track per playlist on campaign/playlist soft switch; stop reusing the boot deep-link track after soft-nav (Spandex appeared to “remember” only because the initial URL track kept winning). Persist leaving track before switch; hard restore URLs include remembered track.
+
+2026-09-13 10:35 - Fix player soft-nav URLs mixing campaigns: soft switch updated `BANDPROMO_CAMPAIGN_ID` but left stale `BANDPROMO_CAMPAIGN_SLUG`, so history became `/play/the-retroscopy-hour/spandexual-…`. Derive slug from the active campaign id (and sync slug from playlist payload).
+
+2026-09-13 10:26 - Fix Content button Active paint: `#content-container button` outranked `.content-toggle button.active`, so selected tabs kept idle chrome. Scope idle rules to toggle/playlist-selector buttons; raise Active specificity; responsive padding uses brand density vars.
+
+2026-09-13 10:20 - Fix player soft-nav brand apply: CSS variable keys already include `--`; stop double-prefixing to `----*`, sync `#bandpromo-theme-vars`, and clear legacy double-prefixed properties so campaign/playlist switches paint the live brand.
+
+2026-09-13 10:13 - Operator control preference: labels end with `:`; label and control on the same line when the panel allows (AGENTS.md + Cursor rule).
+
+2026-09-13 10:10 - Operator control preference also covers sliders: inline `Label:` + live value + unit; use a slider for continuous scales, toggles when ≤5 named presets fit (AGENTS.md + Cursor rule).
+
+2026-09-13 10:09 - Project preference: operator UI uses segmented toggles instead of checkboxes, and instead of dropdowns when there are 5 or fewer alternatives (AGENTS.md + Cursor rule).
+
+2026-09-13 10:07 - Branding Player Cover / User area: Reflection and Beggars banquet use On|Off segmented toggles instead of checkboxes.
+
+2026-09-13 10:02 - Player → Controls gains full Panels parity: Corners, Border + Colour (`roles.player_panel_border`), Density — wired to `.player-transport` CSS vars.
+
+2026-09-13 09:59 - Branding Player tab: **Cover** (reflection), **Controls** (transport Dim/Blur), **User area** (Beggars banquet) — split from Player chrome / Panels; hints removed.
+
+2026-09-13 09:56 - Branding Player → Readability renamed to **Panels**; Dim:/Blur: inline rows matching Content → Panels (hints removed).
+
+2026-09-13 09:54 - Branding Common: Backdrop above Colours; Colours helper hint removed.
+
+2026-09-13 09:52 - Branding Common → Backdrop matches Content → Panels control pattern: `Dim:` + slider on one line; helper hints removed.
+
 2026-09-13 00:36 - Typography Main/Heading font labels stay on the same line as their dropdowns (inline token field CSS specificity fix).
 
 2026-09-13 00:32 - Content Branding panels: restore Buttons rows (Corners/Borders/Density each keep label + control inline; Pill visible again); Playlist Style: label; Panels/Typography labels end with `:`; drop Playlist hints.

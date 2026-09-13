@@ -158,7 +158,7 @@ Selecting a **campaign** (and its playlist) applies that campaign’s **CSS toke
 
 **Publish must not steal Base:** Demo PCF ensure/import may refresh demo documents, but it must **not** reset `active_brand_id` after an operator has chosen a brand (first-run empty pointer only).
 
-**Player chrome (brand-owned):** Cover reflection (`player.cover_reflection`, default `true`) and Beggars banquet visibility (`player.beggars_banquet`, default `true`) live under Branding → Player. **Playlist selector** style (`player.playlist_selector`: `dropdown` | `buttons` | `coverflow`, default `coverflow`) lives under Branding → Content. All three travel on the **Base brand** document with brands/PCFs. Cover reflection is the mirrored still under the main flip-card on large split layouts. Beggars banquet is the in-flow support CTA under the player transport; Settings → Support still owns destination, label, and colours. Shell backdrop has **no Still|Living toggle** — if the brand assigns living video, `/play` prefers it (still paints first; reduced-motion / slow-connection stay on still). Track living covers follow the same assignment-is-intent rule.
+**Player chrome (brand-owned):** Cover size (`player.cover_size`: `full` | `medium` | `half` → 100%|75%|50% of platform `--card-size`), cover reflection (`player.cover_reflection`, default `true`) and **side covers** (`player.side_covers`, default `true`, with fill / spread / colour / navigate) live under Branding → Player → **Cover**. Beggars banquet (`player.beggars_banquet`, default `true`) and **Login / status** (`player.login_status`, default `false`) live under Branding → Player → **User area**. Transport glass fill/blur live under Player → **Controls**. **Playlist selector** style (`player.playlist_selector`: `dropdown` | `buttons` | `coverflow`, default `coverflow`) lives under Branding → Content. All travel on the **Base brand** document with brands/PCFs. Cover size scales the platform cover clamps via `--cover-size-scale` (scene, transport width, split rail, side-cover offsets). Cover reflection is the mirrored still under the main flip-card on large split layouts. Side covers are the faint prev/next track covers flanking the main cover (optional; Navigate Off keeps them decorative). Login / status shows a signed-in strip with Log out under the transport (compact login form when anonymous player entry ships). Beggars banquet is the in-flow support CTA under the player transport; Settings → Support still owns destination, label, and colours. Shell backdrop has **no Still|Living toggle** — if the brand assigns living video, `/play` prefers it (still paints first; reduced-motion / slow-connection stay on still). Track living covers follow the same assignment-is-intent rule.
 
 **Player Campaign navigator (locked — v0.8 exit gate; chrome re-locked 2026-09-09):**
 
@@ -171,11 +171,11 @@ Campaign-first listening scope (HITZ multi-campaign). Header logo is **identity 
 | Layout | Wide: campaign strip and playlist selector share one toolbar row when both visible. Narrow: stack (campaigns first, then playlists). Neither control appears in `.content-toggle` |
 | Single campaign | Hide campaign strip; header logo only (identity) |
 | Single playlist | If the selected campaign has **≤1** public playlist, **hide** the playlist selector (per campaign, not install-wide count) |
-| Defaults | Browser **`localStorage`**: last campaign + last playlist per campaign (until a future user-state registry). Else campaign that owns the ★ default playlist; within campaign open last playlist else ★ default |
+| Defaults | Browser **`localStorage`**: last campaign + last playlist per campaign + last track and playback position per playlist (until a future user-state registry). Else campaign that owns the ★ default playlist; within campaign open last playlist else ★ default; within playlist open last track else first playable; resume mid-track when a position is stored (deep links start at 0) |
 | Idle chrome | Selected campaign drives **brand shell + page tabs** even before play |
 | Playback | **Campaign change stops playback**. Playlist change within campaign may keep playing until a new track starts |
-| After campaign switch | Land on that campaign’s last-played playlist (else default), **paused** |
-| Deep links | Override memory. Paths are campaign-first only (see URLs) — **hard cut**, no legacy playlist-first URLs |
+| After campaign switch | Land on that campaign’s last-played playlist **and track**, scrubbed to the saved position (else defaults), **paused** |
+| Deep links | Override memory **on that load only**. Paths are campaign-first only (see URLs) — **hard cut**, no legacy playlist-first URLs |
 | Scale | Playlists-panel strip is for **a few** campaigns; large-catalogue campaign UI is later debt |
 | Logo presentation | Player campaign chips use a **wide (~2:1)** frame with `object-fit: contain`. Prefer 2:1 brand logos in Branding (guidance); do not hard-block non-2:1 uploads in this slice |
 
@@ -742,28 +742,31 @@ Brand containers expose tokens that map to CSS custom properties on `:root` (pla
 | `color.background` | `--bg-color` | Page background |
 | `color.text` | `--text-color` | Main text (default body role) |
 | `color.text_muted` | `--color-text-muted` | Muted / small copy (default muted role); idle nav when not overridden |
-| `color.surface_mid` | `--color-surface-mid` (+ derived `--panel-fill`) | Panels colour: glass fills at Panel dim; also gradient mid tone |
+| `color.surface_mid` | `--color-surface-mid` (+ derived `--panel-fill`) | Panels colour: glass fills at Panel fill %; also gradient mid tone |
 | `color.surface_deep` | `--color-surface-deep` | Gradient deep tone |
 | `color.link` | `--color-link` | Page/body prose links |
 | `color.link_hover` | `--color-link-hover` | Link hover |
 | `color.link_visited` | `--color-link-visited` | Visited links on dark backgrounds |
 
-**Element colour roles (`tokens.roles`):** operators map palette keys (`primary` \| `secondary` \| `text` \| `text_muted` \| `surface_mid`) onto headings, subheadings, body, muted, blockquote, button outline/fill/active, and panel border. Emitted as `--role-heading`, `--role-heading-sub`, `--role-body`, `--role-muted`, `--role-blockquote`, `--role-button-outline`, `--role-button-fill`, `--role-button-active`, `--role-panel-border`. Defaults match legacy hard-wiring (headings → primary, subheadings → secondary, buttons/panel border → primary). Soft button fill is a fixed **50%** mix of the fill role. Selected/active content tabs use the Active role solid (`--content-control-bg-active`); hover still mixes from Active.
+**Element colour roles (`tokens.roles`):** operators map palette keys (`primary` \| `secondary` \| `text` \| `text_muted` \| `surface_mid`) onto headings, subheadings, body, muted, blockquote, button outline/fill/active, content panel border, and player transport border. Emitted as `--role-heading`, `--role-heading-sub`, `--role-body`, `--role-muted`, `--role-blockquote`, `--role-button-outline`, `--role-button-fill`, `--role-button-active`, `--role-panel-border`, `--role-player-panel-border`. Defaults match legacy hard-wiring (headings → primary, subheadings → secondary, buttons/panel borders → primary). Soft button fill is a fixed **50%** mix of the fill role. Selected/active content tabs use the Active role solid (`--content-control-bg-active`); hover still mixes from Active.
 
-**Readability effects (v0.8+):**
+**Panel effects (v0.8+):**
 
 | Token | CSS variable | Purpose |
 |-------|--------------|---------|
 | `effects.backdrop_dim` | `--shell-scrim-strength` (0–1) | Dim still/living **shell background only** (Common → Backdrop; 0–100; default 72) |
-| `effects.player_panel_dim` | `--player-panel-scrim-strength` + `--player-panel-fill` | Transport glass fill strength (Player → Readability; legacy `panel_dim` seeds when missing) |
+| `effects.player_panel_dim` | `--player-panel-scrim-strength` + `--player-panel-fill` | Transport glass **fill** opacity (Player → Controls → Fill; token key remains `*_dim`; legacy `panel_dim` seeds when missing) |
 | `effects.player_panel_blur` | `--player-panel-blur` | Transport glass blur (0–24px; legacy `panel_blur` seeds when missing) |
-| `effects.content_panel_dim` | `--content-panel-scrim-strength` + `--content-panel-fill` | Content/login panel fill (Content → Panels; legacy `panel_dim` seeds when missing) |
+| `effects.player_panel_density` | `--player-panel-pad-y` / `--player-panel-pad-x` / `--player-panel-gap` | Inner padding and gaps on transport glass (Dense→Spacious) |
+| `effects.player_panel_corners` | `--player-panel-radius` | Square / Shaved (10px); legacy Pill migrates to Shaved |
+| `effects.player_panel_border` | `--player-panel-border-width` + `--player-panel-border` | None / Thin / Normal / Fat; colour from `roles.player_panel_border` when not None |
+| `effects.content_panel_dim` | `--content-panel-scrim-strength` + `--content-panel-fill` | Content/login panel **fill** opacity (Content → Panels → Fill; token key remains `*_dim`; legacy `panel_dim` seeds when missing) |
 | `effects.content_panel_blur` | `--content-panel-blur` | Content/login panel blur (0–24px; legacy `panel_blur` seeds when missing) |
 | `effects.content_panel_density` | `--content-panel-pad-y` / `--content-panel-pad-x` / `--content-panel-gap` | Inner padding and gaps on panels (Dense→Spacious) |
 | `effects.content_panel_corners` | `--content-panel-radius` | Square / Shaved (10px); legacy Pill migrates to Shaved |
 | `effects.content_panel_border` | `--content-panel-border-width` + `--content-panel-border` | None / Thin / Normal / Fat; colour from `roles.panel_border` when not None |
 
-Accent **alpha** variants (`--primary-a**`) are **derived** from Primary/Secondary via `color-mix` — not separate operator tokens. `--player-panel-fill` / `--content-panel-fill` are derived from `color.surface_mid` × the matching Panel dim.
+Accent **alpha** variants (`--primary-a**`) are **derived** from Primary/Secondary via `color-mix` — not separate operator tokens. `--player-panel-fill` / `--content-panel-fill` are derived from `color.surface_mid` × the matching Panel **Fill** % (`*_panel_dim` tokens).
 
 **Player layout contract:** `#mediaplayer` layout is platform-owned (cover scene, transport, scrubber). `#content-container` (logo, nav tabs, pages, playlist/lyrics/gallery) is freer for operators. Both share the brand colour scheme. **Buttons** (`tokens.content`): named presets only — style, corners, borders, density — no raw px/% fields. Applies to `#content-container` controls only. **Playlist selector** is a separate Content panel (`player.playlist_selector`). **Later:** sellable mediaplayer skins once player vs content styling stays separable.
 
@@ -778,7 +781,7 @@ Accent **alpha** variants (`--primary-a**`) are **derived** from Primary/Seconda
 
 Legacy brands with `radius_percent` / `border_width` / density `minimal` migrate on normalize.
 
-**Layout:** Player cover art size (`--card-size`) is **not** a brand token. The public shell is stacked by default and enters a split player/content layout only when both viewport width and height can support it. Cover size, player rail, content gutter, readable prose/Tracklist measures, touch targets, overflow, and breakpoints are platform-owned in `biblioteca/style.css`. Content policies differ intentionally: prose and Notes stay centered at readable measures, playlist lists may run wider, and galleries/media blocks may use the full content canvas.
+**Layout:** Player cover art size uses platform `--card-size` clamps (breakpoints stay platform-owned in `biblioteca/style.css`). Branding → Cover → **Size** (`player.cover_size`: Full|Medium|Half) multiplies that clamp via `--cover-size-scale` (1|0.75|0.5) so scene, transport width, split player rail, and side-cover offsets shrink together. The public shell is stacked by default and enters a split player/content layout only when both viewport width and height can support it. Content gutter, readable prose/Tracklist measures, touch targets, overflow, and breakpoints remain platform-owned. Content policies differ intentionally: prose and Notes stay centered at readable measures, playlist lists may run wider, and galleries/media blocks may use the full content canvas.
 
 **Asset refs (Visual / Sound effects pools, scoped to this release identity):**
 
@@ -875,7 +878,7 @@ Path-based URLs (no query strings for core navigation).
 - **Hard cut (v0.8 Campaign navigator):** playlist-first paths (`/play/{playlist-slug}/…`) are **not** supported. No silent remap. See [AGENTS.md](AGENTS.md) — no speculative fallbacks.
 - Campaign **storage id** and public **slug** live on the campaign document (`data/campaigns/`). Playlist **storage id** and public **slug** remain separate: operators edit **name** and **slug**; storage ids stay opaque, unique, and travel with PCF (not shown in Content → Playlists Base info).
 - `track-slug` is unique **per campaign** (release membership).
-- Deep links override browser memory and select campaign + playlist (+ track).
+- Deep links override browser memory **for that load** and select campaign + playlist (+ track). Soft campaign/playlist switches restore last track from `localStorage`, not the boot deep link.
 - OG/share metadata for track links: track + campaign identity from containers/registry.
 
 ### Pages

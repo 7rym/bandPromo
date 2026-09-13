@@ -2451,12 +2451,17 @@ function bandpromo_playlist_load_player_response(
         }
     }
 
+    $campaignSlug = $effectiveReleaseId !== ''
+        ? bandpromo_campaign_public_slug($root, $effectiveReleaseId)
+        : '';
+
     return [
         'playlist_id' => $playlistId,
         'playlist_slug' => bandpromo_playlist_public_slug($root, $playlistId),
         'playlist_title' => (string) ($document['title'] ?? $playlistId),
         'release_id' => $effectiveReleaseId,
         'campaign_id' => $effectiveReleaseId,
+        'campaign_slug' => $campaignSlug,
         'brand_id' => $brandId,
         'package_type' => bandpromo_playlist_normalize_package_type((string) ($document['package_type'] ?? 'other')),
         'play_order' => bandpromo_playlist_normalize_play_order(

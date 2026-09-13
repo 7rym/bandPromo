@@ -75,6 +75,7 @@
             button_fill: 'primary',
             button_active: 'primary',
             panel_border: 'primary',
+            player_panel_border: 'primary',
             blockquote: 'primary',
         };
 
@@ -604,12 +605,11 @@
         function renderBackdropFields(locked) {
             const dim = effectIntToken('effects.backdrop_dim', 72);
             return `
-                <div class="brand-effects-grid">
-                    <label class="brand-effect-field">
-                        <span class="brand-effect-label">Backdrop dim <strong data-effect-value="backdrop_dim">${escapeHtml(dim)}</strong>%</span>
+                <div class="brand-content-chrome-grid">
+                    <div class="brand-effect-field brand-effect-field--inline">
+                        <span class="brand-effect-label">Dim: <strong data-effect-value="backdrop_dim">${escapeHtml(dim)}</strong>%</span>
                         <input type="range" min="0" max="100" step="1" value="${escapeHtml(dim)}" data-token-path="effects.backdrop_dim" data-effect-range="backdrop_dim" ${locked ? 'disabled' : ''}>
-                        <span class="brand-field-hint">Darkens only the still/living shell background (shared by Media player and Content).</span>
-                    </label>
+                    </div>
                 </div>
             `;
         }
@@ -618,18 +618,67 @@
             const legacyDim = effectIntToken('effects.panel_dim', effectIntToken('effects.backdrop_dim', 72));
             const panelDim = effectIntToken('effects.player_panel_dim', legacyDim);
             const blur = effectIntToken('effects.player_panel_blur', effectIntToken('effects.panel_blur', 5));
+            const density = normalizeDensityToken(tokenValue(editorDocument, 'effects.player_panel_density'), 'normal');
+            let corners = String(tokenValue(editorDocument, 'effects.player_panel_corners') || 'shaved').trim().toLowerCase();
+            if (corners === 'pill') {
+                corners = 'shaved';
+            }
+            if (!['square', 'shaved'].includes(corners)) {
+                corners = 'shaved';
+            }
+            let border = String(tokenValue(editorDocument, 'effects.player_panel_border') || 'none').trim().toLowerCase();
+            if (!['none', 'thin', 'normal', 'fat'].includes(border)) {
+                border = 'none';
+            }
+
+            function panelToggle(path, name, selected, options) {
+                return `
+                    <div class="brand-player-setting-toggle" role="group" aria-label="${escapeHtml(name)}">
+                        ${options.map(([value, label]) => `
+                            <label class="brand-player-setting-option">
+                                <input type="radio" name="${escapeHtml(name)}" value="${escapeHtml(value)}"
+                                       data-token-path="${escapeHtml(path)}"
+                                       ${selected === value ? 'checked' : ''}
+                                       ${locked ? 'disabled' : ''}>
+                                <span>${escapeHtml(label)}</span>
+                            </label>
+                        `).join('')}
+                    </div>`;
+            }
+
             return `
-                <div class="brand-effects-grid">
-                    <label class="brand-effect-field">
-                        <span class="brand-effect-label">Panel dim <strong data-effect-value="player_panel_dim">${escapeHtml(panelDim)}</strong>%</span>
+                <div class="brand-content-chrome-grid">
+                    <div class="brand-effect-field brand-effect-field--inline">
+                        <span class="brand-effect-label">Fill: <strong data-effect-value="player_panel_dim">${escapeHtml(panelDim)}</strong>%</span>
                         <input type="range" min="0" max="100" step="1" value="${escapeHtml(panelDim)}" data-token-path="effects.player_panel_dim" data-effect-range="player_panel_dim" ${locked ? 'disabled' : ''}>
-                        <span class="brand-field-hint">Strength of the Panels colour on the media player transport glass.</span>
-                    </label>
-                    <label class="brand-effect-field">
-                        <span class="brand-effect-label">Panel blur <strong data-effect-value="player_panel_blur">${escapeHtml(blur)}</strong>px</span>
+                    </div>
+                    <div class="brand-effect-field brand-effect-field--inline">
+                        <span class="brand-effect-label">Blur: <strong data-effect-value="player_panel_blur">${escapeHtml(blur)}</strong>px</span>
                         <input type="range" min="0" max="24" step="1" value="${escapeHtml(blur)}" data-token-path="effects.player_panel_blur" data-effect-range="player_panel_blur" ${locked ? 'disabled' : ''}>
-                        <span class="brand-field-hint">Glass blur on the transport (cover art stays sharp).</span>
-                    </label>
+                    </div>
+                    <div class="brand-effect-field brand-effect-field--inline">
+                        <span class="brand-effect-label">Corners:</span>
+                        ${panelToggle('effects.player_panel_corners', 'brandPlayerPanelCorners', corners, [
+                            ['square', 'Square'],
+                            ['shaved', 'Shaved'],
+                        ])}
+                    </div>
+                    <div class="brand-chrome-inline-row">
+                        <div class="brand-effect-field brand-effect-field--inline">
+                            <span class="brand-effect-label">Border:</span>
+                            ${panelToggle('effects.player_panel_border', 'brandPlayerPanelBorder', border, [
+                                ['none', 'None'],
+                                ['thin', 'Thin'],
+                                ['normal', 'Normal'],
+                                ['fat', 'Fat'],
+                            ])}
+                        </div>
+                        ${renderRoleSwatch('roles.player_panel_border', 'Colour:', ROLE_DEFAULTS.player_panel_border, locked, { swatchOnly: true })}
+                    </div>
+                    <div class="brand-effect-field brand-effect-field--inline">
+                        <span class="brand-effect-label">Density:</span>
+                        ${renderDensityToggle('effects.player_panel_density', 'brandPlayerPanelDensity', density, locked)}
+                    </div>
                 </div>
             `;
         }
@@ -669,7 +718,7 @@
             return `
                 <div class="brand-content-chrome-grid">
                     <div class="brand-effect-field brand-effect-field--inline">
-                        <span class="brand-effect-label">Dim: <strong data-effect-value="content_panel_dim">${escapeHtml(panelDim)}</strong>%</span>
+                        <span class="brand-effect-label">Fill: <strong data-effect-value="content_panel_dim">${escapeHtml(panelDim)}</strong>%</span>
                         <input type="range" min="0" max="100" step="1" value="${escapeHtml(panelDim)}" data-token-path="effects.content_panel_dim" data-effect-range="content_panel_dim" ${locked ? 'disabled' : ''}>
                     </div>
                     <div class="brand-effect-field brand-effect-field--inline">
@@ -1226,25 +1275,149 @@
             return 'coverflow';
         }
 
-        function renderPlayerChromeFields(locked) {
-            const beggarsOn = editorDocument?.player?.beggars_banquet !== false;
-            const reflectionOn = editorDocument?.player?.cover_reflection !== false;
+        function renderOnOffToggle(name, path, isOn, locked) {
+            const selected = isOn ? 'on' : 'off';
+            return `
+                <div class="brand-player-setting-toggle" role="group" aria-label="${escapeHtml(name)}">
+                    <label class="brand-player-setting-option">
+                        <input type="radio" name="${escapeHtml(name)}" value="on"
+                               data-player-path="${escapeHtml(path)}"
+                               ${selected === 'on' ? 'checked' : ''}
+                               ${locked ? 'disabled' : ''}>
+                        <span>On</span>
+                    </label>
+                    <label class="brand-player-setting-option">
+                        <input type="radio" name="${escapeHtml(name)}" value="off"
+                               data-player-path="${escapeHtml(path)}"
+                               ${selected === 'off' ? 'checked' : ''}
+                               ${locked ? 'disabled' : ''}>
+                        <span>Off</span>
+                    </label>
+                </div>`;
+        }
 
-            return renderEditorSection('Player chrome', `
-                    <p class="brand-field-hint">Cover mirror and Beggars banquet. The Base brand's choices apply site-wide on /play.</p>
-                    <label class="brand-player-checkbox">
-                        <input type="checkbox" name="brandCoverReflection" data-player-path="cover_reflection"
-                               ${reflectionOn ? 'checked' : ''} ${locked ? 'disabled' : ''}>
-                        <span>Cover reflection</span>
-                    </label>
-                    <p class="brand-field-hint">Mirrored cover under the main artwork on large split layouts (already hidden on small screens).</p>
-                    <label class="brand-player-checkbox">
-                        <input type="checkbox" name="brandBeggarsBanquet" data-player-path="beggars_banquet"
-                               ${beggarsOn ? 'checked' : ''} ${locked ? 'disabled' : ''}>
-                        <span>Beggars banquet</span>
-                    </label>
-                    <p class="brand-field-hint">In-flow support link under the player transport. Destination, label, and colors still come from Settings → Support.</p>
-            `, 'brand-editor-section--player-chrome');
+        function normalizeCoverSize(value) {
+            const size = String(value || '').trim().toLowerCase();
+            return ['full', 'medium', 'half'].includes(size) ? size : 'full';
+        }
+
+        function normalizeSideCoversSpread(value) {
+            const spread = String(value || '').trim().toLowerCase();
+            return ['close', 'normal', 'wide'].includes(spread) ? spread : 'normal';
+        }
+
+        function normalizeSideCoversColour(value) {
+            let colour = String(value || '').trim().toLowerCase();
+            if (colour === 'gray') {
+                colour = 'grey';
+            }
+            return ['full', 'soft', 'grey'].includes(colour) ? colour : 'soft';
+        }
+
+        function renderPlayerCoverFields(locked) {
+            const reflectionOn = editorDocument?.player?.cover_reflection !== false;
+            const coverSize = normalizeCoverSize(editorDocument?.player?.cover_size);
+            const sideOn = editorDocument?.player?.side_covers !== false;
+            const opacity = Math.max(5, Math.min(60, parseInt(String(editorDocument?.player?.side_covers_opacity ?? 20), 10) || 20));
+            const spread = normalizeSideCoversSpread(editorDocument?.player?.side_covers_spread);
+            const colour = normalizeSideCoversColour(editorDocument?.player?.side_covers_colour);
+            const navigateOn = editorDocument?.player?.side_covers_navigate !== false;
+            const sizeRadios = [
+                ['full', 'Full'],
+                ['medium', 'Medium'],
+                ['half', 'Half'],
+            ].map(([value, label]) => `
+                <label class="brand-player-setting-option">
+                    <input type="radio" name="brandCoverSize" value="${escapeHtml(value)}"
+                           data-player-path="cover_size"
+                           ${coverSize === value ? 'checked' : ''}
+                           ${locked ? 'disabled' : ''}>
+                    <span>${escapeHtml(label)}</span>
+                </label>`).join('');
+            const spreadRadios = [
+                ['close', 'Close'],
+                ['normal', 'Normal'],
+                ['wide', 'Wide'],
+            ].map(([value, label]) => `
+                <label class="brand-player-setting-option">
+                    <input type="radio" name="brandSideCoversSpread" value="${escapeHtml(value)}"
+                           data-player-path="side_covers_spread"
+                           ${spread === value ? 'checked' : ''}
+                           ${locked || !sideOn ? 'disabled' : ''}>
+                    <span>${escapeHtml(label)}</span>
+                </label>`).join('');
+            const colourRadios = [
+                ['full', 'Full'],
+                ['soft', 'Soft'],
+                ['grey', 'Grey'],
+            ].map(([value, label]) => `
+                <label class="brand-player-setting-option">
+                    <input type="radio" name="brandSideCoversColour" value="${escapeHtml(value)}"
+                           data-player-path="side_covers_colour"
+                           ${colour === value ? 'checked' : ''}
+                           ${locked || !sideOn ? 'disabled' : ''}>
+                    <span>${escapeHtml(label)}</span>
+                </label>`).join('');
+
+            return `
+                <div class="brand-content-chrome-grid">
+                    <div class="brand-effect-field brand-effect-field--inline">
+                        <span class="brand-effect-label">Size:</span>
+                        <div class="brand-player-setting-toggle" role="group" aria-label="Cover size">
+                            ${sizeRadios}
+                        </div>
+                    </div>
+                    <div class="brand-effect-field brand-effect-field--inline">
+                        <span class="brand-effect-label">Reflection:</span>
+                        ${renderOnOffToggle('brandCoverReflection', 'cover_reflection', reflectionOn, locked)}
+                    </div>
+                    <div class="brand-effect-field brand-effect-field--inline">
+                        <span class="brand-effect-label">Side covers:</span>
+                        ${renderOnOffToggle('brandSideCovers', 'side_covers', sideOn, locked)}
+                    </div>
+                    <div class="brand-effect-field brand-effect-field--inline" ${sideOn ? '' : 'hidden'}>
+                        <span class="brand-effect-label">Fill: <strong data-effect-value="side_covers_opacity">${escapeHtml(String(opacity))}</strong>%</span>
+                        <input type="range" min="5" max="60" step="1" value="${escapeHtml(String(opacity))}"
+                               name="brandSideCoversOpacity"
+                               data-player-path="side_covers_opacity"
+                               data-effect-range="side_covers_opacity"
+                               ${locked || !sideOn ? 'disabled' : ''}>
+                    </div>
+                    <div class="brand-effect-field brand-effect-field--inline" ${sideOn ? '' : 'hidden'}>
+                        <span class="brand-effect-label">Spread:</span>
+                        <div class="brand-player-setting-toggle" role="group" aria-label="Side cover spread">
+                            ${spreadRadios}
+                        </div>
+                    </div>
+                    <div class="brand-effect-field brand-effect-field--inline" ${sideOn ? '' : 'hidden'}>
+                        <span class="brand-effect-label">Colour:</span>
+                        <div class="brand-player-setting-toggle" role="group" aria-label="Side cover colour">
+                            ${colourRadios}
+                        </div>
+                    </div>
+                    <div class="brand-effect-field brand-effect-field--inline" ${sideOn ? '' : 'hidden'}>
+                        <span class="brand-effect-label">Navigate:</span>
+                        ${renderOnOffToggle('brandSideCoversNavigate', 'side_covers_navigate', navigateOn, locked || !sideOn)}
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderPlayerUserAreaFields(locked) {
+            const loginStatusOn = editorDocument?.player?.login_status === true;
+            const beggarsOn = editorDocument?.player?.beggars_banquet !== false;
+            return `
+                <div class="brand-content-chrome-grid">
+                    <div class="brand-effect-field brand-effect-field--inline">
+                        <span class="brand-effect-label">Login / status:</span>
+                        ${renderOnOffToggle('brandLoginStatus', 'login_status', loginStatusOn, locked)}
+                    </div>
+                    <div class="brand-effect-field brand-effect-field--inline">
+                        <span class="brand-effect-label">Beggars banquet:</span>
+                        ${renderOnOffToggle('brandBeggarsBanquet', 'beggars_banquet', beggarsOn, locked)}
+                    </div>
+                </div>
+            `;
         }
 
         function updateShellSlotDom(key) {
@@ -1554,22 +1727,24 @@
                             </div>
                         </div>
                     `)}
-                    ${renderEditorSection('Colours', `
-                        <p class="brand-field-hint">Type a hex colour (e.g. #FF6F61) or use the colour square. Both <code>#mediaplayer</code> and <code>#content-container</code> share this palette. Assign colours to headings, body, and buttons under Content → Typography / Buttons (role swatches). Links apply to page/body prose. Accent transparency (alpha) is derived from Primary/Secondary automatically.</p>
-                        ${renderCompactColors(fieldsLocked)}
-                    `, 'brand-editor-section--colors')}
                     ${renderEditorSection('Backdrop', `
-                        <p class="brand-field-hint">Shared shell overlay behind both the media player and content.</p>
                         ${renderBackdropFields(fieldsLocked)}
                     `, 'brand-editor-section--backdrop')}
+                    ${renderEditorSection('Colours', `
+                        ${renderCompactColors(fieldsLocked)}
+                    `, 'brand-editor-section--colors')}
                     ${renderShellMediaFields(fieldsLocked)}
                 </div>
                 <div class="brand-editor-tab-panel" data-brand-editor-panel="player" role="tabpanel" hidden>
-                    ${renderPlayerChromeFields(fieldsLocked)}
-                    ${renderEditorSection('Readability', `
-                        <p class="brand-field-hint">Transport glass only — cover art stays sharp.</p>
+                    ${renderEditorSection('Cover', `
+                        ${renderPlayerCoverFields(fieldsLocked)}
+                    `, 'brand-editor-section--player-cover')}
+                    ${renderEditorSection('Controls', `
                         ${renderPlayerReadabilityFields(fieldsLocked)}
-                    `, 'brand-editor-section--player-readability')}
+                    `, 'brand-editor-section--player-controls')}
+                    ${renderEditorSection('User area', `
+                        ${renderPlayerUserAreaFields(fieldsLocked)}
+                    `, 'brand-editor-section--player-user-area')}
                 </div>
                 <div class="brand-editor-tab-panel" data-brand-editor-panel="content" role="tabpanel" hidden>
                     ${renderEditorSection('Buttons', `
@@ -1663,13 +1838,42 @@
             if (playlistSelector instanceof HTMLInputElement) {
                 editorDocument.player.playlist_selector = normalizePlaylistSelectorMode(playlistSelector.value);
             }
-            const beggarsToggle = formEl.querySelector('input[name="brandBeggarsBanquet"]');
+            const beggarsToggle = formEl.querySelector('input[name="brandBeggarsBanquet"]:checked');
             if (beggarsToggle instanceof HTMLInputElement) {
-                editorDocument.player.beggars_banquet = !!beggarsToggle.checked;
+                editorDocument.player.beggars_banquet = beggarsToggle.value !== 'off';
             }
-            const reflectionToggle = formEl.querySelector('input[name="brandCoverReflection"]');
+            const loginStatusToggle = formEl.querySelector('input[name="brandLoginStatus"]:checked');
+            if (loginStatusToggle instanceof HTMLInputElement) {
+                editorDocument.player.login_status = loginStatusToggle.value !== 'off';
+            }
+            const reflectionToggle = formEl.querySelector('input[name="brandCoverReflection"]:checked');
             if (reflectionToggle instanceof HTMLInputElement) {
-                editorDocument.player.cover_reflection = !!reflectionToggle.checked;
+                editorDocument.player.cover_reflection = reflectionToggle.value !== 'off';
+            }
+            const coverSizeToggle = formEl.querySelector('input[name="brandCoverSize"]:checked');
+            if (coverSizeToggle instanceof HTMLInputElement) {
+                editorDocument.player.cover_size = normalizeCoverSize(coverSizeToggle.value);
+            }
+            const sideCoversToggle = formEl.querySelector('input[name="brandSideCovers"]:checked');
+            if (sideCoversToggle instanceof HTMLInputElement) {
+                editorDocument.player.side_covers = sideCoversToggle.value !== 'off';
+            }
+            const sideOpacityInput = formEl.querySelector('input[name="brandSideCoversOpacity"]');
+            if (sideOpacityInput instanceof HTMLInputElement) {
+                const opacity = Math.max(5, Math.min(60, parseInt(sideOpacityInput.value, 10) || 20));
+                editorDocument.player.side_covers_opacity = opacity;
+            }
+            const sideSpread = formEl.querySelector('input[name="brandSideCoversSpread"]:checked');
+            if (sideSpread instanceof HTMLInputElement) {
+                editorDocument.player.side_covers_spread = normalizeSideCoversSpread(sideSpread.value);
+            }
+            const sideColour = formEl.querySelector('input[name="brandSideCoversColour"]:checked');
+            if (sideColour instanceof HTMLInputElement) {
+                editorDocument.player.side_covers_colour = normalizeSideCoversColour(sideColour.value);
+            }
+            const sideNavigate = formEl.querySelector('input[name="brandSideCoversNavigate"]:checked');
+            if (sideNavigate instanceof HTMLInputElement) {
+                editorDocument.player.side_covers_navigate = sideNavigate.value !== 'off';
             }
             const descriptionInput = formEl.querySelector('[data-brand-field="mood"]');
             if (descriptionInput instanceof HTMLTextAreaElement || descriptionInput instanceof HTMLInputElement) {
@@ -1881,6 +2085,8 @@
                 input.hasAttribute('data-token-path')
                 || input.hasAttribute('data-asset-key')
                 || input.hasAttribute('data-brand-field')
+                || input.hasAttribute('data-player-path')
+                || input.hasAttribute('data-effect-range')
             ) {
                 if (input.hasAttribute('data-effect-range')) {
                     const key = input.getAttribute('data-effect-range') || '';
@@ -1989,7 +2195,9 @@
                 return;
             }
             if (event.target instanceof Element
-                && event.target.closest('.brand-editor-section--player-chrome')
+                && event.target.closest(
+                    '.brand-editor-section--player-cover, .brand-editor-section--player-controls, .brand-editor-section--player-user-area'
+                )
             ) {
                 if (editorTab !== 'player') {
                     setEditorTab('player', { syncPreview: true });
@@ -2042,12 +2250,25 @@
             }
             if (target instanceof HTMLInputElement && (
                 target.name === 'brandBeggarsBanquet'
+                || target.name === 'brandLoginStatus'
                 || target.name === 'brandCoverReflection'
+                || target.name === 'brandCoverSize'
+                || target.name === 'brandSideCovers'
+                || target.name === 'brandSideCoversSpread'
+                || target.name === 'brandSideCoversColour'
+                || target.name === 'brandSideCoversNavigate'
             )) {
                 if (editorTab !== 'player') {
                     setEditorTab('player', { syncPreview: true });
                 } else if (previewMode !== 'player') {
                     setPreviewMode('player', { forceRender: true });
+                }
+                if (target.name === 'brandSideCovers') {
+                    // Re-render so Dim/Spread/Colour/Navigate show or hide with Side covers.
+                    collectFormIntoDocument();
+                    renderForm();
+                    saveUi?.reconcile();
+                    return;
                 }
                 collectFormIntoDocument();
             }

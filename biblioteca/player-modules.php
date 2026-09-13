@@ -333,6 +333,31 @@ function bandpromo_player_beggars_banquet_enabled(): bool
 }
 
 /**
+ * Whether the in-flow player account strip (#player-user-area) may render.
+ * Shows signed-in status today; compact login form is for anonymous entry (v0.9).
+ */
+function bandpromo_player_login_status_enabled(): bool
+{
+    try {
+        $root = defined('BANDPROMO_ROOT') ? (string) BANDPROMO_ROOT : dirname(__DIR__);
+        if (function_exists('bandpromo_brand_load_active_document')) {
+            require_once __DIR__ . '/brand-storage.php';
+            $document = bandpromo_brand_load_active_document($root);
+            if (is_array($document)) {
+                $player = is_array($document['player'] ?? null) ? $document['player'] : [];
+                if (array_key_exists('login_status', $player)) {
+                    return (bool) filter_var($player['login_status'], FILTER_VALIDATE_BOOLEAN);
+                }
+            }
+        }
+    } catch (Throwable $throwable) {
+        // Brand storage may be unavailable during early bootstrap.
+    }
+
+    return false;
+}
+
+/**
  * Whether the mirrored cover reflection under the main flip-card is shown.
  * Base brand owns the toggle (desktop split layout only; small screens already hide it).
  */

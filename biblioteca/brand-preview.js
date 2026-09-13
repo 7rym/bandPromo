@@ -60,14 +60,44 @@
             ? `<img class="theme-preview-cover-art" src="${escapeHtml(poster)}" alt="" loading="lazy" onerror="this.style.opacity=0.35">`
             : '<span class="theme-preview-cover-label">Cover art</span>';
         const beggarsBanquet = document?.player?.beggars_banquet !== false;
+        const loginStatus = document?.player?.login_status === true;
         const coverReflection = document?.player?.cover_reflection !== false;
+        let coverSize = String(document?.player?.cover_size || 'full').trim().toLowerCase();
+        if (!['full', 'medium', 'half'].includes(coverSize)) {
+            coverSize = 'full';
+        }
+        const coverScale = coverSize === 'half' ? 0.5 : (coverSize === 'medium' ? 0.75 : 1);
+        const sideCovers = document?.player?.side_covers !== false;
+        const sideOpacity = Math.max(5, Math.min(60, parseInt(String(document?.player?.side_covers_opacity ?? 20), 10) || 20));
+        let sideColour = String(document?.player?.side_covers_colour || 'soft').trim().toLowerCase();
+        if (sideColour === 'gray') {
+            sideColour = 'grey';
+        }
+        if (!['full', 'soft', 'grey'].includes(sideColour)) {
+            sideColour = 'soft';
+        }
+        let sideSpread = String(document?.player?.side_covers_spread || 'normal').trim().toLowerCase();
+        if (!['close', 'normal', 'wide'].includes(sideSpread)) {
+            sideSpread = 'normal';
+        }
         const beggarsMarkup = beggarsBanquet
             ? `<div class="theme-preview-beggars-banquet" aria-hidden="true">
                     <span class="theme-preview-support-link">Support</span>
                </div>`
             : '';
+        const loginStatusMarkup = loginStatus
+            ? `<div class="theme-preview-user-status" aria-hidden="true">
+                    <span>Signed in as <strong>listener</strong></span>
+                    <span class="theme-preview-user-logout">Log out</span>
+               </div>`
+            : '';
         const reflectionMarkup = coverReflection
             ? `<div class="theme-preview-cover-reflection" aria-hidden="true">${coverMarkup}</div>`
+            : '';
+        const sideStyle = `--preview-side-opacity:${(sideOpacity / 100).toFixed(2)};`;
+        const sideMarkup = sideCovers
+            ? `<div class="theme-preview-side-card theme-preview-side-card--prev theme-preview-side-card--${escapeHtml(sideSpread)} theme-preview-side-card--${escapeHtml(sideColour)}" style="${sideStyle}" aria-hidden="true">${coverMarkup}</div>
+               <div class="theme-preview-side-card theme-preview-side-card--next theme-preview-side-card--${escapeHtml(sideSpread)} theme-preview-side-card--${escapeHtml(sideColour)}" style="${sideStyle}" aria-hidden="true">${coverMarkup}</div>`
             : '';
         const backdrop = renderShellBackdrop(document);
 
@@ -76,7 +106,8 @@
                 ${backdrop.openTag}
                     ${backdrop.videoMarkup}
                     <div class="theme-preview-player-chrome" aria-hidden="true">
-                        <div class="theme-preview-scene">
+                        <div class="theme-preview-scene" style="--preview-cover-scale:${coverScale};">
+                            ${sideMarkup}
                             <div class="theme-preview-cover theme-preview-cover--player">
                                 ${coverMarkup}
                             </div>
@@ -101,6 +132,7 @@
                                 <span class="theme-preview-scrubber-time">3:24</span>
                             </div>
                         </div>
+                        ${loginStatusMarkup}
                         ${beggarsMarkup}
                     </div>
                 </div>
@@ -240,6 +272,53 @@
         rules.push(`--player-panel-scrim-strength:${(playerPanelDim / 100).toFixed(2)}`);
         rules.push(`--player-panel-blur:${playerBlur}px`);
         rules.push(`--player-panel-fill:color-mix(in srgb, var(--color-surface-mid) ${playerPanelDim}%, transparent)`);
+
+        let playerDensityRaw = String(tokenValue(document, 'effects.player_panel_density') || 'normal').toLowerCase();
+        if (playerDensityRaw === 'minimal') {
+            playerDensityRaw = 'dense';
+        }
+        let playerPadY = 12;
+        let playerPadX = 14;
+        let playerGap = 8;
+        if (playerDensityRaw === 'dense') {
+            playerPadY = 6;
+            playerPadX = 8;
+            playerGap = 4;
+        } else if (playerDensityRaw === 'compact') {
+            playerPadY = 8;
+            playerPadX = 10;
+            playerGap = 6;
+        } else if (playerDensityRaw === 'comfortable') {
+            playerPadY = 16;
+            playerPadX = 20;
+            playerGap = 12;
+        } else if (playerDensityRaw === 'spacious') {
+            playerPadY = 22;
+            playerPadX = 28;
+            playerGap = 16;
+        }
+        let playerCorners = String(tokenValue(document, 'effects.player_panel_corners') || 'shaved').trim().toLowerCase();
+        if (playerCorners === 'pill') {
+            playerCorners = 'shaved';
+        }
+        if (!['square', 'shaved'].includes(playerCorners)) {
+            playerCorners = 'shaved';
+        }
+        const playerRadius = playerCorners === 'square' ? 0 : 10;
+        let playerBorderPreset = String(tokenValue(document, 'effects.player_panel_border') || 'none').trim().toLowerCase();
+        if (!['none', 'thin', 'normal', 'fat'].includes(playerBorderPreset)) {
+            playerBorderPreset = 'none';
+        }
+        const playerBorderWidth = playerBorderPreset === 'none'
+            ? 0
+            : (playerBorderPreset === 'thin' ? 1 : (playerBorderPreset === 'fat' ? 3 : 2));
+        rules.push(`--player-panel-pad-y:${playerPadY}px`);
+        rules.push(`--player-panel-pad-x:${playerPadX}px`);
+        rules.push(`--player-panel-gap:${playerGap}px`);
+        rules.push(`--player-panel-radius:${playerRadius}px`);
+        rules.push(`--player-panel-border-width:${playerBorderWidth}px`);
+        rules.push(`--player-panel-border:${playerBorderWidth > 0 ? 'var(--role-player-panel-border)' : 'transparent'}`);
+
         rules.push(`--content-panel-scrim-strength:${(contentPanelDim / 100).toFixed(2)}`);
         rules.push(`--content-panel-blur:${contentBlur}px`);
         rules.push(`--content-panel-fill:color-mix(in srgb, var(--color-surface-mid) ${contentPanelDim}%, transparent)`);
@@ -260,6 +339,7 @@
             button_fill: 'primary',
             button_active: 'primary',
             panel_border: 'primary',
+            player_panel_border: 'primary',
             blockquote: 'primary',
         };
         const ROLE_CSS = {
