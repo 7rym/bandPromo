@@ -8474,7 +8474,6 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 const galleryDeleteConfirmBtn = document.getElementById('galleryDeleteConfirmBtn');
                 const galleryDeleteCancelBtn = document.getElementById('galleryDeleteCancelBtn');
                 const gallerySettingsTitle = document.getElementById('gallerySettingsTitle');
-                const gallerySettingsStatus = document.getElementById('gallerySettingsStatus');
                 let gallerySettingsBaseline = { title: '' };
                 let gallerySettingsSaving = false;
                 let gallerySettingsSaveQueued = false;
@@ -8509,9 +8508,6 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     if (gallerySettingsTitle instanceof HTMLInputElement) {
                         gallerySettingsTitle.value = title;
                     }
-                    if (gallerySettingsStatus) {
-                        gallerySettingsStatus.textContent = '';
-                    }
                 }
 
                 async function saveGallerySettings({ silent = false } = {}) {
@@ -8525,23 +8521,17 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
 
                     const title = String(gallerySettingsTitle.value || '').trim();
                     if (!title) {
-                        if (!silent && gallerySettingsStatus) {
-                            gallerySettingsStatus.textContent = 'Gallery name is required.';
+                        if (!silent && typeof showAdminToast === 'function') {
+                            showAdminToast('Gallery name is required.', 'error');
                         }
                         return false;
                     }
 
                     if (!gallerySettingsDirty()) {
-                        if (!silent && gallerySettingsStatus) {
-                            gallerySettingsStatus.textContent = '';
-                        }
                         return true;
                     }
 
                     gallerySettingsSaving = true;
-                    if (!silent && gallerySettingsStatus) {
-                        gallerySettingsStatus.textContent = 'Saving…';
-                    }
 
                     try {
                         const resp = await fetch('/biblioteca/manage-gallery.php?gallery=' + encodeURIComponent(selectedGalleryId), {
@@ -8556,14 +8546,11 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                         }
                         galleries = Array.isArray(data.galleries) ? data.galleries : galleries;
                         gallerySettingsBaseline = { title };
-                        if (!silent && gallerySettingsStatus) {
-                            gallerySettingsStatus.textContent = 'Saved.';
-                        }
                         renderGalleryPoolList();
                         return true;
                     } catch (error) {
-                        if (!silent && gallerySettingsStatus) {
-                            gallerySettingsStatus.textContent = error.message || 'Could not save gallery details';
+                        if (!silent && typeof showAdminToast === 'function') {
+                            showAdminToast(error.message || 'Could not save gallery details', 'error');
                         }
                         return false;
                     } finally {
@@ -9649,6 +9636,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                             editorHint.textContent = 'Select a playlist from the pool, then click edit to change its track order.';
                         }
                         updatePlaylistCoverPanel();
+                        updatePlaylistPoolPreview();
                         renderPlaylistPoolList();
                         renderPlaylistHeadBadges();
                         updatePlaylistDefaultButton();
@@ -9661,8 +9649,10 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                         syncPlaylistSettingsPanel(entityId);
                         if (editorHint) {
                             editorHint.textContent = 'Drag to reorder. Shift-click or Ctrl/Cmd-click to select multiple tracks. Move selections back to Available content to remove them from the playlist.';
+                            editorHint.hidden = false;
                         }
                         updatePlaylistCoverPanel();
+                        updatePlaylistPoolPreview();
                         renderPlaylistPoolList();
                         renderPlaylistHeadBadges();
                         updatePlaylistDefaultButton();
@@ -9724,12 +9714,21 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 const playlistSettingsShortDescription = document.getElementById('playlistSettingsShortDescription');
                 const playlistSettingsShortDescriptionCount = document.getElementById('playlistSettingsShortDescriptionCount');
                 const playlistSettingsPosterAssetId = document.getElementById('playlistSettingsPosterAssetId');
-                const playlistSettingsStatus = document.getElementById('playlistSettingsStatus');
                 const playlistCoverPanel = document.getElementById('playlistCoverPanel');
                 const playlistCoverPreview = document.getElementById('playlistCoverPreview');
                 const playlistCoverPlaceholder = document.getElementById('playlistCoverPlaceholder');
                 const playlistCoverPreviewShell = document.getElementById('playlistCoverPreviewShell');
                 const playlistCoverClearBtn = document.getElementById('playlistCoverClearBtn');
+                const playlistPoolPreviewPanel = document.getElementById('playlistPoolPreviewPanel');
+                const playlistPoolPreviewCoverImg = document.getElementById('playlistPoolPreviewCoverImg');
+                const playlistPoolPreviewCoverPlaceholder = document.getElementById('playlistPoolPreviewCoverPlaceholder');
+                const playlistPoolPreviewCoverShell = document.getElementById('playlistPoolPreviewCoverShell');
+                const playlistPoolPreviewTitle = document.getElementById('playlistPoolPreviewTitle');
+                const playlistPoolPreviewDate = document.getElementById('playlistPoolPreviewDate');
+                const playlistPoolPreviewSummary = document.getElementById('playlistPoolPreviewSummary');
+                const playlistDetailsSummary = document.getElementById('playlistDetailsSummary');
+                const playlistDetailsSummaryBody = document.getElementById('playlistDetailsSummaryBody');
+                const playlistEditorPreviewHeadingLabel = document.getElementById('playlistEditorPreviewHeadingLabel');
                 let playlistPackageTypeDefaults = {
                     single: 'stored',
                     ep: 'stored',
@@ -10011,6 +10010,150 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                         }
                     }
                     updatePlaylistCoverPreview();
+                    updatePlaylistPoolPreview();
+                }
+
+                function playlistTrackTitleList(limit = 6) {
+                    const titles = (Array.isArray(activeTracks) ? activeTracks : [])
+                        .map((track) => {
+                            if (typeof displayPlaylistTrackTitle === 'function') {
+                                return String(displayPlaylistTrackTitle(track) || '').trim();
+                            }
+                            return String(track?.title || track?.file || '').trim();
+                        })
+                        .filter(Boolean);
+                    if (!titles.length) {
+                        return '';
+                    }
+                    const shown = titles.slice(0, limit);
+                    const extra = titles.length - shown.length;
+                    let line = shown.join(', ');
+                    if (extra > 0) {
+                        line += ` (+${extra} more)`;
+                    }
+                    return line;
+                }
+
+                function playlistCountLabel(count, singular, plural) {
+                    const safe = Math.max(0, Number(count) || 0);
+                    return safe === 1 ? `1 ${singular}` : `${safe} ${plural}`;
+                }
+
+                function renderPlaylistDetailsSummaryHtml(entry) {
+                    if (!entry) {
+                        return '<p class="campaign-preview-empty">No playlist selected.</p>';
+                    }
+                    const trackCount = Array.isArray(activeTracks) && activeTracks.length
+                        ? activeTracks.length
+                        : Number(entry.track_count || 0);
+                    const trackTitles = playlistTrackTitleList();
+                    const trackDetail = trackCount <= 0
+                        ? 'None'
+                        : (trackTitles
+                            ? `${playlistCountLabel(trackCount, 'track', 'tracks')} — ${trackTitles}`
+                            : playlistCountLabel(trackCount, 'track', 'tracks'));
+                    const packageLabel = String(entry.package_type_label || entry.package_type || '').trim() || 'Other';
+                    const campaignTitle = String(entry.release_title || '').trim();
+                    const playOrder = String(entry.play_order || '').trim().toLowerCase() === 'reverse'
+                        ? 'Newest first'
+                        : 'As listed';
+                    const slug = String(entry.slug || entry.id || '').trim();
+                    const campaignSlug = String(entry.campaign_slug || '').trim();
+                    const publicPath = slug
+                        ? (campaignSlug ? `/play/${campaignSlug}/${slug}` : `/play/…/${slug}`)
+                        : '';
+
+                    const rows = [
+                        { label: 'Tracks', detail: trackDetail, empty: trackCount <= 0 },
+                        { label: 'Package', detail: packageLabel, empty: false },
+                        {
+                            label: 'Campaign',
+                            detail: campaignTitle || 'Unassigned',
+                            empty: !campaignTitle,
+                        },
+                        { label: 'Play order', detail: playOrder, empty: false },
+                    ];
+                    if (entry.is_default) {
+                        rows.push({ label: 'Player', detail: 'Default playlist', empty: false });
+                    }
+                    if (publicPath) {
+                        rows.push({ label: 'URL', detail: publicPath, empty: false });
+                    }
+
+                    return `<dl class="campaign-ownership-summary-list">${rows.map((row) => `
+                        <div class="campaign-ownership-summary-row${row.empty ? ' is-empty' : ''}">
+                            <dt>${bandpromoAdminEscapeHtml(row.label)}</dt>
+                            <dd>${bandpromoAdminEscapeHtml(row.detail)}</dd>
+                        </div>
+                    `).join('')}</dl>`;
+                }
+
+                function updatePlaylistPoolPreview() {
+                    const entry = playlistEntry(selectedPlaylistId);
+                    const showPoolPreview = !isEditing && !!entry;
+
+                    if (playlistPoolPreviewPanel) {
+                        playlistPoolPreviewPanel.hidden = !showPoolPreview;
+                    }
+                    if (activeEl) {
+                        activeEl.hidden = !isEditing;
+                    }
+                    if (editorHint) {
+                        editorHint.hidden = showPoolPreview;
+                    }
+                    if (playlistEditorPreviewHeadingLabel) {
+                        playlistEditorPreviewHeadingLabel.textContent = isEditing ? 'Playlist' : 'Preview';
+                    }
+
+                    if (!showPoolPreview) {
+                        if (playlistDetailsSummaryBody) {
+                            playlistDetailsSummaryBody.innerHTML = '';
+                        }
+                        return;
+                    }
+
+                    const title = String(entry.title || entry.id || 'Playlist').trim() || 'Playlist';
+                    const date = String(entry.publish_date || '').trim();
+                    const summary = String(entry.short_description || '').trim();
+                    const previewUrl = String(entry.poster_preview_url || '').trim()
+                        || (String(entry.poster_asset_id || '').trim()
+                            ? playlistMediaPreviewUrlFromReference(entry.poster_asset_id)
+                            : '');
+
+                    if (playlistPoolPreviewTitle) {
+                        playlistPoolPreviewTitle.textContent = title;
+                    }
+                    if (playlistPoolPreviewDate) {
+                        playlistPoolPreviewDate.textContent = date ? `Published ${date}` : '';
+                        playlistPoolPreviewDate.hidden = date === '';
+                    }
+                    if (playlistPoolPreviewSummary) {
+                        playlistPoolPreviewSummary.textContent = summary;
+                        playlistPoolPreviewSummary.hidden = summary === '';
+                    }
+                    if (playlistPoolPreviewCoverImg instanceof HTMLImageElement) {
+                        if (previewUrl) {
+                            if (playlistPoolPreviewCoverImg.getAttribute('src') !== previewUrl) {
+                                playlistPoolPreviewCoverImg.src = previewUrl;
+                            }
+                            playlistPoolPreviewCoverImg.style.display = 'block';
+                        } else {
+                            playlistPoolPreviewCoverImg.removeAttribute('src');
+                            playlistPoolPreviewCoverImg.style.display = 'none';
+                        }
+                    }
+                    if (playlistPoolPreviewCoverPlaceholder) {
+                        playlistPoolPreviewCoverPlaceholder.style.display = previewUrl ? 'none' : 'block';
+                    }
+                    if (playlistPoolPreviewCoverShell instanceof HTMLElement) {
+                        playlistPoolPreviewCoverShell.title = previewUrl ? 'Playlist artwork' : 'No artwork selected';
+                    }
+                    if (playlistDetailsSummary) {
+                        playlistDetailsSummary.hidden = false;
+                    }
+                    if (playlistDetailsSummaryBody) {
+                        playlistDetailsSummaryBody.innerHTML = renderPlaylistDetailsSummaryHtml(entry);
+                    }
                 }
 
                 function initPlaylistCoverPicker() {
@@ -10023,8 +10166,8 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                             event.preventDefault();
                             event.stopPropagation();
                             if (typeof window.openMediaPicker !== 'function') {
-                                if (playlistSettingsStatus) {
-                                    playlistSettingsStatus.textContent = 'Media picker is not available. Reload the page.';
+                                if (typeof showAdminToast === 'function') {
+                                    showAdminToast('Media picker is not available. Reload the page.', 'error');
                                 }
                                 return;
                             }
@@ -10107,9 +10250,6 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     updatePlaylistCoverPanel();
                     renderPlaylistHeadBadges();
                     updatePlaylistDefaultButton();
-                    if (playlistSettingsStatus) {
-                        playlistSettingsStatus.textContent = '';
-                    }
                 }
 
                 async function savePlaylistSettings({ silent = false } = {}) {
@@ -10134,32 +10274,29 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     } = settings;
 
                     if (!title) {
-                        if (!silent && playlistSettingsStatus) {
-                            playlistSettingsStatus.textContent = 'Playlist name is required.';
+                        if (!silent && typeof showAdminToast === 'function') {
+                            showAdminToast('Playlist name is required.', 'error');
                         }
                         return false;
                     }
 
                     const dateError = validatePlaylistPublishDate(publishDate);
                     if (dateError) {
-                        if (!silent && playlistSettingsStatus) {
-                            playlistSettingsStatus.textContent = dateError;
+                        if (!silent && typeof showAdminToast === 'function') {
+                            showAdminToast(dateError, 'error');
                         }
                         return false;
                     }
 
                     const slugError = validatePlaylistSlug(slug);
                     if (slugError) {
-                        if (!silent && playlistSettingsStatus) {
-                            playlistSettingsStatus.textContent = slugError;
+                        if (!silent && typeof showAdminToast === 'function') {
+                            showAdminToast(slugError, 'error');
                         }
                         return false;
                     }
 
                     if (!playlistSettingsDirty()) {
-                        if (!silent && playlistSettingsStatus) {
-                            playlistSettingsStatus.textContent = '';
-                        }
                         return true;
                     }
 
@@ -10167,9 +10304,6 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
 
                     playlistSettingsSaving = true;
                     playlistSettingsSaveQueued = false;
-                    if (!silent && playlistSettingsStatus) {
-                        playlistSettingsStatus.textContent = 'Saving…';
-                    }
 
                     try {
                         const resp = await fetch('/biblioteca/manage-playlist.php?playlist=' + encodeURIComponent(playlistId), {
@@ -10218,14 +10352,11 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                         }
 
                         syncPlaylistSettingsPanel(selectedPlaylistId);
-                        if (!silent && playlistSettingsStatus) {
-                            playlistSettingsStatus.textContent = 'Saved.';
-                        }
                         renderPlaylistPoolList();
                         return true;
                     } catch (error) {
-                        if (!silent && playlistSettingsStatus) {
-                            playlistSettingsStatus.textContent = error.message || 'Could not save playlist details';
+                        if (!silent && typeof showAdminToast === 'function') {
+                            showAdminToast(error.message || 'Could not save playlist details', 'error');
                         }
                         return false;
                     } finally {
@@ -10402,41 +10533,6 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     return entry && String(entry.ownership || '') === 'operator';
                 }
 
-                function playlistPoolMetaHtml(entry) {
-                    if (!entry) {
-                        return '';
-                    }
-
-                    const trackCount = Number(entry.track_count || 0);
-                    const tracksLabel = trackCount === 1 ? '1 track' : `${trackCount} tracks`;
-                    const publishDate = String(entry.publish_date || '').trim();
-                    const campaignTitle = String(entry.release_title || '').trim();
-                    const packageLabel = String(entry.package_type_label || '').trim();
-                    const parts = [];
-
-                    if (publishDate && campaignTitle) {
-                        parts.push(
-                            `Published ${bandpromoAdminEscapeHtml(publishDate)} from the campaign "${bandpromoAdminEscapeHtml(campaignTitle)}"`
-                        );
-                    } else if (publishDate) {
-                        parts.push(`Published ${bandpromoAdminEscapeHtml(publishDate)}`);
-                    } else if (campaignTitle) {
-                        parts.push(`From the campaign "${bandpromoAdminEscapeHtml(campaignTitle)}"`);
-                    }
-
-                    parts.push(`(${bandpromoAdminEscapeHtml(tracksLabel)})`);
-
-                    let line = parts.join(' ');
-                    if (packageLabel) {
-                        line += ` · ${bandpromoAdminEscapeHtml(packageLabel)}`;
-                    }
-                    if (entry.is_default) {
-                        line += ' · Default';
-                    }
-
-                    return line;
-                }
-
                 function syncPlaylistUrl(playlistId, editing) {
                     lifecycle.syncUrl(playlistId, editing);
                 }
@@ -10489,7 +10585,6 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                                 isSelected: isSelected,
                                 icon: '🎵',
                                 title: entry.title || id,
-                                meta: playlistPoolMetaHtml(entry),
                                 extraClasses: 'playlist-pool-row',
                                 actions: actions,
                             });
@@ -10704,7 +10799,6 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     if (!selectedPlaylistId || playlistIsDefault(selectedPlaylistId)) {
                         return;
                     }
-                    const statusEl = isEditing ? playlistSettingsStatus : playlistRegistryStatus;
                     try {
                         playlistSetDefaultBtn.disabled = true;
                         const resp = await fetch('/biblioteca/set-default-playlist.php', {
@@ -10723,18 +10817,17 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                         applyPlaylistDefaultId(String(data.default_playlist_id || selectedPlaylistId));
                         renderPlaylistPoolList();
                         renderPlaylistHeadBadges();
-                        if (statusEl) {
-                            statusEl.textContent = '';
-                            if (statusEl === playlistRegistryStatus) {
-                                statusEl.style.color = '';
-                            }
+                        if (!isEditing && playlistRegistryStatus) {
+                            playlistRegistryStatus.textContent = '';
+                            playlistRegistryStatus.style.color = '';
                         }
                     } catch (error) {
-                        if (statusEl) {
-                            statusEl.textContent = error.message || 'Could not set default playlist';
-                            if (statusEl === playlistRegistryStatus) {
-                                statusEl.style.color = '#f87171';
-                            }
+                        const message = error.message || 'Could not set default playlist';
+                        if (isEditing && typeof showAdminToast === 'function') {
+                            showAdminToast(message, 'error');
+                        } else if (playlistRegistryStatus) {
+                            playlistRegistryStatus.textContent = message;
+                            playlistRegistryStatus.style.color = '#f87171';
                         }
                     } finally {
                         updatePlaylistDefaultButton();
@@ -11023,7 +11116,11 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
 
                     if (!selectedPlaylistId) {
                         activeEl.innerHTML = '<li class="editor-empty">No playlist selected.</li>';
-                        if (countBadge) countBadge.textContent = '';
+                        if (countBadge) {
+                            countBadge.textContent = '';
+                            countBadge.hidden = true;
+                        }
+                        updatePlaylistPoolPreview();
                         return;
                     }
 
@@ -11041,11 +11138,13 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                         })).join('');
                     }
 
+                    if (countBadge) {
+                        countBadge.textContent = activeTracks.length ? `(${activeTracks.length})` : '';
+                        countBadge.hidden = !isEditing;
+                    }
+                    saveUi?.reconcile();
+                    updatePlaylistPoolPreview();
                     if (!isEditing) {
-                        if (countBadge) {
-                            countBadge.textContent = activeTracks.length ? `(${activeTracks.length})` : '';
-                        }
-                        saveUi?.reconcile();
                         return;
                     }
 

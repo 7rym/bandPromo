@@ -15,12 +15,23 @@ For admin surfaces that sit under the main tab / Content sub-nav (especially Con
 | Pool / list | `{emoji} {Section} > Pool` |
 | Editor | `{emoji} {Section} > Editor` |
 
-- Markup: `bandpromo_admin_render_content_breadcrumb()` in `biblioteca/admin-helpers.php` (`.content-editor-card-head` + `.content-editor-breadcrumb`).
-- Behaviour: `bandpromoContentEditorBreadcrumb.attach()` in `biblioteca/content-editor-breadcrumb.js` — root button returns to Pool via the same leave/unsaved path as ← Back; `setView('pool'|'edit')` on lifecycle show hooks.
-- Optional `trailing` slot for chrome that follows the crumb (Catalogue section chips); optional `actions` slot (`.content-editor-card-head-actions`) hugs the right edge — Catalogue puts ← Back and Save|Saved there while `.is-editing`.
-- Shipped on Catalogue, Playlists, Galleries, Pages, and Branding.
+### Breadcrumb line layout
 
-Do not invent a second under-nav title pattern for new Content editors unless the surface is not a pool→editor flow.
+One row under the Content sub-nav (`.content-editor-card-head`, min-height matches Editor chrome so Pool does not jump):
+
+| Slot | Placement | Use |
+|------|-----------|-----|
+| Crumb | Left | Section root (underlined link → Pool, same leave/unsaved path as ← Back) + `> Pool\|Editor` |
+| `trailing` | Immediately after the crumb | Optional editor section chips (Catalogue: Base info \| Extended info \| …; Pages: Base info \| Page builder; Branding: Common \| Player \| Content) |
+| `actions` | Right edge (`.content-editor-card-head-actions`) | ← Back + Save\|Saved (and ★ Set as default / ★ Set as base when that editor has them). Hidden while not `.is-editing` |
+
+- Markup: `bandpromo_admin_render_content_breadcrumb()` in `biblioteca/admin-helpers.php`.
+- Behaviour: `bandpromoContentEditorBreadcrumb.attach()` — `setView('pool'|'edit')` on lifecycle show hooks.
+- Entity name stays in the left edit header under the breadcrumb row; preview headers are titles only (no Save strip).
+
+Shipped on Catalogue, Playlists, Galleries, Pages, and Branding.
+
+Do not invent a second under-nav title pattern for new Content editors unless the surface is not a pool→editor flow. Do not leave ← Back / Save only in the split-editor headers when the breadcrumb row is present.
 
 ## System tab and roles (2026-08-31)
 
@@ -154,7 +165,7 @@ Pages and Branding edit views group fields in `.content-editor-section` cards:
 - Chrome header: `.content-editor-section-head` with `--border2` fill (same bar as Page/Branding Back/name and Live preview headers, and block card headers)
 - Body: `.content-editor-section-body`
 
-Pages: **Base info** (player tab, descriptions, share image) then **Page builder** (hint, add-block buttons, blocks). Playlists: **Base info** (Artwork, publish date, package type, play order As listed|Newest first toggle, slug, descriptions) with inline `Label:` chrome. Default playlist is **★ Set as default** in the Playlist header (same as Branding **★ Set as base**), not a checkbox. Catalogue (Campaign): name in the edit header; breadcrumb row holds section chips (Base info | Extended info | Tracks | …) and ← Back + Save|Saved on the right while editing; **Base info** (start / slug / press / branding / blurb) + **Media assets** (Artwork); **Extended info** holds **Press kit** (long description Markdown); preview column keeps cover + brand + long-description readouts. Branding: Common | Player | Content (Player: **Cover** [Size Full|Medium|Half, Reflection, Side covers], **Controls** [full panel chrome], **User area** [Login / status, Beggars banquet]; Content: **Buttons**, **Playlist selector**, **Panels**, **Typography**). Prefer `Label:` + control on one line; segmented toggles over checkboxes; toggles over dropdowns when ≤5 alternatives; inline `Label:` + value sliders for continuous scales (see [AGENTS.md](AGENTS.md)).
+Pages: breadcrumb chips **Base info** \| **Page builder**; each section is a tab panel (builder toolbar + blocks only on Page builder). Breadcrumb actions hold ← Back + Save|Saved. Playlists: **Base info** (Artwork, publish date, package type, play order As listed|Newest first toggle, slug, descriptions) with inline `Label:` chrome; Pool preview mirrors Catalogue (cover + blurb + Playlist details: tracks / package / campaign / play order / URL); track order + available pool only while editing. **★ Set as default** / Branding **★ Set as base** sit on the breadcrumb actions row with ← Back and Save (not a checkbox). Catalogue (Campaign): name in the edit header; breadcrumb row holds section chips (Base info | Extended info | Tracks | …) and ← Back + Save|Saved on the right while editing; **Base info** (start / slug / press / branding / blurb) + **Media assets** (Artwork); **Extended info** holds **Press kit** (long description Markdown); Pool preview shows cover + brand + owned-content summary (Tracks / Playlists / Galleries / Pages); Base|Extended edit preview keeps cover + brand + long-description readout. Branding: Common | Player | Content chips on the breadcrumb row; (Player: **Cover** [Size Full|Medium|Half, Reflection, Side covers], **Controls** [full panel chrome], **User area** [Login / status, Beggars banquet]; Content: **Buttons**, **Playlist selector**, **Panels**, **Typography**). Prefer `Label:` + control on one line; segmented toggles over checkboxes; toggles over dropdowns when ≤5 alternatives; inline `Label:` + value sliders for continuous scales (see [AGENTS.md](AGENTS.md)).
 
 **Player colour contract:** `#mediaplayer` keeps platform layout (scene, transport, scrubber) but paints from brand colours. `#content-container` shares the palette; **Buttons** and **Typography** use role swatches (outline/fill, headings/body/blockquote) from that palette. Soft fill = 50% of the Fill role. **Panels** (fill, blur, corners Square/Shaved, border width + colour role, density) drive the frosted boxes — content sits inside that one surface.
 

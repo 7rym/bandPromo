@@ -2,7 +2,7 @@
 
 ## Resume point
 
-**Catalogue Extended info tab** — Press kit (long description) lives under Extended info between Base info and Tracks. Smoke tab switch + markdown preview.
+**Published Content chrome batch** — breadcrumb sections (Pages), Catalogue/Playlist pool previews, preference polish, Saved. cleanup. Next: Shell/Player/Content preview parity or operator smoke on Site update.
 
 ### Also pending
 

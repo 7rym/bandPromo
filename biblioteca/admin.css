@@ -6030,6 +6030,12 @@ canvas { max-width: 100%; height: auto; }
     gap: 6px;
 }
 
+/* Pool preview hides the live track list; author display:flex must not override [hidden]. */
+#playlistActiveList[hidden],
+#playlistEditorHint[hidden] {
+    display: none !important;
+}
+
 .editor-row {
     display: flex;
     align-items: center;
@@ -6411,8 +6417,8 @@ canvas { max-width: 100%; height: auto; }
     min-height: 0;
 }
 
-#campaignEditorCard:not(.is-editing) .content-editor-card-head .campaign-editor-section-tabs,
-#campaignEditorCard:not(.is-editing) .content-editor-card-head-actions {
+.editor-card:not(.is-editing) .content-editor-card-head .content-editor-subnav,
+.editor-card:not(.is-editing) .content-editor-card-head-actions {
     display: none;
 }
 
@@ -6608,10 +6614,44 @@ canvas { max-width: 100%; height: auto; }
     margin: 0;
 }
 
+.campaign-ownership-summary,
 .campaign-long-description-preview {
     margin: 0.9rem 0 0.15rem;
     padding-top: 0.85rem;
     border-top: 1px solid color-mix(in srgb, var(--text) 12%, transparent);
+}
+
+.campaign-ownership-summary-list {
+    margin: 0;
+    display: grid;
+    gap: 0.45rem;
+}
+
+.campaign-ownership-summary-row {
+    display: grid;
+    grid-template-columns: 5.5rem minmax(0, 1fr);
+    gap: 0.55rem 0.75rem;
+    align-items: start;
+}
+
+.campaign-ownership-summary-row dt {
+    margin: 0;
+    font-size: 0.78rem;
+    font-weight: 700;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+    color: var(--muted, #9aa4b2);
+}
+
+.campaign-ownership-summary-row dd {
+    margin: 0;
+    font-size: 0.92rem;
+    line-height: 1.4;
+    color: var(--text, #e8eaed);
+}
+
+.campaign-ownership-summary-row.is-empty dd {
+    color: var(--muted, #9aa4b2);
 }
 
 .campaign-long-description-preview-body {

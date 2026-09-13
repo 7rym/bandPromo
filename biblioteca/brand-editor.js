@@ -10,7 +10,6 @@
         const setActiveBtn = document.getElementById('brandSetActiveBtn');
         const backBtn = document.getElementById('brandEditorBackBtn');
         const titleInput = document.getElementById('brandSettingsTitle');
-        const settingsStatus = document.getElementById('brandSettingsStatus');
         const headBadges = document.getElementById('brandEditorHeadBadges');
         const registryStatus = document.getElementById('brandRegistryStatus');
         const deleteModal = document.getElementById('brandDeleteModal');
@@ -175,10 +174,8 @@
         let editorTab = readStoredEditorTab();
 
         function syncEditorTabUi() {
-            if (!(formEl instanceof HTMLElement)) {
-                return;
-            }
-            formEl.querySelectorAll('[data-brand-editor-tab]').forEach((button) => {
+            const nav = document.getElementById('brandEditorSubnav');
+            nav?.querySelectorAll('[data-brand-editor-tab]').forEach((button) => {
                 if (!(button instanceof HTMLElement)) {
                     return;
                 }
@@ -186,7 +183,11 @@
                 const active = tab === editorTab;
                 button.classList.toggle('is-active', active);
                 button.setAttribute('aria-pressed', active ? 'true' : 'false');
+                button.setAttribute('aria-selected', active ? 'true' : 'false');
             });
+            if (!(formEl instanceof HTMLElement)) {
+                return;
+            }
             formEl.querySelectorAll('[data-brand-editor-panel]').forEach((panel) => {
                 if (!(panel instanceof HTMLElement)) {
                     return;
@@ -217,11 +218,12 @@
         }
 
         function bindEditorTabUi() {
-            if (!(formEl instanceof HTMLElement)) {
+            const nav = document.getElementById('brandEditorSubnav');
+            if (!(nav instanceof HTMLElement)) {
+                syncEditorTabUi();
                 return;
             }
-            const nav = formEl.querySelector('#brandEditorSubnav');
-            if (!(nav instanceof HTMLElement) || nav.dataset.bound === 'true') {
+            if (nav.dataset.bound === 'true') {
                 syncEditorTabUi();
                 return;
             }
@@ -931,9 +933,6 @@
                 titleInput.disabled = !brandMayEdit(document);
             }
             renderBrandHeadBadges(document);
-            if (settingsStatus) {
-                settingsStatus.textContent = '';
-            }
         }
 
         async function saveBrandSettings({ silent = false } = {}) {
@@ -950,24 +949,18 @@
 
             const title = brandTitleValue();
             if (!title) {
-                if (!silent && settingsStatus) {
-                    settingsStatus.textContent = 'Brand name is required.';
+                if (!silent) {
+                    notifyBrandError('Brand name is required.');
                 }
                 return false;
             }
 
             if (!brandSettingsDirty()) {
-                if (!silent && settingsStatus) {
-                    settingsStatus.textContent = '';
-                }
                 return true;
             }
 
             const brandId = String(editorDocument.id || '').trim();
             brandSettingsSaving = true;
-            if (!silent && settingsStatus) {
-                settingsStatus.textContent = 'Saving…';
-            }
 
             try {
                 const data = await fetchJson(`/biblioteca/manage-brand.php?brand=${encodeURIComponent(brandId)}`, {
@@ -987,13 +980,10 @@
                 brandSettingsBaseline = { title };
                 renderPoolList();
                 renderPreview(previewDocument);
-                if (!silent && settingsStatus) {
-                    settingsStatus.textContent = 'Saved.';
-                }
                 return true;
             } catch (error) {
-                if (!silent && settingsStatus) {
-                    settingsStatus.textContent = error.message || 'Could not save brand';
+                if (!silent) {
+                    notifyBrandError(error.message || 'Could not save brand');
                 }
                 return false;
             } finally {
@@ -1016,9 +1006,6 @@
             collectFormIntoDocument();
             const title = brandTitleValue();
             if (!title) {
-                if (settingsStatus) {
-                    settingsStatus.textContent = 'Brand name is required.';
-                }
                 notifyBrandError('Brand name is required.');
                 return false;
             }
@@ -1041,9 +1028,6 @@
                 renderPoolList();
                 saveUi?.markSaved();
                 brandSettingsBaseline = { title: editorDocument.title };
-                if (settingsStatus) {
-                    settingsStatus.textContent = '';
-                }
                 return true;
             } catch (error) {
                 saveUi?.markFailed();
@@ -1742,16 +1726,11 @@
                 ${!fieldsLocked && editorDocument.locked && brandIsPlatformDefault(editorDocument)
                     ? '<p class="brand-editor-locked-note">Localhost PCF edit: platform default is editable here. Remote installs stay locked.</p>'
                     : ''}
-                <div class="brand-editor-subnav" id="brandEditorSubnav" role="tablist" aria-label="Brand editor sections">
-                    <button type="button" class="brand-editor-subnav-btn" data-brand-editor-tab="common" aria-pressed="false">Common</button>
-                    <button type="button" class="brand-editor-subnav-btn" data-brand-editor-tab="player" aria-pressed="false">Player</button>
-                    <button type="button" class="brand-editor-subnav-btn" data-brand-editor-tab="content" aria-pressed="false">Content</button>
-                </div>
                 <div class="brand-editor-tab-panel" data-brand-editor-panel="common" role="tabpanel">
                     ${renderEditorSection('Base info', `
                         <div class="brand-token-grid brand-token-grid--stacked">
                             <div class="brand-token-field">
-                                <label for="brandBrandDescription">Description</label>
+                                <label for="brandBrandDescription">Description:</label>
                                 <textarea id="brandBrandDescription" data-brand-field="mood" maxlength="500" rows="3" ${fieldsLocked ? 'disabled' : ''}>${escapeHtml(description)}</textarea>
                             </div>
                         </div>
@@ -2091,6 +2070,7 @@
                 },
             });
         }
+        bindEditorTabUi();
 
         formEl.addEventListener('input', (event) => {
             const input = event.target;

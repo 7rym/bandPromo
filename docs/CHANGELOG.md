@@ -2,6 +2,28 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-09-14 00:20 - Playlists pool rows: drop publish/campaign/tracks meta line (shown in Pool Preview instead).
+
+2026-09-14 00:10 - Content editors: remove leftover name-row “Saved.” status (Catalogue / Playlists / Galleries / Branding); breadcrumb Save chip is the sole save feedback. Errors use toasts.
+
+2026-09-14 00:00 - Playlists Pool preview: force-hide `#playlistActiveList` (display:flex was overriding `[hidden]`); track list only while editing.
+
+2026-09-13 23:55 - Playlists Pool preview: Campaign-style cover + blurb + Playlist details summary (tracks / package / campaign / play order); track list only while editing.
+
+2026-09-13 23:45 - Catalogue Pool preview: replace long description with owned-content summary (Tracks / Playlists / Galleries / Pages). Long description stays on Base|Extended edit preview.
+
+2026-09-13 23:35 - Preference polish: Branding Description trailing colon; Pages List style Bullet|Numbered toggle; Width/Flow/Source and chip labels use `Label:`.
+
+2026-09-13 23:20 - Pages rich-text blocks: autofit editor height to content (drop 12rem/8rem min-height floors).
+
+2026-09-13 23:15 - Pages editor: breadcrumb section chips Base info | Page builder; each is a tab panel (builder only on Page builder).
+
+2026-09-13 23:05 - Pages Base info: switch to shared `content-editor-field` chrome with `Label:` (inline Player tab; stacked descriptions / share image).
+
+2026-09-13 23:00 - Branding: Common|Player|Content chips sit on the breadcrumb row (same pattern as Catalogue section chips), not under the brand name.
+
+2026-09-13 22:55 - Content editors: breadcrumb line is the preferred chrome — ← Back + Save|Saved (and ★ Set as default/base) on the right for Playlists, Galleries, Pages, and Branding; prefs updated in ADMIN-UI / AGENTS.
+
 2026-09-13 22:45 - Catalogue: drop unused `.playlist-settings-panel` wrapper around Base/Extended section panels (keep `#campaignSettingsPanel` for save wiring).
 
 2026-09-13 22:35 - Content editor breadcrumb row: fixed min-height so Pool matches Editor (no jump when chips/actions hide).

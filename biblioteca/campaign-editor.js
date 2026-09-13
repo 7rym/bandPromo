@@ -26,7 +26,6 @@
         const campaignSettingsSlugPreview = document.getElementById('campaignSettingsSlugPreview');
         const campaignSettingsCatalogId = document.getElementById('campaignSettingsCatalogId');
         let campaignSettingsBrandId = document.getElementById('campaignSettingsBrandId');
-        const campaignSettingsStatus = document.getElementById('campaignSettingsStatus');
         let campaignSettingsDescription = document.getElementById('campaignSettingsDescription');
         const campaignSettingsShortDescription = document.getElementById('campaignSettingsShortDescription');
         const campaignSettingsShortDescriptionCount = document.getElementById('campaignSettingsShortDescriptionCount');
@@ -35,6 +34,8 @@
         const campaignArtworkEditor = document.getElementById('campaignArtworkEditor');
         const campaignBaseBrandPreview = document.getElementById('campaignBaseBrandPreview');
         const campaignBaseBrandPreviewBody = document.getElementById('campaignBaseBrandPreviewBody');
+        const campaignOwnershipSummary = document.getElementById('campaignOwnershipSummary');
+        const campaignOwnershipSummaryBody = document.getElementById('campaignOwnershipSummaryBody');
         const campaignLongDescriptionPreview = document.getElementById('campaignLongDescriptionPreview');
         const campaignLongDescriptionPreviewBody = document.getElementById('campaignLongDescriptionPreviewBody');
         const campaignCoverPreviewShell = document.getElementById('campaignCoverPreviewShell');
@@ -747,6 +748,9 @@
                 if (campaignAssociationAvailableSection) {
                     campaignAssociationAvailableSection.hidden = true;
                 }
+                refreshCampaignBaseBrandPreview();
+                refreshCampaignOwnershipSummary();
+                refreshCampaignLongDescriptionPreview();
                 return;
             }
             const baseActive = campaignEditorTab === 'base';
@@ -801,6 +805,7 @@
                 campaignEditorPreviewHeading.textContent = headings[campaignEditorTab] || 'Preview';
             }
             refreshCampaignBaseBrandPreview();
+            refreshCampaignOwnershipSummary();
             refreshCampaignLongDescriptionPreview();
         }
 
@@ -847,6 +852,7 @@
                 campaignPreviewSummary.hidden = blurb === '';
             }
             refreshCampaignLongDescriptionPreview();
+            refreshCampaignOwnershipSummary();
         }
 
         function currentLongDescriptionMarkdown(entry = campaignEntry(selectedCampaignId)) {
@@ -856,12 +862,91 @@
             return String(entry?.description || '').trim();
         }
 
+        function ownershipTitleList(items, limit = 6) {
+            const titles = (Array.isArray(items) ? items : [])
+                .map((item) => String(item?.title || item?.id || '').trim())
+                .filter(Boolean);
+            if (!titles.length) {
+                return '';
+            }
+            const shown = titles.slice(0, limit);
+            const extra = titles.length - shown.length;
+            let line = shown.join(', ');
+            if (extra > 0) {
+                line += ` (+${extra} more)`;
+            }
+            return line;
+        }
+
+        function ownershipCountLabel(count, singular, plural) {
+            const safe = Math.max(0, Number(count) || 0);
+            return safe === 1 ? `1 ${singular}` : `${safe} ${plural}`;
+        }
+
+        function renderCampaignOwnershipSummaryHtml(entry) {
+            if (!entry) {
+                return '<p class="campaign-preview-empty">No campaign selected.</p>';
+            }
+            const children = ownershipChildren(entry);
+            const trackCount = campaignTrackCount(entry);
+
+            function ownedRow(label, count, singular, plural, items) {
+                if (count <= 0) {
+                    return {
+                        label: label,
+                        count: 0,
+                        detail: 'None',
+                    };
+                }
+                const titles = ownershipTitleList(items);
+                const countLabel = ownershipCountLabel(count, singular, plural);
+                return {
+                    label: label,
+                    count: count,
+                    detail: titles ? `${countLabel} — ${titles}` : countLabel,
+                };
+            }
+
+            const rows = [
+                ownedRow('Tracks', trackCount, 'track', 'tracks', null),
+                ownedRow('Playlists', children.playlists.length, 'playlist', 'playlists', children.playlists),
+                ownedRow('Galleries', children.galleries.length, 'gallery', 'galleries', children.galleries),
+                ownedRow('Pages', children.pages.length, 'page', 'pages', children.pages),
+            ];
+
+            return `<dl class="campaign-ownership-summary-list">${rows.map((row) => {
+                const empty = row.count <= 0;
+                return `<div class="campaign-ownership-summary-row${empty ? ' is-empty' : ''}">
+                    <dt>${escapeHtml(row.label)}</dt>
+                    <dd>${escapeHtml(row.detail)}</dd>
+                </div>`;
+            }).join('')}</dl>`;
+        }
+
+        function refreshCampaignOwnershipSummary() {
+            if (!campaignOwnershipSummary || !campaignOwnershipSummaryBody) {
+                return;
+            }
+            const coverVisible = !!(campaignCoverPanel && !campaignCoverPanel.hidden);
+            const showInPool = coverVisible && !isEditing;
+            if (!showInPool) {
+                campaignOwnershipSummary.hidden = true;
+                campaignOwnershipSummaryBody.innerHTML = '';
+                return;
+            }
+
+            const entry = campaignEntry(selectedCampaignId);
+            campaignOwnershipSummary.hidden = false;
+            campaignOwnershipSummaryBody.innerHTML = renderCampaignOwnershipSummaryHtml(entry);
+        }
+
         function refreshCampaignLongDescriptionPreview() {
             if (!campaignLongDescriptionPreview || !campaignLongDescriptionPreviewBody) {
                 return;
             }
             const coverVisible = !!(campaignCoverPanel && !campaignCoverPanel.hidden);
-            const showUnderPreview = coverVisible && (!isEditing || campaignEditorTab === 'base' || campaignEditorTab === 'extended');
+            // Pool view uses owned-content summary instead; long description stays for Base/Extended edit.
+            const showUnderPreview = coverVisible && isEditing && (campaignEditorTab === 'base' || campaignEditorTab === 'extended');
             if (!showUnderPreview) {
                 campaignLongDescriptionPreview.hidden = true;
                 campaignLongDescriptionPreviewBody.innerHTML = '';
@@ -1079,6 +1164,7 @@
             updateCampaignCoverPreview();
             syncCampaignEditorMode();
             refreshCampaignBaseBrandPreview();
+            refreshCampaignOwnershipSummary();
             refreshCampaignLongDescriptionPreview();
         }
 
@@ -2309,9 +2395,6 @@
 
             setCampaignMetadataDisabled(metadataLocked);
             updateCampaignCoverPanel();
-            if (campaignSettingsStatus) {
-                campaignSettingsStatus.textContent = '';
-            }
         }
 
         function updateCampaignEditorHint() {
@@ -2420,9 +2503,7 @@
                 updateCampaignEditorHint();
                 renderLists();
                 saveUi?.markSaved();
-                if (silent && campaignSettingsStatus) {
-                    campaignSettingsStatus.textContent = 'Saved.';
-                } else if (!silent) {
+                if (!silent) {
                     showCampaignToast('Campaign saved.', 'success');
                 }
                 return true;

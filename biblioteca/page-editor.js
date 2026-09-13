@@ -31,7 +31,9 @@
         let selectedPageId = currentPageKey;
         let isEditing = false;
         let pageBreadcrumb = null;
+        let pageEditorTab = 'base';
         const BACK_TO_POOL = '__back__';
+        const PAGE_EDITOR_TABS = new Set(['base', 'builder']);
 
         const pageTitleInput = document.getElementById('pageTitleInput');
         const pageLabelInput = document.getElementById('pageLabelInput');
@@ -40,6 +42,8 @@
         const pageSettingsDescription = document.getElementById('pageSettingsDescription');
         const pageSettingsPosterAssetId = document.getElementById('pageSettingsPosterAssetId');
         const pageSettingsPosterAssetIdLabel = document.getElementById('pageSettingsPosterAssetId_label');
+        const pageEditorSubnav = document.getElementById('pageEditorSubnav');
+
         function pageEntry(pageId) {
             return pages.find((entry) => entry && entry.id === pageId) || null;
         }
@@ -54,6 +58,29 @@
                 return label ? `Player tab: ${label}` : 'Shown in player';
             }
             return 'Not in player layout';
+        }
+
+        function setPageEditorTab(tabId) {
+            const next = String(tabId || 'base').trim() || 'base';
+            pageEditorTab = PAGE_EDITOR_TABS.has(next) ? next : 'base';
+            root.setAttribute('data-page-editor-section', pageEditorTab);
+
+            pageEditorSubnav?.querySelectorAll('[data-page-editor-tab]').forEach((button) => {
+                const active = String(button.getAttribute('data-page-editor-tab') || '') === pageEditorTab;
+                button.classList.toggle('is-active', active);
+                button.setAttribute('aria-selected', active ? 'true' : 'false');
+            });
+            editorView?.querySelectorAll('[data-page-editor-panel]').forEach((panel) => {
+                const active = String(panel.getAttribute('data-page-editor-panel') || '') === pageEditorTab;
+                panel.classList.toggle('is-active', active);
+                panel.hidden = !active;
+            });
+            if (pageEditorTab === 'base' && isEditing) {
+                window.requestAnimationFrame(() => autofitPageMetaTextareas());
+            }
+            if (pageEditorTab === 'builder' && isEditing) {
+                scheduleRichEditorAutofit();
+            }
         }
 
         const lifecycle = window.bandpromoEditorLifecycle.create({
@@ -75,6 +102,7 @@
                 currentPageKey = pageId;
                 selectedPageId = pageId;
                 updateLabelFieldVisibility(pageId);
+                setPageEditorTab(pageEditorTab);
                 renderPoolList();
             },
         });
@@ -267,6 +295,13 @@
             });
         }
 
+        pageEditorSubnav?.querySelectorAll('[data-page-editor-tab]').forEach((button) => {
+            button.addEventListener('click', () => {
+                setPageEditorTab(String(button.getAttribute('data-page-editor-tab') || 'base'));
+            });
+        });
+        setPageEditorTab(pageEditorTab);
+
         const unsavedModal = document.getElementById('pageUnsavedModal');
         const unsavedSaveBtn = document.getElementById('pageUnsavedSaveBtn');
         const unsavedDiscardBtn = document.getElementById('pageUnsavedDiscardBtn');
@@ -448,7 +483,7 @@
             return `
                 <div class="page-picture-style-bar" data-block-index="${index}">
                     <label class="page-picture-style-inline page-gallery-source-inline">
-                        <span class="page-picture-style-label">Source</span>
+                        <span class="page-picture-style-label">${escapeHtml(fieldLabelText('Source'))}</span>
                         <select class="page-gallery-source-select" data-field="gallery_id" data-block-index="${index}" aria-label="Gallery source">${galleryOptions}</select>
                     </label>
                     ${presetChips}
@@ -850,8 +885,17 @@
             }).join('');
         }
 
+        function fieldLabelText(label) {
+            const text = String(label || '').trim();
+            if (!text) {
+                return '';
+            }
+            return text.endsWith(':') ? text : `${text}:`;
+        }
+
         function renderChipPool(index, field, label, options, selected, nameKey) {
             const name = `page-block-${nameKey || field}-${index}`;
+            const labelText = fieldLabelText(label);
             const chips = options.map((entry) => {
                 const value = String(entry.value ?? '');
                 const text = String(entry.label ?? value);
@@ -864,8 +908,8 @@
             }).join('');
             return `
                 <div class="page-picture-style-inline">
-                    <span class="page-picture-style-label">${escapeHtml(label)}</span>
-                    <div class="visual-filter-chip-group" role="radiogroup" aria-label="${escapeHtml(label)}">${chips}</div>
+                    <span class="page-picture-style-label">${escapeHtml(labelText)}</span>
+                    <div class="visual-filter-chip-group" role="radiogroup" aria-label="${escapeHtml(labelText)}">${chips}</div>
                 </div>
             `;
         }
@@ -889,7 +933,7 @@
             return `
                 <div class="page-picture-style-bar" data-block-index="${index}" title="Mix widths like 1/6 or 2/5 for gallery rows. Flow controls wrap and row placement.">
                     <label class="page-picture-style-inline">
-                        <span class="page-picture-style-label">Width</span>
+                        <span class="page-picture-style-label">${escapeHtml(fieldLabelText('Width'))}</span>
                         <span class="page-picture-width-row">
                             <select class="page-picture-width-select"
                                     data-action="set-picture-width-num"
@@ -903,7 +947,7 @@
                         </span>
                     </label>
                     <label class="page-picture-style-inline">
-                        <span class="page-picture-style-label">Flow</span>
+                        <span class="page-picture-style-label">${escapeHtml(fieldLabelText('Flow'))}</span>
                         <select class="page-picture-flow-select"
                                 data-action="set-picture-flow"
                                 data-block-index="${index}"
@@ -972,17 +1016,27 @@
 
         function renderListEditor(block, index) {
             const itemsText = Array.isArray(block.items) ? block.items.join('\n') : '';
+            const isOrdered = block.style === 'ordered';
+            const styleLabelId = `page-list-style-label-${index}`;
             return `
-                <div class="page-block-field">
-                    <label>List style</label>
-                    <select data-field="style" data-block-index="${index}">
-                        <option value="unordered"${block.style !== 'ordered' ? ' selected' : ''}>Bullet list</option>
-                        <option value="ordered"${block.style === 'ordered' ? ' selected' : ''}>Numbered list</option>
-                    </select>
-                </div>
-                <div class="page-block-field">
-                    <label>Items (one per line)</label>
-                    <textarea data-field="list-text" data-block-index="${index}" rows="4">${escapeHtml(itemsText)}</textarea>
+                <div class="content-editor-field-stack page-list-editor">
+                    <div class="content-editor-field content-editor-field--inline">
+                        <span class="content-editor-field-label" id="${styleLabelId}">List style:</span>
+                        <div class="content-editor-setting-toggle" role="group" aria-labelledby="${styleLabelId}">
+                            <label class="content-editor-setting-option">
+                                <input type="radio" name="page-list-style-${index}" data-field="style" data-block-index="${index}" value="unordered"${!isOrdered ? ' checked' : ''}>
+                                <span>Bullet list</span>
+                            </label>
+                            <label class="content-editor-setting-option">
+                                <input type="radio" name="page-list-style-${index}" data-field="style" data-block-index="${index}" value="ordered"${isOrdered ? ' checked' : ''}>
+                                <span>Numbered list</span>
+                            </label>
+                        </div>
+                    </div>
+                    <label class="content-editor-field content-editor-field--stacked">
+                        <span class="content-editor-field-label">Items (one per line):</span>
+                        <textarea data-field="list-text" data-block-index="${index}" rows="4">${escapeHtml(itemsText)}</textarea>
+                    </label>
                 </div>
             `;
         }
@@ -1596,6 +1650,34 @@
             });
         }
 
+        function autofitRichEditor(editor) {
+            if (!(editor instanceof HTMLElement) || editor.dataset.richEditor !== '1') {
+                return;
+            }
+            editor.style.height = 'auto';
+            const minHeight = Math.ceil(parseFloat(window.getComputedStyle(editor).minHeight) || 0);
+            editor.style.height = `${Math.max(editor.scrollHeight, minHeight)}px`;
+        }
+
+        function autofitAllRichEditors() {
+            if (!blocksEl) {
+                return;
+            }
+            blocksEl.querySelectorAll('[data-rich-editor="1"]').forEach((editor) => {
+                autofitRichEditor(editor);
+            });
+        }
+
+        function scheduleRichEditorAutofit(editor) {
+            window.requestAnimationFrame(() => {
+                if (editor) {
+                    autofitRichEditor(editor);
+                    return;
+                }
+                autofitAllRichEditors();
+            });
+        }
+
         function syncRichEditors() {
             if (!blocksEl || !documentState?.blocks) return;
             blocksEl.querySelectorAll('[data-rich-editor="1"]').forEach((editor) => {
@@ -1642,6 +1724,7 @@
             restoreSelectionOnBlocks(editor, targets, false);
 
             syncRichField(blockIndex, field, editor.innerHTML);
+            autofitRichEditor(editor);
             markDirty();
             scheduleToolbarStateUpdate();
         }
@@ -1681,6 +1764,7 @@
             }
 
             syncRichField(blockIndex, field, editor.innerHTML);
+            autofitRichEditor(editor);
             markDirty();
             scheduleToolbarStateUpdate();
         }
@@ -1719,6 +1803,7 @@
                 </article>
             `).join('');
             queuePreview();
+            scheduleRichEditorAutofit();
             if (!options.silent) {
                 markDirty();
             } else {
@@ -2240,6 +2325,7 @@
                     target.dataset.richField || 'html',
                     target.innerHTML
                 );
+                autofitRichEditor(target);
                 if (event.isTrusted) {
                     markDirty();
                 }
@@ -2365,6 +2451,7 @@
                 editor.dataset.richField || 'html',
                 editor.innerHTML
             );
+            autofitRichEditor(editor);
             markDirty();
             scheduleToolbarStateUpdate();
         });

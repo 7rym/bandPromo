@@ -363,7 +363,7 @@
 }
 
 .content-editor-section,
-.page-editor-meta,
+.page-base-info,
 .page-editor-builder-intro,
 .page-editor-hint,
 .page-editor-panel-head {
@@ -1011,10 +1011,10 @@
 .page-toolbar-glyph-align--right span:nth-child(3) { width: 12px; }
 
 .page-rich-editor {
-    min-height: 12rem;
+    min-height: 2.75rem;
     max-height: none;
     height: auto;
-    overflow: visible;
+    overflow: hidden;
     border: 1px solid var(--border);
     border-radius: 8px;
     background: #101010;
@@ -1023,10 +1023,11 @@
     line-height: 1.55;
     font: inherit;
     text-align: left;
+    box-sizing: border-box;
 }
 
 .page-rich-editor--compact {
-    min-height: 8rem;
+    min-height: 2.5rem;
 }
 
 .page-rich-editor:focus {
@@ -1043,6 +1044,16 @@
 .page-rich-editor p.page-text-small {
     margin: 0 0 8px;
     text-align: left;
+}
+
+.page-rich-editor h1:last-child,
+.page-rich-editor h2:last-child,
+.page-rich-editor h3:last-child,
+.page-rich-editor h4:last-child,
+.page-rich-editor p:last-child,
+.page-rich-editor pre.page-text-code:last-child,
+.page-rich-editor p.page-text-small:last-child {
+    margin-bottom: 0;
 }
 
 .page-rich-editor h1 {
@@ -1447,7 +1458,7 @@
     pointer-events: none;
 }
 
-.page-editor-meta textarea {
+.page-base-info textarea {
     min-height: 4.5rem;
     max-height: none;
     resize: none;
@@ -1525,34 +1536,6 @@
     justify-content: space-between;
     gap: 8px;
     margin-bottom: 6px;
-}
-
-.page-editor-meta {
-    display: flex;
-    flex-direction: column;
-    flex-wrap: nowrap;
-    gap: 10px;
-    flex: 0 0 auto;
-    width: 100%;
-    max-width: none;
-}
-
-.page-meta-field {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-    flex: 0 0 auto;
-    width: 100%;
-    font-size: 12px;
-    color: var(--muted);
-}
-
-.page-meta-field--wide {
-    width: 100%;
-}
-
-.page-meta-field input {
-    font-size: 14px;
 }
 
 .playlist-settings-fields {
@@ -1706,20 +1689,24 @@
     margin: 0;
 }
 
-.campaign-editor-section-tabs--breadcrumb {
+.campaign-editor-section-tabs--breadcrumb,
+.page-editor-section-tabs--breadcrumb {
     margin: 0;
 }
 
-.campaign-editor-section-panel {
+.campaign-editor-section-panel,
+.page-editor-section-panel {
     min-width: 0;
     padding-top: 2px;
 }
 
-.campaign-editor-section-panel[hidden] {
+.campaign-editor-section-panel[hidden],
+.page-editor-section-panel[hidden] {
     display: none !important;
 }
 
-.campaign-editor-section-panel .content-editor-section {
+.campaign-editor-section-panel .content-editor-section,
+.page-editor-section-panel .content-editor-section {
     margin: 0;
 }
 
