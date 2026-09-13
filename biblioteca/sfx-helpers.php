@@ -296,6 +296,248 @@ function bandpromo_sfx_materialize_master(string $root, array $asset): array
 }
 
 /**
+ * Ensure a portable master exists for PCF/PBF packing and Files listing.
+ * Prefer original→master; if only optimal delivery remains, promote it to master.
+ *
+ * @param array<string, mixed> $asset
+ * @return array{ok: bool, asset: array<string, mixed>, path?: string, warning?: string}
+ */
+function bandpromo_sfx_ensure_portable_master(string $root, array $asset): array
+{
+    require_once __DIR__ . '/asset-registry.php';
+
+    $assetId = trim((string) ($asset['id'] ?? ''));
+    if ($assetId === '' || !bandpromo_asset_is_asset_id($assetId) || ($asset['kind'] ?? '') !== 'sfx') {
+        return ['ok' => false, 'asset' => $asset, 'warning' => 'Invalid sound-effect asset.'];
+    }
+
+    $materialized = bandpromo_sfx_materialize_master($root, $asset);
+    if (!empty($materialized['ok'])) {
+        $path = (string) ($materialized['path'] ?? '');
+        if ($path !== '' && is_file($path)) {
+            return $materialized;
+        }
+        $updated = is_array($materialized['asset'] ?? null) ? $materialized['asset'] : $asset;
+        $master = basename((string) ($updated['master_filename'] ?? ''));
+        if ($master !== '') {
+            $masterPath = bandpromo_sfx_master_dir($root) . DIRECTORY_SEPARATOR . $master;
+            if (is_file($masterPath)) {
+                return ['ok' => true, 'asset' => $updated, 'path' => $masterPath];
+            }
+        }
+        $asset = $updated;
+    }
+
+    $delivery = bandpromo_sfx_delivery_absolute($root, $assetId);
+    if ($delivery === '' || !is_file($delivery)) {
+        return [
+            'ok' => false,
+            'asset' => $asset,
+            'warning' => (string) ($materialized['warning'] ?? 'Sound-effect master and delivery are both missing.'),
+        ];
+    }
+
+    bandpromo_sfx_ensure_tier_dirs($root);
+    $masterFilename = bandpromo_asset_master_filename_for_ulid($assetId, 'mp3');
+    $dest = bandpromo_sfx_master_dir($root) . DIRECTORY_SEPARATOR . $masterFilename;
+    if (!is_file($dest) && !@copy($delivery, $dest)) {
+        return [
+            'ok' => false,
+            'asset' => $asset,
+            'warning' => 'Could not promote sound-effect delivery to master.',
+        ];
+    }
+
+    $updated = $asset;
+    if ((string) ($asset['master_filename'] ?? '') !== $masterFilename
+        || strtolower((string) ($asset['master_format'] ?? '')) !== 'mp3'
+    ) {
+        $updated = bandpromo_asset_update_entry($root, $assetId, [
+            'master_filename' => $masterFilename,
+            'master_format' => 'mp3',
+        ]);
+    }
+
+    return ['ok' => true, 'asset' => $updated, 'path' => $dest];
+}
+
+/**
+ * Register a delivery-only sound effect that already lives under media/sfx/optimal/{ast_*}.mp3
+ * (common after legacy path dual-read) so Files and PCF/PBF can see it.
+ *
+ * @return array<string, mixed>|null
+ */
+function bandpromo_sfx_ensure_registered_delivery(string $root, string $assetId, string $brandId = ''): ?array
+{
+    require_once __DIR__ . '/asset-registry.php';
+
+    $assetId = trim($assetId);
+    if ($assetId === '' || !bandpromo_asset_is_asset_id($assetId)) {
+        return null;
+    }
+
+    $existing = bandpromo_asset_lookup_by_id($root, $assetId);
+    if (is_array($existing)) {
+        if (($existing['kind'] ?? '') !== 'sfx') {
+            return null;
+        }
+        $ensured = bandpromo_sfx_ensure_portable_master($root, $existing);
+        $asset = is_array($ensured['asset'] ?? null) ? $ensured['asset'] : $existing;
+        if ($brandId !== '' && trim((string) ($asset['brand_id'] ?? '')) === '') {
+            $asset = bandpromo_asset_update_entry($root, $assetId, ['brand_id' => $brandId]);
+        }
+
+        return $asset;
+    }
+
+    $delivery = bandpromo_sfx_delivery_absolute($root, $assetId);
+    if ($delivery === '' || !is_file($delivery)) {
+        return null;
+    }
+
+    bandpromo_sfx_ensure_tier_dirs($root);
+    $masterFilename = bandpromo_asset_master_filename_for_ulid($assetId, 'mp3');
+    $dest = bandpromo_sfx_master_dir($root) . DIRECTORY_SEPARATOR . $masterFilename;
+    if (!is_file($dest) && !@copy($delivery, $dest)) {
+        return null;
+    }
+
+    if ($brandId === '') {
+        $brandId = bandpromo_asset_active_brand_id($root);
+    }
+
+    $now = gmdate('c');
+    $entry = [
+        'id' => $assetId,
+        'kind' => 'sfx',
+        'media_type' => 'audio',
+        'intake_bucket' => 'sfx',
+        'brand_id' => $brandId,
+        'role' => 'sfx',
+        'original_filename' => '',
+        'master_filename' => $masterFilename,
+        'master_format' => 'mp3',
+        'release_id' => '',
+        'slug' => '',
+        'display' => [],
+        'tags' => ['sfx'],
+        'delivery' => [
+            'ready' => true,
+            'audio_optimal' => true,
+            'source' => 'master',
+        ],
+        'created_at' => $now,
+    ];
+    $normalized = bandpromo_asset_normalize_entry($entry);
+    if ($normalized === null) {
+        return null;
+    }
+
+    $registry = bandpromo_asset_load_registry($root);
+    $registry['assets'][$assetId] = $normalized;
+    $registry['by_master_filename'][$masterFilename] = $assetId;
+    bandpromo_asset_write_registry($root, $registry);
+
+    try {
+        require_once __DIR__ . '/media-library-state.php';
+        bandpromo_media_files_index_sync_file($root, 'sfx', $masterFilename);
+    } catch (Throwable $throwable) {
+        // Index sync is best-effort.
+    }
+
+    if ($brandId !== '') {
+        try {
+            require_once __DIR__ . '/brand-storage.php';
+            bandpromo_brand_add_assets_to_library($root, $brandId, [$assetId]);
+        } catch (Throwable $throwable) {
+            // Non-fatal.
+        }
+    }
+
+    return $normalized;
+}
+
+/**
+ * Register brand Welcome / Logged-in delivery files that are missing from the SFX registry.
+ *
+ * @return int Number of assets healed
+ */
+function bandpromo_sfx_heal_brand_slot_deliveries(string $root): int
+{
+    require_once __DIR__ . '/brand-storage.php';
+    require_once __DIR__ . '/asset-registry.php';
+
+    $healed = 0;
+    try {
+        $registry = bandpromo_brand_load_registry($root);
+    } catch (Throwable $throwable) {
+        return 0;
+    }
+
+    foreach ($registry['brands'] ?? [] as $brandMeta) {
+        if (!is_array($brandMeta)) {
+            continue;
+        }
+        $brandId = trim((string) ($brandMeta['id'] ?? ''));
+        if ($brandId === '') {
+            continue;
+        }
+        try {
+            $document = bandpromo_brand_load_document($root, $brandId);
+        } catch (Throwable $throwable) {
+            continue;
+        }
+        $assetIds = is_array($document['asset_ids'] ?? null) ? $document['asset_ids'] : [];
+        $assets = is_array($document['assets'] ?? null) ? $document['assets'] : [];
+        $slotIdsChanged = false;
+        foreach (['welcome_audio', 'loggedin_audio'] as $slotKey) {
+            $slotId = trim((string) ($assetIds[$slotKey] ?? ''));
+            if ($slotId === '') {
+                $path = trim((string) ($assets[$slotKey] ?? ''));
+                if ($path !== '') {
+                    $slotId = bandpromo_brand_lookup_asset_id_for_path($root, $path);
+                    if ($slotId === '') {
+                        $stem = (string) pathinfo(basename(str_replace('\\', '/', $path)), PATHINFO_FILENAME);
+                        if (bandpromo_asset_is_asset_id($stem)) {
+                            $slotId = $stem;
+                        }
+                    }
+                }
+            }
+            if ($slotId === '' || !bandpromo_asset_is_asset_id($slotId)) {
+                continue;
+            }
+            $before = bandpromo_asset_lookup_by_id($root, $slotId);
+            $asset = bandpromo_sfx_ensure_registered_delivery($root, $slotId, $brandId);
+            if (!is_array($asset)) {
+                continue;
+            }
+            if (!is_array($before) || ($before['kind'] ?? '') !== 'sfx') {
+                $healed++;
+            }
+            if (trim((string) ($assetIds[$slotKey] ?? '')) === '') {
+                $assetIds[$slotKey] = $slotId;
+                $slotIdsChanged = true;
+            }
+        }
+        if ($slotIdsChanged) {
+            try {
+                $document['asset_ids'] = bandpromo_brand_normalize_asset_ids($assetIds);
+                $document['library_asset_ids'] = bandpromo_brand_merge_library_slot_assets(
+                    $document['asset_ids'],
+                    is_array($document['library_asset_ids'] ?? null) ? $document['library_asset_ids'] : []
+                );
+                bandpromo_brand_write_document($root, $document);
+            } catch (Throwable $throwable) {
+                // Best-effort slot heal.
+            }
+        }
+    }
+
+    return $healed;
+}
+
+/**
  * Build tagless delivery MP3 under media/sfx/optimal/{ast_*}.mp3 from the master.
  *
  * @param array<string, mixed> $asset

@@ -143,6 +143,23 @@ function bandpromo_brand_collect_package_asset_ids(string $root, string $brandId
     foreach (is_array($brand['library_asset_ids'] ?? null) ? $brand['library_asset_ids'] : [] as $libraryId) {
         $add((string) $libraryId);
     }
+    $assets = is_array($brand['assets'] ?? null) ? $brand['assets'] : [];
+    $assetIdsMap = is_array($brand['asset_ids'] ?? null) ? $brand['asset_ids'] : [];
+    foreach (['logo', 'poster', 'background_image', 'background_video', 'welcome_audio', 'loggedin_audio'] as $slotKey) {
+        if (trim((string) ($assetIdsMap[$slotKey] ?? '')) !== '') {
+            continue;
+        }
+        $path = trim((string) ($assets[$slotKey] ?? ''));
+        if ($path === '') {
+            continue;
+        }
+        $fromPath = bandpromo_brand_lookup_asset_id_for_path($root, $path);
+        if ($fromPath === '') {
+            require_once __DIR__ . '/campaign-package.php';
+            $fromPath = bandpromo_campaign_asset_id_from_media_ref($path);
+        }
+        $add($fromPath);
+    }
 
     $ordered = array_keys($ids);
     sort($ordered);
@@ -198,10 +215,16 @@ function bandpromo_brand_export_prepare(string $root, string $brandId, string $w
 
     $registry = bandpromo_asset_load_registry($root);
     $subsetAssets = [];
+    require_once __DIR__ . '/sfx-helpers.php';
     foreach ($assetIds as $assetId) {
         $asset = $registry['assets'][$assetId] ?? null;
         if (!is_array($asset)) {
-            continue;
+            $healed = bandpromo_sfx_ensure_registered_delivery($root, $assetId, $brandId);
+            if (!is_array($healed)) {
+                continue;
+            }
+            $registry = bandpromo_asset_load_registry($root);
+            $asset = $healed;
         }
         $subsetAssets[$assetId] = bandpromo_campaign_strip_delivery_from_asset($asset);
         $kind = (string) ($asset['kind'] ?? '');
@@ -219,6 +242,11 @@ function bandpromo_brand_export_prepare(string $root, string $brandId, string $w
                 $addPath('media/visual/master/' . $masterName);
             }
         } elseif ($kind === 'sfx') {
+            $ensured = bandpromo_sfx_ensure_portable_master($root, $asset);
+            if (!empty($ensured['ok']) && is_array($ensured['asset'] ?? null)) {
+                $asset = $ensured['asset'];
+                $subsetAssets[$assetId] = bandpromo_campaign_strip_delivery_from_asset($asset);
+            }
             $master = basename((string) ($asset['master_filename'] ?? ''));
             $masterReady = $master !== ''
                 && bandpromo_asset_is_asset_id((string) pathinfo($master, PATHINFO_FILENAME))

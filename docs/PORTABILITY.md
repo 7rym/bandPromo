@@ -107,7 +107,7 @@ Prefer **PCF round-trips** for one-campaign moves. Use data export when moving a
 | **Track masters** | `media/audio/master/*` | Canonical tagged masters; originals stay on the source host |
 | **Playlists** | Docs owned by the campaign (`campaign_id`, legacy `release_id` accepted) | Listening products |
 | **Galleries / pages** | Docs owned by the campaign (`campaign_id`, legacy `release_id` accepted) | Demo PCF: **Bio** + **Gallery** page (gallery block → demo gallery). Not FAQ. |
-| **Linked visuals / SFX** | `media/visual/master/*`; `media/sfx/master/*`; **asset registry subset** | No upload originals or delivery in the package; SFX delivery rebuilt as `media/sfx/optimal/{ast_*}.mp3`. Track `display.cover` / `living_cover` refs (bare `ast_*` or `ast_*.png`) resolve to visual asset ids so cover masters travel. Import rebuilds the Files index from masters when originals are absent. |
+| **Linked visuals / SFX** | `media/visual/master/*`; `media/sfx/master/*`; **asset registry subset** | No upload originals or delivery in the package; SFX delivery rebuilt as `media/sfx/optimal/{ast_*}.mp3`. If a brand shell SFX only has optimal on the source, export promotes it to `media/sfx/master/` (and registers the row when missing) instead of dropping it. Track `display.cover` / `living_cover` refs (bare `ast_*` or `ast_*.png`) resolve to visual asset ids so cover masters travel. Import rebuilds the Files index from masters when originals are absent. |
 | **Manifest** | `release-package-manifest.json` | `release_export_version`, title, paths, flags (`platform_demo`, locked), bandPromo `VERSION` |
 
 #### Demo PCF (`bandPromo-demo.pcf`)

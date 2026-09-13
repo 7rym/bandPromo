@@ -1801,6 +1801,20 @@ function bandpromo_brand_lookup_asset_id_for_path(string $root, string $webPath)
         }
     }
 
+    if (preg_match('#^/media/sfx/optimal/(ast_[0-9A-HJKMNP-TV-Z]{20})\.mp3$#i', $webPath, $matches) === 1) {
+        $assetId = 'ast_' . strtoupper(substr($matches[1], 4));
+        $asset = bandpromo_asset_lookup_by_id($root, $assetId);
+        if (is_array($asset) && ($asset['kind'] ?? '') === 'sfx') {
+            return $assetId;
+        }
+        // Delivery may exist before the registry row (legacy path dual-read).
+        require_once __DIR__ . '/sfx-helpers.php';
+        $delivery = bandpromo_sfx_delivery_absolute($root, $assetId);
+        if ($delivery !== '' && is_file($delivery)) {
+            return $assetId;
+        }
+    }
+
     $basename = basename($webPath);
     if ($basename === '' || $basename === '.' || $basename === '..') {
         return '';

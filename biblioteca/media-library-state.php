@@ -716,6 +716,7 @@ function bandpromo_media_files_index_resolve_source(string $root, string $target
         if (is_array($asset) && ($asset['kind'] ?? '') === 'sfx') {
             $originalName = basename(trim((string) ($asset['original_filename'] ?? '')));
             $masterName = basename(trim((string) ($asset['master_filename'] ?? '')));
+            $assetId = trim((string) ($asset['id'] ?? ''));
             if ($masterName !== '') {
                 $masterPath = bandpromo_sfx_master_dir($root) . DIRECTORY_SEPARATOR . $masterName;
                 if (is_file($masterPath)) {
@@ -732,6 +733,17 @@ function bandpromo_media_files_index_resolve_source(string $root, string $target
                     'name' => $originalName,
                     'original_filename' => $originalName,
                 ];
+            }
+            // Masters-only / delivery-only installs: list via optimal so Brand SFX stay visible.
+            if ($assetId !== '' && bandpromo_asset_is_asset_id($assetId)) {
+                $deliveryPath = bandpromo_sfx_delivery_absolute($root, $assetId);
+                if ($deliveryPath !== '' && is_file($deliveryPath)) {
+                    return [
+                        'path' => $deliveryPath,
+                        'name' => basename($deliveryPath),
+                        'original_filename' => $originalName,
+                    ];
+                }
             }
         }
 
@@ -924,6 +936,12 @@ function bandpromo_media_files_index_rebuild_registry_rows(string $root, string 
             $listing = basename(trim((string) ($asset['master_filename'] ?? '')));
             if ($listing === '') {
                 $listing = basename(trim((string) ($asset['original_filename'] ?? '')));
+            }
+            if ($listing === '') {
+                $assetId = trim((string) ($asset['id'] ?? ''));
+                if ($assetId !== '' && bandpromo_asset_is_asset_id($assetId)) {
+                    $listing = $assetId . '.mp3';
+                }
             }
             if ($listing === '') {
                 continue;
@@ -1157,6 +1175,14 @@ function bandpromo_media_files_index_list(string $root, string $target): array
 
 function bandpromo_media_files_index_ensure_target(string $root, string $target): void
 {
+    // Sound effects often remain as optimal-only after legacy brand dual-read; re-sync registry rows
+    // so Files → Sound effects picks them up without a full Status rebuild.
+    if ($target === 'sfx') {
+        require_once __DIR__ . '/sfx-helpers.php';
+        bandpromo_sfx_heal_brand_slot_deliveries($root);
+        bandpromo_media_files_index_rebuild_registry_rows($root, 'sfx');
+    }
+
     $rows = bandpromo_media_files_index_list($root, $target);
     if ($rows !== []) {
         return;

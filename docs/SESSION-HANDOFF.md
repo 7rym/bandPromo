@@ -2,7 +2,7 @@
 
 ## Resume point
 
-**Catalogue repair hash nag** — Welcome “23 visuals missing content hashes” ignored masters-only rows; Repair did not backfill. Fixed in next build: hash from master, xxh3|sha256 counts as present, Repair Apply backfills. Also: Site update to **472+** for PCF brand packing.
+**Brand SFX missing from Files + PCF** — Spandexual Welcome / Logged-in play in Branding (optimal URLs) but were absent from Files → Sound effects and dropped from PCF when `media/sfx/master/` was missing. Fixed: promote optimal→master on export, heal/register delivery-only brand slots, list optimal-only SFX in Files. Site update, open Files → Sound effects once, then re-export PCF.
 
 ### Also pending
 
