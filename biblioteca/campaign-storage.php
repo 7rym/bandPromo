@@ -3898,7 +3898,7 @@ function bandpromo_campaign_delete_with_mode(string $root, string $releaseId, st
 
     foreach ($children['pages'] as $page) {
         $pageId = bandpromo_page_normalize_id((string) ($page['id'] ?? ''));
-        if ($pageId === '' || !bandpromo_campaign_campaign_page_is_portable($pageId)) {
+        if ($pageId === '' || !bandpromo_campaign_page_is_portable($pageId)) {
             continue;
         }
         try {

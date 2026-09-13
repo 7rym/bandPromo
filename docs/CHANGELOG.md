@@ -2,6 +2,8 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-09-13 12:45 - Hotfix: campaign Entire-campaign delete fatals on `bandpromo_campaign_campaign_page_is_portable` (typo). Call the real `bandpromo_campaign_page_is_portable` so purge can remove owned pages.
+
 2026-09-13 12:15 - Checkpoint/publish Branding + player batch: Cover size and side covers, panel Fill labels, Login / status, soft-nav brand/URL/track/position fixes, Content Active paint, operator toggle/slider prefs. Live preview parity (Shell|Player|Content shared DOM) deferred until after Site update hotfixes.
 
 2026-09-13 11:24 - Branding → User area: **Login / status** On|Off (`player.login_status`, default Off). When On, `/play` shows a signed-in strip with Log out under the transport (compact login form deferred to anonymous entry).

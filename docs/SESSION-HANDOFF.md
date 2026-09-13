@@ -2,7 +2,7 @@
 
 ## Resume point
 
-**Hotfix window after Branding publish** — Site update on test hosts; fix regressions before the larger Live preview parity refactor (Shell | Player | Content shared DOM/CSS). Plan: `.cursor/plans/shell_player_content_parity_*.plan.md` (accepted direction; implement only after this publish settles).
+**Campaign purge delete hotfix** — Entire-campaign delete typo fixed (`bandpromo_campaign_page_is_portable`). Retry Spandexual delete → PCF import after Site update. Then settle other hotfixes before Live preview parity (Shell | Player | Content).
 
 ### Also pending
 
