@@ -12804,6 +12804,8 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 const siteBackupDeleteConfirmBtn = document.getElementById('siteBackupDeleteConfirmBtn');
                 const siteBackupDeleteCancelBtn = document.getElementById('siteBackupDeleteCancelBtn');
                 let backupPollTimer = null;
+                let lastBackupJobs = [];
+                let backupRefreshSeq = 0;
                 let syncingFullCheckbox = false;
                 let pendingBackupDeleteId = '';
 
@@ -12924,6 +12926,8 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                         return;
                     }
 
+                    lastBackupJobs = Array.isArray(jobs) ? jobs.slice() : [];
+
                     if (!Array.isArray(jobs) || jobs.length === 0) {
                         jobsWrap.innerHTML = '<p id="siteBackupJobsEmpty" class="empty-msg">No backup jobs yet. Create or import one below.</p>';
                         return;
@@ -13010,10 +13014,45 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     }
                 }
 
+                function upsertBackupJob(job) {
+                    if (!job || typeof job !== 'object') {
+                        return;
+                    }
+                    const jobId = String(job.id || '').trim();
+                    if (jobId === '') {
+                        return;
+                    }
+                    // Invalidate in-flight list responses so a stale refresh cannot wipe this row.
+                    backupRefreshSeq += 1;
+                    const next = lastBackupJobs.filter((entry) => String(entry?.id || '') !== jobId);
+                    next.unshift(job);
+                    renderBackupJobs(next);
+                    syncBackupPolling(next);
+                }
+
+                function mergeMissingActiveJobs(serverJobs) {
+                    const list = Array.isArray(serverJobs) ? serverJobs.slice() : [];
+                    const seen = new Set(list.map((entry) => String(entry?.id || '').trim()).filter(Boolean));
+                    lastBackupJobs.forEach((entry) => {
+                        const id = String(entry?.id || '').trim();
+                        if (id === '' || seen.has(id)) {
+                            return;
+                        }
+                        const status = String(entry?.status || '');
+                        if (status === 'pending' || status === 'building'
+                            || (status === 'ready' && entry?.sha256_pending)) {
+                            list.unshift(entry);
+                            seen.add(id);
+                        }
+                    });
+                    return list;
+                }
+
                 async function refreshBackupJobs() {
                     if (!jobsWrap) {
                         return [];
                     }
+                    const seq = ++backupRefreshSeq;
                     const resp = await fetch('/biblioteca/list-site-backups.php', {
                         credentials: 'same-origin',
                     });
@@ -13021,9 +13060,13 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     if (!resp.ok || !data || data.ok !== true || !Array.isArray(data.jobs)) {
                         throw new Error((data && data.error) || 'Could not refresh backup list.');
                     }
-                    renderBackupJobs(data.jobs);
-                    syncBackupPolling(data.jobs);
-                    return data.jobs;
+                    if (seq !== backupRefreshSeq) {
+                        return lastBackupJobs;
+                    }
+                    const jobs = mergeMissingActiveJobs(data.jobs);
+                    renderBackupJobs(jobs);
+                    syncBackupPolling(jobs);
+                    return jobs;
                 }
 
                 async function queueBackup(statusEl, buttonEl) {
@@ -13610,9 +13653,8 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                             ? String(campaignPackageExportSelect.options[campaignPackageExportSelect.selectedIndex]?.text || campaignId).trim()
                             : campaignId;
                         showJobsQueuedToast('pcf', campaignTitle);
-                        if (data.job && typeof renderBackupJobs === 'function') {
-                            renderBackupJobs([data.job]);
-                            syncBackupPolling([data.job]);
+                        if (data.job && typeof upsertBackupJob === 'function') {
+                            upsertBackupJob(data.job);
                         }
                         if (typeof refreshBackupJobs === 'function') {
                             try {
@@ -13741,9 +13783,8 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                                 campaignPackageImportStatus.textContent = data.message
                                     || 'Portable Campaign File import queued. Progress appears under Jobs.';
                             }
-                            if (typeof renderBackupJobs === 'function') {
-                                renderBackupJobs([data.job]);
-                                syncBackupPolling([data.job]);
+                            if (typeof upsertBackupJob === 'function') {
+                                upsertBackupJob(data.job);
                             }
                             if (typeof refreshBackupJobs === 'function') {
                                 try {
@@ -13897,9 +13938,8 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                             ? String(brandPackageExportSelect.options[brandPackageExportSelect.selectedIndex]?.text || brandId).trim()
                             : brandId;
                         showJobsQueuedToast('pbf', brandTitle);
-                        if (data.job && typeof renderBackupJobs === 'function') {
-                            renderBackupJobs([data.job]);
-                            syncBackupPolling([data.job]);
+                        if (data.job && typeof upsertBackupJob === 'function') {
+                            upsertBackupJob(data.job);
                         }
                         if (typeof refreshBackupJobs === 'function') {
                             try {
@@ -14001,9 +14041,8 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                                 brandPackageImportStatus.textContent = data.message
                                     || 'Portable Brand File import queued. Progress appears under Jobs.';
                             }
-                            if (typeof renderBackupJobs === 'function') {
-                                renderBackupJobs([data.job]);
-                                syncBackupPolling([data.job]);
+                            if (typeof upsertBackupJob === 'function') {
+                                upsertBackupJob(data.job);
                             }
                             if (typeof refreshBackupJobs === 'function') {
                                 try {

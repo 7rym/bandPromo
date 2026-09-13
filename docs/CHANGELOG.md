@@ -2,6 +2,8 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-09-13 13:45 - Backup Jobs: stop wiping the list to a single optimistic row when queueing PCF/PBF export/import. Merge the new job into the existing table and ignore stale list refreshes so a running job cannot disappear until a full page reload.
+
 2026-09-13 13:05 - PCF: refuse export when the campaign `brand_id` has no brand file on disk; refuse import before merge when the package omits that brand JSON. Stops silent “Imported” with Base / No brand linked (Spandexual-style dangling `brand_id`).
 
 2026-09-13 13:00 - Jobs: stop showing “SHA pending…” on Import PCF/PBF rows. That label is for export archives only; imports already verify in-package digests before merge. UI had treated any ready job over 64 MB as pending.
