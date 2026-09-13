@@ -98,13 +98,17 @@ function bandpromo_admin_render_iso_date_field(string $name, string $value, stri
  * Content editor page breadcrumb under the Content sub-nav.
  * Pool: "{emoji} {label} > Pool"; Editor: "{emoji} {label} > Editor".
  * The root button returns to Pool (wire via bandpromoContentEditorBreadcrumb.attach).
+ * Optional trailing markup (e.g. section chips) sits after the crumb; optional
+ * actions (e.g. Back / Save) hug the right edge of the same card-head row.
  *
  * @param array{
  *   id_prefix: string,
  *   emoji: string,
  *   label: string,
  *   aria_label?: string,
- *   pool_title?: string
+ *   pool_title?: string,
+ *   trailing?: callable|string,
+ *   actions?: callable|string
  * } $options
  */
 function bandpromo_admin_render_content_breadcrumb(array $options): void
@@ -127,6 +131,18 @@ function bandpromo_admin_render_content_breadcrumb(array $options): void
     $breadcrumbId = $idPrefix . 'Breadcrumb';
     $poolLinkId = $idPrefix . 'BreadcrumbPool';
     $currentId = $idPrefix . 'BreadcrumbCurrent';
+    $trailing = $options['trailing'] ?? null;
+    $actions = $options['actions'] ?? null;
+
+    $renderSlot = static function ($slot): void {
+        if (is_callable($slot)) {
+            $slot();
+            return;
+        }
+        if (is_string($slot) && $slot !== '') {
+            echo $slot;
+        }
+    };
     ?>
     <div class="content-editor-card-head">
         <h2 class="content-editor-breadcrumb" id="<?php echo htmlspecialchars($breadcrumbId); ?>" aria-label="<?php echo htmlspecialchars($ariaLabel); ?>">
@@ -134,6 +150,12 @@ function bandpromo_admin_render_content_breadcrumb(array $options): void
             <span class="content-editor-breadcrumb-sep" aria-hidden="true"> &gt; </span>
             <span class="content-editor-breadcrumb-current" id="<?php echo htmlspecialchars($currentId); ?>">Pool</span>
         </h2>
+        <?php $renderSlot($trailing); ?>
+        <?php if ($actions !== null && $actions !== ''): ?>
+        <div class="content-editor-card-head-actions">
+            <?php $renderSlot($actions); ?>
+        </div>
+        <?php endif; ?>
     </div>
     <?php
 }

@@ -22,6 +22,8 @@
         const campaignDeleteCancelBtn = document.getElementById('campaignDeleteCancelBtn');
         const campaignSettingsTitle = document.getElementById('campaignSettingsTitle');
         const campaignSettingsDate = document.getElementById('campaignSettingsDate');
+        const campaignSettingsSlug = document.getElementById('campaignSettingsSlug');
+        const campaignSettingsSlugPreview = document.getElementById('campaignSettingsSlugPreview');
         const campaignSettingsCatalogId = document.getElementById('campaignSettingsCatalogId');
         let campaignSettingsBrandId = document.getElementById('campaignSettingsBrandId');
         const campaignSettingsStatus = document.getElementById('campaignSettingsStatus');
@@ -30,6 +32,7 @@
         const campaignSettingsShortDescriptionCount = document.getElementById('campaignSettingsShortDescriptionCount');
         const campaignSettingsPosterAssetId = document.getElementById('campaignSettingsPosterAssetId');
         const campaignCoverPanel = document.getElementById('campaignCoverPanel');
+        const campaignArtworkEditor = document.getElementById('campaignArtworkEditor');
         const campaignBaseBrandPreview = document.getElementById('campaignBaseBrandPreview');
         const campaignBaseBrandPreviewBody = document.getElementById('campaignBaseBrandPreviewBody');
         const campaignLongDescriptionPreview = document.getElementById('campaignLongDescriptionPreview');
@@ -39,6 +42,9 @@
         const campaignCoverPlaceholder = document.getElementById('campaignCoverPlaceholder');
         const campaignCoverClearBtn = document.getElementById('campaignCoverClearBtn');
         const campaignCoverOverlayActions = document.getElementById('campaignCoverOverlayActions');
+        const campaignPreviewCoverImg = document.getElementById('campaignPreviewCoverImg');
+        const campaignPreviewCoverPlaceholder = document.getElementById('campaignPreviewCoverPlaceholder');
+        const campaignPreviewCoverShell = document.getElementById('campaignPreviewCoverShell');
         const campaignPreviewTitle = document.getElementById('campaignPreviewTitle');
         const campaignPreviewDate = document.getElementById('campaignPreviewDate');
         const campaignPreviewSummary = document.getElementById('campaignPreviewSummary');
@@ -439,23 +445,28 @@
                 : '';
             const previewUrl = campaignCoverPreviewUrl(rawValue, entry);
 
-            if (campaignCoverPreview instanceof HTMLImageElement) {
-                if (previewUrl) {
-                    if (campaignCoverPreview.getAttribute('src') !== previewUrl) {
-                        campaignCoverPreview.src = previewUrl;
+            const applyPreviewImage = (img, placeholder, shell) => {
+                if (img instanceof HTMLImageElement) {
+                    if (previewUrl) {
+                        if (img.getAttribute('src') !== previewUrl) {
+                            img.src = previewUrl;
+                        }
+                        img.style.display = 'block';
+                    } else {
+                        img.removeAttribute('src');
+                        img.style.display = 'none';
                     }
-                    campaignCoverPreview.style.display = 'block';
-                } else {
-                    campaignCoverPreview.removeAttribute('src');
-                    campaignCoverPreview.style.display = 'none';
                 }
-            }
-            if (campaignCoverPlaceholder) {
-                campaignCoverPlaceholder.style.display = previewUrl ? 'none' : 'block';
-            }
-            if (campaignCoverPreviewShell instanceof HTMLElement) {
-                campaignCoverPreviewShell.title = previewUrl ? 'Campaign cover' : 'No cover selected';
-            }
+                if (placeholder) {
+                    placeholder.style.display = previewUrl ? 'none' : 'block';
+                }
+                if (shell instanceof HTMLElement) {
+                    shell.title = previewUrl ? 'Campaign artwork' : 'No artwork selected';
+                }
+            };
+
+            applyPreviewImage(campaignCoverPreview, campaignCoverPlaceholder, campaignCoverPreviewShell);
+            applyPreviewImage(campaignPreviewCoverImg, campaignPreviewCoverPlaceholder, campaignPreviewCoverShell);
             updateCampaignPosterLabel();
         }
 
@@ -635,7 +646,7 @@
 
         function setCampaignEditorTab(tabId) {
             const next = String(tabId || 'base').trim() || 'base';
-            const allowed = new Set(['base', 'tracks', 'playlists', 'galleries', 'pages']);
+            const allowed = new Set(['base', 'extended', 'tracks', 'playlists', 'galleries', 'pages']);
             campaignEditorTab = allowed.has(next) ? next : 'base';
             editorCard.setAttribute('data-campaign-editor-section', campaignEditorTab);
 
@@ -659,7 +670,7 @@
             if (ASSOCIATION_KINDS.includes(campaignEditorTab) && isEditing) {
                 ensureAssociationEditorLoaded(campaignEditorTab);
             }
-            if (campaignEditorTab === 'base' && isEditing) {
+            if ((campaignEditorTab === 'base' || campaignEditorTab === 'extended') && isEditing) {
                 window.requestAnimationFrame(() => autofitCampaignDescriptionField());
             }
         }
@@ -739,12 +750,19 @@
                 return;
             }
             const baseActive = campaignEditorTab === 'base';
+            const extendedActive = campaignEditorTab === 'extended';
+            const previewChromeActive = baseActive || extendedActive;
             const tracksActive = campaignEditorTab === 'tracks';
             const associationActive = ASSOCIATION_KINDS.includes(campaignEditorTab);
             const entry = campaignEntry(selectedCampaignId);
 
             if (campaignCoverPanel) {
-                campaignCoverPanel.hidden = !baseActive || !entry;
+                campaignCoverPanel.hidden = !previewChromeActive || !entry;
+            }
+            // Artwork lives inside the Base info panel — do not tab-toggle [hidden] on it
+            // (that stuck after chip switches). Clear any leftover hide when Base is active.
+            if (campaignArtworkEditor && baseActive && entry) {
+                campaignArtworkEditor.hidden = false;
             }
             if (activeEl) {
                 activeEl.hidden = !tracksActive;
@@ -774,6 +792,7 @@
             if (campaignEditorPreviewHeading) {
                 const headings = {
                     base: 'Campaign preview',
+                    extended: 'Press kit preview',
                     tracks: 'Associated tracks',
                     playlists: 'Associated playlists',
                     galleries: 'Associated galleries',
@@ -803,7 +822,7 @@
         }
 
         function updateCampaignBasePreviewFromForm() {
-            if (!isEditing || campaignEditorTab !== 'base') {
+            if (!isEditing || (campaignEditorTab !== 'base' && campaignEditorTab !== 'extended')) {
                 return;
             }
             const title = campaignSettingsTitle instanceof HTMLInputElement
@@ -842,7 +861,7 @@
                 return;
             }
             const coverVisible = !!(campaignCoverPanel && !campaignCoverPanel.hidden);
-            const showUnderPreview = coverVisible && (!isEditing || campaignEditorTab === 'base');
+            const showUnderPreview = coverVisible && (!isEditing || campaignEditorTab === 'base' || campaignEditorTab === 'extended');
             if (!showUnderPreview) {
                 campaignLongDescriptionPreview.hidden = true;
                 campaignLongDescriptionPreviewBody.innerHTML = '';
@@ -1032,7 +1051,7 @@
         function updateCampaignCoverPanel() {
             const entry = campaignEntry(selectedCampaignId);
             if (campaignCoverPanel) {
-                campaignCoverPanel.hidden = !entry || (isEditing && campaignEditorTab !== 'base');
+                campaignCoverPanel.hidden = !entry || (isEditing && campaignEditorTab !== 'base' && campaignEditorTab !== 'extended');
             }
             renderCampaignPreviewMeta(entry);
             if (entry && campaignSettingsPosterAssetId instanceof HTMLInputElement && !isEditing) {
@@ -1042,14 +1061,17 @@
             if (campaignCoverOverlayActions instanceof HTMLElement) {
                 campaignCoverOverlayActions.hidden = !isEditing;
             }
-            const coverEditButtons = campaignCoverPanel
-                ? campaignCoverPanel.querySelectorAll('.audio-master-cover-overlay-actions button')
+            const coverEditButtons = campaignArtworkEditor
+                ? campaignArtworkEditor.querySelectorAll('.audio-master-cover-overlay-actions button')
                 : [];
             coverEditButtons.forEach((button) => {
                 if (button instanceof HTMLButtonElement) {
                     button.disabled = !canEditCover;
                 }
             });
+            if (campaignArtworkEditor && entry && isEditing && campaignEditorTab === 'base') {
+                campaignArtworkEditor.hidden = false;
+            }
             if (activeEl) {
                 activeEl.hidden = !isEditing || campaignEditorTab !== 'tracks';
             }
@@ -1096,11 +1118,12 @@
         }
 
         function initCampaignCoverPicker() {
-            if (!campaignCoverPanel) {
+            const pickerRoot = campaignArtworkEditor || campaignCoverPanel;
+            if (!pickerRoot) {
                 return;
             }
 
-            campaignCoverPanel.querySelectorAll('.media-picker-open').forEach((button) => {
+            pickerRoot.querySelectorAll('.media-picker-open').forEach((button) => {
                 button.addEventListener('click', (event) => {
                     event.preventDefault();
                     event.stopPropagation();
@@ -1110,7 +1133,7 @@
                     }
                     window.openMediaPicker(
                         button.dataset.field || 'campaignSettingsPosterAssetId',
-                        button.dataset.title || 'Choose campaign cover',
+                        button.dataset.title || 'Choose campaign artwork',
                         button.dataset.targets || 'illustrations,photos,special'
                     );
                 });
@@ -1182,6 +1205,7 @@
             return {
                 title: '',
                 release_date: '',
+                slug: '',
                 catalog_id: '',
                 locked: false,
                 short_description: '',
@@ -1325,24 +1349,40 @@
             const dateFromInput = campaignSettingsDate instanceof HTMLInputElement
                 ? String(campaignSettingsDate.value || '').trim()
                 : '';
+            const slugFromInput = campaignSettingsSlug instanceof HTMLInputElement
+                ? String(campaignSettingsSlug.value || '').trim()
+                : '';
             const catalogFromInput = campaignSettingsCatalogId instanceof HTMLInputElement
                 ? String(campaignSettingsCatalogId.value || '').trim()
                 : '';
             const title = titleFromInput || String(entry?.title || '').trim();
             const campaignDate = dateFromInput || normalizeCampaignDateForInput(entry?.release_date);
+            const slug = slugFromInput || String(entry?.slug || entry?.id || selectedCampaignId || '').trim();
             const catalogId = catalogFromInput || String(entry?.catalog_id || '').trim();
 
             return {
                 title,
                 release_date: campaignDate,
+                slug,
                 catalog_id: catalogId,
                 locked: !!entry?.locked,
                 ...readCampaignMetadataFromForm(),
             };
         }
 
+        function updateCampaignSlugPreview() {
+            if (!campaignSettingsSlugPreview) {
+                return;
+            }
+            const slug = campaignSettingsSlug instanceof HTMLInputElement
+                ? String(campaignSettingsSlug.value || '').trim()
+                : '';
+            campaignSettingsSlugPreview.textContent = slug || 'campaign-slug';
+        }
+
         function setCampaignMetadataDisabled(disabled) {
             const controls = [
+                campaignSettingsSlug,
                 campaignSettingsShortDescription,
                 campaignSettingsDescription,
                 campaignSettingsCredits,
@@ -1925,10 +1965,21 @@
         function validateCampaignDate(value) {
             const trimmed = String(value || '').trim();
             if (trimmed === '') {
-                return 'Release date is required.';
+                return 'Campaign start is required.';
             }
             if (!/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
-                return 'Release date must use YYYY-MM-DD.';
+                return 'Campaign start must use YYYY-MM-DD.';
+            }
+            return '';
+        }
+
+        function validateCampaignSlug(value) {
+            const trimmed = String(value || '').trim();
+            if (trimmed === '') {
+                return 'Slug is required.';
+            }
+            if (!/^[a-z][a-z0-9-]{0,47}$/.test(trimmed)) {
+                return 'Slug must start with a letter and use lowercase letters, numbers, and hyphens.';
             }
             return '';
         }
@@ -2171,6 +2222,7 @@
             const description = String(entry?.description || '').trim();
             const shortDescription = String(entry?.short_description || '').trim();
             const catalogId = String(entry?.catalog_id || '').trim();
+            const slug = String(entry?.slug || entry?.id || campaignId || '').trim();
             const posterAssetId = String(entry?.poster_asset_id || '').trim();
             const brandId = String(
                 entry?.brand_id
@@ -2183,6 +2235,7 @@
             campaignSettingsBaseline = {
                 title,
                 release_date: campaignDate,
+                slug,
                 catalog_id: catalogId,
                 locked,
                 short_description: shortDescription,
@@ -2207,6 +2260,11 @@
                 if (typeof window.bandpromoSyncIsoDateField === 'function') {
                     window.bandpromoSyncIsoDateField(campaignSettingsDate);
                 }
+            }
+            if (campaignSettingsSlug instanceof HTMLInputElement) {
+                campaignSettingsSlug.value = slug;
+                campaignSettingsSlug.disabled = metadataLocked;
+                updateCampaignSlugPreview();
             }
             if (campaignSettingsCatalogId instanceof HTMLInputElement) {
                 campaignSettingsCatalogId.value = catalogId;
@@ -2303,6 +2361,14 @@
             if (dateError) {
                 if (!silent) {
                     showCampaignToast(dateError, 'error');
+                }
+                return false;
+            }
+
+            const slugError = validateCampaignSlug(settings.slug);
+            if (slugError) {
+                if (!silent) {
+                    showCampaignToast(slugError, 'error');
                 }
                 return false;
             }
@@ -2548,6 +2614,7 @@
             return {
                 title: String(entry?.title || '').trim(),
                 release_date: String(entry?.release_date || '').trim(),
+                slug: String(entry?.slug || entry?.id || '').trim(),
                 catalog_id: String(entry?.catalog_id || '').trim(),
                 locked,
                 short_description: String(entry?.short_description || '').trim(),
@@ -3489,6 +3556,12 @@
             updateCampaignBasePreviewFromForm();
         });
         campaignSettingsDate?.addEventListener('change', () => {
+            saveCampaignSettings();
+        });
+        campaignSettingsSlug?.addEventListener('input', () => {
+            updateCampaignSlugPreview();
+        });
+        campaignSettingsSlug?.addEventListener('blur', () => {
             saveCampaignSettings();
         });
         campaignSettingsCatalogId?.addEventListener('blur', () => {

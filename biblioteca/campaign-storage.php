@@ -213,7 +213,7 @@ function bandpromo_campaign_normalize_document(array $input, ?string $expectedId
         $releaseDate = gmdate('Y-m-d');
     }
     if (!bandpromo_campaign_validate_date($releaseDate)) {
-        throw new InvalidArgumentException('Campaign date must use YYYY or YYYY-MM-DD.');
+        throw new InvalidArgumentException('Campaign start must use YYYY or YYYY-MM-DD.');
     }
 
     $tracks = [];
@@ -1896,6 +1896,22 @@ function bandpromo_campaign_resolve_route_id(string $root, string $segment): str
 }
 
 /**
+ * Refuse a public campaign slug that already resolves to another campaign.
+ */
+function bandpromo_campaign_assert_slug_available(string $root, string $slug, string $excludeCampaignId = ''): void
+{
+    $slug = bandpromo_campaign_normalize_id($slug);
+    if ($slug === '' || !preg_match('/^[a-z][a-z0-9-]{0,47}$/', $slug)) {
+        throw new InvalidArgumentException('Slug must start with a letter and use lowercase letters, numbers, and hyphens.');
+    }
+    $excludeCampaignId = bandpromo_campaign_normalize_id($excludeCampaignId);
+    $existingId = bandpromo_campaign_resolve_route_id($root, $slug);
+    if ($existingId !== '' && $existingId !== $excludeCampaignId) {
+        throw new InvalidArgumentException('That campaign slug is already in use.');
+    }
+}
+
+/**
  * Player campaign catalog for the logo cover-flow navigator.
  *
  * @return list<array{id: string, title: string, slug: string, logo: string, playlist_count: int}>
@@ -3153,12 +3169,21 @@ function bandpromo_campaign_update_details(string $root, string $releaseId, arra
 
     $releaseDate = trim((string) ($fields['release_date'] ?? ''));
     if (!bandpromo_campaign_validate_date($releaseDate)) {
-        throw new InvalidArgumentException('Campaign date must use YYYY or YYYY-MM-DD.');
+        throw new InvalidArgumentException('Campaign start must use YYYY or YYYY-MM-DD.');
     }
 
     $locked = array_key_exists('locked', $fields) ? !empty($fields['locked']) : null;
     if ($locked === false && !bandpromo_campaign_may_change_lock($releaseId)) {
         throw new InvalidArgumentException('The bandPromo demo campaign can only be unlocked on localhost.');
+    }
+
+    $slug = null;
+    if (array_key_exists('slug', $fields)) {
+        $slug = bandpromo_campaign_normalize_id((string) ($fields['slug'] ?? ''));
+        if ($slug === '') {
+            throw new InvalidArgumentException('Slug is required.');
+        }
+        bandpromo_campaign_assert_slug_available($root, $slug, $releaseId);
     }
 
     $registry = bandpromo_campaign_load_registry($root);
@@ -3168,6 +3193,9 @@ function bandpromo_campaign_update_details(string $root, string $releaseId, arra
             continue;
         }
         $registry['releases'][$index]['title'] = $title;
+        if ($slug !== null) {
+            $registry['releases'][$index]['slug'] = $slug;
+        }
         $found = true;
         break;
     }
@@ -3179,6 +3207,9 @@ function bandpromo_campaign_update_details(string $root, string $releaseId, arra
     $document = bandpromo_campaign_load_document($root, $releaseId);
     $document['title'] = $title;
     $document['release_date'] = $releaseDate;
+    if ($slug !== null) {
+        $document['slug'] = $slug;
+    }
     if ($locked !== null) {
         $document['locked'] = $locked;
     }

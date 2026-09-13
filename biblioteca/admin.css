@@ -515,6 +515,10 @@ button.danger:not(.btn):not(.icon-btn):hover { background: #d32f2f; }
     margin-bottom: 16px;
 }
 
+.editor-card {
+    padding: 4px;
+}
+
 .card h3 { margin-top: 0; }
 
 .card-note {
@@ -1063,17 +1067,11 @@ button.danger:not(.btn):not(.icon-btn):hover { background: #d32f2f; }
     font-size: 13px;
     line-height: 1.65;
     color: #94a3b8;
-    overflow: hidden;
-    max-height: 340px;
-    transition: max-height 0.2s ease, padding 0.2s ease, border-bottom-width 0.2s ease;
     border-radius: 0 0 6px 6px;
     margin-bottom: 14px;
 }
 .admin-help-box.collapsed {
-    max-height: 0;
-    padding-top: 0;
-    padding-bottom: 0;
-    border-bottom-width: 0;
+    display: none;
 }
 .admin-help-box strong { color: #cbd5e1; }
 .admin-help-box code {
@@ -6374,8 +6372,11 @@ canvas { max-width: 100%; height: auto; }
 .campaign-editor-card-head {
     display: flex;
     align-items: center;
-    justify-content: space-between;
-    gap: 1rem;
+    justify-content: flex-start;
+    flex-wrap: wrap;
+    gap: 0.55rem 0.85rem;
+    /* Match Editor chrome (section chips / ← Back) so Pool does not jump shorter. */
+    min-height: 30px;
     margin: 0 0 4px;
 }
 
@@ -6387,6 +6388,32 @@ canvas { max-width: 100%; height: auto; }
     color: var(--text);
     font-size: 16px;
     font-weight: 600;
+    flex: 0 1 auto;
+    min-width: 0;
+}
+
+.content-editor-card-head .content-editor-subnav {
+    margin-left: 0;
+}
+
+.content-editor-card-head-actions {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 0.45rem;
+    margin-left: auto;
+    flex: 0 0 auto;
+}
+
+.content-editor-card-head-actions .split-editor__save-row,
+.content-editor-card-head-save {
+    min-width: 0;
+    min-height: 0;
+}
+
+#campaignEditorCard:not(.is-editing) .content-editor-card-head .campaign-editor-section-tabs,
+#campaignEditorCard:not(.is-editing) .content-editor-card-head-actions {
+    display: none;
 }
 
 .content-editor-breadcrumb {
@@ -6738,7 +6765,7 @@ textarea.campaign-settings-description-autofit {
     display: flex;
     flex-direction: column;
     gap: 10px;
-    padding: 12px;
+    padding: 4px;
 }
 
 .split-editor__col--pool .split-editor__body {

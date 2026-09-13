@@ -2,6 +2,28 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-09-13 22:45 - Catalogue: drop unused `.playlist-settings-panel` wrapper around Base/Extended section panels (keep `#campaignSettingsPanel` for save wiring).
+
+2026-09-13 22:35 - Content editor breadcrumb row: fixed min-height so Pool matches Editor (no jump when chips/actions hide).
+
+2026-09-13 22:30 - Admin help box: collapsed state uses `display: none` so it no longer leaves empty margin/border space.
+
+2026-09-13 22:25 - Admin Content editors: tighten `.editor-card` and `.split-editor__body` padding to 4px.
+
+2026-09-13 22:20 - Catalogue: stop tab-hiding Media assets Artwork — chip switches left it stuck `[hidden]` when returning to Base info.
+
+2026-09-13 22:15 - Catalogue: new Extended info tab (between Base info and Tracks) holds the Press kit / long description panel.
+
+2026-09-13 22:10 - Catalogue Base info: add Slug (with `/play/{slug}/…` hint); relabel Campaign date → Campaign start.
+
+2026-09-13 22:00 - Catalogue Base tab: Artwork moves into a Media assets panel; Long description into a Press kit panel (preview column stays read-only cover + brand + long description).
+
+2026-09-13 21:55 - Catalogue breadcrumb row: ← Back and Save|Saved hug the right edge; campaign name stays in the left edit header.
+
+2026-09-13 21:50 - Catalogue breadcrumb: section chips follow “Editor” on the same row instead of aligning to the far right.
+
+2026-09-13 21:45 - Catalogue editor: Base info|Tracks|Playlists|Galleries|Pages chips sit on the breadcrumb row (right of Catalogue > Editor) while editing, reclaiming the old subnav strip.
+
 2026-09-13 21:40 - Content editor breadcrumb section links stay underlined so they read as links (not only on hover).
 
 2026-09-13 21:35 - Content editors share the Catalogue breadcrumb heading (Section > Pool|Editor) via `bandpromo_admin_render_content_breadcrumb` + `bandpromoContentEditorBreadcrumb`; registered as the preferred under-nav page heading in ADMIN-UI / AGENTS.

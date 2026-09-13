@@ -1555,14 +1555,6 @@
     font-size: 14px;
 }
 
-.playlist-settings-panel {
-    margin: 0 0 10px;
-    padding: 10px 12px;
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    border-radius: 8px;
-    background: rgba(0, 0, 0, 0.15);
-}
-
 .playlist-settings-fields {
     display: flex;
     flex-wrap: wrap;
@@ -1704,12 +1696,18 @@
     max-width: none;
 }
 
-.campaign-editor-section-tabs {
-    margin: 2px 0 0;
+.campaign-base-panels {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
 }
 
-.campaign-editor-section-tabs--header {
-    margin: 10px 12px 0;
+.campaign-editor-section-tabs {
+    margin: 0;
+}
+
+.campaign-editor-section-tabs--breadcrumb {
+    margin: 0;
 }
 
 .campaign-editor-section-panel {
@@ -1740,7 +1738,7 @@
     margin-top: 0.55rem;
 }
 
-#campaignEditorCard[data-campaign-editor-section]:not([data-campaign-editor-section="base"]) #campaignCoverPanel,
+#campaignEditorCard[data-campaign-editor-section]:not([data-campaign-editor-section="base"]):not([data-campaign-editor-section="extended"]) #campaignCoverPanel,
 #campaignEditorCard[data-campaign-editor-section]:not([data-campaign-editor-section="tracks"]) #campaignActiveList,
 #campaignEditorCard[data-campaign-editor-section]:not([data-campaign-editor-section="tracks"]) #campaignAvailableSection {
     display: none !important;

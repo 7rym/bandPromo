@@ -1584,6 +1584,26 @@ if ($tab === 'analytics') {
                     'label' => 'Catalogue',
                     'aria_label' => 'Catalogue location',
                     'pool_title' => 'Back to Catalogue pool',
+                    'trailing' => static function (): void {
+                        ?>
+                        <div class="content-editor-subnav campaign-editor-section-tabs campaign-editor-section-tabs--breadcrumb" role="tablist" aria-label="Campaign editor sections">
+                            <button type="button" class="content-editor-subnav-btn is-active" role="tab" aria-selected="true" data-campaign-editor-tab="base">Base info</button>
+                            <button type="button" class="content-editor-subnav-btn" role="tab" aria-selected="false" data-campaign-editor-tab="extended">Extended info</button>
+                            <button type="button" class="content-editor-subnav-btn" role="tab" aria-selected="false" data-campaign-editor-tab="tracks">Tracks</button>
+                            <button type="button" class="content-editor-subnav-btn" role="tab" aria-selected="false" data-campaign-editor-tab="playlists">Playlists</button>
+                            <button type="button" class="content-editor-subnav-btn" role="tab" aria-selected="false" data-campaign-editor-tab="galleries">Galleries</button>
+                            <button type="button" class="content-editor-subnav-btn" role="tab" aria-selected="false" data-campaign-editor-tab="pages">Pages</button>
+                        </div>
+                        <?php
+                    },
+                    'actions' => static function (): void {
+                        ?>
+                        <button type="button" class="btn page-editor-back-btn content-editor-back-btn" id="campaignEditorBackBtn" title="Back to catalogue">← Back</button>
+                        <div class="split-editor__save-row content-editor-card-head-save">
+                            <button type="button" id="campaignSaveBtn" class="btn" hidden>💾 Save campaign</button>
+                        </div>
+                        <?php
+                    },
                 ]); ?>
 
                 <div class="split-editor split-editor--pools" id="campaignEditorLayout">
@@ -1619,54 +1639,92 @@ if ($tab === 'analytics') {
 
                             <div id="campaignTracksPoolView" class="page-editor-view" hidden>
                                 <div class="split-editor__header split-editor__header--pool page-editor-view-head content-editor-view-head">
-                                    <button type="button" class="btn page-editor-back-btn content-editor-back-btn" id="campaignEditorBackBtn" title="Back to catalogue">← Back</button>
                                     <div class="content-editor-head-name">
                                         <input type="text" class="content-editor-name-input" id="campaignSettingsTitle" maxlength="120" autocomplete="off" placeholder="Campaign name" aria-label="Campaign name">
                                     </div>
                                     <span class="status-text playlist-settings-status content-editor-name-status" id="campaignSettingsStatus"></span>
                                 </div>
-                                <div class="content-editor-subnav campaign-editor-section-tabs campaign-editor-section-tabs--header" role="tablist" aria-label="Campaign editor sections">
-                                    <button type="button" class="content-editor-subnav-btn is-active" role="tab" aria-selected="true" data-campaign-editor-tab="base">Base info</button>
-                                    <button type="button" class="content-editor-subnav-btn" role="tab" aria-selected="false" data-campaign-editor-tab="tracks">Tracks</button>
-                                    <button type="button" class="content-editor-subnav-btn" role="tab" aria-selected="false" data-campaign-editor-tab="playlists">Playlists</button>
-                                    <button type="button" class="content-editor-subnav-btn" role="tab" aria-selected="false" data-campaign-editor-tab="galleries">Galleries</button>
-                                    <button type="button" class="content-editor-subnav-btn" role="tab" aria-selected="false" data-campaign-editor-tab="pages">Pages</button>
-                                </div>
                                 <div class="split-editor__body registry-panel-body">
-                                    <div class="playlist-settings-panel" id="campaignSettingsPanel">
+                                    <div id="campaignSettingsPanel">
                                         <div class="campaign-editor-section-panel is-active" data-campaign-editor-panel="base" role="tabpanel">
-                                            <section class="content-editor-section">
+                                            <div class="campaign-base-panels">
+                                                <section class="content-editor-section">
+                                                    <div class="content-editor-section-head">
+                                                        <h4 class="split-editor__title">Base info</h4>
+                                                    </div>
+                                                    <div class="content-editor-section-body">
+                                                        <div class="content-editor-field-stack campaign-catalog-meta-fields">
+                                                            <label class="content-editor-field content-editor-field--inline campaign-catalog-meta-field--date">
+                                                                <span class="content-editor-field-label">Campaign start:</span>
+                                                                <?php bandpromo_admin_render_iso_date_field('release_date', '', 'campaignSettingsDate', [
+                                                                    'variant' => 'form',
+                                                                    'required' => true,
+                                                                    'allow_year_only' => true,
+                                                                ]); ?>
+                                                            </label>
+                                                            <label class="content-editor-field content-editor-field--inline">
+                                                                <span class="content-editor-field-label">Slug:</span>
+                                                                <input type="text" id="campaignSettingsSlug" maxlength="48" autocomplete="off" placeholder="spandexual-tension" aria-label="Campaign slug" pattern="[a-z][a-z0-9-]*">
+                                                            </label>
+                                                            <p class="hint content-editor-field-hint campaign-catalog-meta-hint">Public player URL: <code>/play/<span id="campaignSettingsSlugPreview">campaign-slug</span>/…</code></p>
+                                                            <label class="content-editor-field content-editor-field--inline">
+                                                                <span class="content-editor-field-label">Press contact:</span>
+                                                                <input type="text" id="campaignSettingsPressContact" maxlength="240" placeholder="Name &lt;email@example.com&gt;" autocomplete="off">
+                                                            </label>
+                                                            <label class="content-editor-field content-editor-field--inline">
+                                                                <span class="content-editor-field-label">Branding:</span>
+                                                                <select id="campaignSettingsBrandId" aria-label="Campaign brand">
+                                                                    <option value="">Base brand</option>
+                                                                </select>
+                                                            </label>
+                                                            <label class="content-editor-field content-editor-field--stacked">
+                                                                <span class="content-editor-field-label">Blurb:</span>
+                                                                <textarea id="campaignSettingsShortDescription" rows="4" maxlength="300" placeholder="Short campaign summary" autocomplete="off"></textarea>
+                                                                <span class="field-note campaign-short-description-note"><span id="campaignSettingsShortDescriptionCount">0</span>/300 characters</span>
+                                                            </label>
+                                                        </div>
+                                                    </div>
+                                                </section>
+
+                                                <section class="content-editor-section" id="campaignMediaAssetsSection">
+                                                    <div class="content-editor-section-head">
+                                                        <h4 class="split-editor__title">Media assets</h4>
+                                                    </div>
+                                                    <div class="content-editor-section-body">
+                                                        <div id="campaignArtworkEditor" class="campaign-cover-panel playlist-base-artwork">
+                                                            <input type="hidden" id="campaignSettingsPosterAssetId" data-empty-label="No artwork selected">
+                                                            <span id="campaignSettingsPosterAssetId_label" class="visually-hidden" aria-hidden="true">No artwork selected</span>
+                                                            <div class="content-editor-field content-editor-field--inline playlist-base-artwork-row">
+                                                                <span class="content-editor-field-label">Artwork:</span>
+                                                                <div class="audio-master-cover-layout campaign-cover-layout playlist-base-artwork-control">
+                                                                    <div class="audio-master-cover-preview-shell">
+                                                                        <div class="audio-master-cover-preview" id="campaignCoverPreviewShell">
+                                                                            <div class="audio-master-cover-overlay-actions" id="campaignCoverOverlayActions">
+                                                                                <button type="button" class="icon-btn media-picker-open audio-master-cover-action" data-field="campaignSettingsPosterAssetId" data-title="Choose campaign artwork" data-targets="illustrations,photos,special" title="Choose artwork" aria-label="Choose campaign artwork">✎</button>
+                                                                                <button type="button" class="icon-btn audio-master-cover-action" id="campaignCoverClearBtn" title="Clear artwork" aria-label="Clear artwork">↺</button>
+                                                                            </div>
+                                                                            <img id="campaignCoverPreview" alt="Campaign artwork preview" style="display:none;">
+                                                                            <span id="campaignCoverPlaceholder">No artwork selected</span>
+                                                                        </div>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                            <p class="hint content-editor-field-hint">Campaign cover for the catalogue card and share images.</p>
+                                                        </div>
+                                                    </div>
+                                                </section>
+                                            </div>
+                                        </div>
+                                        <div class="campaign-editor-section-panel" data-campaign-editor-panel="extended" role="tabpanel" hidden>
+                                            <section class="content-editor-section" id="campaignPressKitSection">
                                                 <div class="content-editor-section-head">
-                                                    <h4 class="split-editor__title">Base info</h4>
+                                                    <h4 class="split-editor__title">Press kit</h4>
                                                 </div>
                                                 <div class="content-editor-section-body">
-                                                    <div class="content-editor-field-stack campaign-catalog-meta-fields">
-                                                        <label class="content-editor-field content-editor-field--inline campaign-catalog-meta-field--date">
-                                                            <span class="content-editor-field-label">Campaign date:</span>
-                                                            <?php bandpromo_admin_render_iso_date_field('release_date', '', 'campaignSettingsDate', [
-                                                                'variant' => 'form',
-                                                                'required' => true,
-                                                                'allow_year_only' => true,
-                                                            ]); ?>
-                                                        </label>
-                                                        <label class="content-editor-field content-editor-field--inline">
-                                                            <span class="content-editor-field-label">Press contact:</span>
-                                                            <input type="text" id="campaignSettingsPressContact" maxlength="240" placeholder="Name &lt;email@example.com&gt;" autocomplete="off">
-                                                        </label>
-                                                        <label class="content-editor-field content-editor-field--inline">
-                                                            <span class="content-editor-field-label">Branding:</span>
-                                                            <select id="campaignSettingsBrandId" aria-label="Campaign brand">
-                                                                <option value="">Base brand</option>
-                                                            </select>
-                                                        </label>
-                                                        <label class="content-editor-field content-editor-field--stacked">
-                                                            <span class="content-editor-field-label">Blurb:</span>
-                                                            <textarea id="campaignSettingsShortDescription" rows="4" maxlength="300" placeholder="Short campaign summary" autocomplete="off"></textarea>
-                                                            <span class="field-note campaign-short-description-note"><span id="campaignSettingsShortDescriptionCount">0</span>/300 characters</span>
-                                                        </label>
+                                                    <div class="content-editor-field-stack">
                                                         <label class="content-editor-field content-editor-field--stacked">
                                                             <span class="content-editor-field-label">Long description: <span class="markdown-help-inline">(Markdown <?php echo bandpromo_admin_markdown_help_trigger(); ?>)</span></span>
-                                                            <textarea id="campaignSettingsDescription" class="campaign-settings-description-autofit" rows="4" maxlength="4000" placeholder="Long campaign description" autocomplete="off"></textarea>
+                                                            <textarea id="campaignSettingsDescription" class="campaign-settings-description-autofit" rows="6" maxlength="4000" placeholder="Long campaign description" autocomplete="off"></textarea>
                                                         </label>
                                                     </div>
                                                 </div>
@@ -1729,23 +1787,14 @@ if ($tab === 'analytics') {
                         <div class="split-editor__panel">
                             <div class="split-editor__header split-editor__header--active">
                                 <h3 class="split-editor__title" id="campaignEditorPreviewHeading">Preview</h3>
-                                <div class="split-editor__save-row">
-                                    <button type="button" id="campaignSaveBtn" class="btn" hidden>💾 Save campaign</button>
-                                </div>
                             </div>
                             <div class="split-editor__body campaign-editor-active-body">
                                 <div id="campaignCoverPanel" class="campaign-cover-panel" hidden>
-                                    <input type="hidden" id="campaignSettingsPosterAssetId" data-empty-label="No cover selected">
-                                    <span id="campaignSettingsPosterAssetId_label" class="visually-hidden" aria-hidden="true">No cover selected</span>
                                     <div class="audio-master-cover-layout campaign-cover-layout">
                                         <div class="audio-master-cover-preview-shell">
-                                            <div class="audio-master-cover-preview" id="campaignCoverPreviewShell">
-                                                <div class="audio-master-cover-overlay-actions" id="campaignCoverOverlayActions">
-                                                    <button type="button" class="icon-btn media-picker-open audio-master-cover-action" data-field="campaignSettingsPosterAssetId" data-title="Choose campaign cover" data-targets="illustrations,photos,special" title="Choose cover" aria-label="Choose campaign cover">✎</button>
-                                                    <button type="button" class="icon-btn audio-master-cover-action" id="campaignCoverClearBtn" title="Clear cover" aria-label="Clear cover">↺</button>
-                                                </div>
-                                                <img id="campaignCoverPreview" alt="Campaign cover preview" style="display:none;">
-                                                <span id="campaignCoverPlaceholder">No cover selected</span>
+                                            <div class="audio-master-cover-preview" id="campaignPreviewCoverShell">
+                                                <img id="campaignPreviewCoverImg" alt="Campaign cover preview" style="display:none;">
+                                                <span id="campaignPreviewCoverPlaceholder">No artwork selected</span>
                                             </div>
                                         </div>
                                         <div class="campaign-cover-meta">

@@ -2,7 +2,7 @@
 
 ## Resume point
 
-**Content editor breadcrumbs** — Catalogue, Playlists, Galleries, Pages, and Branding use shared `{Section} > Pool|Editor` headings; root crumb returns to Pool (same leave path as ← Back). Preferred pattern documented in ADMIN-UI / AGENTS / `.cursor/rules/admin-breadcrumb-headings.mdc`. Smoke each Content tab Pool↔Editor on local admin if not already checked.
+**Catalogue Extended info tab** — Press kit (long description) lives under Extended info between Base info and Tracks. Smoke tab switch + markdown preview.
 
 ### Also pending
 
