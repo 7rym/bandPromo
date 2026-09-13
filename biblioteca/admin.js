@@ -2324,7 +2324,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     : [];
                 if (file?.brand_slot_assigned === true) {
                     const label = assignedLabels.length
-                        ? `Assigned: ${assignedLabels.join(', ')}`
+                        ? assignedLabels.join(', ')
                         : 'Assigned';
                     badges.push(`<span class="badge audit-status-badge status-ok media-file-badge" title="Clear this Brand shell assignment before removing the asset">${bandpromoAdminEscapeHtml(label)}</span>`);
                     return badges.join(' ');
@@ -4219,7 +4219,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                         ? file.brand_slot_labels.filter(Boolean)
                         : [];
                     pills.push({
-                        text: labels.length ? `Assigned: ${labels.join(', ')}` : 'Assigned',
+                        text: labels.length ? labels.join(', ') : 'Assigned',
                         className: 'is-ok',
                     });
                     return pills;
@@ -8405,6 +8405,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 let pendingGalleryDeleteId = '';
 
                 let isEditing = false;
+                let galleryBreadcrumb = null;
 
                 const lifecycle = window.bandpromoEditorLifecycle.create({
                     root: editorCard,
@@ -8415,6 +8416,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     entityParam: 'gallery',
                     onShowPool: function () {
                         isEditing = false;
+                        galleryBreadcrumb?.setView('pool');
                         if (editorHint) {
                             editorHint.textContent = 'Select a gallery from the pool, then click edit to change its content order.';
                         }
@@ -8422,6 +8424,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     },
                     onShowEdit: function (entityId) {
                         isEditing = true;
+                        galleryBreadcrumb?.setView('edit');
                         selectedGalleryId = entityId;
                         syncGallerySettingsPanel(entityId);
                         if (editorHint) {
@@ -8883,6 +8886,20 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 backBtn?.addEventListener('click', () => {
                     requestCloseEditor();
                 });
+
+                if (window.bandpromoContentEditorBreadcrumb?.attach) {
+                    galleryBreadcrumb = window.bandpromoContentEditorBreadcrumb.attach({
+                        currentId: 'galleryEditorBreadcrumbCurrent',
+                        poolLinkId: 'galleryEditorBreadcrumbPool',
+                        onPoolClick: () => {
+                            if (isEditing) {
+                                requestCloseEditor();
+                                return;
+                            }
+                            showPoolView();
+                        },
+                    });
+                }
 
                 gallerySettingsTitle?.addEventListener('blur', () => {
                     saveGallerySettings();
@@ -9613,6 +9630,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 let selectedPlaylistId = String(editorCard?.dataset.initialPlaylist || '');
                 let defaultPlaylistId = 'bandpromo-demo';
                 let isEditing = false;
+                let playlistBreadcrumb = null;
                 let pendingPlaylistDeleteId = '';
                 const campaignFilterId = String(new URLSearchParams(window.location.search).get('campaign') || '').trim();
 
@@ -9625,6 +9643,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     entityParam: 'playlist',
                     onShowPool: function () {
                         isEditing = false;
+                        playlistBreadcrumb?.setView('pool');
                         if (playlistAvailableSection) playlistAvailableSection.hidden = true;
                         if (editorHint) {
                             editorHint.textContent = 'Select a playlist from the pool, then click edit to change its track order.';
@@ -9636,6 +9655,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     },
                     onShowEdit: function (entityId) {
                         isEditing = true;
+                        playlistBreadcrumb?.setView('edit');
                         selectedPlaylistId = entityId;
                         if (playlistAvailableSection) playlistAvailableSection.hidden = false;
                         syncPlaylistSettingsPanel(entityId);
@@ -9692,7 +9712,9 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 const playlistSettingsTitle = document.getElementById('playlistSettingsTitle');
                 const playlistSettingsPublishDate = document.getElementById('playlistSettingsPublishDate');
                 const playlistSettingsPackageType = document.getElementById('playlistSettingsPackageType');
-                const playlistSettingsPlayOrder = document.getElementById('playlistSettingsPlayOrder');
+                const playlistSettingsPlayOrderInputs = Array.from(
+                    document.querySelectorAll('input[name="playlistSettingsPlayOrder"]')
+                );
                 const playlistSetDefaultBtn = document.getElementById('playlistSetDefaultBtn');
                 const playlistEditorHeadBadges = document.getElementById('playlistEditorHeadBadges');
                 const playlistSettingsSlug = document.getElementById('playlistSettingsSlug');
@@ -9777,6 +9799,23 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     }
                 }
 
+                function readPlaylistPlayOrder() {
+                    const checked = playlistSettingsPlayOrderInputs.find((input) => input instanceof HTMLInputElement && input.checked);
+                    if (checked instanceof HTMLInputElement) {
+                        return String(checked.value || '').trim().toLowerCase() === 'reverse' ? 'reverse' : 'stored';
+                    }
+                    return 'stored';
+                }
+
+                function writePlaylistPlayOrder(playOrder) {
+                    const next = String(playOrder || '').trim().toLowerCase() === 'reverse' ? 'reverse' : 'stored';
+                    playlistSettingsPlayOrderInputs.forEach((input) => {
+                        if (input instanceof HTMLInputElement) {
+                            input.checked = String(input.value || '').trim().toLowerCase() === next;
+                        }
+                    });
+                }
+
                 function defaultPlayOrderForPackageType(packageType) {
                     const key = String(packageType || 'other').trim().toLowerCase();
                     return playlistPackageTypeDefaults[key] === 'reverse' ? 'reverse' : 'stored';
@@ -9793,8 +9832,8 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     const packageType = playlistSettingsPackageType instanceof HTMLSelectElement
                         ? String(playlistSettingsPackageType.value || 'other').trim().toLowerCase()
                         : String(entry?.package_type || 'other').trim().toLowerCase() || 'other';
-                    const playOrder = playlistSettingsPlayOrder instanceof HTMLSelectElement
-                        ? (String(playlistSettingsPlayOrder.value || '').trim().toLowerCase() === 'reverse' ? 'reverse' : 'stored')
+                    const playOrder = playlistSettingsPlayOrderInputs.length
+                        ? readPlaylistPlayOrder()
                         : (String(entry?.play_order || 'stored').trim().toLowerCase() === 'reverse' ? 'reverse' : 'stored');
                     const slug = playlistSettingsSlug instanceof HTMLInputElement
                         ? String(playlistSettingsSlug.value || '').trim()
@@ -9944,7 +9983,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                         playlistCoverPlaceholder.style.display = previewUrl ? 'none' : 'block';
                     }
                     if (playlistCoverPreviewShell instanceof HTMLElement) {
-                        playlistCoverPreviewShell.title = previewUrl ? 'Playlist cover' : 'No cover selected';
+                        playlistCoverPreviewShell.title = previewUrl ? 'Playlist artwork' : 'No artwork selected';
                     }
                 }
 
@@ -10044,9 +10083,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                             playlistSettingsPackageType.value = 'other';
                         }
                     }
-                    if (playlistSettingsPlayOrder instanceof HTMLSelectElement) {
-                        playlistSettingsPlayOrder.value = playOrder;
-                    }
+                    writePlaylistPlayOrder(playOrder);
                     if (playlistSettingsSlug instanceof HTMLInputElement) {
                         playlistSettingsSlug.value = slug;
                     }
@@ -10628,6 +10665,20 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     requestCloseEditor();
                 });
 
+                if (window.bandpromoContentEditorBreadcrumb?.attach) {
+                    playlistBreadcrumb = window.bandpromoContentEditorBreadcrumb.attach({
+                        currentId: 'playlistEditorBreadcrumbCurrent',
+                        poolLinkId: 'playlistEditorBreadcrumbPool',
+                        onPoolClick: () => {
+                            if (isEditing) {
+                                requestCloseEditor();
+                                return;
+                            }
+                            showPoolView();
+                        },
+                    });
+                }
+
                 playlistSettingsTitle?.addEventListener('blur', () => {
                     savePlaylistSettings();
                 });
@@ -10635,17 +10686,19 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     savePlaylistSettings();
                 });
                 playlistSettingsPackageType?.addEventListener('change', () => {
-                    if (!suppressPlaylistPackageTypeOrderSync && playlistSettingsPlayOrder instanceof HTMLSelectElement) {
-                        playlistSettingsPlayOrder.value = defaultPlayOrderForPackageType(
+                    if (!suppressPlaylistPackageTypeOrderSync) {
+                        writePlaylistPlayOrder(defaultPlayOrderForPackageType(
                             playlistSettingsPackageType instanceof HTMLSelectElement
                                 ? playlistSettingsPackageType.value
                                 : 'other'
-                        );
+                        ));
                     }
                     savePlaylistSettings();
                 });
-                playlistSettingsPlayOrder?.addEventListener('change', () => {
-                    savePlaylistSettings();
+                playlistSettingsPlayOrderInputs.forEach((input) => {
+                    input.addEventListener('change', () => {
+                        savePlaylistSettings();
+                    });
                 });
                 playlistSetDefaultBtn?.addEventListener('click', async () => {
                     if (!selectedPlaylistId || playlistIsDefault(selectedPlaylistId)) {

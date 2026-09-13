@@ -30,6 +30,7 @@
         let currentPageKey = String(root.dataset.initialPage || pages[0]?.id || 'faq');
         let selectedPageId = currentPageKey;
         let isEditing = false;
+        let pageBreadcrumb = null;
         const BACK_TO_POOL = '__back__';
 
         const pageTitleInput = document.getElementById('pageTitleInput');
@@ -65,10 +66,12 @@
             trackEditParam: false,
             onShowPool: function () {
                 isEditing = false;
+                pageBreadcrumb?.setView('pool');
                 renderPoolList();
             },
             onShowEdit: function (pageId) {
                 isEditing = true;
+                pageBreadcrumb?.setView('edit');
                 currentPageKey = pageId;
                 selectedPageId = pageId;
                 updateLabelFieldVisibility(pageId);
@@ -249,6 +252,20 @@
         backBtn?.addEventListener('click', () => {
             requestCloseEditor();
         });
+
+        if (window.bandpromoContentEditorBreadcrumb?.attach) {
+            pageBreadcrumb = window.bandpromoContentEditorBreadcrumb.attach({
+                currentId: 'pageEditorBreadcrumbCurrent',
+                poolLinkId: 'pageEditorBreadcrumbPool',
+                onPoolClick: () => {
+                    if (isEditing) {
+                        requestCloseEditor();
+                        return;
+                    }
+                    lifecycle.showPoolView();
+                },
+            });
+        }
 
         const unsavedModal = document.getElementById('pageUnsavedModal');
         const unsavedSaveBtn = document.getElementById('pageUnsavedSaveBtn');

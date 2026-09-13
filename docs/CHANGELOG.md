@@ -2,6 +2,22 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-09-13 21:40 - Content editor breadcrumb section links stay underlined so they read as links (not only on hover).
+
+2026-09-13 21:35 - Content editors share the Catalogue breadcrumb heading (Section > Pool|Editor) via `bandpromo_admin_render_content_breadcrumb` + `bandpromoContentEditorBreadcrumb`; registered as the preferred under-nav page heading in ADMIN-UI / AGENTS.
+
+2026-09-13 21:25 - Catalogue breadcrumb: “Catalogue” links back to the Pool view (same leave/unsaved path as ← Back).
+
+2026-09-13 21:20 - Catalogue card title is a breadcrumb: Catalogue > Pool in the list view, Catalogue > Editor when editing a campaign.
+
+2026-09-13 21:15 - Playlist editor: rename cover to Artwork and place it at the top of Base info (left column), leaving the right column for tracks.
+
+2026-09-13 21:10 - Playlist editor Base info: same chrome as Campaign/Brand — inline `Label:` rows, stacked descriptions, and a segmented As listed|Newest first toggle for player track order (package type stays a select; >5 options).
+
+2026-09-13 21:00 - Catalogue Campaign editor: align with Brand/Playlist chrome — name in the edit header, segmented `content-editor-subnav`, Base info in a `content-editor-section` with inline `Label:` rows (date / press / branding) and stacked Blurb / Long description.
+
+2026-09-13 20:25 - Files → Brand assets: slot status badges show the role only (e.g. Logo) without the “Assigned:” prefix.
+
 2026-09-13 14:55 - Admin confirms: shared in-app `bandpromoConfirm` / `#adminConfirmModal` replaces native `window.confirm` for Site update, Security repair, Backup import, Jobs, Catalogue/Branding follow-ups, user delete, and editor leave/delete fallbacks. Toast→inbox OMP remains v0.9.
 
 2026-09-13 14:40 - Brand SFX: Welcome / Logged-in that only had `media/sfx/optimal/` (no master / missing Files index) now register, list under Files → Sound effects, and pack into PCF/PBF. Export promotes optimal→master instead of silently dropping the asset.

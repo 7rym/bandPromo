@@ -47,6 +47,8 @@ Do not rename existing code identifiers, CSS properties, JSON keys, file names, 
 
 **Transfer integrity:** admin downloads and large uploads go through shared helpers (`http-stream.php`, `chunked-upload.php`, `bandpromoDownloadVerified` / `bandpromoUploadChunked`). Jobs store archive SHA-256; verified download refuses truncated files; PCF/PBF manifests include per-path digests.
 
+**Operator page headings:** under the main / Content nav bar, prefer a **breadcrumb** (`{Section} > Pool` / `{Section} > Editor`) over a plain card `h2`. Use `bandpromo_admin_render_content_breadcrumb()` + `bandpromoContentEditorBreadcrumb.attach()`; root crumb returns to Pool on the same leave path as ← Back. See [ADMIN-UI.md](ADMIN-UI.md).
+
 **Operator control chrome:** labels end with a trailing **colon** (`Label:`), and the label sits on the **same line** as its control whenever the panel width allows (Branding `brand-effect-field--inline` / `brand-chrome-inline-row` / `brand-token-field--inline`). Prefer segmented **toggle buttons** (e.g. Branding `brand-player-setting-toggle`) over checkboxes. Prefer toggles over `<select>` dropdowns when there are **5 or fewer** alternatives. Use a dropdown (or free-text) when there are more than 5 options, the list is open-ended, or values are custom (e.g. font stacks). For continuous numeric scales (dim %, blur px), prefer an **inline slider**: `Label:` + live value + unit on the same line as the range; if the scale collapses to ≤5 named presets, prefer toggles instead.
 
 `biblioteca/templates/` and runtime user data may use any language.

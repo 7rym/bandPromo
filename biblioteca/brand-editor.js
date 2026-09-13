@@ -102,6 +102,7 @@
         let brandSettingsSaving = false;
         let brandSettingsSaveQueued = false;
         let pendingBrandDeleteId = '';
+        let brandBreadcrumb = null;
         const saveUi = window.bandpromoContentSaveUi?.create(saveBtn, {
             saveLabel: '💾 Save brand',
             readFingerprint() {
@@ -347,12 +348,14 @@
             entityParam: 'brand',
             onShowPool: function () {
                 isEditing = false;
+                brandBreadcrumb?.setView('pool');
                 saveUi?.reset();
                 renderPoolList();
                 updateActionButtons(previewDocument);
             },
             onShowEdit: function (brandId) {
                 isEditing = true;
+                brandBreadcrumb?.setView('edit');
                 selectedBrandId = brandId;
                 renderPoolList();
                 updateActionButtons(editorDocument);
@@ -2074,6 +2077,20 @@
         backBtn?.addEventListener('click', () => {
             requestCloseEditor();
         });
+
+        if (window.bandpromoContentEditorBreadcrumb?.attach) {
+            brandBreadcrumb = window.bandpromoContentEditorBreadcrumb.attach({
+                currentId: 'brandEditorBreadcrumbCurrent',
+                poolLinkId: 'brandEditorBreadcrumbPool',
+                onPoolClick: () => {
+                    if (isEditing) {
+                        requestCloseEditor();
+                        return;
+                    }
+                    lifecycle.showPoolView();
+                },
+            });
+        }
 
         formEl.addEventListener('input', (event) => {
             const input = event.target;

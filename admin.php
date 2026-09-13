@@ -1578,9 +1578,13 @@ if ($tab === 'analytics') {
             <?php if ($contentTab === 'campaign'): ?>
             <div class="card editor-card" id="campaignEditorCard"
                  data-initial-campaign="<?php echo htmlspecialchars($contentCampaign, ENT_QUOTES, 'UTF-8'); ?>">
-                <div class="campaign-editor-card-head">
-                    <h2>💿 Catalogue</h2>
-                </div>
+                <?php bandpromo_admin_render_content_breadcrumb([
+                    'id_prefix' => 'campaignEditor',
+                    'emoji' => '💿',
+                    'label' => 'Catalogue',
+                    'aria_label' => 'Catalogue location',
+                    'pool_title' => 'Back to Catalogue pool',
+                ]); ?>
 
                 <div class="split-editor split-editor--pools" id="campaignEditorLayout">
                     <div class="split-editor__col split-editor__col--pool">
@@ -1616,77 +1620,104 @@ if ($tab === 'analytics') {
                             <div id="campaignTracksPoolView" class="page-editor-view" hidden>
                                 <div class="split-editor__header split-editor__header--pool page-editor-view-head content-editor-view-head">
                                     <button type="button" class="btn page-editor-back-btn content-editor-back-btn" id="campaignEditorBackBtn" title="Back to catalogue">← Back</button>
-                                    <h3 class="campaign-editor-header-title">Campaign editor</h3>
+                                    <div class="content-editor-head-name">
+                                        <input type="text" class="content-editor-name-input" id="campaignSettingsTitle" maxlength="120" autocomplete="off" placeholder="Campaign name" aria-label="Campaign name">
+                                    </div>
                                     <span class="status-text playlist-settings-status content-editor-name-status" id="campaignSettingsStatus"></span>
                                 </div>
-                                <div class="campaign-preview-tabs campaign-editor-section-tabs campaign-editor-section-tabs--header" role="tablist" aria-label="Campaign editor sections">
-                                    <button type="button" class="campaign-preview-tab is-active" role="tab" aria-selected="true" data-campaign-editor-tab="base">Base info</button>
-                                    <button type="button" class="campaign-preview-tab" role="tab" aria-selected="false" data-campaign-editor-tab="tracks">Tracks</button>
-                                    <button type="button" class="campaign-preview-tab" role="tab" aria-selected="false" data-campaign-editor-tab="playlists">Playlists</button>
-                                    <button type="button" class="campaign-preview-tab" role="tab" aria-selected="false" data-campaign-editor-tab="galleries">Galleries</button>
-                                    <button type="button" class="campaign-preview-tab" role="tab" aria-selected="false" data-campaign-editor-tab="pages">Pages</button>
+                                <div class="content-editor-subnav campaign-editor-section-tabs campaign-editor-section-tabs--header" role="tablist" aria-label="Campaign editor sections">
+                                    <button type="button" class="content-editor-subnav-btn is-active" role="tab" aria-selected="true" data-campaign-editor-tab="base">Base info</button>
+                                    <button type="button" class="content-editor-subnav-btn" role="tab" aria-selected="false" data-campaign-editor-tab="tracks">Tracks</button>
+                                    <button type="button" class="content-editor-subnav-btn" role="tab" aria-selected="false" data-campaign-editor-tab="playlists">Playlists</button>
+                                    <button type="button" class="content-editor-subnav-btn" role="tab" aria-selected="false" data-campaign-editor-tab="galleries">Galleries</button>
+                                    <button type="button" class="content-editor-subnav-btn" role="tab" aria-selected="false" data-campaign-editor-tab="pages">Pages</button>
                                 </div>
                                 <div class="split-editor__body registry-panel-body">
                                     <div class="playlist-settings-panel" id="campaignSettingsPanel">
                                         <div class="campaign-editor-section-panel is-active" data-campaign-editor-panel="base" role="tabpanel">
-                                        <div class="playlist-settings-fields campaign-catalog-meta-fields">
-                                            <label class="playlist-settings-field campaign-editor-form-row campaign-editor-form-row--title">
-                                                <span class="campaign-editor-form-label">Title</span>
-                                                <span class="campaign-editor-title-control">
-                                                    <input type="text" class="content-editor-name-input" id="campaignSettingsTitle" maxlength="120" autocomplete="off" placeholder="Campaign name" aria-label="Campaign name">
-                                                </span>
-                                            </label>
-                                            <label class="playlist-settings-field campaign-catalog-meta-field--date campaign-editor-form-row">
-                                                <span class="campaign-editor-form-label">Campaign date</span>
-                                                <?php bandpromo_admin_render_iso_date_field('release_date', '', 'campaignSettingsDate', [
-                                                    'variant' => 'form',
-                                                    'required' => true,
-                                                    'allow_year_only' => true,
-                                                ]); ?>
-                                            </label>
-                                            <label class="playlist-settings-field campaign-editor-form-row">
-                                                <span class="campaign-editor-form-label">Press contact</span>
-                                                <input type="text" id="campaignSettingsPressContact" maxlength="240" placeholder="Name &lt;email@example.com&gt;" autocomplete="off">
-                                            </label>
-                                            <label class="playlist-settings-field campaign-editor-form-row">
-                                                <span class="campaign-editor-form-label">Branding</span>
-                                                <select id="campaignSettingsBrandId" aria-label="Campaign brand">
-                                                    <option value="">Base brand</option>
-                                                </select>
-                                            </label>
-                                            <label class="playlist-settings-field campaign-editor-form-row campaign-editor-form-row--textarea">
-                                                <span class="campaign-editor-form-label">Blurb</span>
-                                                <span class="campaign-editor-field-stack">
-                                                    <textarea id="campaignSettingsShortDescription" rows="4" maxlength="300" placeholder="Short campaign summary" autocomplete="off"></textarea>
-                                                    <span class="field-note campaign-short-description-note"><span id="campaignSettingsShortDescriptionCount">0</span>/300 characters</span>
-                                                </span>
-                                            </label>
-                                            <label class="playlist-settings-field campaign-editor-form-row campaign-editor-form-row--textarea">
-                                                <span class="campaign-editor-form-label">Long description <span class="markdown-help-inline">(Markdown <?php echo bandpromo_admin_markdown_help_trigger(); ?>)</span></span>
-                                                <span class="campaign-editor-field-stack">
-                                                    <textarea id="campaignSettingsDescription" class="campaign-settings-description-autofit" rows="4" maxlength="4000" placeholder="Long campaign description" autocomplete="off"></textarea>
-                                                </span>
-                                            </label>
-                                            </div>
+                                            <section class="content-editor-section">
+                                                <div class="content-editor-section-head">
+                                                    <h4 class="split-editor__title">Base info</h4>
+                                                </div>
+                                                <div class="content-editor-section-body">
+                                                    <div class="content-editor-field-stack campaign-catalog-meta-fields">
+                                                        <label class="content-editor-field content-editor-field--inline campaign-catalog-meta-field--date">
+                                                            <span class="content-editor-field-label">Campaign date:</span>
+                                                            <?php bandpromo_admin_render_iso_date_field('release_date', '', 'campaignSettingsDate', [
+                                                                'variant' => 'form',
+                                                                'required' => true,
+                                                                'allow_year_only' => true,
+                                                            ]); ?>
+                                                        </label>
+                                                        <label class="content-editor-field content-editor-field--inline">
+                                                            <span class="content-editor-field-label">Press contact:</span>
+                                                            <input type="text" id="campaignSettingsPressContact" maxlength="240" placeholder="Name &lt;email@example.com&gt;" autocomplete="off">
+                                                        </label>
+                                                        <label class="content-editor-field content-editor-field--inline">
+                                                            <span class="content-editor-field-label">Branding:</span>
+                                                            <select id="campaignSettingsBrandId" aria-label="Campaign brand">
+                                                                <option value="">Base brand</option>
+                                                            </select>
+                                                        </label>
+                                                        <label class="content-editor-field content-editor-field--stacked">
+                                                            <span class="content-editor-field-label">Blurb:</span>
+                                                            <textarea id="campaignSettingsShortDescription" rows="4" maxlength="300" placeholder="Short campaign summary" autocomplete="off"></textarea>
+                                                            <span class="field-note campaign-short-description-note"><span id="campaignSettingsShortDescriptionCount">0</span>/300 characters</span>
+                                                        </label>
+                                                        <label class="content-editor-field content-editor-field--stacked">
+                                                            <span class="content-editor-field-label">Long description: <span class="markdown-help-inline">(Markdown <?php echo bandpromo_admin_markdown_help_trigger(); ?>)</span></span>
+                                                            <textarea id="campaignSettingsDescription" class="campaign-settings-description-autofit" rows="4" maxlength="4000" placeholder="Long campaign description" autocomplete="off"></textarea>
+                                                        </label>
+                                                    </div>
+                                                </div>
+                                            </section>
                                         </div>
                                         <div class="campaign-editor-section-panel" data-campaign-editor-panel="tracks" role="tabpanel" hidden>
-                                            <p class="campaign-editor-helper-title">Add the tracks that should be owned by this campaign</p>
-                                            <p class="hint">This campaign is the catalogue home for those masters. Playlists pick tracks from this pool and set their own play order — they never own the files. Unassigned tracks stay orphans in Files until you add them here.</p>
+                                            <section class="content-editor-section">
+                                                <div class="content-editor-section-head">
+                                                    <h4 class="split-editor__title">Tracks</h4>
+                                                </div>
+                                                <div class="content-editor-section-body">
+                                                    <p class="campaign-editor-helper-title">Add the tracks that should be owned by this campaign</p>
+                                                    <p class="hint">This campaign is the catalogue home for those masters. Playlists pick tracks from this pool and set their own play order — they never own the files. Unassigned tracks stay orphans in Files until you add them here.</p>
+                                                </div>
+                                            </section>
                                         </div>
                                         <div class="campaign-editor-section-panel" data-campaign-editor-panel="playlists" role="tabpanel" hidden>
-                                            <p class="campaign-editor-helper-title">Associate the playlists this campaign should play</p>
-                                            <p class="hint">During a campaign you can ship several playlists, the way a release often meant a single, an EP, and an album at once. A playlist is a virtual container: an ordered bunch of tracks from this campaign’s pool.</p>
-                                            <p class="hint">Examples: the album in original order; a radio-edit / B-side single package; a tour set. A show or podcast series works the same way — each track is an episode in that series.</p>
+                                            <section class="content-editor-section">
+                                                <div class="content-editor-section-head">
+                                                    <h4 class="split-editor__title">Playlists</h4>
+                                                </div>
+                                                <div class="content-editor-section-body">
+                                                    <p class="campaign-editor-helper-title">Associate the playlists this campaign should play</p>
+                                                    <p class="hint">During a campaign you can ship several playlists, the way a release often meant a single, an EP, and an album at once. A playlist is a virtual container: an ordered bunch of tracks from this campaign’s pool.</p>
+                                                    <p class="hint">Examples: the album in original order; a radio-edit / B-side single package; a tour set. A show or podcast series works the same way — each track is an episode in that series.</p>
+                                                </div>
+                                            </section>
                                         </div>
                                         <div class="campaign-editor-section-panel" data-campaign-editor-panel="galleries" role="tabpanel" hidden>
-                                            <p class="campaign-editor-helper-title">Associate the galleries this campaign should own</p>
-                                            <p class="hint">A gallery is a visual set (photos, stills, video) that reuses Files → Visual assets — it does not own those files. Associating it here makes this campaign the catalogue home.</p>
-                                            <p class="hint">Galleries are page building blocks. Add a Gallery block on a campaign page (Pages) and choose how it is presented: Grid, List, Carousel, or Animated.</p>
+                                            <section class="content-editor-section">
+                                                <div class="content-editor-section-head">
+                                                    <h4 class="split-editor__title">Galleries</h4>
+                                                </div>
+                                                <div class="content-editor-section-body">
+                                                    <p class="campaign-editor-helper-title">Associate the galleries this campaign should own</p>
+                                                    <p class="hint">A gallery is a visual set (photos, stills, video) that reuses Files → Visual assets — it does not own those files. Associating it here makes this campaign the catalogue home.</p>
+                                                    <p class="hint">Galleries are page building blocks. Add a Gallery block on a campaign page (Pages) and choose how it is presented: Grid, List, Carousel, or Animated.</p>
+                                                </div>
+                                            </section>
                                         </div>
                                         <div class="campaign-editor-section-panel" data-campaign-editor-panel="pages" role="tabpanel" hidden>
-                                            <p class="campaign-editor-helper-title">Associate the pages this campaign should show</p>
-                                            <p class="hint">Pages are campaign-owned layouts built from Text, Picture, Video, List, and Gallery blocks. Use them for biographies, tour info, merch, and other campaign stories.</p>
-                                            <p class="hint">Order here is the player tab order when this campaign’s playlist is playing. Playlist and Lyrics stay fixed.</p>
+                                            <section class="content-editor-section">
+                                                <div class="content-editor-section-head">
+                                                    <h4 class="split-editor__title">Pages</h4>
+                                                </div>
+                                                <div class="content-editor-section-body">
+                                                    <p class="campaign-editor-helper-title">Associate the pages this campaign should show</p>
+                                                    <p class="hint">Pages are campaign-owned layouts built from Text, Picture, Video, List, and Gallery blocks. Use them for biographies, tour info, merch, and other campaign stories.</p>
+                                                    <p class="hint">Order here is the player tab order when this campaign’s playlist is playing. Playlist and Lyrics stay fixed.</p>
+                                                </div>
+                                            </section>
                                         </div>
                                     </div>
                                 </div>
@@ -1766,7 +1797,13 @@ if ($tab === 'analytics') {
             <?php elseif ($contentTab === 'playlist'): ?>
             <div class="card editor-card" id="playlistEditorCard"
                  data-initial-playlist="<?php echo htmlspecialchars($contentPlaylist, ENT_QUOTES, 'UTF-8'); ?>">
-                <h3>🎵 Playlists</h3>
+                <?php bandpromo_admin_render_content_breadcrumb([
+                    'id_prefix' => 'playlistEditor',
+                    'emoji' => '🎵',
+                    'label' => 'Playlists',
+                    'aria_label' => 'Playlists location',
+                    'pool_title' => 'Back to Playlists pool',
+                ]); ?>
 
                 <div class="split-editor split-editor--pools" id="playlistEditorLayout">
                     <div class="split-editor__col split-editor__col--pool">
@@ -1814,53 +1851,76 @@ if ($tab === 'analytics') {
                                             <h4 class="split-editor__title">Base info</h4>
                                         </div>
                                         <div class="content-editor-section-body">
-                                            <div class="page-editor-meta playlist-base-info">
-                                                <label class="page-meta-field">
-                                                    <span>Publish date</span>
+                                            <div class="content-editor-field-stack playlist-base-info">
+                                                <div id="playlistCoverPanel" class="campaign-cover-panel playlist-base-artwork" hidden>
+                                                    <input type="hidden" id="playlistSettingsPosterAssetId" data-empty-label="No artwork selected">
+                                                    <span id="playlistSettingsPosterAssetId_label" class="visually-hidden" aria-hidden="true">No artwork selected</span>
+                                                    <div class="content-editor-field content-editor-field--inline playlist-base-artwork-row">
+                                                        <span class="content-editor-field-label">Artwork:</span>
+                                                        <div class="audio-master-cover-layout campaign-cover-layout playlist-base-artwork-control">
+                                                            <div class="audio-master-cover-preview-shell">
+                                                                <div class="audio-master-cover-preview" id="playlistCoverPreviewShell">
+                                                                    <div class="audio-master-cover-overlay-actions" id="playlistCoverOverlayActions">
+                                                                        <button type="button" class="icon-btn media-picker-open audio-master-cover-action" data-field="playlistSettingsPosterAssetId" data-title="Choose playlist artwork" data-targets="illustrations,photos,special" title="Choose artwork" aria-label="Choose playlist artwork">✎</button>
+                                                                        <button type="button" class="icon-btn audio-master-cover-action" id="playlistCoverClearBtn" title="Clear artwork" aria-label="Clear artwork">↺</button>
+                                                                    </div>
+                                                                    <img id="playlistCoverPreview" alt="Playlist artwork preview" style="display:none;">
+                                                                    <span id="playlistCoverPlaceholder">No artwork selected</span>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                    <p class="hint content-editor-field-hint">Shown on the player playlist view and share cards.</p>
+                                                </div>
+                                                <label class="content-editor-field content-editor-field--inline">
+                                                    <span class="content-editor-field-label">Publish date:</span>
                                                     <?php bandpromo_admin_render_iso_date_field('publish_date', '', 'playlistSettingsPublishDate', [
                                                         'variant' => 'form',
                                                         'required' => true,
                                                         'allow_year_only' => true,
                                                     ]); ?>
-                                                    <p class="hint">Playlist promotion uses this UTC calendar day. Track playability still follows each track’s release date.</p>
                                                 </label>
-                                                <div class="playlist-base-info-row">
-                                                    <label class="page-meta-field">
-                                                        <span>Package type</span>
-                                                        <select id="playlistSettingsPackageType" aria-label="Playlist package type">
-                                                            <option value="single">Single</option>
-                                                            <option value="ep">EP</option>
-                                                            <option value="album">Album</option>
-                                                            <option value="show">Show</option>
-                                                            <option value="podcast">Podcast</option>
-                                                            <option value="live">Live</option>
-                                                            <option value="compilation">Compilation</option>
-                                                            <option value="other" selected>Other</option>
-                                                        </select>
-                                                    </label>
-                                                    <label class="page-meta-field">
-                                                        <span>Player track order</span>
-                                                        <select id="playlistSettingsPlayOrder" aria-label="Player track order">
-                                                            <option value="stored">As listed (first track first)</option>
-                                                            <option value="reverse">Newest first (reverse list)</option>
-                                                        </select>
-                                                    </label>
+                                                <p class="hint content-editor-field-hint">Playlist promotion uses this UTC calendar day. Track playability still follows each track’s release date.</p>
+                                                <label class="content-editor-field content-editor-field--inline">
+                                                    <span class="content-editor-field-label">Package type:</span>
+                                                    <select id="playlistSettingsPackageType" aria-label="Playlist package type">
+                                                        <option value="single">Single</option>
+                                                        <option value="ep">EP</option>
+                                                        <option value="album">Album</option>
+                                                        <option value="show">Show</option>
+                                                        <option value="podcast">Podcast</option>
+                                                        <option value="live">Live</option>
+                                                        <option value="compilation">Compilation</option>
+                                                        <option value="other" selected>Other</option>
+                                                    </select>
+                                                </label>
+                                                <div class="content-editor-field content-editor-field--inline">
+                                                    <span class="content-editor-field-label" id="playlistSettingsPlayOrderLabel">Player track order:</span>
+                                                    <div class="content-editor-setting-toggle" role="group" aria-labelledby="playlistSettingsPlayOrderLabel">
+                                                        <label class="content-editor-setting-option">
+                                                            <input type="radio" name="playlistSettingsPlayOrder" value="stored" checked>
+                                                            <span>As listed</span>
+                                                        </label>
+                                                        <label class="content-editor-setting-option">
+                                                            <input type="radio" name="playlistSettingsPlayOrder" value="reverse">
+                                                            <span>Newest first</span>
+                                                        </label>
+                                                    </div>
                                                 </div>
-                                                <p class="hint">Shows and podcasts default to newest first so new episodes can append at the bottom of the list.</p>
-                                                <label class="page-meta-field">
-                                                    <span>Slug</span>
+                                                <p class="hint content-editor-field-hint">Shows and podcasts default to newest first so new episodes can append at the bottom of the list.</p>
+                                                <label class="content-editor-field content-editor-field--inline">
+                                                    <span class="content-editor-field-label">Slug:</span>
                                                     <input type="text" id="playlistSettingsSlug" maxlength="48" autocomplete="off" placeholder="summer-singles" aria-label="Playlist slug" pattern="[a-z][a-z0-9-]*">
-                                                    <p class="hint campaign-catalog-meta-hint">Public player URL: <code>/play/<span id="playlistSettingsCampaignSlugPreview">campaign-slug</span>/<span id="playlistSettingsSlugPreview">your-slug</span></code> (campaign-first; hard cut — old <code>/play/{playlist}</code> paths are not supported)</p>
                                                 </label>
-                                                <label class="page-meta-field page-meta-field--wide">
-                                                    <span>Short description</span>
+                                                <p class="hint content-editor-field-hint campaign-catalog-meta-hint">Public player URL: <code>/play/<span id="playlistSettingsCampaignSlugPreview">campaign-slug</span>/<span id="playlistSettingsSlugPreview">your-slug</span></code> (campaign-first; hard cut — old <code>/play/{playlist}</code> paths are not supported)</p>
+                                                <label class="content-editor-field content-editor-field--stacked">
+                                                    <span class="content-editor-field-label">Short description:</span>
                                                     <textarea id="playlistSettingsShortDescription" rows="2" maxlength="300" placeholder="One-liner for cards and summaries" autocomplete="off"></textarea>
                                                     <div class="field-note campaign-short-description-note"><span id="playlistSettingsShortDescriptionCount">0</span>/300 characters</div>
                                                 </label>
-                                                <label class="page-meta-field page-meta-field--wide">
-                                                    <span>Description</span>
+                                                <label class="content-editor-field content-editor-field--stacked">
+                                                    <span class="content-editor-field-label">Description: <span class="markdown-help-inline">(Markdown <?php echo bandpromo_admin_markdown_help_trigger(); ?>)</span></span>
                                                     <textarea id="playlistSettingsDescription" rows="3" maxlength="4000" placeholder="Campaign summary or listening notes" autocomplete="off"></textarea>
-                                                    <?php echo bandpromo_admin_markdown_help_note('Markdown supported'); ?>
                                                 </label>
                                             </div>
                                         </div>
@@ -1882,26 +1942,6 @@ if ($tab === 'analytics') {
                                 </div>
                             </div>
                             <div class="split-editor__body split-editor__active-body">
-                                <div id="playlistCoverPanel" class="campaign-cover-panel" hidden>
-                                    <input type="hidden" id="playlistSettingsPosterAssetId" data-empty-label="No cover selected">
-                                    <span id="playlistSettingsPosterAssetId_label" class="visually-hidden" aria-hidden="true">No cover selected</span>
-                                    <div class="audio-master-cover-layout campaign-cover-layout">
-                                        <div class="audio-master-cover-preview-shell">
-                                            <div class="audio-master-cover-preview" id="playlistCoverPreviewShell">
-                                                <div class="audio-master-cover-overlay-actions" id="playlistCoverOverlayActions">
-                                                    <button type="button" class="icon-btn media-picker-open audio-master-cover-action" data-field="playlistSettingsPosterAssetId" data-title="Choose playlist cover" data-targets="illustrations,photos,special" title="Choose cover" aria-label="Choose playlist cover">✎</button>
-                                                    <button type="button" class="icon-btn audio-master-cover-action" id="playlistCoverClearBtn" title="Clear cover" aria-label="Clear cover">↺</button>
-                                                </div>
-                                                <img id="playlistCoverPreview" alt="Playlist cover preview" style="display:none;">
-                                                <span id="playlistCoverPlaceholder">No cover selected</span>
-                                            </div>
-                                        </div>
-                                        <div class="campaign-cover-meta">
-                                            <h4 class="campaign-cover-heading">Playlist cover</h4>
-                                            <p class="hint">Artwork shown on the player playlist view and share cards.</p>
-                                        </div>
-                                    </div>
-                                </div>
                                 <p class="hint split-editor__hint" id="playlistEditorHint">Select a playlist from the pool, then click edit to change its track order.</p>
                                 <ol class="split-editor__track-list split-editor__list" id="playlistActiveList" aria-label="Playlist order">
                                     <li class="editor-empty">No playlist selected.</li>
@@ -1940,7 +1980,13 @@ if ($tab === 'analytics') {
             <?php else: ?>
             <div class="card editor-card" id="galleryEditorCard"
                  data-initial-gallery="<?php echo htmlspecialchars($contentGallery, ENT_QUOTES, 'UTF-8'); ?>">
-                <h3>🖼️ Galleries</h3>
+                <?php bandpromo_admin_render_content_breadcrumb([
+                    'id_prefix' => 'galleryEditor',
+                    'emoji' => '🖼️',
+                    'label' => 'Galleries',
+                    'aria_label' => 'Galleries location',
+                    'pool_title' => 'Back to Galleries pool',
+                ]); ?>
 
                 <div class="split-editor split-editor--pools" id="galleryEditorLayout">
                     <div class="split-editor__col split-editor__col--pool">
@@ -2046,7 +2092,13 @@ if ($tab === 'analytics') {
             <div class="card editor-card" id="pageEditorRoot"
                  data-initial-page="<?php echo htmlspecialchars($contentPage, ENT_QUOTES, 'UTF-8'); ?>"
                  data-pages="<?php echo htmlspecialchars(json_encode($pagePoolData, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES), ENT_QUOTES, 'UTF-8'); ?>">
-                <h3>📄 Pages</h3>
+                <?php bandpromo_admin_render_content_breadcrumb([
+                    'id_prefix' => 'pageEditor',
+                    'emoji' => '📄',
+                    'label' => 'Pages',
+                    'aria_label' => 'Pages location',
+                    'pool_title' => 'Back to Pages pool',
+                ]); ?>
 
                 <div class="split-editor page-editor-layout" id="pageEditorLayout">
                     <div class="split-editor__col split-editor__col--pool">
@@ -2200,7 +2252,13 @@ if ($tab === 'analytics') {
             <?php elseif ($contentTab === 'branding'): ?>
             <div class="card editor-card" id="brandEditorRoot"
                  data-initial-brand="<?php echo htmlspecialchars($contentBrand, ENT_QUOTES, 'UTF-8'); ?>">
-                <h3>🎨 Branding</h3>
+                <?php bandpromo_admin_render_content_breadcrumb([
+                    'id_prefix' => 'brandEditor',
+                    'emoji' => '🎨',
+                    'label' => 'Branding',
+                    'aria_label' => 'Branding location',
+                    'pool_title' => 'Back to Branding pool',
+                ]); ?>
 
                 <div class="split-editor brand-editor-layout split-editor--pools" id="brandEditorLayout">
                     <div class="split-editor__col split-editor__col--pool">
@@ -3544,6 +3602,9 @@ if ($tab === 'analytics') {
     <script src="biblioteca/site-contact.js?v=<?php echo filemtime(__DIR__ . '/biblioteca/site-contact.js'); ?>"></script>
     <script src="biblioteca/session-auth.js?v=<?php echo filemtime(__DIR__ . '/biblioteca/session-auth.js'); ?>"></script>
     <script src="biblioteca/operator-confirm.js?v=<?php echo filemtime(__DIR__ . '/biblioteca/operator-confirm.js'); ?>"></script>
+    <?php if ($tab === 'content'): ?>
+    <script src="biblioteca/content-editor-breadcrumb.js?v=<?php echo filemtime(__DIR__ . '/biblioteca/content-editor-breadcrumb.js'); ?>"></script>
+    <?php endif; ?>
     <?php if ($tab === 'content'): ?>
     <script src="biblioteca/editor-sort.js?v=<?php echo filemtime(__DIR__ . '/biblioteca/editor-sort.js'); ?>"></script>
     <script src="biblioteca/content-save-ui.js?v=<?php echo filemtime(__DIR__ . '/biblioteca/content-save-ui.js'); ?>"></script>

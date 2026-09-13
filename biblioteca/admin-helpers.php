@@ -95,6 +95,50 @@ function bandpromo_admin_render_iso_date_field(string $name, string $value, stri
 }
 
 /**
+ * Content editor page breadcrumb under the Content sub-nav.
+ * Pool: "{emoji} {label} > Pool"; Editor: "{emoji} {label} > Editor".
+ * The root button returns to Pool (wire via bandpromoContentEditorBreadcrumb.attach).
+ *
+ * @param array{
+ *   id_prefix: string,
+ *   emoji: string,
+ *   label: string,
+ *   aria_label?: string,
+ *   pool_title?: string
+ * } $options
+ */
+function bandpromo_admin_render_content_breadcrumb(array $options): void
+{
+    $idPrefix = preg_replace('/[^a-zA-Z0-9_-]+/', '', (string) ($options['id_prefix'] ?? '')) ?: 'contentEditor';
+    $emoji = trim((string) ($options['emoji'] ?? ''));
+    $label = trim((string) ($options['label'] ?? 'Content'));
+    if ($label === '') {
+        $label = 'Content';
+    }
+    $ariaLabel = trim((string) ($options['aria_label'] ?? ''));
+    if ($ariaLabel === '') {
+        $ariaLabel = $label . ' location';
+    }
+    $poolTitle = trim((string) ($options['pool_title'] ?? ''));
+    if ($poolTitle === '') {
+        $poolTitle = 'Back to ' . $label . ' pool';
+    }
+    $rootText = trim($emoji . ' ' . $label);
+    $breadcrumbId = $idPrefix . 'Breadcrumb';
+    $poolLinkId = $idPrefix . 'BreadcrumbPool';
+    $currentId = $idPrefix . 'BreadcrumbCurrent';
+    ?>
+    <div class="content-editor-card-head">
+        <h2 class="content-editor-breadcrumb" id="<?php echo htmlspecialchars($breadcrumbId); ?>" aria-label="<?php echo htmlspecialchars($ariaLabel); ?>">
+            <button type="button" class="content-editor-breadcrumb-root content-editor-breadcrumb-link" id="<?php echo htmlspecialchars($poolLinkId); ?>" title="<?php echo htmlspecialchars($poolTitle); ?>"><?php echo htmlspecialchars($rootText); ?></button>
+            <span class="content-editor-breadcrumb-sep" aria-hidden="true"> &gt; </span>
+            <span class="content-editor-breadcrumb-current" id="<?php echo htmlspecialchars($currentId); ?>">Pool</span>
+        </h2>
+    </div>
+    <?php
+}
+
+/**
  * Render filter bar with ISO date inputs, calendar picker, and preset buttons.
  *
  * @param string $tabName   Primary tab identifier

@@ -6,6 +6,21 @@ Operator chrome for `admin.php` (and shared Content editor CSS). Public player b
 
 Main tabs (Dashboard, Analytics, Users, Files, Content, Settings, System, Documentation) remember the last used **sub-tab** in `localStorage` (`bandpromo_admin_nav_memory`). Switching Files → Content → Files returns to Visual (or whichever Files panel you left), not always Audio. Deep links that already name a sub-tab (`fpanel`, `cntab`, `ctab`, `stab`, `atab`, `doc_scope`) are unchanged.
 
+## Page headings under the nav bar (preferred)
+
+For admin surfaces that sit under the main tab / Content sub-nav (especially Content editors), prefer a **breadcrumb heading** over a plain `h2` card title:
+
+| View | Crumb |
+|------|--------|
+| Pool / list | `{emoji} {Section} > Pool` |
+| Editor | `{emoji} {Section} > Editor` |
+
+- Markup: `bandpromo_admin_render_content_breadcrumb()` in `biblioteca/admin-helpers.php` (`.content-editor-card-head` + `.content-editor-breadcrumb`).
+- Behaviour: `bandpromoContentEditorBreadcrumb.attach()` in `biblioteca/content-editor-breadcrumb.js` — root button returns to Pool via the same leave/unsaved path as ← Back; `setView('pool'|'edit')` on lifecycle show hooks.
+- Shipped on Catalogue, Playlists, Galleries, Pages, and Branding.
+
+Do not invent a second under-nav title pattern for new Content editors unless the surface is not a pool→editor flow.
+
 ## System tab and roles (2026-08-31)
 
 | Sub-tab | `admin` role | `developer` role |
@@ -138,7 +153,7 @@ Pages and Branding edit views group fields in `.content-editor-section` cards:
 - Chrome header: `.content-editor-section-head` with `--border2` fill (same bar as Page/Branding Back/name and Live preview headers, and block card headers)
 - Body: `.content-editor-section-body`
 
-Pages: **Base info** (player tab, descriptions, share image) then **Page builder** (hint, add-block buttons, blocks). Playlists: **Base info** (publish date, package type, play order, slug, descriptions). Default playlist is **★ Set as default** in the Playlist header (same as Branding **★ Set as base**), not a checkbox. Branding: Common | Player | Content (Player: **Cover** [Size Full|Medium|Half, Reflection, Side covers], **Controls** [full panel chrome], **User area** [Login / status, Beggars banquet]; Content: **Buttons**, **Playlist selector**, **Panels**, **Typography**). Prefer `Label:` + control on one line; segmented toggles over checkboxes; toggles over dropdowns when ≤5 alternatives; inline `Label:` + value sliders for continuous scales (see [AGENTS.md](AGENTS.md)).
+Pages: **Base info** (player tab, descriptions, share image) then **Page builder** (hint, add-block buttons, blocks). Playlists: **Base info** (Artwork, publish date, package type, play order As listed|Newest first toggle, slug, descriptions) with inline `Label:` chrome. Default playlist is **★ Set as default** in the Playlist header (same as Branding **★ Set as base**), not a checkbox. Catalogue (Campaign): name in the edit header; segmented subnav (Base info | Tracks | Playlists | Galleries | Pages); Base info uses `content-editor-section` with inline `Label:` rows for date / press / branding and stacked Blurb / Long description. Branding: Common | Player | Content (Player: **Cover** [Size Full|Medium|Half, Reflection, Side covers], **Controls** [full panel chrome], **User area** [Login / status, Beggars banquet]; Content: **Buttons**, **Playlist selector**, **Panels**, **Typography**). Prefer `Label:` + control on one line; segmented toggles over checkboxes; toggles over dropdowns when ≤5 alternatives; inline `Label:` + value sliders for continuous scales (see [AGENTS.md](AGENTS.md)).
 
 **Player colour contract:** `#mediaplayer` keeps platform layout (scene, transport, scrubber) but paints from brand colours. `#content-container` shares the palette; **Buttons** and **Typography** use role swatches (outline/fill, headings/body/blockquote) from that palette. Soft fill = 50% of the Fill role. **Panels** (fill, blur, corners Square/Shaved, border width + colour role, density) drive the frosted boxes — content sits inside that one surface.
 

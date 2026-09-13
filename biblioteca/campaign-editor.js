@@ -3,6 +3,7 @@
         const editorCard = document.getElementById('campaignEditorCard');
         const poolView = document.getElementById('campaignPoolView');
         const tracksPoolView = document.getElementById('campaignTracksPoolView');
+        let campaignBreadcrumb = null;
         const poolList = document.getElementById('campaignPoolList');
         const availableEl = document.getElementById('campaignAvailableList');
         const activeEl = document.getElementById('campaignActiveList');
@@ -200,6 +201,7 @@
                 isEditing = false;
                 saveUi?.reset();
                 editorCard.classList.add('campaign-editor-is-preview');
+                campaignBreadcrumb?.setView('pool');
                 if (campaignAvailableSection) {
                     campaignAvailableSection.hidden = true;
                 }
@@ -216,6 +218,7 @@
             onShowEdit: function (campaignId) {
                 isEditing = true;
                 editorCard.classList.remove('campaign-editor-is-preview');
+                campaignBreadcrumb?.setView('edit');
                 selectedCampaignId = campaignId;
                 syncCampaignEditorMode();
                 syncCampaignSettingsPanel(campaignId);
@@ -3441,6 +3444,20 @@
         backBtn?.addEventListener('click', () => {
             requestCloseEditor();
         });
+
+        if (window.bandpromoContentEditorBreadcrumb?.attach) {
+            campaignBreadcrumb = window.bandpromoContentEditorBreadcrumb.attach({
+                currentId: 'campaignEditorBreadcrumbCurrent',
+                poolLinkId: 'campaignEditorBreadcrumbPool',
+                onPoolClick: () => {
+                    if (isEditing) {
+                        requestCloseEditor();
+                        return;
+                    }
+                    showPoolView();
+                },
+            });
+        }
 
         campaignSaveBtn?.addEventListener('click', async () => {
             saveUi?.markSaving();

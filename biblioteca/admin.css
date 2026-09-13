@@ -2496,35 +2496,15 @@ canvas { max-width: 100%; height: auto; }
     max-width: 16rem;
 }
 
-.playlist-settings-fields.campaign-catalog-meta-fields {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 10px;
-    align-items: start;
-}
-
-.playlist-settings-fields.campaign-catalog-meta-fields .campaign-editor-form-row {
-    margin: 0;
-    min-width: 0;
-    width: 100%;
+.content-editor-field-stack.campaign-catalog-meta-fields {
     display: flex;
     flex-direction: column;
-    gap: 4px;
+    gap: 0.65rem;
+    align-items: stretch;
 }
 
-.playlist-settings-fields.campaign-catalog-meta-fields .campaign-editor-form-row--title,
-.playlist-settings-fields.campaign-catalog-meta-fields .campaign-editor-form-row--textarea {
-    grid-column: 1 / -1;
-}
-
-.playlist-settings-fields.campaign-catalog-meta-fields .campaign-editor-field-stack {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-}
-
-.playlist-settings-fields.campaign-catalog-meta-fields #campaignSettingsBrandId {
-    width: 100%;
+.content-editor-field-stack.campaign-catalog-meta-fields .content-editor-field--inline > .date-input-shell {
+    max-width: 16rem;
 }
 
 #audioMasterFieldDate,
@@ -6390,6 +6370,7 @@ canvas { max-width: 100%; height: auto; }
     display: none;
 }
 
+.content-editor-card-head,
 .campaign-editor-card-head {
     display: flex;
     align-items: center;
@@ -6398,11 +6379,55 @@ canvas { max-width: 100%; height: auto; }
     margin: 0 0 4px;
 }
 
-.campaign-editor-card-head h2 {
+.content-editor-card-head h2,
+.content-editor-card-head .content-editor-breadcrumb,
+.campaign-editor-card-head h2,
+.campaign-editor-card-head .content-editor-breadcrumb {
     margin: 0;
     color: var(--text);
     font-size: 16px;
     font-weight: 600;
+}
+
+.content-editor-breadcrumb {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 0;
+}
+
+.content-editor-breadcrumb-root {
+    color: var(--muted, #9aa4b2);
+    font-weight: 600;
+}
+
+.content-editor-breadcrumb-link {
+    appearance: none;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    font: inherit;
+    font-weight: 600;
+    color: var(--muted, #9aa4b2);
+    cursor: pointer;
+    text-decoration: underline;
+    text-underline-offset: 0.12em;
+}
+
+.content-editor-breadcrumb-link:hover,
+.content-editor-breadcrumb-link:focus-visible {
+    color: var(--text, #e8eef7);
+}
+
+.content-editor-breadcrumb-sep {
+    color: var(--muted, #9aa4b2);
+    font-weight: 500;
+}
+
+.content-editor-breadcrumb-current {
+    color: var(--text);
+    font-weight: 700;
 }
 
 .editor-card > h3 {
@@ -6436,6 +6461,7 @@ canvas { max-width: 100%; height: auto; }
     margin-bottom: 0.75rem;
 }
 
+/* Legacy pill tabs kept for any leftover markup; Campaign editor uses content-editor-subnav. */
 .campaign-preview-tab {
     appearance: none;
     border: 1px solid color-mix(in srgb, var(--text-muted, #888) 35%, transparent);

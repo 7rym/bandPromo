@@ -2,7 +2,7 @@
 
 ## Resume point
 
-**Admin in-app confirms (v0.8)** — `bandpromoConfirm` / `#adminConfirmModal` replaces native browser confirms in admin (Site update, Jobs, Backup import, editors, etc.). Toast→inbox OMP still v0.9. Smoke: Dashboard → Finish update should show the in-app modal, not the browser dialog.
+**Content editor breadcrumbs** — Catalogue, Playlists, Galleries, Pages, and Branding use shared `{Section} > Pool|Editor` headings; root crumb returns to Pool (same leave path as ← Back). Preferred pattern documented in ADMIN-UI / AGENTS / `.cursor/rules/admin-breadcrumb-headings.mdc`. Smoke each Content tab Pool↔Editor on local admin if not already checked.
 
 ### Also pending
 
