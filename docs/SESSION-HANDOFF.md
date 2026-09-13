@@ -2,7 +2,7 @@
 
 ## Resume point
 
-**PCF brand must travel** — Import that only brought the campaign (dangling `brand_id`, Branding list missing Spandexual) is fixed: export/import now fail if the brand JSON is absent. Re-export from spandexualtension.com after Site update, or import the brand as a **PBF** then link it on the campaign. Also: Jobs SHA-pending UI fix (exports only).
+**PCF must include `data/brands/`** — Root cause: export cleared `brand_id` via registry normalize then omitted the brand file. Fixed to resolve/pack the brand from disk/ownership. On spandexualtension.com: Site update → re-export PCF → import here.
 
 ### Also pending
 

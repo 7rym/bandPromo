@@ -724,7 +724,7 @@ function bandpromo_campaign_collect_asset_ids(string $root, string $releaseId): 
         $add((string) ($track['asset_id'] ?? ''));
     }
 
-    $brandId = trim((string) ($release['brand_id'] ?? ''));
+    $brandId = bandpromo_campaign_portable_brand_id($root, $releaseId);
     if ($brandId !== '') {
         try {
             $brand = bandpromo_brand_load_document($root, $brandId);
@@ -735,7 +735,7 @@ function bandpromo_campaign_collect_asset_ids(string $root, string $releaseId): 
                 $add((string) $libraryId);
             }
         } catch (Throwable $throwable) {
-            // Brand optional.
+            // Brand file may be missing; export_prepare fails loudly separately.
         }
     }
 
@@ -850,6 +850,104 @@ function bandpromo_campaign_collect_asset_ids(string $root, string $releaseId): 
 }
 
 /**
+ * Brand id that must travel in a PCF for this campaign.
+ *
+ * Prefer the on-disk campaign brand_id when that brand file exists. Fall back to a brand
+ * owned by the campaign. Do not use load_document()'s registry-stripped brand_id alone —
+ * that clears stale ids and caused PCFs to ship campaign JSON with brand_id but no
+ * data/brands/ entry. Never fall back to install Base (that is a different identity).
+ */
+function bandpromo_campaign_portable_brand_id(string $root, string $releaseId): string
+{
+    require_once __DIR__ . '/brand-storage.php';
+
+    $releaseId = bandpromo_campaign_normalize_id($releaseId);
+    if ($releaseId === '') {
+        return '';
+    }
+
+    $brandFilePath = static function (string $brandId) use ($root): string {
+        $brandId = bandpromo_brand_canonical_id($brandId);
+        if ($brandId === '') {
+            return '';
+        }
+        $primary = bandpromo_brand_document_path($root, $brandId);
+        if (is_file($primary)) {
+            return $primary;
+        }
+        $legacy = bandpromo_brand_legacy_document_path($root, $brandId);
+        if (is_file($legacy)) {
+            return $legacy;
+        }
+
+        return '';
+    };
+
+    $rawBrandId = '';
+    $campaignPath = bandpromo_campaign_document_path($root, $releaseId);
+    if (is_file($campaignPath)) {
+        $raw = bandpromo_json_read_array_file($campaignPath);
+        if (is_array($raw)) {
+            $rawBrandId = bandpromo_brand_canonical_id((string) ($raw['brand_id'] ?? ''));
+        }
+    }
+    if ($rawBrandId !== '' && $brandFilePath($rawBrandId) !== '') {
+        return $rawBrandId;
+    }
+
+    try {
+        bandpromo_brand_ensure_seeded($root);
+        foreach (bandpromo_brand_registry_entries($root) as $meta) {
+            if (!is_array($meta)) {
+                continue;
+            }
+            $id = bandpromo_brand_canonical_id((string) ($meta['id'] ?? ''));
+            if ($id === '') {
+                continue;
+            }
+            try {
+                $brand = bandpromo_brand_load_document($root, $id);
+            } catch (Throwable $throwable) {
+                continue;
+            }
+            if (bandpromo_document_campaign_id($brand) !== $releaseId) {
+                continue;
+            }
+            if ($brandFilePath($id) !== '') {
+                return $id;
+            }
+        }
+    } catch (Throwable $throwable) {
+        // Fall through.
+    }
+
+    return $rawBrandId;
+}
+
+/**
+ * Absolute brand document path for a portable brand id (brands/ or legacy themes/).
+ */
+function bandpromo_campaign_portable_brand_file(string $root, string $brandId): string
+{
+    require_once __DIR__ . '/brand-storage.php';
+
+    $brandId = bandpromo_brand_canonical_id($brandId);
+    if ($brandId === '') {
+        return '';
+    }
+    $primary = bandpromo_brand_document_path($root, $brandId);
+    if (is_file($primary)) {
+        return $primary;
+    }
+    $legacy = bandpromo_brand_legacy_document_path($root, $brandId);
+    if (is_file($legacy)) {
+        return $legacy;
+    }
+
+    return '';
+}
+
+/**
  * Collect Portable Campaign File paths and write the registry subset (no checksum/zip yet).
  *
  * @param callable|null $onProgress
@@ -898,6 +996,19 @@ function bandpromo_campaign_export_prepare(string $root, string $releaseId, stri
         }
     }
 
+    $brandId = bandpromo_campaign_portable_brand_id($root, $releaseId);
+    if ($brandId === '') {
+        throw new RuntimeException(
+            'This campaign has no brand linked. Assign a brand under Content → Catalogue (or save the brand under Branding) before exporting a Portable Campaign File.'
+        );
+    }
+    $brandSourcePath = bandpromo_campaign_portable_brand_file($root, $brandId);
+    if ($brandSourcePath === '') {
+        throw new RuntimeException(
+            'Campaign brand is missing on disk (' . $brandId . '). Save or repair the brand under Content → Branding before exporting a Portable Campaign File.'
+        );
+    }
+
     $assetIds = bandpromo_campaign_collect_asset_ids($root, $releaseId);
     $paths = [];
     $addPath = static function (string $relative) use (&$paths, $root): void {
@@ -911,19 +1022,35 @@ function bandpromo_campaign_export_prepare(string $root, string $releaseId, stri
         }
     };
 
-    $addPath('data/campaigns/' . $releaseId . '.json');
-    $addPath('data/releases/' . $releaseId . '.json');
-    $brandId = bandpromo_brand_canonical_id((string) ($release['brand_id'] ?? ''));
-    if ($brandId !== '') {
-        $brandRelative = 'data/brands/' . $brandId . '.json';
-        $brandAbsolute = $root . DIRECTORY_SEPARATOR . str_replace('/', DIRECTORY_SEPARATOR, $brandRelative);
-        if (!is_file($brandAbsolute)) {
-            throw new RuntimeException(
-                'Campaign brand is missing on disk (' . $brandId . '). Save or repair the brand under Content → Branding before exporting a Portable Campaign File.'
-            );
-        }
-        $addPath($brandRelative);
+    $campaignRelative = 'data/campaigns/' . $releaseId . '.json';
+    $campaignAbsolute = $root . DIRECTORY_SEPARATOR . str_replace('/', DIRECTORY_SEPARATOR, $campaignRelative);
+    if (!is_file($campaignAbsolute)) {
+        $campaignRelative = 'data/releases/' . $releaseId . '.json';
+        $campaignAbsolute = $root . DIRECTORY_SEPARATOR . str_replace('/', DIRECTORY_SEPARATOR, $campaignRelative);
     }
+    if (!is_file($campaignAbsolute)) {
+        throw new RuntimeException('Campaign document is missing on disk for export.');
+    }
+    $campaignDoc = bandpromo_json_read_array_file($campaignAbsolute);
+    if (!is_array($campaignDoc)) {
+        throw new RuntimeException('Campaign document is invalid JSON.');
+    }
+    if (bandpromo_brand_canonical_id((string) ($campaignDoc['brand_id'] ?? '')) !== $brandId) {
+        $campaignDoc['brand_id'] = $brandId;
+        $healedDir = rtrim($workdir, "\\/") . DIRECTORY_SEPARATOR . 'data' . DIRECTORY_SEPARATOR . 'campaigns';
+        if (!is_dir($healedDir) && !mkdir($healedDir, 0755, true) && !is_dir($healedDir)) {
+            throw new RuntimeException('Could not stage a healed campaign document for export.');
+        }
+        $healedPath = $healedDir . DIRECTORY_SEPARATOR . $releaseId . '.json';
+        if (!bandpromo_json_write_file($healedPath, $campaignDoc)) {
+            throw new RuntimeException('Could not write healed campaign document for export.');
+        }
+        $paths['data/campaigns/' . $releaseId . '.json'] = $healedPath;
+    } else {
+        $paths['data/campaigns/' . $releaseId . '.json'] = $campaignAbsolute;
+    }
+
+    $paths['data/brands/' . $brandId . '.json'] = $brandSourcePath;
 
     foreach (bandpromo_playlist_registry_entries($root) as $entry) {
         $playlistId = bandpromo_playlist_normalize_id((string) ($entry['id'] ?? ''));

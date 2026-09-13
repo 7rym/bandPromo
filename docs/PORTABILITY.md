@@ -103,7 +103,7 @@ Prefer **PCF round-trips** for one-campaign moves. Use data export when moving a
 | Layer | Included | Notes |
 |-------|----------|-------|
 | **Release document** | `data/releases/{id}.json` | Title, dates, EPK, `poster_asset_id`, `brand_id`, `tracks[]` |
-| **Identity (brand)** | `data/brands/{id}.json` + complete curated Brand library | Required when the campaign `brand_id` is set. Export **fails** if that brand file is missing on disk; import **fails** before merge if the package omits it (no dangling Base / “No brand linked”). |
+| **Identity (brand)** | `data/brands/{id}.json` + complete curated Brand library | **Required.** Export resolves the brand from the on-disk campaign `brand_id` (when that file exists) or a brand owned by the campaign — not from `load_document()` alone, which can clear registry-orphan ids. Export fails if no brand file can be packed; import fails before merge if the package omits it. |
 | **Track masters** | `media/audio/master/*` | Canonical tagged masters; originals stay on the source host |
 | **Playlists** | Docs owned by the campaign (`campaign_id`, legacy `release_id` accepted) | Listening products |
 | **Galleries / pages** | Docs owned by the campaign (`campaign_id`, legacy `release_id` accepted) | Demo PCF: **Bio** + **Gallery** page (gallery block → demo gallery). Not FAQ. |
