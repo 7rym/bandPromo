@@ -16,9 +16,9 @@ Operator file handoff uses shared transport helpers — not per-feature streamer
 | Chunked upload | [`biblioteca/chunked-upload.php`](../biblioteca/chunked-upload.php) — append each part while uploading; optional `expected_sha256` only for assemblies ≤ 64 MB (larger expected-SHA verify is refused with a clear error) |
 | Admin JS | `bandpromoUploadChunked` / `bandpromoDownloadVerified` in [`biblioteca/admin.js`](../biblioteca/admin.js) |
 
-**Archive digest:** when a Jobs export becomes Ready, the job stores `size_bytes` + `sha256` of the archive file. Verified download refuses to save if either mismatches. Headers include `X-Checksum-SHA256`.
+**Archive digest:** when a Jobs **export** becomes Ready, the job stores `size_bytes` + `sha256` of the archive file (large packs may show “SHA pending…” until hashing finishes). Verified download refuses to save if either mismatches. Headers include `X-Checksum-SHA256`. **Import** jobs do not compute or display an archive SHA — they are not downloadable packages.
 
-**In-package digests:** PCF / PBF manifests include `file_digests` (per-path SHA-256 + size). Import verifies after extract. Site backup manifests include digests for non-media paths; when media is included, integrity for media bytes is the archive SHA-256 on the Jobs record (`media_integrity: archive_sha256`).
+**In-package digests:** PCF / PBF manifests include `file_digests` (per-path SHA-256 + size). Import verifies after extract, before merge. Site backup manifests include digests for non-media paths; when media is included, integrity for media bytes is the archive SHA-256 on the Jobs record (`media_integrity: archive_sha256`).
 
 Never tell operators these archives are ZIPs. Never put the zip’s own SHA-256 inside the zip.
 
@@ -103,7 +103,7 @@ Prefer **PCF round-trips** for one-campaign moves. Use data export when moving a
 | Layer | Included | Notes |
 |-------|----------|-------|
 | **Release document** | `data/releases/{id}.json` | Title, dates, EPK, `poster_asset_id`, `brand_id`, `tracks[]` |
-| **Identity (brand)** | `data/brands/{id}.json` + complete curated Brand library | Owned by the release; `library_asset_ids` includes Visual/SFX assets even when no shell slot currently uses them |
+| **Identity (brand)** | `data/brands/{id}.json` + complete curated Brand library | Required when the campaign `brand_id` is set. Export **fails** if that brand file is missing on disk; import **fails** before merge if the package omits it (no dangling Base / “No brand linked”). |
 | **Track masters** | `media/audio/master/*` | Canonical tagged masters; originals stay on the source host |
 | **Playlists** | Docs owned by the campaign (`campaign_id`, legacy `release_id` accepted) | Listening products |
 | **Galleries / pages** | Docs owned by the campaign (`campaign_id`, legacy `release_id` accepted) | Demo PCF: **Bio** + **Gallery** page (gallery block → demo gallery). Not FAQ. |
@@ -165,6 +165,7 @@ bandPromo does not operate a marketplace or take a cut. Ambassadors and release 
 - Same path-traversal validation bar as site backup import.
 - PCFs contain masters — treat downloads like backups (HTTPS, store safely).
 - Import refuses incompatible schema versions with plain-language upgrade instructions.
+- Campaign `brand_id` without a matching `data/brands/{id}.json` in the package is refused (export and import). In-package `file_digests` still verify after extract.
 
 ### 4. Portable Brand File (PBF) export / import
 

@@ -2,7 +2,7 @@
 
 ## Resume point
 
-**Campaign purge delete hotfix** — Entire-campaign delete typo fixed (`bandpromo_campaign_page_is_portable`). Retry Spandexual delete → PCF import after Site update. Then settle other hotfixes before Live preview parity (Shell | Player | Content).
+**PCF brand must travel** — Import that only brought the campaign (dangling `brand_id`, Branding list missing Spandexual) is fixed: export/import now fail if the brand JSON is absent. Re-export from spandexualtension.com after Site update, or import the brand as a **PBF** then link it on the campaign. Also: Jobs SHA-pending UI fix (exports only).
 
 ### Also pending
 

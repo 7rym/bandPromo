@@ -141,6 +141,42 @@ function bandpromo_campaign_import_from_directory(string $root, string $packageD
         require_once __DIR__ . '/chunked-upload.php';
         bandpromo_transfer_verify_extracted_digests($packageDir, $rawManifest['file_digests']);
     }
+
+    // Fail before merge when the campaign points at a brand the package did not ship.
+    $sourceReleaseIdForBrandCheck = bandpromo_campaign_normalize_id((string) ($manifest['release_id'] ?? ''));
+    $releaseCandidates = [];
+    if ($sourceReleaseIdForBrandCheck !== '') {
+        $releaseCandidates[] = $packageDir . DIRECTORY_SEPARATOR . 'data' . DIRECTORY_SEPARATOR . 'campaigns'
+            . DIRECTORY_SEPARATOR . $sourceReleaseIdForBrandCheck . '.json';
+        $releaseCandidates[] = $packageDir . DIRECTORY_SEPARATOR . 'data' . DIRECTORY_SEPARATOR . 'releases'
+            . DIRECTORY_SEPARATOR . $sourceReleaseIdForBrandCheck . '.json';
+    }
+    $packageRelease = null;
+    foreach ($releaseCandidates as $candidatePath) {
+        if (!is_file($candidatePath)) {
+            continue;
+        }
+        $decodedRelease = bandpromo_json_read_array_file($candidatePath);
+        if (is_array($decodedRelease)) {
+            $packageRelease = $decodedRelease;
+            break;
+        }
+    }
+    if (is_array($packageRelease)) {
+        $packageBrandId = bandpromo_brand_canonical_id((string) ($packageRelease['brand_id'] ?? ''));
+        if ($packageBrandId !== '') {
+            $packageBrandPath = $packageDir . DIRECTORY_SEPARATOR . 'data' . DIRECTORY_SEPARATOR . 'brands'
+                . DIRECTORY_SEPARATOR . $packageBrandId . '.json';
+            if (!is_file($packageBrandPath)) {
+                throw new RuntimeException(
+                    'This Portable Campaign File is missing its brand document (data/brands/'
+                    . $packageBrandId
+                    . '.json). Re-export from the source install after the brand exists on disk, or import that brand as a Portable Brand File first.'
+                );
+            }
+        }
+    }
+
     $mode = strtolower(trim((string) ($options['mode'] ?? 'operator')));
     $allowDemoOverwrite = !empty($options['allow_demo_overwrite']) || $mode === 'demo' || $mode === 'setup';
     $setActiveBrand = array_key_exists('set_active_brand', $options)
@@ -879,7 +915,14 @@ function bandpromo_campaign_export_prepare(string $root, string $releaseId, stri
     $addPath('data/releases/' . $releaseId . '.json');
     $brandId = bandpromo_brand_canonical_id((string) ($release['brand_id'] ?? ''));
     if ($brandId !== '') {
-        $addPath('data/brands/' . $brandId . '.json');
+        $brandRelative = 'data/brands/' . $brandId . '.json';
+        $brandAbsolute = $root . DIRECTORY_SEPARATOR . str_replace('/', DIRECTORY_SEPARATOR, $brandRelative);
+        if (!is_file($brandAbsolute)) {
+            throw new RuntimeException(
+                'Campaign brand is missing on disk (' . $brandId . '). Save or repair the brand under Content → Branding before exporting a Portable Campaign File.'
+            );
+        }
+        $addPath($brandRelative);
     }
 
     foreach (bandpromo_playlist_registry_entries($root) as $entry) {

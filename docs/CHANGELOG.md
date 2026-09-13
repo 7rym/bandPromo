@@ -2,6 +2,10 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-09-13 13:05 - PCF: refuse export when the campaign `brand_id` has no brand file on disk; refuse import before merge when the package omits that brand JSON. Stops silent “Imported” with Base / No brand linked (Spandexual-style dangling `brand_id`).
+
+2026-09-13 13:00 - Jobs: stop showing “SHA pending…” on Import PCF/PBF rows. That label is for export archives only; imports already verify in-package digests before merge. UI had treated any ready job over 64 MB as pending.
+
 2026-09-13 12:45 - Hotfix: campaign Entire-campaign delete fatals on `bandpromo_campaign_campaign_page_is_portable` (typo). Call the real `bandpromo_campaign_page_is_portable` so purge can remove owned pages.
 
 2026-09-13 12:15 - Checkpoint/publish Branding + player batch: Cover size and side covers, panel Fill labels, Login / status, soft-nav brand/URL/track/position fixes, Content Active paint, operator toggle/slider prefs. Live preview parity (Shell|Player|Content shared DOM) deferred until after Site update hotfixes.

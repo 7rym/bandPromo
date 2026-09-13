@@ -2857,7 +2857,7 @@ if ($tab === 'analytics') {
                                         $jobSha = trim((string) ($backupJob['sha256'] ?? ''));
                                         if ($jobSha !== '') {
                                             echo '<div class="text-muted" style="font-size:0.75rem;">SHA ' . htmlspecialchars(substr($jobSha, 0, 12)) . '…</div>';
-                                        } elseif ($jobStatus === 'ready' && (!empty($backupJob['sha256_pending']) || (int) ($backupJob['size_bytes'] ?? 0) > 64 * 1024 * 1024)) {
+                                        } elseif ($jobStatus === 'ready' && $jobDirection === 'export' && !empty($backupJob['sha256_pending'])) {
                                             echo '<div class="text-muted" style="font-size:0.75rem;">SHA pending…</div>';
                                         }
                                     ?></td>

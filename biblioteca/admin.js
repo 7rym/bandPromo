@@ -12952,7 +12952,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                             : '';
                         const shaLine = job.sha256
                             ? `<div class="text-muted" style="font-size:0.75rem;">SHA ${escapeHtml(String(job.sha256).slice(0, 12))}…</div>`
-                            : (job.status === 'ready' && (job.sha256_pending || Number(job.size_bytes || 0) > 64 * 1024 * 1024)
+                            : (job.status === 'ready' && job.direction === 'export' && job.sha256_pending
                                 ? `<div class="text-muted" style="font-size:0.75rem;">SHA pending…</div>`
                                 : '');
 
