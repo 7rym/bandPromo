@@ -2322,6 +2322,17 @@ if ($tab === 'analytics') {
             </div>
         </div>
 
+        <div class="modal-overlay" id="adminConfirmModal" style="display:none;" aria-hidden="true">
+            <div class="modal-box" role="dialog" aria-modal="true" aria-labelledby="adminConfirmModalTitle">
+                <h3 id="adminConfirmModalTitle">Please confirm</h3>
+                <p class="card-note" id="adminConfirmModalBody"></p>
+                <div class="page-unsaved-actions">
+                    <button type="button" class="btn btn-primary" id="adminConfirmModalConfirmBtn">Confirm</button>
+                    <button type="button" class="btn" id="adminConfirmModalCancelBtn">Cancel</button>
+                </div>
+            </div>
+        </div>
+
         <!-- ===================== SETTINGS TAB ===================== -->
         <div class="tab-content <?php echo $tab === 'settings' ? 'active' : ''; ?>">
 
@@ -3532,6 +3543,7 @@ if ($tab === 'analytics') {
     </script>
     <script src="biblioteca/site-contact.js?v=<?php echo filemtime(__DIR__ . '/biblioteca/site-contact.js'); ?>"></script>
     <script src="biblioteca/session-auth.js?v=<?php echo filemtime(__DIR__ . '/biblioteca/session-auth.js'); ?>"></script>
+    <script src="biblioteca/operator-confirm.js?v=<?php echo filemtime(__DIR__ . '/biblioteca/operator-confirm.js'); ?>"></script>
     <?php if ($tab === 'content'): ?>
     <script src="biblioteca/editor-sort.js?v=<?php echo filemtime(__DIR__ . '/biblioteca/editor-sort.js'); ?>"></script>
     <script src="biblioteca/content-save-ui.js?v=<?php echo filemtime(__DIR__ . '/biblioteca/content-save-ui.js'); ?>"></script>

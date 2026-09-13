@@ -42,7 +42,7 @@ Rules for this file:
 | 4 | v0.8 management slice: Brand, Visual pool, role tags, **master-tier completion**, content AI wizards | **Active — primary focus** |
 | 5 | Analytics storage: ActivityStore, SQLite events, rollups, legacy log migration | **Shipped (2026-07-13)** |
 | 6 | v0.8 exit gate (Campaign navigator, fleet sync, favicon/PWA, legacy refresh) | **Active — see [v0.8 exit gate](#v0-8-exit-gate-2026-08-31)** |
-| 7 | Operator Messaging Platform (toast → inbox, unified confirm) | **v0.9 Phase 1 — [OPERATOR-MESSAGING.md](OPERATOR-MESSAGING.md)** |
+| 7 | Operator Messaging Platform (toast → inbox; confirm shipped v0.8) | **v0.9 Phase 1 toast/inbox — [OPERATOR-MESSAGING.md](OPERATOR-MESSAGING.md)** |
 
 Access-tier **implementation** and Chromecast **implementation** belong to **v0.9+**; their **definitions** must be stable in v0.8 first. **Analytics storage implementation** also belongs to **v0.8** so beta installs are not crushed when v0.9 opens access.
 
@@ -461,7 +461,7 @@ Legacy checklist (superseded wording kept for history):
 
 **Explicitly deferred to v0.9 (not v0.8 blockers):**
 
-- Operator Messaging Platform (toast → inbox, unified confirm) — [OPERATOR-MESSAGING.md](OPERATOR-MESSAGING.md).
+- Operator Messaging Platform (toast → inbox) — [OPERATOR-MESSAGING.md](OPERATOR-MESSAGING.md). Shared admin `bandpromoConfirm` shipped in v0.8.
 - Content AI wizards — policy locked; implementation v0.9+.
 - Access tiers, anonymous entry, page OG runtime.
 - Community inbox and bandPromo support ticketing site (pre-v1).

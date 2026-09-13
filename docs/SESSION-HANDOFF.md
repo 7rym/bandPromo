@@ -2,7 +2,7 @@
 
 ## Resume point
 
-**Brand SFX missing from Files + PCF** — Spandexual Welcome / Logged-in play in Branding (optimal URLs) but were absent from Files → Sound effects and dropped from PCF when `media/sfx/master/` was missing. Fixed: promote optimal→master on export, heal/register delivery-only brand slots, list optimal-only SFX in Files. Site update, open Files → Sound effects once, then re-export PCF.
+**Admin in-app confirms (v0.8)** — `bandpromoConfirm` / `#adminConfirmModal` replaces native browser confirms in admin (Site update, Jobs, Backup import, editors, etc.). Toast→inbox OMP still v0.9. Smoke: Dashboard → Finish update should show the in-app modal, not the browser dialog.
 
 ### Also pending
 

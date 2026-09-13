@@ -548,7 +548,7 @@ Closed-beta fleet personas ([USE-CASES.md](USE-CASES.md)): **Vanilla** (bandprom
 - **Sharing** cards use container description + poster fields in storage; public OG runtime wiring is **v0.9**.
 
 - **Shipped now:** package updater; Backup & export; Branding; block-based Pages + gallery presets; unified Content editors; upload-time delivery; platform storage/API; SQLite activity store; playlist documents (legacy `play/playlist.json` removed); campaign-associated player page tabs; Brand shell override; Lyrics ↔ Notes; Content → Player layout retired; Demo PCF setup import; Catalogue campaign delete.
-- **In progress in v0.8:** player **Campaign navigator** (**exit gate — ship before new testers**); `media/special/` fold; Admin panel consistency pass; PCF fleet validation at latest build; favicon/PWA from Branding; legacy audit refresh. Brand export/import and gallery multi-select **shipped**. **Deferred to v0.9:** content AI wizards, Operator Messaging Platform ([OPERATOR-MESSAGING.md](OPERATOR-MESSAGING.md)), access tiers, page OG runtime.
+- **In progress in v0.8:** player **Campaign navigator** (**exit gate — ship before new testers**); `media/special/` fold; Admin panel consistency pass; PCF fleet validation at latest build; favicon/PWA from Branding; legacy audit refresh. Brand export/import and gallery multi-select **shipped**. Admin `bandpromoConfirm` **shipped** (native confirms replaced). **Deferred to v0.9:** content AI wizards, OMP toast→inbox ([OPERATOR-MESSAGING.md](OPERATOR-MESSAGING.md)), access tiers, page OG runtime.
 - **v0.8 exit gate (2026-08-31):** (1) Campaign navigator policy + ship + validate on Vanilla / Spandexual Tension / HITZ, (2) PCF/PBF smoke on active fleet (build **438** synced 2026-08-31; Twisted Chronicles deferred to v0.9), (3) favicon/PWA from Branding, (4) developer-only System → Audit/Security, (5) legacy audit refresh. **Do not expand tester pool until complete.** See [TODO.md](TODO.md) → v0.8 exit gate.
 - **Defined in v0.8, built in v0.9:** login/FAQ/shared-link flow with restricted anonymous entry, access tiers (VIP pre-access, anonymous released-only, etc.), user/VIP playlists, page OG tags.
 - **v1+:** fan credits, news module with timed release and social push, richer engagement modules (fanboard, feeds).
@@ -853,7 +853,7 @@ Before opening v0.9:
 - **v0.8 exit gate complete** — Player Campaign navigator shipped and validated on Vanilla / Spandexual Tension / HITZ; active fleet on latest published build with PCF/PBF smoke; favicon/PWA from Branding; legacy audit refreshed; developer-only Audit/Security ([TODO.md](TODO.md) → v0.8 exit gate). Twisted Chronicles rejoins via reinstall when v0.9 opens.
 - v0.8 platform deliverables are stable (multi-playlist/gallery, gallery module blocks, track deep links, delivery architecture)
 - access-tier and login/anonymous specs from v0.8 are complete and reviewed
-- **Operator Messaging Platform** — toast → inbox, unified confirm, operator settings ([OPERATOR-MESSAGING.md](OPERATOR-MESSAGING.md) Phase 1 as v0.9 opening sprint)
+- **Operator Messaging Platform** — toast → inbox, operator settings ([OPERATOR-MESSAGING.md](OPERATOR-MESSAGING.md) Phase 1 as v0.9 opening sprint). Shared admin confirm shipped in v0.8.
 - Chromecast/cast architecture is defined against the delivery model
 - multi-release and access-model assumptions are proven enough to continue
 - theme/module direction is stable enough not to be reworked immediately

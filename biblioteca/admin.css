@@ -523,6 +523,10 @@ button.danger:not(.btn):not(.icon-btn):hover { background: #d32f2f; }
     margin-top: 4px;
 }
 
+#adminConfirmModalBody {
+    white-space: pre-line;
+}
+
 .card-actions {
     display: flex;
     align-items: center;

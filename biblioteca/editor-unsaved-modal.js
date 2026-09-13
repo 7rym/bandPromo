@@ -96,6 +96,18 @@
 
         bindModal();
         if (!modalEl) {
+            if (typeof window.bandpromoConfirm === 'function') {
+                const proceed = await window.bandpromoConfirm({
+                    title: 'Unsaved changes',
+                    body: options.fallbackMessage
+                        || options.message
+                        || 'Leave without saving?',
+                    confirmLabel: 'Leave without saving',
+                    cancelLabel: 'Keep editing',
+                    tone: 'danger',
+                });
+                return proceed ? 'proceed' : 'abort';
+            }
             const proceed = window.confirm(
                 options.fallbackMessage
                 || options.message

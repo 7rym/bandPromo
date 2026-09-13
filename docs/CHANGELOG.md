@@ -2,6 +2,8 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-09-13 14:55 - Admin confirms: shared in-app `bandpromoConfirm` / `#adminConfirmModal` replaces native `window.confirm` for Site update, Security repair, Backup import, Jobs, Catalogue/Branding follow-ups, user delete, and editor leave/delete fallbacks. Toast→inbox OMP remains v0.9.
+
 2026-09-13 14:40 - Brand SFX: Welcome / Logged-in that only had `media/sfx/optimal/` (no master / missing Files index) now register, list under Files → Sound effects, and pack into PCF/PBF. Export promotes optimal→master instead of silently dropping the asset.
 
 2026-09-13 14:10 - Catalogue health: “missing content hashes” treated xxh3 or sha256 as present; hash backfill uses master when original is absent (PCF masters-only). Repair catalogue Apply now runs that backfill so the Welcome nag can clear.

@@ -1,6 +1,6 @@
 # Operator messaging (OMP)
 
-Policy for how bandPromo informs operators in the admin panel. **Defined in v0.8; implementation opens v0.9** — see [ROADMAP.md](ROADMAP.md) and [TODO.md](TODO.md).
+Policy for how bandPromo informs operators in the admin panel. **Confirm dialogs shipped in v0.8** (`bandpromoConfirm` / `#adminConfirmModal`). **Toast → inbox** implementation opens **v0.9** — see [ROADMAP.md](ROADMAP.md) and [TODO.md](TODO.md).
 
 ## Problem (v0.8 beta)
 
@@ -14,7 +14,7 @@ Operators currently see **three parallel channels**:
 
 Background work is split further: video/audio delivery appears in Notifications; backup / PCF / PBF jobs appear only under System → Jobs.
 
-Native `window.confirm` / `alert` / `prompt` (~20+ call sites) and seven bespoke delete modals add inconsistent confirmation UX.
+Native `window.confirm` for operator confirms is **replaced** in v0.8 by the shared in-app modal. Bespoke delete modals (page, media, brand, …) remain until a later consolidation pass.
 
 ## Target model (v0.9+)
 
@@ -58,22 +58,26 @@ Keep inline text **only** for:
 
 Stop using inline for global outcomes (“Building in background”, “Backup deleted”) — those become toast → inbox.
 
-### Confirm dialogs — one reusable component (v0.9)
+### Confirm dialogs — one reusable component (shipped v0.8)
 
-Replace native dialogs and per-feature delete modals with:
+Admin uses shared in-app confirms instead of native browser dialogs:
 
 ```js
-await bandpromoMessaging.confirm({
+await bandpromoConfirm({
   title: 'Delete backup job?',
   body: '…',
   confirmLabel: 'Delete backup',
+  cancelLabel: 'Cancel',
   tone: 'danger', // default | danger
 });
+// → Promise<boolean>
 ```
 
-Reuse the same module for unsaved-leave (Save / Discard / Cancel), destructive delete, site update install, and “Open in Catalogue?” follow-ups. Extend `editor-unsaved-modal.js` pattern; one `#adminConfirmModal` in markup.
+Implemented as [`biblioteca/operator-confirm.js`](../biblioteca/operator-confirm.js) + `#adminConfirmModal` in `admin.php`. Used for Site update install, Security stub repair, Backup import, Jobs cancel/delete fallbacks, Catalogue/Branding follow-ups, user delete, gallery/playlist/brand unsaved leave fallbacks, campaign purge/duplicate/Jobs follow-up, and the unsaved-modal markup-missing path.
 
-Native `confirm` / `alert` / `prompt` remain **dev-only fallbacks** when markup fails to load.
+Three-button unsaved leave (Save / Discard / Cancel) remains [`editor-unsaved-modal.js`](../biblioteca/editor-unsaved-modal.js) / `#contentUnsavedModal`. Existing feature delete modals stay until a consolidation pass.
+
+Native `confirm` / `alert` / `prompt` remain **dev-only fallbacks** when markup fails to load. Do not add new admin `window.confirm` call sites.
 
 ### Background jobs — unified adapter (v0.9 Phase 2)
 
@@ -97,17 +101,17 @@ Operator → bandPromo team reporting (install diagnostics, logs bundle). Respon
 
 Rationale: separates operator workflow from host diagnostics; pairs with OMP so system messages stay in inbox, not scattered dev tools.
 
-## v0.8 hygiene (no OMP implementation)
+## v0.8 hygiene
 
-- Do not add new `window.confirm` or duplicate toast helpers.
-- Backup Jobs feedback uses toasts (2026-08-31); delete uses shared modal pattern until v0.9 confirm library.
-- Document call-site inventory; full migration waits for v0.9 Phase 1.
+- Do not add new `window.confirm` or duplicate toast helpers; use `bandpromoConfirm` for binary confirms.
+- Backup Jobs feedback uses toasts (2026-08-31); delete uses shared modal pattern / `bandpromoConfirm` fallback.
+- Toast → inbox migration waits for v0.9 Phase 1.
 
 ## v0.9 implementation phases
 
 | Phase | Scope |
 |-------|--------|
-| **1 — Foundation** | `operator-messaging.php` store; `operator-messaging.js` (`notify`, `confirm`); operator toast/inbox settings; migrate confirms then toasts |
+| **1 — Foundation** | `operator-messaging.php` store; `operator-messaging.js` (`notify`); wrap or alias `bandpromoConfirm`; operator toast/inbox settings; migrate toasts |
 | **2 — Background work** | Unified job messages; inbox replaces Jobs/Notifications/toast triangle |
 | **3 — Community** | Fan → operator inbox; moderation actions |
 | **4 — Support** | Operator report-with-logs; bandPromo team replies via future support site |
@@ -118,4 +122,4 @@ Rationale: separates operator workflow from host diagnostics; pairs with OMP so 
 - [ROADMAP.md](ROADMAP.md) — v0.9 opening sprint
 - [TODO.md](TODO.md) — v0.8 exit gate vs v0.9 OMP tasks
 
-_Last updated: 2026-08-31_
+_Last updated: 2026-09-13_

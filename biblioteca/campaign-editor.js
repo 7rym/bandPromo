@@ -2413,14 +2413,22 @@
                 : 'Delete entire campaign';
         }
 
-        function openCampaignDeleteModal(campaignId) {
+        async function openCampaignDeleteModal(campaignId) {
             const entry = campaignEntry(campaignId);
             if (!entry || !campaignCanDelete(entry)) {
                 return;
             }
             const title = String(entry.title || campaignId);
             if (!campaignDeleteModal) {
-                if (!window.confirm(`Delete entire campaign "${title}"?\n\nRemoves owned brand, playlists, galleries, pages, and unused media. Shared media stays. This cannot be undone.`)) {
+                const confirmed = typeof window.bandpromoConfirm === 'function'
+                    ? await window.bandpromoConfirm({
+                        title: 'Delete entire campaign?',
+                        body: `Delete entire campaign "${title}"?\n\nRemoves owned brand, playlists, galleries, pages, and unused media. Shared media stays. This cannot be undone.`,
+                        confirmLabel: 'Delete entire campaign',
+                        tone: 'danger',
+                    })
+                    : window.confirm(`Delete entire campaign "${title}"?\n\nRemoves owned brand, playlists, galleries, pages, and unused media. Shared media stays. This cannot be undone.`);
+                if (!confirmed) {
                     return;
                 }
                 deleteCampaign(campaignId, 'purge').catch((error) => showCampaignToast(error.message || 'Could not delete campaign'));
@@ -2677,7 +2685,15 @@
             });
             const message = data.message || 'PCF export queued.';
             showCampaignToast(message);
-            if (window.confirm(`${message}\n\nOpen System → Backup, export & import to watch progress / download?`)) {
+            const openJobs = typeof window.bandpromoConfirm === 'function'
+                ? await window.bandpromoConfirm({
+                    title: 'PCF export queued',
+                    body: `${message}\n\nOpen System → Backup, export & import to watch progress / download?`,
+                    confirmLabel: 'Open Jobs',
+                    cancelLabel: 'Stay here',
+                })
+                : window.confirm(`${message}\n\nOpen System → Backup, export & import to watch progress / download?`);
+            if (openJobs) {
                 window.location.href = String(data.jobs_url || '?tab=system&stab=backup');
             }
         }
@@ -2688,7 +2704,14 @@
                 return;
             }
             const sourceTitle = String(entry.title || campaignId).trim() || campaignId;
-            if (!window.confirm(`Duplicate "${sourceTitle}" as a new campaign?\n\nNew containers; shared media files.`)) {
+            const confirmed = typeof window.bandpromoConfirm === 'function'
+                ? await window.bandpromoConfirm({
+                    title: 'Duplicate campaign?',
+                    body: `Duplicate "${sourceTitle}" as a new campaign?\n\nNew containers; shared media files.`,
+                    confirmLabel: 'Duplicate campaign',
+                })
+                : window.confirm(`Duplicate "${sourceTitle}" as a new campaign?\n\nNew containers; shared media files.`);
+            if (!confirmed) {
                 return;
             }
             const data = await fetchJson('/biblioteca/duplicate-campaign.php', {

@@ -380,6 +380,15 @@
                     return result === 'proceed';
                 }
                 if (hasUnsavedChanges()) {
+                    if (typeof window.bandpromoConfirm === 'function') {
+                        return window.bandpromoConfirm({
+                            title: 'Unsaved brand changes',
+                            body: 'You have unsaved brand changes. Leave edit mode without saving?',
+                            confirmLabel: 'Leave without saving',
+                            cancelLabel: 'Keep editing',
+                            tone: 'danger',
+                        });
+                    }
                     return window.confirm('You have unsaved brand changes. Leave edit mode without saving?');
                 }
                 return true;
@@ -1046,6 +1055,15 @@
                 return true;
             }
             if (!modal || typeof modal.confirmLeave !== 'function') {
+                if (typeof window.bandpromoConfirm === 'function') {
+                    return window.bandpromoConfirm({
+                        title: 'Unsaved brand changes',
+                        body: 'You have unsaved brand changes. Switch brands without saving?',
+                        confirmLabel: 'Switch without saving',
+                        cancelLabel: 'Keep editing',
+                        tone: 'danger',
+                    });
+                }
                 return window.confirm('You have unsaved brand changes. Switch brands without saving?');
             }
             const result = await modal.confirmLeave({
@@ -1594,14 +1612,22 @@
             }
         }
 
-        function openBrandDeleteModal(brandId) {
+        async function openBrandDeleteModal(brandId) {
             const entry = brandEntry(brandId);
             if (!entry || !brandCanDelete(entry)) {
                 return;
             }
             const title = String(entry.title || brandId);
             if (!deleteModal) {
-                if (!window.confirm(`Delete brand "${title}"? Its settings will be lost. This cannot be undone.`)) {
+                const confirmed = typeof window.bandpromoConfirm === 'function'
+                    ? await window.bandpromoConfirm({
+                        title: 'Delete brand?',
+                        body: `Delete brand "${title}"? Its settings will be lost. This cannot be undone.`,
+                        confirmLabel: 'Delete brand',
+                        tone: 'danger',
+                    })
+                    : window.confirm(`Delete brand "${title}"? Its settings will be lost. This cannot be undone.`);
+                if (!confirmed) {
                     return;
                 }
                 deleteBrand(brandId).catch((error) => notifyBrandError(error.message || 'Could not delete brand'));

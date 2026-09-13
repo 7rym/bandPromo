@@ -480,8 +480,18 @@ function closeUserModal() {
 }
 
 // ===== Delete user =====
-function deleteUser(username) {
-    if (!confirm(`Delete user "${username}"? This cannot be undone.`)) return;
+async function deleteUser(username) {
+    const confirmed = typeof window.bandpromoConfirm === 'function'
+        ? await window.bandpromoConfirm({
+            title: 'Delete user?',
+            body: `Delete user "${username}"? This cannot be undone.`,
+            confirmLabel: 'Delete user',
+            tone: 'danger',
+        })
+        : window.confirm(`Delete user "${username}"? This cannot be undone.`);
+    if (!confirmed) {
+        return;
+    }
     document.getElementById('deleteUserTarget').value = username;
     document.getElementById('deleteUserForm').submit();
 }
@@ -8438,6 +8448,15 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                             return result === 'proceed';
                         }
                         if (saveBtn.classList.contains('btn-amber')) {
+                            if (typeof window.bandpromoConfirm === 'function') {
+                                return window.bandpromoConfirm({
+                                    title: 'Unsaved gallery changes',
+                                    body: 'You have unsaved gallery changes. Leave edit mode without saving?',
+                                    confirmLabel: 'Leave without saving',
+                                    cancelLabel: 'Keep editing',
+                                    tone: 'danger',
+                                });
+                            }
                             return window.confirm('You have unsaved gallery changes. Leave edit mode without saving?');
                         }
                         return true;
@@ -8581,6 +8600,15 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                         return true;
                     }
                     if (!modal || typeof modal.confirmLeave !== 'function') {
+                        if (typeof window.bandpromoConfirm === 'function') {
+                            return window.bandpromoConfirm({
+                                title: 'Unsaved gallery changes',
+                                body: 'You have unsaved gallery changes. Switch galleries without saving?',
+                                confirmLabel: 'Switch without saving',
+                                cancelLabel: 'Keep editing',
+                                tone: 'danger',
+                            });
+                        }
                         return window.confirm('You have unsaved gallery changes. Switch galleries without saving?');
                     }
                     const result = await modal.confirmLeave({
@@ -8603,14 +8631,22 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     }
                 }
 
-                function openGalleryDeleteModal(galleryId) {
+                async function openGalleryDeleteModal(galleryId) {
                     const entry = galleryEntry(galleryId);
                     if (!entry || !galleryCanDelete(entry)) {
                         return;
                     }
                     const title = String(entry.title || galleryId);
                     if (!galleryDeleteModal) {
-                        if (!window.confirm(`Delete gallery "${title}"? Its content order will be lost. This cannot be undone.`)) {
+                        const confirmed = typeof window.bandpromoConfirm === 'function'
+                            ? await window.bandpromoConfirm({
+                                title: 'Delete gallery?',
+                                body: `Delete gallery "${title}"? Its content order will be lost. This cannot be undone.`,
+                                confirmLabel: 'Delete gallery',
+                                tone: 'danger',
+                            })
+                            : window.confirm(`Delete gallery "${title}"? Its content order will be lost. This cannot be undone.`);
+                        if (!confirmed) {
                             return;
                         }
                         deleteGallery(galleryId).catch((error) => alert(error.message || 'Could not delete gallery'));
@@ -9630,6 +9666,15 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                             return result === 'proceed';
                         }
                         if (saveBtn.classList.contains('btn-amber')) {
+                            if (typeof window.bandpromoConfirm === 'function') {
+                                return window.bandpromoConfirm({
+                                    title: 'Unsaved playlist changes',
+                                    body: 'You have unsaved playlist changes. Leave edit mode without saving?',
+                                    confirmLabel: 'Leave without saving',
+                                    cancelLabel: 'Keep editing',
+                                    tone: 'danger',
+                                });
+                            }
                             return window.confirm('You have unsaved playlist changes. Leave edit mode without saving?');
                         }
                         return true;
@@ -10200,6 +10245,15 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                         return true;
                     }
                     if (!modal || typeof modal.confirmLeave !== 'function') {
+                        if (typeof window.bandpromoConfirm === 'function') {
+                            return window.bandpromoConfirm({
+                                title: 'Unsaved playlist changes',
+                                body: 'You have unsaved playlist changes. Switch playlists without saving?',
+                                confirmLabel: 'Switch without saving',
+                                cancelLabel: 'Keep editing',
+                                tone: 'danger',
+                            });
+                        }
                         return window.confirm('You have unsaved playlist changes. Switch playlists without saving?');
                     }
                     const result = await modal.confirmLeave({
@@ -10222,14 +10276,22 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     }
                 }
 
-                function openPlaylistDeleteModal(playlistId) {
+                async function openPlaylistDeleteModal(playlistId) {
                     const entry = playlistEntry(playlistId);
                     if (!entry || !playlistCanDelete(entry)) {
                         return;
                     }
                     const title = String(entry.title || playlistId);
                     if (!playlistDeleteModal) {
-                        if (!window.confirm(`Delete playlist "${title}"? Its track order will be lost. This cannot be undone.`)) {
+                        const confirmed = typeof window.bandpromoConfirm === 'function'
+                            ? await window.bandpromoConfirm({
+                                title: 'Delete playlist?',
+                                body: `Delete playlist "${title}"? Its track order will be lost. This cannot be undone.`,
+                                confirmLabel: 'Delete playlist',
+                                tone: 'danger',
+                            })
+                            : window.confirm(`Delete playlist "${title}"? Its track order will be lost. This cannot be undone.`);
+                        if (!confirmed) {
                             return;
                         }
                         deletePlaylist(playlistId).catch((error) => alert(error.message || 'Could not delete playlist'));
@@ -12478,9 +12540,16 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     }
 
                     const remote = latestStatus.remote_version || 'the new version';
-                    const confirmed = window.confirm(
-                        `Install ${remote} now?\n\nYour music, pages, and settings stay safe.`
-                    );
+                    const confirmed = typeof window.bandpromoConfirm === 'function'
+                        ? await window.bandpromoConfirm({
+                            title: 'Install site update?',
+                            body: `Install ${remote} now?\n\nYour music, pages, and settings stay safe.`,
+                            confirmLabel: 'Install update',
+                            tone: 'default',
+                        })
+                        : window.confirm(
+                            `Install ${remote} now?\n\nYour music, pages, and settings stay safe.`
+                        );
                     if (!confirmed) {
                         return;
                     }
@@ -12779,14 +12848,24 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     if (count <= 0) {
                         return;
                     }
-                    const confirmed = window.confirm(
-                        'Repair managed Apache/PHP protection stubs from templates?\n\n'
-                        + 'Missing and drifted managed files will be overwritten. web-config.json is never changed here.'
-                    );
-                    if (!confirmed) {
-                        return;
-                    }
-                    runRepair(false).catch(() => {});
+                    const run = async () => {
+                        const confirmed = typeof window.bandpromoConfirm === 'function'
+                            ? await window.bandpromoConfirm({
+                                title: 'Repair protection stubs?',
+                                body: 'Missing and drifted managed Apache/PHP protection stubs will be overwritten from templates. web-config.json is never changed here.',
+                                confirmLabel: 'Repair stubs',
+                                tone: 'danger',
+                            })
+                            : window.confirm(
+                                'Repair managed Apache/PHP protection stubs from templates?\n\n'
+                                + 'Missing and drifted managed files will be overwritten. web-config.json is never changed here.'
+                            );
+                        if (!confirmed) {
+                            return;
+                        }
+                        await runRepair(false);
+                    };
+                    run().catch(() => {});
                 });
 
                 runCheck().catch(() => {});
@@ -13127,13 +13206,21 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     }
                 }
 
-                function openBackupDeleteModal(jobId, label) {
+                async function openBackupDeleteModal(jobId, label) {
                     if (!jobId) {
                         return;
                     }
                     const displayLabel = String(label || jobId).trim() || jobId;
                     if (!siteBackupDeleteModal) {
-                        if (!window.confirm(`Delete "${displayLabel}" from the server? This cannot be undone.`)) {
+                        const confirmed = typeof window.bandpromoConfirm === 'function'
+                            ? await window.bandpromoConfirm({
+                                title: 'Delete job file?',
+                                body: `Delete "${displayLabel}" from the server? This cannot be undone.`,
+                                confirmLabel: 'Delete',
+                                tone: 'danger',
+                            })
+                            : window.confirm(`Delete "${displayLabel}" from the server? This cannot be undone.`);
+                        if (!confirmed) {
                             return;
                         }
                         deleteBackup(jobId).catch(() => {});
@@ -13246,10 +13333,22 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                                 return;
                             }
                             const label = cancelBtn.getAttribute('data-backup-label') || jobId;
-                            if (!window.confirm(`Cancel "${label}"? You can queue the export again afterwards.`)) {
-                                return;
-                            }
-                            cancelBackup(jobId).catch(() => {});
+                            const runCancel = async () => {
+                                const confirmed = typeof window.bandpromoConfirm === 'function'
+                                    ? await window.bandpromoConfirm({
+                                        title: 'Cancel job?',
+                                        body: `Cancel "${label}"? You can queue the export again afterwards.`,
+                                        confirmLabel: 'Cancel job',
+                                        cancelLabel: 'Keep running',
+                                        tone: 'danger',
+                                    })
+                                    : window.confirm(`Cancel "${label}"? You can queue the export again afterwards.`);
+                                if (!confirmed) {
+                                    return;
+                                }
+                                await cancelBackup(jobId);
+                            };
+                            runCancel().catch(() => {});
                             return;
                         }
                         const deleteBtn = target.closest('.site-backup-delete-btn');
@@ -13497,9 +13596,16 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
 
                     const mode = importMode ? importMode.value : 'restore';
                     const componentLabels = components.join(', ');
-                    const confirmed = window.confirm(
-                        `Import ${componentLabels} from this archive?\n\nThis overwrites matching files on this site.`
-                    );
+                    const confirmed = typeof window.bandpromoConfirm === 'function'
+                        ? await window.bandpromoConfirm({
+                            title: 'Import backup?',
+                            body: `Import ${componentLabels} from this archive?\n\nThis overwrites matching files on this site.`,
+                            confirmLabel: 'Import archive',
+                            tone: 'danger',
+                        })
+                        : window.confirm(
+                            `Import ${componentLabels} from this archive?\n\nThis overwrites matching files on this site.`
+                        );
                     if (!confirmed) {
                         return;
                     }
@@ -13829,7 +13935,17 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                         if (campaignPackageImportStatus) {
                             campaignPackageImportStatus.textContent = message;
                         }
-                        if (campaignId && window.confirm(`${message}\n\nOpen it in Content → Catalogue?`)) {
+                        if (campaignId && typeof window.bandpromoConfirm === 'function') {
+                            const openCatalogue = await window.bandpromoConfirm({
+                                title: 'Campaign imported',
+                                body: `${message}\n\nOpen it in Content → Catalogue?`,
+                                confirmLabel: 'Open Catalogue',
+                                cancelLabel: 'Stay here',
+                            });
+                            if (openCatalogue) {
+                                window.location.href = `?tab=content&cntab=campaign&campaign=${encodeURIComponent(campaignId)}&edit=1`;
+                            }
+                        } else if (campaignId && window.confirm(`${message}\n\nOpen it in Content → Catalogue?`)) {
                             window.location.href = `?tab=content&cntab=campaign&campaign=${encodeURIComponent(campaignId)}&edit=1`;
                         }
                     } catch (error) {
@@ -14096,7 +14212,17 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                         if (brandPackageImportStatus) {
                             brandPackageImportStatus.textContent = message;
                         }
-                        if (brandId && window.confirm(`${message}\n\nOpen it in Content → Branding?`)) {
+                        if (brandId && typeof window.bandpromoConfirm === 'function') {
+                            const openBranding = await window.bandpromoConfirm({
+                                title: 'Brand imported',
+                                body: `${message}\n\nOpen it in Content → Branding?`,
+                                confirmLabel: 'Open Branding',
+                                cancelLabel: 'Stay here',
+                            });
+                            if (openBranding) {
+                                window.location.href = `?tab=content&cntab=branding&brand=${encodeURIComponent(brandId)}`;
+                            }
+                        } else if (brandId && window.confirm(`${message}\n\nOpen it in Content → Branding?`)) {
                             window.location.href = `?tab=content&cntab=branding&brand=${encodeURIComponent(brandId)}`;
                         }
                         loadBrandPackageExportOptions().catch(() => {});
