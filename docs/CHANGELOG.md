@@ -2,6 +2,8 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-09-13 14:10 - Catalogue health: “missing content hashes” treated xxh3 or sha256 as present; hash backfill uses master when original is absent (PCF masters-only). Repair catalogue Apply now runs that backfill so the Welcome nag can clear.
+
 2026-09-13 13:55 - PCF export: always pack `data/brands/{id}.json`. Export used `load_document()` which clears `brand_id` when the brand is absent from the registry, then skipped the brand file while still copying the raw campaign JSON (Spandexual PCFs had brand_id but no brands folder). Resolve brand from on-disk id / campaign-owned brand and require the file.
 
 2026-09-13 13:45 - Backup Jobs: stop wiping the list to a single optimistic row when queueing PCF/PBF export/import. Merge the new job into the existing table and ignore stale list refreshes so a running job cannot disappear until a full page reload.

@@ -1184,6 +1184,73 @@ function bandpromo_content_autofix_heal_visual_display(string $root, bool $dryRu
 }
 
 /**
+ * Backfill content_xxh3 / content_sha256 for visual images (original or master bytes).
+ * Clears the Welcome “missing content hashes” nag for masters-only installs.
+ */
+function bandpromo_content_autofix_backfill_visual_content_hashes(string $root, bool $dryRun): array
+{
+    require_once __DIR__ . '/asset-registry.php';
+
+    $step = bandpromo_content_autofix_step_result(
+        'visual_content_hashes',
+        'Backfill visual content hashes for dedupe'
+    );
+
+    $registry = bandpromo_asset_load_registry($root);
+    $pending = 0;
+    $items = [];
+    foreach ($registry['assets'] as $assetId => $asset) {
+        if (!is_array($asset) || ($asset['kind'] ?? '') !== 'visual' || ($asset['media_type'] ?? '') !== 'image') {
+            continue;
+        }
+        $hasXxh3 = strtolower(trim((string) ($asset['content_xxh3'] ?? ''))) !== '';
+        $hasSha = strtolower(trim((string) ($asset['content_sha256'] ?? ''))) !== '';
+        if ($hasXxh3 && $hasSha) {
+            continue;
+        }
+        $source = bandpromo_asset_visual_content_hash_source_path($root, $asset);
+        if ($source === '') {
+            continue;
+        }
+        $pending++;
+        if (count($items) < 12) {
+            $items[] = [
+                'asset_id' => (string) $assetId,
+                'source' => basename($source),
+            ];
+        }
+    }
+
+    if ($dryRun) {
+        $step['changed'] = $pending;
+        $step['items'] = $items;
+        if ($pending === 0) {
+            $step['skipped'] = 1;
+        }
+
+        return $step;
+    }
+
+    if ($pending === 0) {
+        $step['skipped'] = 1;
+
+        return $step;
+    }
+
+    $changed = bandpromo_asset_registry_backfill_visual_content_hashes($root, $registry);
+    if ($changed) {
+        bandpromo_asset_write_registry($root, $registry);
+    }
+    $step['changed'] = $changed ? $pending : 0;
+    $step['items'] = $items;
+    if (!$changed) {
+        $step['skipped'] = 1;
+    }
+
+    return $step;
+}
+
+/**
  * Relocate visual originals + materialize media/visual/master/ast_* (M2).
  * Video masters remux to MKV.
  */
@@ -1340,6 +1407,7 @@ function bandpromo_content_autofix_run(string $root, bool $dryRun = false, strin
         'bandpromo_content_autofix_materialize_audio_masters',
         'bandpromo_content_autofix_canonicalize_master_filenames',
         'bandpromo_content_autofix_materialize_visual_masters',
+        'bandpromo_content_autofix_backfill_visual_content_hashes',
         'bandpromo_content_autofix_heal_visual_display',
         'bandpromo_content_autofix_orphan_primary_uploads',
         'bandpromo_content_autofix_orphan_visual_delivery',

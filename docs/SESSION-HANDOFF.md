@@ -2,7 +2,7 @@
 
 ## Resume point
 
-**PCF must include `data/brands/`** — Root cause: export cleared `brand_id` via registry normalize then omitted the brand file. Fixed to resolve/pack the brand from disk/ownership. On spandexualtension.com: Site update → re-export PCF → import here.
+**Catalogue repair hash nag** — Welcome “23 visuals missing content hashes” ignored masters-only rows; Repair did not backfill. Fixed in next build: hash from master, xxh3|sha256 counts as present, Repair Apply backfills. Also: Site update to **472+** for PCF brand packing.
 
 ### Also pending
 

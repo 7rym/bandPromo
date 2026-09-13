@@ -177,6 +177,41 @@ function bandpromo_asset_visual_original_path(string $root, array $asset): strin
     return bandpromo_asset_visual_legacy_original_path($root, $asset);
 }
 
+/**
+ * Best on-disk bytes for visual content hashing: intake original, else durable master.
+ * PCF/PBF installs are masters-only; hashing must not require originals.
+ */
+function bandpromo_asset_visual_content_hash_source_path(string $root, array $asset): string
+{
+    $original = bandpromo_asset_visual_original_path($root, $asset);
+    if ($original !== '' && is_file($original)) {
+        return $original;
+    }
+
+    require_once __DIR__ . '/visual-master-helpers.php';
+
+    $assetId = trim((string) ($asset['id'] ?? ''));
+    if ($assetId === '' || !bandpromo_asset_is_asset_id($assetId)) {
+        return '';
+    }
+    $format = strtolower(trim((string) ($asset['master_format'] ?? '')));
+    if ($format === '') {
+        $format = strtolower((string) pathinfo((string) ($asset['master_filename'] ?? ''), PATHINFO_EXTENSION));
+    }
+    if ($format === '') {
+        $format = strtolower((string) pathinfo((string) ($asset['original_filename'] ?? ''), PATHINFO_EXTENSION));
+    }
+    if ($format === '') {
+        return '';
+    }
+    $master = bandpromo_visual_master_path($root, $assetId, $format);
+    if ($master !== '' && is_file($master)) {
+        return $master;
+    }
+
+    return '';
+}
+
 function bandpromo_asset_file_sha256(string $path): string
 {
     if ($path === '' || !is_file($path)) {
@@ -257,7 +292,7 @@ function bandpromo_asset_ensure_visual_content_sha256(string $root, string $asse
     if ($existingXxh3 !== '' && $existingSha !== '') {
         return $existingXxh3;
     }
-    $path = bandpromo_asset_visual_original_path($root, $asset);
+    $path = bandpromo_asset_visual_content_hash_source_path($root, $asset);
     if ($path === '' || !is_file($path)) {
         return $existingXxh3 !== '' ? $existingXxh3 : $existingSha;
     }
@@ -1512,7 +1547,7 @@ function bandpromo_asset_registry_prune_duplicate_visuals(array &$registry): boo
 }
 
 /**
- * Backfill content_sha256 on visual image assets from intake originals.
+ * Backfill content_xxh3 / content_sha256 on visual image assets from original or master bytes.
  */
 function bandpromo_asset_registry_backfill_visual_content_hashes(string $root, array &$registry): bool
 {
@@ -1525,15 +1560,32 @@ function bandpromo_asset_registry_backfill_visual_content_hashes(string $root, a
         if (!is_array($asset) || ($asset['kind'] ?? '') !== 'visual' || ($asset['media_type'] ?? '') !== 'image') {
             continue;
         }
-        if (strtolower(trim((string) ($asset['content_sha256'] ?? ''))) !== '') {
+        $existingXxh3 = strtolower(trim((string) ($asset['content_xxh3'] ?? '')));
+        $existingSha = strtolower(trim((string) ($asset['content_sha256'] ?? '')));
+        if ($existingXxh3 !== '' && $existingSha !== '') {
             continue;
         }
-        $path = bandpromo_asset_visual_original_path($root, $asset);
-        $hash = bandpromo_asset_file_sha256($path);
-        if ($hash === '') {
+        $path = bandpromo_asset_visual_content_hash_source_path($root, $asset);
+        if ($path === '') {
             continue;
         }
-        $asset['content_sha256'] = $hash;
+        if ($existingXxh3 === '') {
+            $xxh3 = bandpromo_asset_file_xxh3($path);
+            if ($xxh3 !== '') {
+                $asset['content_xxh3'] = $xxh3;
+                $existingXxh3 = $xxh3;
+            }
+        }
+        if ($existingSha === '') {
+            $hash = bandpromo_asset_file_sha256($path);
+            if ($hash !== '') {
+                $asset['content_sha256'] = $hash;
+                $existingSha = $hash;
+            }
+        }
+        if ($existingXxh3 === '' && $existingSha === '') {
+            continue;
+        }
         $normalized = bandpromo_asset_normalize_entry($asset);
         if ($normalized === null) {
             continue;
@@ -2278,7 +2330,9 @@ function bandpromo_asset_registry_health_snapshot(string $root): array
             if (!$hasCard && !$hasThumb) {
                 $missingImageDelivery++;
             }
-            if (strtolower(trim((string) ($asset['content_sha256'] ?? ''))) === '') {
+            $hasXxh3 = strtolower(trim((string) ($asset['content_xxh3'] ?? ''))) !== '';
+            $hasSha = strtolower(trim((string) ($asset['content_sha256'] ?? ''))) !== '';
+            if (!$hasXxh3 && !$hasSha) {
                 $missingContentHash++;
             }
         }
