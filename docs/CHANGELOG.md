@@ -2,6 +2,8 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-09-14 13:20 - Published **v0.8.55 build 482** (`v0.8.55-build-482`): audio master-first reconcile + playlist missing-master honesty for HITZ salvage.
+
 2026-09-14 13:00 - Audio master-first reconcile: Publish / Refresh / Repair catalogue / catalogue build re-register uncatalogued `media/audio/master/ast_*` into the registry and Files → Audio (never delete leftovers; never invent originals). Size-based prune of unregistered masters disabled. HITZ-style masters-only drift now surfaces as Orphans instead of invisible disk-only files.
 
 2026-09-14 11:00 - Playlist editor: do not hide playlist entries whose masters are missing from the Files delivery pool (show as unresolved rows). Pool preview track count uses document entry count, not a leftover editor session list. Explains HITZ “Pool 12 tracks / Editor empty” when Retroscopy audio is unregistered or gone.
