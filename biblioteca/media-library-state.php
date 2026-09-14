@@ -501,6 +501,43 @@ function bandpromo_media_files_index_save(array $files): bool
     return bandpromo_media_library_save_state($state);
 }
 
+/**
+ * Exclusive lock for Files index rebuilds (prevents clear-then-partial-write races).
+ *
+ * @return resource|null
+ */
+function bandpromo_media_files_index_acquire_lock()
+{
+    $path = dirname(__DIR__) . '/data/media-library-state.lock';
+    $dir = dirname($path);
+    if (!is_dir($dir) && !@mkdir($dir, 0777, true) && !is_dir($dir)) {
+        return null;
+    }
+    $handle = @fopen($path, 'c+');
+    if ($handle === false) {
+        return null;
+    }
+    if (!flock($handle, LOCK_EX)) {
+        fclose($handle);
+
+        return null;
+    }
+
+    return $handle;
+}
+
+/**
+ * @param resource|null $handle
+ */
+function bandpromo_media_files_index_release_lock($handle): void
+{
+    if (!is_resource($handle)) {
+        return;
+    }
+    flock($handle, LOCK_UN);
+    fclose($handle);
+}
+
 function bandpromo_media_files_index_remove(string $target, string $filename): void
 {
     $files = bandpromo_media_files_index_load();
@@ -783,25 +820,32 @@ function bandpromo_media_files_index_sync_file(string $root, string $target, str
     require_once __DIR__ . '/media-delivery-helpers.php';
     require_once __DIR__ . '/audio-master-helpers.php';
 
+    $persist = ($options['persist'] ?? true) !== false;
     $filename = basename(trim($filename));
     if ($filename === '' || strcasecmp($filename, 'desktop.ini') === 0) {
         return null;
     }
     if (bandpromo_media_is_generated_delivery_artifact($filename)) {
-        bandpromo_media_files_index_remove($target, $filename);
+        if ($persist) {
+            bandpromo_media_files_index_remove($target, $filename);
+        }
 
         return null;
     }
 
     if ($target === 'audio' && !bandpromo_media_is_audio_pool_filename($filename)) {
-        bandpromo_media_files_index_remove($target, $filename);
+        if ($persist) {
+            bandpromo_media_files_index_remove($target, $filename);
+        }
 
         return null;
     }
 
     $source = bandpromo_media_files_index_resolve_source($root, $target, $filename);
     if ($source === null) {
-        bandpromo_media_files_index_remove($target, $filename);
+        if ($persist) {
+            bandpromo_media_files_index_remove($target, $filename);
+        }
 
         return null;
     }
@@ -809,9 +853,11 @@ function bandpromo_media_files_index_sync_file(string $root, string $target, str
     $path = $source['path'];
     $listingName = $source['name'];
     if ($target === 'audio' && !bandpromo_media_is_audio_pool_filename($listingName)) {
-        bandpromo_media_files_index_remove($target, $filename);
-        if ($listingName !== $filename) {
-            bandpromo_media_files_index_remove($target, $listingName);
+        if ($persist) {
+            bandpromo_media_files_index_remove($target, $filename);
+            if ($listingName !== $filename) {
+                bandpromo_media_files_index_remove($target, $listingName);
+            }
         }
 
         return null;
@@ -824,21 +870,11 @@ function bandpromo_media_files_index_sync_file(string $root, string $target, str
         PATHINFO_EXTENSION
     ));
 
-    $files = bandpromo_media_files_index_load();
+    $files = is_array($options['files_snapshot'] ?? null)
+        ? $options['files_snapshot']
+        : bandpromo_media_files_index_load();
     $key = bandpromo_media_files_index_key($target, $listingName);
     $existing = is_array($files[$key] ?? null) ? $files[$key] : null;
-    if ($listingName !== $filename) {
-        $requestedKey = bandpromo_media_files_index_key($target, $filename);
-        if ($requestedKey !== $key) {
-            unset($files[$requestedKey]);
-        }
-    }
-    if ($originalLabel !== '' && $originalLabel !== $listingName) {
-        $originalKey = bandpromo_media_files_index_key($target, $originalLabel);
-        if ($originalKey !== $key) {
-            unset($files[$originalKey]);
-        }
-    }
     $originOption = trim((string) ($options['origin'] ?? ''));
     if ($originOption === 'user-upload' || $originOption === 'bundled-placeholder') {
         $origin = $originOption;
@@ -889,6 +925,23 @@ function bandpromo_media_files_index_sync_file(string $root, string $target, str
         $entry['delivery_pending'] = !empty($videoMeta['needs_delivery']);
     }
 
+    if (!$persist) {
+        return $entry;
+    }
+
+    if ($listingName !== $filename) {
+        $requestedKey = bandpromo_media_files_index_key($target, $filename);
+        if ($requestedKey !== $key) {
+            unset($files[$requestedKey]);
+        }
+    }
+    if ($originalLabel !== '' && $originalLabel !== $listingName) {
+        $originalKey = bandpromo_media_files_index_key($target, $originalLabel);
+        if ($originalKey !== $key) {
+            unset($files[$originalKey]);
+        }
+    }
+
     $files[$key] = $entry;
     bandpromo_media_files_index_save($files);
 
@@ -898,13 +951,50 @@ function bandpromo_media_files_index_sync_file(string $root, string $target, str
 /**
  * Index registry assets by master_filename (working copy identity).
  * Originals are labels only — do not skip when an original also exists on disk.
+ *
+ * When $batchFiles is provided, entries are merged into that map (persist=false)
+ * instead of load/save per file — used by atomic rebuild_target.
+ *
+ * @param array<string, mixed>|null $batchFiles
+ * @param array<string, mixed>|null $originSnapshot Prior index rows for origin preservation
  */
-function bandpromo_media_files_index_rebuild_registry_rows(string $root, string $target): int
-{
+function bandpromo_media_files_index_rebuild_registry_rows(
+    string $root,
+    string $target,
+    ?array &$batchFiles = null,
+    ?array $originSnapshot = null
+): int {
     require_once __DIR__ . '/asset-registry.php';
 
     $count = 0;
     $registry = bandpromo_asset_load_registry($root);
+    $persist = $batchFiles === null;
+    $syncOptions = [
+        'persist' => $persist,
+    ];
+    if (!$persist && is_array($originSnapshot)) {
+        $syncOptions['files_snapshot'] = $originSnapshot;
+    }
+
+    $accept = static function (string $listing) use ($root, $target, &$batchFiles, &$count, $syncOptions): void {
+        $entry = bandpromo_media_files_index_sync_file($root, $target, $listing, $syncOptions);
+        if ($entry === null) {
+            return;
+        }
+        if (is_array($batchFiles)) {
+            $listingName = (string) ($entry['name'] ?? $listing);
+            $key = bandpromo_media_files_index_key($target, $listingName);
+            if ($listingName !== $listing) {
+                unset($batchFiles[bandpromo_media_files_index_key($target, $listing)]);
+            }
+            $originalLabel = basename(trim((string) ($entry['original_filename'] ?? '')));
+            if ($originalLabel !== '' && $originalLabel !== $listingName) {
+                unset($batchFiles[bandpromo_media_files_index_key($target, $originalLabel)]);
+            }
+            $batchFiles[$key] = $entry;
+        }
+        $count++;
+    };
 
     foreach ($registry['assets'] as $asset) {
         if (!is_array($asset)) {
@@ -922,9 +1012,7 @@ function bandpromo_media_files_index_rebuild_registry_rows(string $root, string 
             if ($listing === '') {
                 continue;
             }
-            if (bandpromo_media_files_index_sync_file($root, $target, $listing) !== null) {
-                $count++;
-            }
+            $accept($listing);
             continue;
         }
 
@@ -946,9 +1034,7 @@ function bandpromo_media_files_index_rebuild_registry_rows(string $root, string 
             if ($listing === '') {
                 continue;
             }
-            if (bandpromo_media_files_index_sync_file($root, $target, $listing) !== null) {
-                $count++;
-            }
+            $accept($listing);
             continue;
         }
 
@@ -980,9 +1066,7 @@ function bandpromo_media_files_index_rebuild_registry_rows(string $root, string 
             ) {
                 continue;
             }
-            if (bandpromo_media_files_index_sync_file($root, $target, $listing) !== null) {
-                $count++;
-            }
+            $accept($listing);
             continue;
         }
 
@@ -1019,7 +1103,96 @@ function bandpromo_media_files_index_rebuild_registry_rows(string $root, string 
         ) {
             continue;
         }
-        if (bandpromo_media_files_index_sync_file($root, $target, $listing) !== null) {
+        $accept($listing);
+    }
+
+    return $count;
+}
+
+/**
+ * How many registry assets should appear under one Files target (for undercount repair).
+ * Only count rows that can resolve on disk — ghost registry entries must not force
+ * endless rebuild loops when indexed << registry.
+ */
+function bandpromo_media_files_index_registry_expected_count(string $root, string $target): int
+{
+    require_once __DIR__ . '/asset-registry.php';
+
+    $count = 0;
+    $registry = bandpromo_asset_load_registry($root);
+    foreach ($registry['assets'] as $asset) {
+        if (!is_array($asset)) {
+            continue;
+        }
+        if ($target === 'audio') {
+            if (($asset['kind'] ?? '') === 'audio') {
+                $listing = basename(trim((string) ($asset['master_filename'] ?? '')));
+                if ($listing === '') {
+                    $listing = basename(trim((string) ($asset['original_filename'] ?? '')));
+                }
+                if ($listing === '') {
+                    continue;
+                }
+                // Match sync_file: only expect rows we can actually index.
+                if (bandpromo_media_files_index_resolve_source($root, 'audio', $listing) !== null) {
+                    $count++;
+                }
+            }
+            continue;
+        }
+        if ($target === 'sfx') {
+            if (($asset['kind'] ?? '') === 'sfx') {
+                $listing = basename(trim((string) ($asset['master_filename'] ?? '')));
+                if ($listing === '') {
+                    $listing = basename(trim((string) ($asset['original_filename'] ?? '')));
+                }
+                if ($listing === '') {
+                    $assetId = trim((string) ($asset['id'] ?? ''));
+                    if ($assetId !== '' && bandpromo_asset_is_asset_id($assetId)) {
+                        $listing = $assetId . '.mp3';
+                    }
+                }
+                if ($listing !== ''
+                    && bandpromo_media_files_index_resolve_source($root, 'sfx', $listing) !== null
+                ) {
+                    $count++;
+                }
+            }
+            continue;
+        }
+        if ($target === 'special') {
+            if (($asset['kind'] ?? '') !== 'visual') {
+                continue;
+            }
+            $intake = bandpromo_asset_normalize_intake_bucket((string) ($asset['intake_bucket'] ?? ''));
+            $role = bandpromo_asset_normalize_visual_role((string) ($asset['role'] ?? 'unassigned'));
+            $brandRoles = [
+                'brand-logo',
+                'brand-portrait',
+                'shell-background-image',
+                'shell-background-video',
+            ];
+            if ($intake === 'special' || in_array($role, $brandRoles, true)) {
+                $count++;
+            }
+            continue;
+        }
+        if (!in_array($target, ['illustrations', 'photos', 'video'], true)) {
+            continue;
+        }
+        if (($asset['kind'] ?? '') !== 'visual') {
+            continue;
+        }
+        $mediaType = strtolower(trim((string) ($asset['media_type'] ?? 'image')));
+        $intake = bandpromo_asset_normalize_intake_bucket((string) ($asset['intake_bucket'] ?? ''));
+        $mapped = bandpromo_asset_files_index_target_for_intake_bucket($intake);
+        if ($mapped === '' && $mediaType === 'image') {
+            $mapped = 'illustrations';
+        }
+        if ($mapped === '' && $mediaType === 'video') {
+            $mapped = 'video';
+        }
+        if ($mapped === $target) {
             $count++;
         }
     }
@@ -1029,36 +1202,106 @@ function bandpromo_media_files_index_rebuild_registry_rows(string $root, string 
 
 /**
  * Full rebuild for one Files target (Publish / migration / PRP import write path).
- * Registry masters first; original-dir scan only for unregistered orphans.
+ * Atomic: strip + rebuild in memory, single save under lock (no empty-index window races).
  */
 function bandpromo_media_files_index_rebuild_target(string $root, string $target): int
 {
     require_once __DIR__ . '/asset-registry.php';
 
-    $dir = bandpromo_media_target_dir($target);
-    $files = bandpromo_media_files_index_load();
-    $prefix = $target . '/';
-    foreach (array_keys($files) as $key) {
-        if (str_starts_with((string) $key, $prefix)) {
-            unset($files[$key]);
+    $lock = bandpromo_media_files_index_acquire_lock();
+    try {
+        $dir = bandpromo_media_target_dir($target);
+        $originSnapshot = bandpromo_media_files_index_load();
+        $files = $originSnapshot;
+        $prefix = $target . '/';
+        foreach (array_keys($files) as $key) {
+            if (str_starts_with((string) $key, $prefix)) {
+                unset($files[$key]);
+            }
         }
-    }
-    bandpromo_media_files_index_save($files);
 
-    $count = bandpromo_media_files_index_rebuild_registry_rows($root, $target);
+        $count = bandpromo_media_files_index_rebuild_registry_rows(
+            $root,
+            $target,
+            $files,
+            $originSnapshot
+        );
 
-    // Master-first: Files → Audio lists registry masters only. Uncatalogued intake under
-    // media/audio/original/ is registered by Publish / Repair Apply — never indexed as
-    // extra pool rows (that double-counted masters-only recovers against leftover originals).
-    if ($target === 'audio') {
-        return $count;
-    }
+        $acceptOrphan = static function (string $name) use ($root, $target, &$files, &$count, $originSnapshot): void {
+            $entry = bandpromo_media_files_index_sync_file($root, $target, $name, [
+                'persist' => false,
+                'files_snapshot' => $originSnapshot,
+            ]);
+            if ($entry === null) {
+                return;
+            }
+            $listingName = (string) ($entry['name'] ?? $name);
+            $key = bandpromo_media_files_index_key($target, $listingName);
+            if ($listingName !== $name) {
+                unset($files[bandpromo_media_files_index_key($target, $name)]);
+            }
+            $originalLabel = basename(trim((string) ($entry['original_filename'] ?? '')));
+            if ($originalLabel !== '' && $originalLabel !== $listingName) {
+                unset($files[bandpromo_media_files_index_key($target, $originalLabel)]);
+            }
+            $files[$key] = $entry;
+            $count++;
+        };
 
-    // Brand assets are a filter/role on Visual — never treat unified visual/original as Brand intake.
-    if ($target === 'special') {
-        $legacyDir = $root . '/media/special';
-        if (is_dir($legacyDir)) {
-            foreach (new DirectoryIterator($legacyDir) as $entry) {
+        // Master-first: Files → Audio lists registry masters only.
+        if ($target === 'audio') {
+            bandpromo_media_files_index_save($files);
+
+            return $count;
+        }
+
+        if ($target === 'special') {
+            $legacyDir = $root . '/media/special';
+            if (is_dir($legacyDir)) {
+                foreach (new DirectoryIterator($legacyDir) as $entry) {
+                    if ($entry->isDot() || $entry->isDir()) {
+                        continue;
+                    }
+                    $name = $entry->getFilename();
+                    if (strcasecmp($name, 'desktop.ini') === 0) {
+                        continue;
+                    }
+                    if (bandpromo_media_is_generated_delivery_artifact($name)) {
+                        continue;
+                    }
+                    $registered = bandpromo_asset_lookup_by_original_filename($root, $name)
+                        ?? bandpromo_asset_lookup_from_media_ref($root, $name);
+                    if (is_array($registered)) {
+                        continue;
+                    }
+                    $acceptOrphan($name);
+                }
+            }
+            bandpromo_media_files_index_save($files);
+
+            return $count;
+        }
+
+        $orphanDirs = [];
+        if (in_array($target, ['illustrations', 'photos', 'video'], true)) {
+            if ($target === 'illustrations' || $target === 'video') {
+                if ($dir !== null) {
+                    $orphanDirs[] = $dir;
+                }
+            }
+            foreach (bandpromo_media_legacy_orphan_dirs_for_target($root, $target) as $legacyDir) {
+                $orphanDirs[] = $legacyDir;
+            }
+        } elseif ($dir !== null) {
+            $orphanDirs[] = $dir;
+        }
+
+        $seenOrphans = [];
+        foreach ($orphanDirs as $orphanDir) {
+            if ($orphanDir === '' || !is_dir($orphanDir)) {
+                continue;
+            }
+            foreach (new DirectoryIterator($orphanDir) as $entry) {
                 if ($entry->isDot() || $entry->isDir()) {
                     continue;
                 }
@@ -1069,79 +1312,35 @@ function bandpromo_media_files_index_rebuild_target(string $root, string $target
                 if (bandpromo_media_is_generated_delivery_artifact($name)) {
                     continue;
                 }
+                if ($target === 'audio' && !bandpromo_media_is_audio_pool_filename($name)) {
+                    continue;
+                }
+                if (in_array($target, ['illustrations', 'photos', 'video'], true)
+                    && !bandpromo_media_orphan_matches_target($target, $name)
+                ) {
+                    continue;
+                }
+                $real = $entry->getPathname();
+                $realKey = is_file($real) ? (realpath($real) ?: $real) : $name;
+                if (isset($seenOrphans[$realKey])) {
+                    continue;
+                }
+                $seenOrphans[$realKey] = true;
                 $registered = bandpromo_asset_lookup_by_original_filename($root, $name)
                     ?? bandpromo_asset_lookup_from_media_ref($root, $name);
                 if (is_array($registered)) {
                     continue;
                 }
-                if (bandpromo_media_files_index_sync_file($root, $target, $name) !== null) {
-                    $count++;
-                }
+                $acceptOrphan($name);
             }
         }
+
+        bandpromo_media_files_index_save($files);
 
         return $count;
+    } finally {
+        bandpromo_media_files_index_release_lock($lock);
     }
-
-    $orphanDirs = [];
-    if (in_array($target, ['illustrations', 'photos', 'video'], true)) {
-        // Unified tree orphans: map by media type once (images → illustrations, video → video).
-        // Photos keeps legacy photo/ scan only so the same file is not double-indexed.
-        if ($target === 'illustrations' || $target === 'video') {
-            if ($dir !== null) {
-                $orphanDirs[] = $dir;
-            }
-        }
-        foreach (bandpromo_media_legacy_orphan_dirs_for_target($root, $target) as $legacyDir) {
-            $orphanDirs[] = $legacyDir;
-        }
-    } elseif ($dir !== null) {
-        $orphanDirs[] = $dir;
-    }
-
-    $seenOrphans = [];
-    foreach ($orphanDirs as $orphanDir) {
-        if ($orphanDir === '' || !is_dir($orphanDir)) {
-            continue;
-        }
-        foreach (new DirectoryIterator($orphanDir) as $entry) {
-            if ($entry->isDot() || $entry->isDir()) {
-                continue;
-            }
-            $name = $entry->getFilename();
-            if (strcasecmp($name, 'desktop.ini') === 0) {
-                continue;
-            }
-            if (bandpromo_media_is_generated_delivery_artifact($name)) {
-                continue;
-            }
-            if ($target === 'audio' && !bandpromo_media_is_audio_pool_filename($name)) {
-                continue;
-            }
-            if (in_array($target, ['illustrations', 'photos', 'video'], true)
-                && !bandpromo_media_orphan_matches_target($target, $name)
-            ) {
-                continue;
-            }
-            $real = $entry->getPathname();
-            $realKey = is_file($real) ? (realpath($real) ?: $real) : $name;
-            if (isset($seenOrphans[$realKey])) {
-                continue;
-            }
-            $seenOrphans[$realKey] = true;
-            $registered = bandpromo_asset_lookup_by_original_filename($root, $name)
-                ?? bandpromo_asset_lookup_from_media_ref($root, $name);
-            if (is_array($registered)) {
-                // Already indexed via master_filename in the registry pass.
-                continue;
-            }
-            if (bandpromo_media_files_index_sync_file($root, $target, $name) !== null) {
-                $count++;
-            }
-        }
-    }
-
-    return $count;
 }
 
 function bandpromo_media_files_index_rebuild_all(string $root): array
@@ -1182,20 +1381,21 @@ function bandpromo_media_files_index_list(string $root, string $target): array
 
 function bandpromo_media_files_index_ensure_target(string $root, string $target): void
 {
-    // Sound effects often remain as optimal-only after legacy brand dual-read; re-sync registry rows
-    // so Files → Sound effects picks them up without a full Status rebuild.
+    // Sound effects often remain as optimal-only after legacy brand dual-read.
     if ($target === 'sfx') {
         require_once __DIR__ . '/sfx-helpers.php';
         bandpromo_sfx_heal_brand_slot_deliveries($root);
-        bandpromo_media_files_index_rebuild_registry_rows($root, 'sfx');
     }
 
     $rows = bandpromo_media_files_index_list($root, $target);
-    if ($rows !== []) {
+    $expected = bandpromo_media_files_index_registry_expected_count($root, $target);
+    $indexed = count($rows);
+    // Partial rebuilds (clear-then-interrupt / concurrent list-media) left HITZ at 53 of ~resolvable.
+    // Rebuild whenever the index is empty or under the on-disk registry expectation.
+    if ($indexed > 0 && ($expected === 0 || $indexed >= $expected)) {
         return;
     }
 
-    // One-time migration / empty index: rebuild from disk (write path).
     bandpromo_media_files_index_rebuild_target($root, $target);
 }
 

@@ -856,6 +856,87 @@ function bandpromo_content_autofix_sync_brand_asset_ids(string $root, bool $dryR
 }
 
 /**
+ * Reseed Brand libraries emptied by dead membership ids (Files → Brand assets blank).
+ */
+function bandpromo_content_autofix_heal_brand_libraries(string $root, bool $dryRun): array
+{
+    require_once __DIR__ . '/brand-storage.php';
+
+    $step = bandpromo_content_autofix_step_result(
+        'brand_libraries',
+        'Heal empty or dead Brand asset libraries'
+    );
+
+    if ($dryRun) {
+        // Preview: count brands whose library resolves to nothing but owned eligible assets exist.
+        bandpromo_brand_ensure_seeded($root);
+        require_once __DIR__ . '/asset-registry.php';
+        $registry = bandpromo_asset_load_registry($root);
+        $assets = is_array($registry['assets'] ?? null) ? $registry['assets'] : [];
+        foreach (bandpromo_brand_registry_entries($root) as $entry) {
+            $brandId = bandpromo_brand_canonical_id((string) ($entry['id'] ?? ''));
+            if ($brandId === '') {
+                continue;
+            }
+            try {
+                $document = bandpromo_brand_load_document($root, $brandId);
+            } catch (Throwable $throwable) {
+                continue;
+            }
+            $library = bandpromo_brand_normalize_library_asset_ids(
+                is_array($document['library_asset_ids'] ?? null) ? $document['library_asset_ids'] : []
+            );
+            $live = 0;
+            foreach ($library as $libraryId) {
+                if (isset($assets[$libraryId]) && is_array($assets[$libraryId])) {
+                    $live++;
+                }
+            }
+            if ($live > 0) {
+                $step['skipped']++;
+                continue;
+            }
+            $eligible = 0;
+            foreach ($assets as $assetId => $asset) {
+                if (!is_array($asset)) {
+                    continue;
+                }
+                $kind = (string) ($asset['kind'] ?? '');
+                if ($kind !== 'visual' && $kind !== 'sfx') {
+                    continue;
+                }
+                if (bandpromo_brand_canonical_id((string) ($asset['brand_id'] ?? '')) !== $brandId) {
+                    continue;
+                }
+                if (bandpromo_brand_list_entry_is_library_eligible($asset)) {
+                    $eligible++;
+                }
+            }
+            if ($eligible > 0) {
+                $step['changed']++;
+                $step['items'][] = [
+                    'brand' => $brandId,
+                    'eligible' => $eligible,
+                ];
+            } else {
+                $step['skipped']++;
+            }
+        }
+
+        return $step;
+    }
+
+    $notes = bandpromo_brand_heal_empty_libraries($root);
+    $step['changed'] = count($notes);
+    $step['items'] = $notes;
+    if ($step['changed'] === 0) {
+        $step['skipped'] = 1;
+    }
+
+    return $step;
+}
+
+/**
  * Backfill gallery entry asset_ids from src paths.
  */
 function bandpromo_content_autofix_sync_gallery_asset_ids(string $root, bool $dryRun): array
@@ -1487,6 +1568,7 @@ function bandpromo_content_autofix_run(string $root, bool $dryRun = false, strin
         'bandpromo_content_autofix_sync_campaigns',
         'bandpromo_content_autofix_sync_audio_display',
         'bandpromo_content_autofix_sync_brand_asset_ids',
+        'bandpromo_content_autofix_heal_brand_libraries',
         'bandpromo_content_autofix_sync_gallery_asset_ids',
         'bandpromo_content_autofix_sync_page_asset_ids',
         'bandpromo_content_autofix_sync_audio_visual_refs',

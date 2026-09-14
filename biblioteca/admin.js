@@ -12299,6 +12299,27 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                                 raw,
                                 parseError: parseErr,
                             });
+                            // Gateway timeouts often cut the JSON while the server keeps
+                            // preparing/launching the build. Recover by polling the log.
+                            try {
+                                const probe = await fetch('/biblioteca/get-build-log.php?mode=' + encodeURIComponent(currentRunMode || 'full'), {
+                                    headers: { 'X-Requested-With': 'XMLHttpRequest' },
+                                });
+                                const probeData = await probe.json();
+                                if (probeData && (probeData.is_running || probeData.running)) {
+                                    if (probeData.content && buildLog) {
+                                        buildLog.textContent = probeData.content;
+                                        scrollLog();
+                                    } else if (buildLog) {
+                                        buildLog.textContent = '⏳ Build is running (start response timed out; attached to live log)…\n';
+                                    }
+                                    beginBuildPolling(probeData.mode || currentRunMode || 'full');
+                                    console.groupEnd();
+                                    return;
+                                }
+                            } catch (probeErr) {
+                                console.error('[build] could not probe build log after non-JSON start', probeErr);
+                            }
                             buildLog.textContent = '❌ Invalid response from build endpoint';
                             stopPolling(false);
                             console.groupEnd();

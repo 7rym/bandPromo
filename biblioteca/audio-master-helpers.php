@@ -334,6 +334,36 @@ function bandpromo_materialize_audio_master_from_original(string $root_dir, stri
         }
     }
 
+    // Masters-only recover leaves registered masters with empty original_filename.
+    // Prefer linking (unique empty match) or skipping over minting a duplicate master.
+    $sourceSize = filesize($source_path);
+    if ($sourceSize !== false && (int) $sourceSize > 0) {
+        $sameSize = bandpromo_asset_registered_audio_masters_with_size($root_dir, (int) $sourceSize);
+        if ($sameSize !== []) {
+            $linked = bandpromo_asset_link_original_to_unique_empty_master($root_dir, $safe_name);
+            if (is_array($linked)) {
+                $masterFilename = basename(trim((string) ($linked['master_filename'] ?? '')));
+                $masterFormat = strtolower((string) ($linked['master_format'] ?? pathinfo($masterFilename, PATHINFO_EXTENSION)));
+                return [
+                    'attempted' => true,
+                    'prepared' => true,
+                    'warning' => '',
+                    'master_filename' => $masterFilename,
+                    'master_format' => $masterFormat,
+                    'asset_id' => (string) ($linked['id'] ?? ''),
+                    'linked_existing' => true,
+                ];
+            }
+
+            return [
+                'attempted' => false,
+                'prepared' => false,
+                'warning' => '',
+                'skipped_duplicate_size' => true,
+            ];
+        }
+    }
+
     return bandpromo_prepare_audio_master($root_dir, $ext, $safe_name, $source_path);
 }
 

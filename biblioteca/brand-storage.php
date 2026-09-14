@@ -2957,6 +2957,29 @@ function bandpromo_brand_heal_empty_libraries(string $root): array
         $assetIds = is_array($document['asset_ids'] ?? null) ? $document['asset_ids'] : [];
         $slotChanged = false;
 
+        // Drop library members that no longer resolve (empty All-brands pool with orphans).
+        $libraryLive = [];
+        foreach ($libraryBefore as $libraryId) {
+            $libraryId = trim((string) $libraryId);
+            if ($libraryId === '' || !isset($assets[$libraryId])) {
+                continue;
+            }
+            $member = $assets[$libraryId];
+            if (!is_array($member)) {
+                continue;
+            }
+            $kind = (string) ($member['kind'] ?? '');
+            if ($kind !== 'visual' && $kind !== 'sfx') {
+                continue;
+            }
+            $libraryLive[] = $libraryId;
+        }
+        $libraryLive = bandpromo_brand_normalize_library_asset_ids($libraryLive);
+        $libraryWasDead = $libraryBefore !== [] && $libraryLive === [];
+        if ($libraryLive !== $libraryBefore) {
+            $libraryBefore = $libraryLive;
+        }
+
         foreach ($assets as $assetId => $asset) {
             if (!is_array($asset)) {
                 continue;
@@ -2983,7 +3006,7 @@ function bandpromo_brand_heal_empty_libraries(string $root): array
 
         $library = bandpromo_brand_merge_library_slot_assets($assetIds, $libraryBefore);
 
-        if ($libraryBefore === []) {
+        if ($libraryBefore === [] || $libraryWasDead) {
             foreach ($assets as $assetId => $asset) {
                 if (!is_array($asset)) {
                     continue;

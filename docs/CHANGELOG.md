@@ -2,6 +2,8 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-09-14 15:20 - HITZ Files/player hotfix: atomic Files index rebuild under lock (no clear-then-empty race); ensure-target rebuilds when index undercounts resolvable registry masters (HITZ stuck at 53 while playlist masters existed on disk). Brand libraries: reseed when membership is empty or only dead ids (Brand assets All brands blank). Playlist materialize invalidates registry cache and re-persists Python-extracted covers. Repair Apply gains brand-library heal step. Keep Visual cover refs when delivery is briefly missing.
+
 2026-09-14 14:00 - Hotfix: Repair catalogue **Preview is read-only** (no heavy migrate / master reconcile writes). Files → Audio lists registry masters only (stop indexing unlinked `original/` as pool rows — HITZ 159 = ~106 masters + 53 Registering originals). Apply materialize will not mint duplicate masters when a same-size registered master already exists.
 
 2026-09-14 13:20 - Published **v0.8.55 build 482** (`v0.8.55-build-482`): audio master-first reconcile + playlist missing-master honesty for HITZ salvage.

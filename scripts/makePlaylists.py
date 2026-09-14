@@ -1445,15 +1445,20 @@ def get_cover(filename):
         if ensure_visual_image_delivery_for_cover(assigned, force=True) and visual_cover_is_playable(assigned):
             return (assigned, 'assigned')
         print(
-            "⚠ Assigned cover %s has no usable delivery; re-reading embedded art from %s"
+            "⚠ Assigned cover %s has no usable delivery; trying embedded art from %s"
             % (assigned, os.path.basename(str(filename or '')))
         )
-        clear_audio_display_cover(filename)
+        # Do not clear display.cover here — wiping sticky refs left HITZ player thumbs empty
+        # when extract/delivery raced behind playlist publish.
 
     extracted = extract_embedded_cover_to_visual(filename)
     if extracted:
         ensure_visual_image_delivery_for_cover(extracted, force=False)
         return (extracted, 'embedded')
+
+    if assigned:
+        # Keep the assigned ref so a later Visual rebuild can restore the player.
+        return (assigned, 'assigned')
 
     configured_cover = get_configured_cover_filename()
     if configured_cover:

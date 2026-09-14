@@ -1590,6 +1590,11 @@ function bandpromo_playlist_materialize_entries(array $filenames): array
     }
 
     $root = dirname(__DIR__);
+    // Python materialize may rewrite registry.json (covers, display) outside PHP's
+    // in-request registry cache — invalidate before any post-materialize reads.
+    require_once __DIR__ . '/asset-registry.php';
+    bandpromo_asset_invalidate_runtime_cache($root);
+
     foreach ($missing as $index => $filename) {
         $phpEntry = bandpromo_playlist_build_php_track_entry($root, $filename);
         if ($phpEntry === null) {
@@ -1599,6 +1604,43 @@ function bandpromo_playlist_materialize_entries(array $filenames): array
         unset($missing[$index]);
     }
     $missing = array_values($missing);
+
+    // Persist Python-extracted covers back into the registry when PHP cache was stale
+    // or display.cover was cleared before materialize.
+    foreach ($entries as $filename => $entry) {
+        if (!is_array($entry)) {
+            continue;
+        }
+        $coverRef = trim((string) ($entry['cover'] ?? ''));
+        if ($coverRef === '') {
+            continue;
+        }
+        $coverId = bandpromo_asset_canonical_id_from_media_ref($root, $coverRef);
+        if ($coverId === '') {
+            continue;
+        }
+        $asset = bandpromo_asset_lookup_by_master_filename($root, (string) $filename)
+            ?? bandpromo_asset_lookup_by_original_filename($root, (string) $filename);
+        if (!is_array($asset) || ($asset['kind'] ?? '') !== 'audio') {
+            continue;
+        }
+        $display = bandpromo_asset_read_audio_display($asset);
+        $existing = bandpromo_asset_canonical_id_from_media_ref($root, (string) ($display['cover'] ?? ''));
+        if ($existing === $coverId) {
+            continue;
+        }
+        $assetId = trim((string) ($asset['id'] ?? ''));
+        if ($assetId === '') {
+            continue;
+        }
+        try {
+            bandpromo_asset_update_entry($root, $assetId, [
+                'display' => ['cover' => $coverId],
+            ]);
+        } catch (Throwable $ignored) {
+            // Player payload can still ship the materialized cover ref.
+        }
+    }
 
     if ($entries === [] && $missing !== []) {
         return [
@@ -2107,10 +2149,8 @@ function bandpromo_playlist_enrich_tracks_for_player(
             if ($coverUrl !== '' && !str_starts_with($coverUrl, '/media/visual/delivery/')) {
                 $coverUrl = '';
             }
-            // Do not leave a cover id that only invents a 404 delivery path in the player.
-            if ($coverUrl === '') {
-                $coverRef = '';
-            }
+            // Keep coverRef even when cover_url is empty so the player can try
+            // standard delivery candidates (card/thumb) after a later Visual rebuild.
         }
 
         $textRole = $display['text_role'];
@@ -2216,7 +2256,7 @@ function bandpromo_playlist_publish_player_payload(string $root, string $playlis
     }
 
     // Refresh sparse registry display from master tags before PHP fallback materialization.
-    // Also drop sticky covers whose delivery files are missing so Python get_cover can re-extract.
+    // Missing delivery must not wipe display.cover — keep the Visual ref and rebuild instead.
     require_once __DIR__ . '/media-delivery-helpers.php';
     $healedCovers = 0;
     foreach ($entries as $entry) {
@@ -2248,18 +2288,11 @@ function bandpromo_playlist_publish_player_payload(string $root, string $playlis
                 }
             }
             if ($coverRef !== '' && $coverUrl === '') {
-                try {
-                    $assetId = trim((string) ($asset['id'] ?? ''));
-                    if ($assetId !== '') {
-                        bandpromo_asset_update_entry($root, $assetId, [
-                            'display' => ['cover' => ''],
-                        ]);
-                        $healedCovers++;
-                    }
-                } catch (Throwable $ignored) {
-                    // Materialize can still re-extract.
-                }
-                $cover = '';
+                // Keep the Visual cover ref when delivery is temporarily missing.
+                // Clearing it permanently orphaned HITZ covers (embedded art still on masters,
+                // display.cover wiped, player thumbs empty until a full re-extract).
+                // Rebuild already ran above; leave the ref for the next Publish/Refresh.
+                $cover = $coverRef;
             }
         }
         if ($lyrics === '' || $cover === '' || $comment === '') {
@@ -2483,9 +2516,7 @@ function bandpromo_playlist_load_player_response(
             if ($coverUrl !== '' && !str_starts_with($coverUrl, '/media/visual/delivery/')) {
                 $coverUrl = '';
             }
-            if ($coverUrl === '') {
-                $coverRef = '';
-            }
+            // Keep coverRef when URL resolve fails — player candidates still work once delivery exists.
         }
         $tracks[$index]['cover'] = $coverRef;
         $tracks[$index]['cover_url'] = $coverUrl;
