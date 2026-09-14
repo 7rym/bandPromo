@@ -1781,6 +1781,92 @@ function bandpromo_asset_find_unregistered_master_match(string $root, string $or
 }
 
 /**
+ * Registered audio masters whose on-disk size matches $sourceSize.
+ * Used to avoid minting duplicate masters from leftover originals after
+ * masters-only recover (same bytes, empty original_filename).
+ *
+ * @return list<array<string, mixed>>
+ */
+function bandpromo_asset_registered_audio_masters_with_size(string $root, int $sourceSize): array
+{
+    if ($sourceSize <= 0) {
+        return [];
+    }
+
+    $masterDir = $root . '/media/audio/master';
+    if (!is_dir($masterDir)) {
+        return [];
+    }
+
+    $matches = [];
+    $registry = bandpromo_asset_load_registry($root);
+    foreach ($registry['assets'] as $asset) {
+        if (!is_array($asset) || ($asset['kind'] ?? '') !== 'audio') {
+            continue;
+        }
+        $masterFilename = basename(trim((string) ($asset['master_filename'] ?? '')));
+        if ($masterFilename === '') {
+            continue;
+        }
+        $path = $masterDir . '/' . $masterFilename;
+        if (!is_file($path)) {
+            continue;
+        }
+        $size = filesize($path);
+        if ($size === false || (int) $size !== $sourceSize) {
+            continue;
+        }
+        $matches[] = $asset;
+    }
+
+    return $matches;
+}
+
+/**
+ * If exactly one registered master (with empty original_filename) matches the
+ * original's byte size, attach that provenance label. Never invents master bytes.
+ */
+function bandpromo_asset_link_original_to_unique_empty_master(
+    string $root,
+    string $originalFilename
+): ?array {
+    $originalFilename = basename(trim($originalFilename));
+    if ($originalFilename === '') {
+        return null;
+    }
+    $sourcePath = $root . '/media/audio/original/' . $originalFilename;
+    if (!is_file($sourcePath)) {
+        return null;
+    }
+    $sourceSize = filesize($sourcePath);
+    if ($sourceSize === false || (int) $sourceSize <= 0) {
+        return null;
+    }
+
+    $candidates = [];
+    foreach (bandpromo_asset_registered_audio_masters_with_size($root, (int) $sourceSize) as $asset) {
+        $existingOriginal = basename(trim((string) ($asset['original_filename'] ?? '')));
+        if ($existingOriginal !== '') {
+            continue;
+        }
+        $candidates[] = $asset;
+    }
+    if (count($candidates) !== 1) {
+        return null;
+    }
+
+    $asset = $candidates[0];
+    $assetId = trim((string) ($asset['id'] ?? ''));
+    if ($assetId === '' || !bandpromo_asset_is_asset_id($assetId)) {
+        return null;
+    }
+
+    return bandpromo_asset_update_entry($root, $assetId, [
+        'original_filename' => $originalFilename,
+    ]);
+}
+
+/**
  * Historical size-based leftover prune — disabled.
  *
  * Same-byte-length masters (e.g. long shows) are not safe duplicates. Durable

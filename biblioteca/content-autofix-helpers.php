@@ -189,6 +189,42 @@ function bandpromo_content_autofix_materialize_audio_masters(string $root, bool 
             continue;
         }
 
+        $sourcePath = $originalDir . '/' . $entry;
+        $sourceSize = is_file($sourcePath) ? filesize($sourcePath) : false;
+        $sameSizeMasters = ($sourceSize !== false && (int) $sourceSize > 0)
+            ? bandpromo_asset_registered_audio_masters_with_size($root, (int) $sourceSize)
+            : [];
+
+        // After masters-only recover, leftover originals often lack original_filename
+        // links. Prefer linking (unique empty match) or skipping over minting duplicates.
+        if ($sameSizeMasters !== []) {
+            $emptyOriginalMatches = [];
+            foreach ($sameSizeMasters as $asset) {
+                if (!is_array($asset)) {
+                    continue;
+                }
+                if (basename(trim((string) ($asset['original_filename'] ?? ''))) === '') {
+                    $emptyOriginalMatches[] = $asset;
+                }
+            }
+            if (count($emptyOriginalMatches) === 1) {
+                if ($dryRun) {
+                    $step['changed']++;
+                    $step['items'][] = $entry . ' → link existing master';
+                    continue;
+                }
+                $linked = bandpromo_asset_link_original_to_unique_empty_master($root, $entry);
+                if (is_array($linked)) {
+                    $step['changed']++;
+                    $step['items'][] = $entry;
+                    continue;
+                }
+            }
+            // Ambiguous or already-labelled same-size master: do not create another.
+            $step['skipped']++;
+            continue;
+        }
+
         if ($dryRun) {
             $step['changed']++;
             $step['items'][] = $entry;
@@ -1328,13 +1364,9 @@ function bandpromo_content_autofix_run(string $root, bool $dryRun = false, strin
     try {
         bandpromo_content_autofix_log_step_start($root, 'seed_containers', 'Seed platform containers');
         $seedStarted = microtime(true);
-        bandpromo_asset_registry_ensure_migrated($root, true);
-        bandpromo_campaign_ensure_seeded($root);
-        bandpromo_playlist_ensure_seeded($root);
-        bandpromo_gallery_ensure_seeded($root);
-        bandpromo_brand_ensure_seeded($root);
-        bandpromo_page_seed_all_if_missing($root);
         if ($dryRun) {
+            // Preview must be read-only: never heavy-migrate or reconcile (those write registry/index).
+            bandpromo_asset_registry_ensure_migrated($root, false);
             $pendingMasters = bandpromo_list_uncatalogued_audio_masters($root);
             $changedTotal += count($pendingMasters);
             if ($pendingMasters !== []) {
@@ -1360,6 +1392,12 @@ function bandpromo_content_autofix_run(string $root, bool $dryRun = false, strin
                 ]);
             }
         } else {
+            bandpromo_asset_registry_ensure_migrated($root, true);
+            bandpromo_campaign_ensure_seeded($root);
+            bandpromo_playlist_ensure_seeded($root);
+            bandpromo_gallery_ensure_seeded($root);
+            bandpromo_brand_ensure_seeded($root);
+            bandpromo_page_seed_all_if_missing($root);
             $reconcileMasters = bandpromo_reconcile_uncatalogued_audio_masters($root);
             if (!empty($reconcileMasters['changed']) || !empty($reconcileMasters['index_rebuilt'])) {
                 $changedTotal += (int) ($reconcileMasters['changed'] ?? 0);
@@ -1418,7 +1456,9 @@ function bandpromo_content_autofix_run(string $root, bool $dryRun = false, strin
         $seedStep = bandpromo_content_autofix_step_result('seed_containers', 'Seed platform containers', [
             'changed' => 0,
             'skipped' => 1,
-            'items' => ['assets', 'releases', 'playlists', 'galleries', 'themes', 'pages'],
+            'items' => $dryRun
+                ? ['preview-read-only']
+                : ['assets', 'releases', 'playlists', 'galleries', 'themes', 'pages'],
         ]);
         $steps[] = $seedStep;
         bandpromo_content_autofix_log_step_finish($root, $seedStep, (microtime(true) - $seedStarted) * 1000);

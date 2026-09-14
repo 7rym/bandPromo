@@ -2,6 +2,8 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-09-14 14:00 - Hotfix: Repair catalogue **Preview is read-only** (no heavy migrate / master reconcile writes). Files → Audio lists registry masters only (stop indexing unlinked `original/` as pool rows — HITZ 159 = ~106 masters + 53 Registering originals). Apply materialize will not mint duplicate masters when a same-size registered master already exists.
+
 2026-09-14 13:20 - Published **v0.8.55 build 482** (`v0.8.55-build-482`): audio master-first reconcile + playlist missing-master honesty for HITZ salvage.
 
 2026-09-14 13:00 - Audio master-first reconcile: Publish / Refresh / Repair catalogue / catalogue build re-register uncatalogued `media/audio/master/ast_*` into the registry and Files → Audio (never delete leftovers; never invent originals). Size-based prune of unregistered masters disabled. HITZ-style masters-only drift now surfaces as Orphans instead of invisible disk-only files.

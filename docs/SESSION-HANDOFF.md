@@ -2,30 +2,22 @@
 
 ## Resume point
 
-**Published for testers** — **v0.8.55 build 482** (`v0.8.55-build-482`). Audio master-first reconcile + playlist missing-master honesty.
+**Hotfix in progress (uncommitted)** — Preview must be read-only; Files → Audio master-only listing; materialize must not mint duplicate masters. HITZ after 482 Preview: **159 files / 24 185 MB** = ~106 real masters (incl. Retroscopy orphans with titles) + **53 Registering/Master pending** unlinked `original/` rows wrongly indexed into the pool.
 
-HITZ salvage after Site update to 482:
+### After publishing this hotfix
 
-1. **Refresh site files** or **Repair catalogue → Apply**.
-2. Expect previously invisible leftover masters under **Files → Audio** (many as Orphans).
-3. Associate Retroscopy orphans into the correct campaign Tracks; confirm playlist entries; rebuild if needed.
-4. Keep the offline 108-file master ZIP until playback/catalogue look healthy.
-
-### Also pending
-
-- Shell / Player / Content preview parity
-- Campaign-switch shell backdrop crossfade
-- Follow-up: playlist stage still slow on large HITZ catalogues
-- Follow-up: campaign `tracks[]` may still need drag-associate or PCF after masters reappear
+1. HITZ Site update → Refresh site files (rebuilds audio Files index → expect ~106, not 159).
+2. Associate Retroscopy orphans into campaign Tracks; do not Apply old Preview.
+3. Keep 108-file ZIP until healthy.
 
 ### Active fleet
 
 | Host | Persona |
 |------|---------|
 | bandpromo.site | Vanilla |
-| hitz.no | HITZ (Site update to 482, then master reconcile salvage) |
+| hitz.no | HITZ (482 salvage + this hotfix) |
 | spandexualtension.com | Band / release sequence |
 
 ### Local workspace
 
-Checkout is **`C:\dev\bandpromo`** with `.git` in-tree. Never wipe `data/` / `media/` / `log/` / `backups/` here.
+Checkout is **`C:\dev\bandpromo`**. Never wipe `data/` / `media/` / `log/` / `backups/` here.

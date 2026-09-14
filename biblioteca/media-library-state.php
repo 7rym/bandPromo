@@ -1047,6 +1047,13 @@ function bandpromo_media_files_index_rebuild_target(string $root, string $target
 
     $count = bandpromo_media_files_index_rebuild_registry_rows($root, $target);
 
+    // Master-first: Files → Audio lists registry masters only. Uncatalogued intake under
+    // media/audio/original/ is registered by Publish / Repair Apply — never indexed as
+    // extra pool rows (that double-counted masters-only recovers against leftover originals).
+    if ($target === 'audio') {
+        return $count;
+    }
+
     // Brand assets are a filter/role on Visual — never treat unified visual/original as Brand intake.
     if ($target === 'special') {
         $legacyDir = $root . '/media/special';
