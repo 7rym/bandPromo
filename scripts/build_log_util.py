@@ -9,10 +9,16 @@ import time
 from datetime import datetime, timezone
 
 # Lines that should be repeated in the compressed end report.
+# Progress counters like "0 failed" / "failed 0" are excluded in is_error_log_line.
 _ERROR_LINE_RE = re.compile(
-    r'(?i)(\bFAILED\b|finished with errors|Need attention|'
+    r'(FAILED|finished with errors|Need attention|'
     r'Player playlist publish failed|Could not resolve PHP CLI|'
-    r'Build failed at stage|❌)'
+    r'Build failed at stage|failed to |'
+    r'^Failed\s*:\s*[1-9]|❌)',
+    re.IGNORECASE | re.MULTILINE,
+)
+_ZERO_FAILED_RE = re.compile(
+    r'(?i)(\b0\s+failed\b|\bfailed\s*:\s*0\b|,\s*failed\s+0\b|^Failed\s*:\s*0\b)'
 )
 
 
@@ -58,6 +64,9 @@ def is_error_log_line(line):
         return False
     # Machine BUILD_STATS / STAGE_* markers are not operator errors.
     if text.startswith('BUILD_STATS ') or text.startswith('STAGE_'):
+        return False
+    # Quiet optimize progress: "Audio 10/53 — 0 built, 10 fresh, 0 failed"
+    if _ZERO_FAILED_RE.search(text):
         return False
     return _ERROR_LINE_RE.search(text) is not None
 

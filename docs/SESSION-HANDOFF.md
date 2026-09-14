@@ -2,7 +2,7 @@
 
 ## Resume point
 
-**Build log / Environment slice implemented locally** — timestamps + stage timings, quieter optimizeMedia, live playlist progress, diag reuse, System → Environment. Validate locally, then **session-end -Push -Publish** when ready so HITZ can Site-update and re-time Deliverables rebuild.
+**Published build log / Environment slice** — **v0.8.54 build 480** (`v0.8.54-build-480`). HITZ should Site-update, then re-run Deliverables rebuild. Confirm stage timings table, quieter optimize log, live playlist progress, and System → Environment host report.
 
 ### Also pending
 
@@ -18,7 +18,7 @@
 | Host | Persona |
 |------|---------|
 | bandpromo.site | Vanilla |
-| hitz.no | HITZ (waiting on next build for log/speed slice) |
+| hitz.no | HITZ (update to 480, rebuild + compare stage timings) |
 | spandexualtension.com | Band / release sequence |
 
 ### Local workspace

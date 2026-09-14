@@ -2,6 +2,8 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-09-14 10:35 - Publish end report: do not treat quiet optimize progress lines containing “0 failed” as errors (HITZ false “PUBLISH FINISHED WITH WARNINGS” after a clean build 480 run).
+
 2026-09-14 10:00 - Publish observability and Environment: stage timestamps/timings, quieter media optimize (BANDPROMO_OPTIMIZE_VERBOSE=1 for old chatter), live playlist progress + heartbeats, skip media-index rebuild and visual catchup when idle, reuse launch diagnostics when PHP CLI still healthy, compressed end report repeats errors. System → Security renamed to Environment with host report + restyled Host protection (HITZ large-catalogue feedback).
 
 2026-09-14 00:50 - Hotfix: Publish no longer false-fails during a silent catalogue stage. Build lock respects a live PID (and a 15‑minute silence fallback); catalogue prints progress + heartbeats; PHP CLI smoke has a timeout; build-log poller re-reads after clearing orphans. (HITZ build 478 report.)
