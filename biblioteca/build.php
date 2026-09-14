@@ -270,6 +270,47 @@ try {
 
 try {
     require_once __DIR__ . '/asset-registry.php';
+    $audioMasterReconcile = bandpromo_reconcile_uncatalogued_audio_masters($root_dir);
+    $audioRecovered = (int) ($audioMasterReconcile['changed'] ?? 0);
+    if ($audioRecovered > 0) {
+        file_put_contents(
+            $log_file,
+            '[audio masters] Re-registered ' . $audioRecovered . " uncatalogued master(s) into Files → Audio.\n",
+            FILE_APPEND
+        );
+        foreach (($audioMasterReconcile['fixed'] ?? []) as $fixedName) {
+            if (!is_string($fixedName) || trim($fixedName) === '') {
+                continue;
+            }
+            file_put_contents($log_file, '[audio masters] + ' . $fixedName . "\n", FILE_APPEND);
+        }
+    } elseif (!empty($audioMasterReconcile['index_rebuilt'])) {
+        file_put_contents(
+            $log_file,
+            "[audio masters] Rebuilt Files → Audio index from registry (stale pool listing).\n",
+            FILE_APPEND
+        );
+    } else {
+        file_put_contents($log_file, "[audio masters] No uncatalogued masters to recover.\n", FILE_APPEND);
+    }
+    foreach (($audioMasterReconcile['failed'] ?? []) as $failure) {
+        if (!is_array($failure)) {
+            continue;
+        }
+        $failName = trim((string) ($failure['filename'] ?? 'audio'));
+        $failError = trim((string) ($failure['error'] ?? 'Could not register'));
+        file_put_contents($log_file, '[audio masters] Failed ' . $failName . ': ' . $failError . "\n", FILE_APPEND);
+    }
+} catch (Throwable $throwable) {
+    file_put_contents(
+        $log_file,
+        '[audio masters] Reconcile skipped: ' . $throwable->getMessage() . "\n",
+        FILE_APPEND
+    );
+}
+
+try {
+    require_once __DIR__ . '/asset-registry.php';
     $masterReconcile = bandpromo_reconcile_uncatalogued_visual_masters($root_dir);
     $recovered = (int) ($masterReconcile['changed'] ?? 0);
     if ($recovered > 0) {

@@ -25,7 +25,7 @@ Build 380 patched those two symptoms. The same class of bug remains in cover ext
 One rule for every family (audio, Visual stills, Visual video, Sound effects, Brand assets):
 
 1. **Original** — write-once at upload/replace, **original filename preserved**, never rewritten, never used as a working copy after the master exists.
-2. **Master** — canonical working file, **`ast_{ULID}.{ext}`**, preferred format (below). All metadata edits, cover assignment, living-cover assignment, and regeneration read/write this file.
+2. **Master** — canonical working file, **`ast_{ULID}.{ext}`**, preferred format (below). All metadata edits, cover assignment, living-cover assignment, and regeneration read/write this file. Publish / Repair / catalogue build **re-register uncatalogued masters** for audio and Visual (register-only; never delete leftover master bytes; never invent originals).
 3. **Deliverables** — generated **from the master**, named by asset id (audio/SFX: `ast_{ULID}.mp3`; visual: `media/visual/delivery/{ast_*}/{variant}`). Public playback and UI use delivery only. Missing delivery is pending, not “play the original.”
 
 ### Legal original I/O (not violations)

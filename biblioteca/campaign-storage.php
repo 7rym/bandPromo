@@ -2454,15 +2454,14 @@ function bandpromo_asset_ensure_audio_display_after_upload(
     } else {
         $stemSource = $originalFilename !== '' ? $originalFilename : $masterFilename;
         $stem = pathinfo($stemSource, PATHINFO_FILENAME);
-        if (
-            $originalFilename !== ''
-            && preg_match('/^ast_[0-9A-HJKMNP-TV-Z]{20}$/i', $stem) === 1
-        ) {
-            $stem = pathinfo($originalFilename, PATHINFO_FILENAME);
-        }
-        $title = trim(ucwords(str_replace(['_', '-'], ' ', $stem)));
-        if ($title === '') {
+        if (preg_match('/^ast_[0-9A-HJKMNP-TV-Z]{20}$/i', $stem) === 1) {
+            // Masters-only / missing original: never use the ULID as the operator title.
             $title = 'Untitled';
+        } else {
+            $title = trim(ucwords(str_replace(['_', '-'], ' ', $stem)));
+            if ($title === '') {
+                $title = 'Untitled';
+            }
         }
         $existing = bandpromo_asset_read_audio_display($asset);
         $display = bandpromo_asset_build_audio_display_from_fields([

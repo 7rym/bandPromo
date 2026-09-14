@@ -14,6 +14,23 @@ function bandpromo_build_catalog_register_uncatalogued(string $root): array
         'items' => [],
     ];
 
+    $masterReconcile = bandpromo_reconcile_uncatalogued_audio_masters($root);
+    foreach (($masterReconcile['fixed'] ?? []) as $fixedName) {
+        if (!is_string($fixedName) || trim($fixedName) === '') {
+            continue;
+        }
+        $result['changed']++;
+        $result['items'][] = $fixedName;
+    }
+    foreach (($masterReconcile['failed'] ?? []) as $failure) {
+        if (!is_array($failure)) {
+            continue;
+        }
+        $filename = trim((string) ($failure['filename'] ?? 'audio'));
+        $error = trim((string) ($failure['error'] ?? 'Could not register audio master'));
+        $result['errors'][] = $filename . ': ' . $error;
+    }
+
     foreach (bandpromo_list_uncatalogued_audio_originals($root) as $item) {
         if (!is_array($item)) {
             continue;
@@ -64,11 +81,11 @@ function bandpromo_build_catalog_run(string $root, ?callable $onProgress = null)
         ];
     }
 
-    $progress('Registering uncatalogued audio uploads...');
+    $progress('Registering uncatalogued audio masters and uploads...');
     $register = bandpromo_build_catalog_register_uncatalogued($root);
     $steps[] = array_merge([
         'id' => 'register_uncatalogued',
-        'label' => 'Register uncatalogued audio uploads',
+        'label' => 'Register uncatalogued audio masters and uploads',
     ], $register);
 
     $progress('Materialising audio masters...');

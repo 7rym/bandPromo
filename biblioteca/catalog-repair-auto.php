@@ -69,7 +69,8 @@ function bandpromo_catalog_repair_should_run(string $root, array $reconcileResul
         return false;
     }
 
-    $uncatalogued = count(bandpromo_list_uncatalogued_audio_originals($root));
+    $uncatalogued = count(bandpromo_list_uncatalogued_audio_originals($root))
+        + count(bandpromo_list_uncatalogued_audio_masters($root));
     if ($uncatalogued > 0) {
         return true;
     }

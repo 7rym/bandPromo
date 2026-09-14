@@ -2,6 +2,10 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-09-14 13:00 - Audio master-first reconcile: Publish / Refresh / Repair catalogue / catalogue build re-register uncatalogued `media/audio/master/ast_*` into the registry and Files → Audio (never delete leftovers; never invent originals). Size-based prune of unregistered masters disabled. HITZ-style masters-only drift now surfaces as Orphans instead of invisible disk-only files.
+
+2026-09-14 11:00 - Playlist editor: do not hide playlist entries whose masters are missing from the Files delivery pool (show as unresolved rows). Pool preview track count uses document entry count, not a leftover editor session list. Explains HITZ “Pool 12 tracks / Editor empty” when Retroscopy audio is unregistered or gone.
+
 2026-09-14 10:35 - Publish end report: do not treat quiet optimize progress lines containing “0 failed” as errors (HITZ false “PUBLISH FINISHED WITH WARNINGS” after a clean build 480 run).
 
 2026-09-14 10:00 - Publish observability and Environment: stage timestamps/timings, quieter media optimize (BANDPROMO_OPTIMIZE_VERBOSE=1 for old chatter), live playlist progress + heartbeats, skip media-index rebuild and visual catchup when idle, reuse launch diagnostics when PHP CLI still healthy, compressed end report repeats errors. System → Security renamed to Environment with host report + restyled Host protection (HITZ large-catalogue feedback).

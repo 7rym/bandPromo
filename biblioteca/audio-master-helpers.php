@@ -323,15 +323,6 @@ function bandpromo_materialize_audio_master_from_original(string $root_dir, stri
                 ];
             }
 
-            $sourceSize = filesize($source_path);
-            if ($sourceSize !== false) {
-                bandpromo_asset_prune_unregistered_duplicate_masters(
-                    $root_dir,
-                    (int) $sourceSize,
-                    (string) $orphan['master_filename']
-                );
-            }
-
             return [
                 'attempted' => true,
                 'prepared' => true,

@@ -10043,15 +10043,26 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     if (!entry) {
                         return '<p class="campaign-preview-empty">No playlist selected.</p>';
                     }
-                    const trackCount = Array.isArray(activeTracks) && activeTracks.length
+                    // Pool preview must use registry track_count (document entries), not a
+                    // leftover activeTracks array from a previous editor session.
+                    const trackCount = isEditing && Array.isArray(activeTracks) && activeTracks.length
                         ? activeTracks.length
                         : Number(entry.track_count || 0);
-                    const trackTitles = playlistTrackTitleList();
-                    const trackDetail = trackCount <= 0
-                        ? 'None'
-                        : (trackTitles
-                            ? `${playlistCountLabel(trackCount, 'track', 'tracks')} — ${trackTitles}`
-                            : playlistCountLabel(trackCount, 'track', 'tracks'));
+                    const trackTitles = isEditing ? playlistTrackTitleList() : '';
+                    const unresolved = isEditing
+                        ? (Array.isArray(activeTracks) ? activeTracks.filter((t) => t && t.missing_master).length : 0)
+                        : 0;
+                    let trackDetail;
+                    if (trackCount <= 0) {
+                        trackDetail = 'None';
+                    } else if (trackTitles) {
+                        trackDetail = `${playlistCountLabel(trackCount, 'track', 'tracks')} — ${trackTitles}`;
+                    } else {
+                        trackDetail = playlistCountLabel(trackCount, 'track', 'tracks');
+                    }
+                    if (unresolved > 0) {
+                        trackDetail += ` (${unresolved} missing from Files)`;
+                    }
                     const packageLabel = String(entry.package_type_label || entry.package_type || '').trim() || 'Other';
                     const campaignTitle = String(entry.release_title || '').trim();
                     const playOrder = String(entry.play_order || '').trim().toLowerCase() === 'reverse'
@@ -11011,6 +11022,9 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 }
 
                 function trackMeta(track) {
+                    if (track.missing_master) {
+                        return String(track.meta_label || 'Playlist entry — audio master not available in Files');
+                    }
                     if (track.deliveryReady === false) {
                         return 'Preparing delivery file — wait a moment and refresh the pool';
                     }

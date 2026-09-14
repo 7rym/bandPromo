@@ -534,7 +534,10 @@ function bandpromo_publish_status_summary(string $root, array $options = []): ar
         ? !empty($options['include_uncatalogued_scan'])
         : true;
 
-    // Uncatalogued scan walks originals + playlists — keep off hot inbox paths.
+    // Uncatalogued scan walks masters + originals — keep off hot inbox paths.
+    $uncataloguedMasters = $includeUncataloguedScan
+        ? bandpromo_list_uncatalogued_audio_masters($root)
+        : [];
     $uncatalogued = $includeUncataloguedScan
         ? bandpromo_list_uncatalogued_audio_originals($root)
         : [];
@@ -586,6 +589,17 @@ function bandpromo_publish_status_summary(string $root, array $options = []): ar
     $buildState = bandpromo_get_build_required_state();
     $pendingPublish = !empty($buildState['required']);
     $checks = [];
+
+    if (count($uncataloguedMasters) > 0) {
+        $checks[] = [
+            'id' => 'uncatalogued_audio_masters',
+            'severity' => 'attention',
+            'label' => 'Audio masters waiting for Files',
+            'count' => count($uncataloguedMasters),
+            'detail' => 'Durable masters exist on disk but are not yet in the asset registry (common after PCF import drift).',
+            'action' => 'Publish or Repair catalogue re-registers them into Files → Audio as orphans — nothing is deleted.',
+        ];
+    }
 
     if (count($uncatalogued) > 0) {
         $checks[] = [

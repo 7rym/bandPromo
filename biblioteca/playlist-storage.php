@@ -2917,17 +2917,31 @@ function bandpromo_playlist_admin_editor_state(
             continue;
         }
 
-        if (!isset($builtByFile[$file])) {
+        if (isset($builtByFile[$file])) {
+            $releaseId = bandpromo_campaign_id_for_master_filename($root, $file);
+            $row = bandpromo_campaign_enrich_track_row_labels(
+                $root,
+                bandpromo_playlist_track_row_from_built($builtByFile[$file], $releaseId),
+                bandpromo_playlist_campaign_title($root, $releaseId)
+            );
+            $activeTracks[] = bandpromo_playlist_enrich_track_campaign_meta($root, $row);
             continue;
         }
 
-        $releaseId = bandpromo_campaign_id_for_master_filename($root, $file);
-        $row = bandpromo_campaign_enrich_track_row_labels(
-            $root,
-            bandpromo_playlist_track_row_from_built($builtByFile[$file], $releaseId),
-            bandpromo_playlist_campaign_title($root, $releaseId)
-        );
-        $activeTracks[] = bandpromo_playlist_enrich_track_campaign_meta($root, $row);
+        // Entry still points at a master that is not in the delivery pool (missing file,
+        // unregistered leftover, or id drift). Surface it so Pool/Editor counts match.
+        $activeTracks[] = [
+            'file' => $file,
+            'title' => $file,
+            'artist' => '',
+            'duration' => '',
+            'release_id' => '',
+            'release_title' => '',
+            'deliveryReady' => false,
+            'missing_master' => true,
+            'lock_reason' => 'delivery_pending',
+            'meta_label' => 'Playlist entry — audio master not available in Files',
+        ];
     }
 
     $availableTracks = [];

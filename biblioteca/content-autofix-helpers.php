@@ -1335,6 +1335,14 @@ function bandpromo_content_autofix_run(string $root, bool $dryRun = false, strin
         bandpromo_brand_ensure_seeded($root);
         bandpromo_page_seed_all_if_missing($root);
         if ($dryRun) {
+            $pendingMasters = bandpromo_list_uncatalogued_audio_masters($root);
+            $changedTotal += count($pendingMasters);
+            if ($pendingMasters !== []) {
+                $steps[] = bandpromo_content_autofix_step_result('auto_register_audio_masters', 'Register uncatalogued audio masters', [
+                    'changed' => count($pendingMasters),
+                    'items' => array_map(static fn(array $item): string => (string) ($item['master_filename'] ?? ''), $pendingMasters),
+                ]);
+            }
             $pending = bandpromo_list_uncatalogued_audio_originals($root);
             $changedTotal += count($pending);
             if ($pending !== []) {
@@ -1352,6 +1360,25 @@ function bandpromo_content_autofix_run(string $root, bool $dryRun = false, strin
                 ]);
             }
         } else {
+            $reconcileMasters = bandpromo_reconcile_uncatalogued_audio_masters($root);
+            if (!empty($reconcileMasters['changed']) || !empty($reconcileMasters['index_rebuilt'])) {
+                $changedTotal += (int) ($reconcileMasters['changed'] ?? 0);
+                if (!empty($reconcileMasters['index_rebuilt']) && (int) ($reconcileMasters['changed'] ?? 0) === 0) {
+                    $changedTotal++;
+                }
+                $steps[] = bandpromo_content_autofix_step_result('auto_register_audio_masters', 'Register uncatalogued audio masters', [
+                    'changed' => max(1, (int) ($reconcileMasters['changed'] ?? 0)),
+                    'items' => $reconcileMasters['fixed'] ?? [],
+                ]);
+            }
+            if (!empty($reconcileMasters['failed'])) {
+                foreach ($reconcileMasters['failed'] as $failure) {
+                    if (!is_array($failure)) {
+                        continue;
+                    }
+                    $errors[] = (string) ($failure['filename'] ?? 'audio') . ': ' . (string) ($failure['error'] ?? 'Could not register audio master');
+                }
+            }
             $reconcile = bandpromo_reconcile_uncatalogued_audio_originals($root);
             if (!empty($reconcile['changed'])) {
                 $changedTotal += (int) $reconcile['changed'];
@@ -1395,6 +1422,9 @@ function bandpromo_content_autofix_run(string $root, bool $dryRun = false, strin
         ]);
         $steps[] = $seedStep;
         bandpromo_content_autofix_log_step_finish($root, $seedStep, (microtime(true) - $seedStarted) * 1000);
+        if (isset($reconcileMasters) && !empty($reconcileMasters['failed'])) {
+            bandpromo_content_autofix_log_write($root, '  auto_register_audio_masters failures=' . count($reconcileMasters['failed']));
+        }
         if (isset($reconcile) && !empty($reconcile['failed'])) {
             bandpromo_content_autofix_log_write($root, '  auto_register failures=' . count($reconcile['failed']));
         }

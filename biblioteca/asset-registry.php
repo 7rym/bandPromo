@@ -1780,47 +1780,18 @@ function bandpromo_asset_find_unregistered_master_match(string $root, string $or
     return $best;
 }
 
+/**
+ * Historical size-based leftover prune — disabled.
+ *
+ * Same-byte-length masters (e.g. long shows) are not safe duplicates. Durable
+ * audio lives in media/audio/master/; uncatalogued masters are re-registered
+ * instead of deleted. Kept as a no-op so older call sites stay harmless.
+ */
 function bandpromo_asset_prune_unregistered_duplicate_masters(string $root, int $sourceSize, string $keepMasterFilename): int
 {
-    $keepMasterFilename = basename(trim($keepMasterFilename));
-    if ($keepMasterFilename === '' || $sourceSize <= 0) {
-        return 0;
-    }
+    unset($root, $sourceSize, $keepMasterFilename);
 
-    $registry = bandpromo_asset_load_registry($root);
-    $registeredMasters = array_fill_keys(array_keys($registry['by_master_filename']), true);
-    $masterDir = $root . '/media/audio/master';
-    if (!is_dir($masterDir)) {
-        return 0;
-    }
-
-    $removed = 0;
-    foreach (scandir($masterDir) ?: [] as $entry) {
-        if ($entry === '.' || $entry === '..' || $entry === $keepMasterFilename) {
-            continue;
-        }
-        if (!str_starts_with($entry, BANDPROMO_ASSET_ID_PREFIX)) {
-            continue;
-        }
-        if (isset($registeredMasters[$entry])) {
-            continue;
-        }
-
-        $path = $masterDir . '/' . $entry;
-        if (!is_file($path)) {
-            continue;
-        }
-        $size = filesize($path);
-        if ($size === false || $size !== $sourceSize) {
-            continue;
-        }
-
-        if (@unlink($path)) {
-            $removed++;
-        }
-    }
-
-    return $removed;
+    return 0;
 }
 
 function bandpromo_asset_reconcile_audio_originals(string $root): void
@@ -1896,16 +1867,7 @@ function bandpromo_asset_reconcile_audio_originals(string $root): void
         } catch (Throwable $throwable) {
             continue;
         }
-
-        $sourcePath = $originalDir . '/' . $entry;
-        $sourceSize = is_file($sourcePath) ? filesize($sourcePath) : false;
-        if ($sourceSize !== false) {
-            bandpromo_asset_prune_unregistered_duplicate_masters(
-                $root,
-                (int) $sourceSize,
-                (string) $match['master_filename']
-            );
-        }
+        // Do not prune other same-size unregistered masters — they are not safe duplicates.
     }
 }
 
@@ -2173,6 +2135,13 @@ function bandpromo_asset_registry_ensure_migrated(string $root, bool $heavy = fa
     // Recover Visual masters that still exist on disk after registry/index drift.
     try {
         bandpromo_reconcile_uncatalogued_visual_masters($root);
+    } catch (Throwable $throwable) {
+        // Publish / Repair catalogue can retry; do not block admin boot.
+    }
+
+    // Same for audio: PCF/masters-only hosts may lack originals; durable bytes are masters.
+    try {
+        bandpromo_reconcile_uncatalogued_audio_masters($root);
     } catch (Throwable $throwable) {
         // Publish / Repair catalogue can retry; do not block admin boot.
     }
@@ -2536,6 +2505,173 @@ function bandpromo_reconcile_uncatalogued_visual_masters(string $root): array
         $result['index_rebuilt'] = true;
         try {
             bandpromo_mark_build_required('media_visual_upload');
+        } catch (Throwable $ignored) {
+            // Index heal must not fail if build-required helpers are unavailable.
+        }
+    }
+
+    return $result;
+}
+
+/**
+ * Audio masters on disk that are missing from the asset registry.
+ * PCF installs are masters-only; originals are optional provenance after intake.
+ *
+ * @return list<array{master_filename: string, asset_id: string, master_format: string, size: int}>
+ */
+function bandpromo_list_uncatalogued_audio_masters(string $root): array
+{
+    $masterDir = $root . '/media/audio/master';
+    if (!is_dir($masterDir)) {
+        return [];
+    }
+
+    $allowed = array_fill_keys(['flac', 'mp3', 'wav'], true);
+    $found = [];
+
+    foreach (scandir($masterDir) ?: [] as $entry) {
+        if ($entry === '.' || $entry === '..' || strcasecmp($entry, 'desktop.ini') === 0) {
+            continue;
+        }
+        $path = $masterDir . DIRECTORY_SEPARATOR . $entry;
+        if (!is_file($path)) {
+            continue;
+        }
+        $ext = strtolower((string) pathinfo($entry, PATHINFO_EXTENSION));
+        if ($ext === '' || !isset($allowed[$ext])) {
+            continue;
+        }
+        $stem = (string) pathinfo($entry, PATHINFO_FILENAME);
+        if (!bandpromo_asset_is_asset_id($stem)) {
+            continue;
+        }
+
+        $byMaster = bandpromo_asset_lookup_by_master_filename($root, $entry);
+        if (is_array($byMaster) && ($byMaster['kind'] ?? '') === 'audio') {
+            continue;
+        }
+
+        $byId = bandpromo_asset_lookup_by_id($root, $stem);
+        if (is_array($byId) && ($byId['kind'] ?? '') === 'audio') {
+            $existingMaster = basename(trim((string) ($byId['master_filename'] ?? '')));
+            if ($existingMaster === $entry) {
+                continue;
+            }
+            if ($existingMaster !== '') {
+                $existingPath = $masterDir . DIRECTORY_SEPARATOR . $existingMaster;
+                if (is_file($existingPath)) {
+                    // Different live master already claims this id — leave bytes alone.
+                    continue;
+                }
+            }
+        } elseif (is_array($byId) && ($byId['kind'] ?? '') !== '' && ($byId['kind'] ?? '') !== 'audio') {
+            // Id owned by another kind — do not steal.
+            continue;
+        }
+
+        $size = @filesize($path);
+        $found[] = [
+            'master_filename' => $entry,
+            'asset_id' => $stem,
+            'master_format' => $ext,
+            'size' => $size === false ? 0 : (int) $size,
+        ];
+    }
+
+    usort($found, static function (array $a, array $b): int {
+        return strcmp((string) $a['master_filename'], (string) $b['master_filename']);
+    });
+
+    return $found;
+}
+
+/**
+ * Re-register audio masters that exist on disk but are absent from the registry,
+ * then rebuild Files → Audio index rows. Never deletes master bytes and never
+ * invents original/ uploads from masters.
+ *
+ * @return array{fixed: list<string>, failed: list<array{filename: string, error: string}>, changed: int, index_rebuilt: bool}
+ */
+function bandpromo_reconcile_uncatalogued_audio_masters(string $root): array
+{
+    require_once __DIR__ . '/media-library-state.php';
+    require_once __DIR__ . '/build-required.php';
+    require_once __DIR__ . '/campaign-storage.php';
+
+    $result = [
+        'fixed' => [],
+        'failed' => [],
+        'changed' => 0,
+        'index_rebuilt' => false,
+    ];
+
+    $pending = bandpromo_list_uncatalogued_audio_masters($root);
+    foreach ($pending as $item) {
+        if (!is_array($item)) {
+            continue;
+        }
+        $masterFilename = basename(trim((string) ($item['master_filename'] ?? '')));
+        $assetId = trim((string) ($item['asset_id'] ?? ''));
+        $masterFormat = strtolower(trim((string) ($item['master_format'] ?? pathinfo($masterFilename, PATHINFO_EXTENSION))));
+        if ($masterFilename === '' || !bandpromo_asset_is_asset_id($assetId)) {
+            continue;
+        }
+        if ($masterFormat === '') {
+            $masterFormat = 'mp3';
+        }
+
+        $byId = bandpromo_asset_lookup_by_id($root, $assetId);
+        try {
+            if (is_array($byId) && ($byId['kind'] ?? '') === 'audio') {
+                $changes = [
+                    'master_filename' => $masterFilename,
+                    'master_format' => $masterFormat,
+                ];
+                // Do not invent original_filename from the master id.
+                bandpromo_asset_update_entry($root, $assetId, $changes);
+            } else {
+                bandpromo_asset_register_audio_master(
+                    $root,
+                    '',
+                    $masterFilename,
+                    $masterFormat,
+                    $assetId
+                );
+            }
+            try {
+                bandpromo_asset_ensure_audio_display_after_upload($root, $masterFilename, '');
+            } catch (Throwable $ignored) {
+                // Tags optional; Files still lists the registered master.
+            }
+            $result['fixed'][] = $masterFilename;
+            $result['changed']++;
+        } catch (Throwable $throwable) {
+            $result['failed'][] = [
+                'filename' => $masterFilename,
+                'error' => $throwable->getMessage(),
+            ];
+        }
+    }
+
+    $registryAudio = 0;
+    $registry = bandpromo_asset_load_registry($root);
+    foreach ($registry['assets'] as $asset) {
+        if (is_array($asset) && ($asset['kind'] ?? '') === 'audio') {
+            $registryAudio++;
+        }
+    }
+    $indexedAudio = 0;
+    try {
+        $indexedAudio = count(bandpromo_media_files_index_list($root, 'audio'));
+    } catch (Throwable $ignored) {
+        $indexedAudio = 0;
+    }
+    if ($result['changed'] > 0 || ($registryAudio > 0 && $indexedAudio < $registryAudio)) {
+        bandpromo_media_files_index_rebuild_target($root, 'audio');
+        $result['index_rebuilt'] = true;
+        try {
+            bandpromo_campaign_repair_catalog_release_ids($root);
+            bandpromo_mark_build_required('media_audio_upload');
         } catch (Throwable $ignored) {
             // Index heal must not fail if build-required helpers are unavailable.
         }
