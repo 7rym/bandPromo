@@ -2,6 +2,8 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-09-14 00:50 - Hotfix: Publish no longer false-fails during a silent catalogue stage. Build lock respects a live PID (and a 15‑minute silence fallback); catalogue prints progress + heartbeats; PHP CLI smoke has a timeout; build-log poller re-reads after clearing orphans. (HITZ build 478 report.)
+
 2026-09-14 00:20 - Playlists pool rows: drop publish/campaign/tracks meta line (shown in Pool Preview instead).
 
 2026-09-14 00:10 - Content editors: remove leftover name-row “Saved.” status (Catalogue / Playlists / Galleries / Branding); breadcrumb Save chip is the sole save feedback. Errors use toasts.

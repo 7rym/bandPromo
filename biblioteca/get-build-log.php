@@ -24,7 +24,6 @@ $lock_file = $root_dir . '/log/' . ($mode === 'optimize' ? 'optimize.lock' : 'bu
 $meta_file = $root_dir . '/log/' . ($mode === 'optimize' ? 'optimize.meta.json' : 'build.meta.json');
 $audit_state_file = $root_dir . '/log/admin-audit/' . ($mode === 'optimize' ? 'state-optimize-build.json' : 'state-full-build.json');
 
-$content = '';
 $publish_status = bandpromo_publish_status_summary($root_dir);
 
 function bandpromo_build_poller_load_json(string $file): array
@@ -48,15 +47,19 @@ function bandpromo_build_poller_extract_run_id(string $content): string
     return '';
 }
 
+$build_meta = bandpromo_build_poller_load_json($meta_file);
+$build_run_id = trim((string) ($build_meta['run_id'] ?? ''));
+
+// Clear orphans before reading the log so the operator sees any system note.
+bandpromo_build_clear_stale_lock($root_dir, $mode);
+
+$content = '';
 if (file_exists($log_file)) {
     $content = file_get_contents($log_file);
     if ($content === false) {
         $content = '';
     }
 }
-
-$build_meta = bandpromo_build_poller_load_json($meta_file);
-$build_run_id = trim((string) ($build_meta['run_id'] ?? ''));
 
 // Detect exit code from log content and strip it from display
 $exit_code = null;
@@ -70,8 +73,6 @@ if ($build_run_id === '') {
 }
 
 $content = preg_replace('/^RUN_ID:[^\r\n]+\r?\n?/mi', '', $content, 1);
-
-bandpromo_build_clear_stale_lock($root_dir, $mode);
 
 // Determine running state:
 // - Primary: lock file exists AND no EXITCODE yet → still running

@@ -2,7 +2,7 @@
 
 ## Resume point
 
-**Published Content chrome batch** — breadcrumb sections (Pages), Catalogue/Playlist pool previews, preference polish, Saved. cleanup. Next: Shell/Player/Content preview parity or operator smoke on Site update.
+**HITZ publish false-fail hotfix** — catalogue stage was silent for >90s; poller cleared `build.lock` and showed “Deliverables rebuild failed” while the build was still running. Fix ready locally (PID-aware lock + catalogue progress/heartbeats). **Publish via session-end -Push -Publish** so HITZ can Site-update, then re-run Deliverables rebuild.
 
 ### Also pending
 

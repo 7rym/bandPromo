@@ -42,12 +42,19 @@ function bandpromo_build_catalog_register_uncatalogued(string $root): array
     return $result;
 }
 
-function bandpromo_build_catalog_run(string $root): array
+function bandpromo_build_catalog_run(string $root, ?callable $onProgress = null): array
 {
     $steps = [];
     $errors = [];
+    $progress = static function (string $message) use ($onProgress): void {
+        if ($onProgress === null) {
+            return;
+        }
+        $onProgress($message);
+    };
 
     try {
+        $progress('Ensuring asset registry...');
         bandpromo_asset_registry_ensure_migrated($root);
     } catch (Throwable $throwable) {
         return [
@@ -57,23 +64,28 @@ function bandpromo_build_catalog_run(string $root): array
         ];
     }
 
+    $progress('Registering uncatalogued audio uploads...');
     $register = bandpromo_build_catalog_register_uncatalogued($root);
     $steps[] = array_merge([
         'id' => 'register_uncatalogued',
         'label' => 'Register uncatalogued audio uploads',
     ], $register);
 
+    $progress('Materialising audio masters...');
     $materialize = bandpromo_content_autofix_materialize_audio_masters($root, false);
     $steps[] = $materialize;
 
+    $progress('Canonicalising master filenames...');
     $canonical = bandpromo_content_autofix_canonicalize_master_filenames($root, false);
     $steps[] = $canonical;
 
+    $progress('Materialising visual masters...');
     $visualMasters = bandpromo_content_autofix_materialize_visual_masters($root, false);
     $steps[] = $visualMasters;
 
     require_once __DIR__ . '/gallery-storage.php';
     try {
+        $progress('Syncing gallery visual asset refs...');
         bandpromo_gallery_ensure_seeded($root);
         $gallerySync = bandpromo_content_autofix_sync_gallery_asset_ids($root, false);
         $steps[] = $gallerySync;

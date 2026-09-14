@@ -8,8 +8,22 @@ if (PHP_SAPI !== 'cli') {
 
 require_once __DIR__ . '/build-catalog-helpers.php';
 
+@ini_set('output_buffering', '0');
+@ini_set('zlib.output_compression', '0');
+while (ob_get_level() > 0) {
+    ob_end_flush();
+}
+ob_implicit_flush(true);
+
+$progress = static function (string $message): void {
+    echo $message . "\n";
+    flush();
+};
+
+$progress('Catalogue: starting...');
+
 $root = dirname(__DIR__);
-$result = bandpromo_build_catalog_run($root);
+$result = bandpromo_build_catalog_run($root, $progress);
 $steps = is_array($result['steps'] ?? null) ? $result['steps'] : [];
 
 $changedTotal = 0;
@@ -49,6 +63,7 @@ foreach ($steps as $step) {
             echo '  - ' . $error . "\n";
         }
     }
+    flush();
 }
 
 // Catalogue prepares masters (counted as handled); public deliverables come from later stages.

@@ -11,7 +11,7 @@ import subprocess
 from pathlib import Path
 
 
-def _php_smoke(candidate):
+def _php_smoke(candidate, timeout_seconds=15):
     if candidate == '':
         return False
 
@@ -21,8 +21,11 @@ def _php_smoke(candidate):
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
             check=False,
+            timeout=timeout_seconds,
         )
     except OSError:
+        return False
+    except subprocess.TimeoutExpired:
         return False
 
     if proc.returncode != 0:
