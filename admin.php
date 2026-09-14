@@ -609,10 +609,16 @@ if (!in_array($configTab, ['basics', 'support', 'sharing'], true)) {
 }
 
 // System sub-tab
-$allowedSystemTabs = ['deliverables', 'status', 'publish', 'audit', 'backup', 'security'];
+$allowedSystemTabs = ['deliverables', 'status', 'publish', 'audit', 'backup', 'security', 'environment'];
 $systemTab = $_GET['stab'] ?? 'deliverables';
 if ($systemTab === 'activity') {
     $systemTab = 'backup';
+}
+if ($systemTab === 'security') {
+    $redirectQuery = $_GET;
+    $redirectQuery['stab'] = 'environment';
+    header('Location: /admin.php?' . http_build_query($redirectQuery));
+    exit;
 }
 if ($systemTab === 'publish' || $systemTab === 'status') {
     if ($systemTab === 'publish') {
@@ -626,7 +632,7 @@ if ($systemTab === 'publish' || $systemTab === 'status') {
 if (!in_array($systemTab, $allowedSystemTabs, true)) {
     $systemTab = 'deliverables';
 }
-if ($tab === 'system' && in_array($systemTab, ['audit', 'security'], true) && $currentUserRole !== 'developer') {
+if ($tab === 'system' && in_array($systemTab, ['audit', 'environment', 'security'], true) && $currentUserRole !== 'developer') {
     header('Location: /admin.php?tab=system&stab=deliverables');
     exit;
 }
@@ -2803,14 +2809,14 @@ if ($tab === 'analytics') {
                 <?php endif; ?>
                 <a href="?tab=system&amp;stab=backup" class="tab-link <?php echo $systemTab === 'backup' ? 'active' : ''; ?>">💾 Backup, export &amp; import</a>
                 <?php if ($currentUserRole === 'developer'): ?>
-                <a href="?tab=system&amp;stab=security" class="tab-link <?php echo $systemTab === 'security' ? 'active' : ''; ?>">🔒 Security</a>
+                <a href="?tab=system&amp;stab=environment" class="tab-link <?php echo $systemTab === 'environment' ? 'active' : ''; ?>">🖥️ Environment</a>
                 <?php endif; ?>
                 <?php if ($systemTab === 'deliverables'): ?>
                 <button class="help-toggle-btn collapsed" id="helpBtn-build" onclick="toggleHelp('build')" title="Show/hide help">ⓘ</button>
                 <?php elseif ($systemTab === 'audit'): ?>
                 <button class="help-toggle-btn collapsed" id="helpBtn-audit" onclick="toggleHelp('audit')" title="Show/hide help">ⓘ</button>
-                <?php elseif ($systemTab === 'security'): ?>
-                <button class="help-toggle-btn collapsed" id="helpBtn-security" onclick="toggleHelp('security')" title="Show/hide help">ⓘ</button>
+                <?php elseif ($systemTab === 'environment'): ?>
+                <button class="help-toggle-btn collapsed" id="helpBtn-environment" onclick="toggleHelp('environment')" title="Show/hide help">ⓘ</button>
                 <?php else: ?>
                 <button class="help-toggle-btn collapsed" id="helpBtn-backup-export" onclick="toggleHelp('backup-export')" title="Show/hide help">ⓘ</button>
                 <?php endif; ?>
@@ -3319,14 +3325,31 @@ if ($tab === 'analytics') {
                 <?php endif; ?>
             </div>
             </div>
-            <?php elseif ($systemTab === 'security'): ?>
-            <div class="admin-help-box collapsed" id="help-security">
-                Verifies that this install still has the managed Apache/PHP protection stubs bandPromo expects
+            <?php elseif ($systemTab === 'environment'): ?>
+            <div class="admin-help-box collapsed" id="help-environment">
+                Host facts for debugging limited shared hosting (PHP CLI, open_basedir, Python, ffmpeg, launch path)
+                plus the managed Apache/PHP protection stubs bandPromo expects
                 (<code>.htaccess</code>, <code>.user.ini</code>, and deny-all rules under <code>data/</code>, <code>log/</code>, <code>backups/</code>, and <code>media/</code>).
                 <br><br>
-                <strong>Check</strong> only reports. <strong>Repair</strong> recreates missing or drifted managed stubs from
-                <code>biblioteca/templates/runtime/</code>. Custom edits to those managed files will be overwritten.
-                Site config (<code>web-config.json</code>) is checked for presence/validity but is never overwritten here.
+                <strong>Host protection → Check</strong> only reports.
+                <strong>Repair</strong> recreates missing or drifted managed stubs from
+                <code>biblioteca/templates/runtime/</code>. Site config (<code>web-config.json</code>) is never overwritten here.
+            </div>
+
+            <div id="environmentReportCard" class="card environment-report-card">
+                <div class="build-validation-head">
+                    <h3>🖥️ Host environment</h3>
+                    <span id="environmentReportOverall" class="badge audit-status-badge status-neutral">Loading…</span>
+                </div>
+                <p id="environmentReportMessage" class="card-note">
+                    Collecting PHP, Python, ffmpeg, and launch-path facts for this install…
+                </p>
+                <div class="publish-actions-toolbar environment-report-actions">
+                    <button type="button" id="environmentReportRefreshBtn" class="btn btn-primary">🔄 Refresh</button>
+                    <button type="button" id="environmentReportCopyBtn" class="btn">📋 Copy report</button>
+                </div>
+                <pre id="environmentReportBody" class="environment-report-body" hidden></pre>
+                <p id="environmentReportStatus" class="build-log-status publish-action-status" hidden></p>
             </div>
 
             <div id="securitySanityCard" class="card security-sanity-card">

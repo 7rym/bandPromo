@@ -5399,6 +5399,30 @@ canvas { max-width: 100%; height: auto; }
     margin-top: 12px;
 }
 
+.environment-report-card .environment-report-actions {
+    margin-top: 12px;
+}
+
+.environment-report-body {
+    margin: 12px 0 0;
+    padding: 12px 14px;
+    max-height: 28rem;
+    overflow: auto;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 8px;
+    background: rgba(0, 0, 0, 0.35);
+    color: var(--text, #e8e8e8);
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 12px;
+    line-height: 1.45;
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+
+.environment-report-body[hidden] {
+    display: none;
+}
+
 .security-sanity-report {
     list-style: none;
     margin: 12px 0 0;
@@ -5415,23 +5439,23 @@ canvas { max-width: 100%; height: auto; }
     display: grid;
     gap: 2px;
     padding: 10px 12px;
-    border: 1px solid rgba(0, 0, 0, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.08);
     border-radius: 8px;
-    background: rgba(255, 255, 255, 0.55);
+    background: var(--card, #1c1c1c);
 }
 
 .security-sanity-report-item.is-ok {
-    border-color: rgba(46, 125, 50, 0.25);
+    border-color: rgba(74, 222, 128, 0.28);
 }
 
 .security-sanity-report-item.is-issue {
-    border-color: rgba(198, 120, 40, 0.35);
-    background: rgba(255, 244, 229, 0.65);
+    border-color: rgba(251, 191, 36, 0.35);
+    background: rgba(251, 191, 36, 0.08);
 }
 
 .security-sanity-report-item.is-error {
-    border-color: rgba(176, 50, 50, 0.35);
-    background: rgba(255, 236, 236, 0.7);
+    border-color: rgba(248, 113, 113, 0.4);
+    background: rgba(248, 113, 113, 0.08);
 }
 
 .security-sanity-report-title {

@@ -12848,6 +12848,22 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     overallEl.textContent = label;
                 }
 
+                function humanStatusLabel(status) {
+                    const map = {
+                        ok: 'OK',
+                        missing: 'Missing',
+                        empty: 'Empty',
+                        drifted: 'Differs from template',
+                        invalid: 'Invalid',
+                        unreadable: 'Unreadable',
+                        template_missing: 'Template missing',
+                        error: 'Error',
+                        unknown: 'Unknown',
+                    };
+                    const key = String(status || 'unknown');
+                    return map[key] || key.replace(/_/g, ' ');
+                }
+
                 function statusClassForCheck(status) {
                     if (status === 'ok') {
                         return 'is-ok';
@@ -12881,7 +12897,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                                 : (item.status === 'missing' || item.status === 'empty' || item.status === 'drifted') ? 'status-warning'
                                     : 'status-error'
                         );
-                        badge.textContent = String(item.status || 'unknown');
+                        badge.textContent = humanStatusLabel(item.status);
                         title.appendChild(label);
                         title.appendChild(badge);
 
@@ -13021,6 +13037,132 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 });
 
                 runCheck().catch(() => {});
+            })();
+
+            (function initEnvironmentReport() {
+                const card = document.getElementById('environmentReportCard');
+                const overallEl = document.getElementById('environmentReportOverall');
+                const messageEl = document.getElementById('environmentReportMessage');
+                const bodyEl = document.getElementById('environmentReportBody');
+                const statusEl = document.getElementById('environmentReportStatus');
+                const refreshBtn = document.getElementById('environmentReportRefreshBtn');
+                const copyBtn = document.getElementById('environmentReportCopyBtn');
+                if (!card || !overallEl || !messageEl || !bodyEl || !refreshBtn || !copyBtn) {
+                    return;
+                }
+
+                let latestText = '';
+
+                function formatReport(report) {
+                    if (!report || typeof report !== 'object') {
+                        return '(empty)';
+                    }
+                    const app = report.app || {};
+                    const php = report.php || {};
+                    const fns = report.functions || {};
+                    const tools = report.build_tools || {};
+                    const exts = php.extensions || {};
+                    const cache = tools.launch_diag_cache || null;
+                    const lines = [
+                        'App version: ' + (app.version || '(unknown)'),
+                        'Host: ' + (app.host || '(unknown)'),
+                        'Install root: ' + (app.install_root || ''),
+                        'Document root: ' + (app.document_root || ''),
+                        'Server: ' + (app.server_software || ''),
+                        '',
+                        'PHP: ' + (php.version || '') + ' (' + (php.sapi || '') + ') on ' + (php.os || ''),
+                        'PHP CLI: ' + (php.cli || '(unresolved)'),
+                        'memory_limit: ' + (php.memory_limit || ''),
+                        'max_execution_time: ' + (php.max_execution_time || ''),
+                        'post_max_size: ' + (php.post_max_size || ''),
+                        'upload_max_filesize: ' + (php.upload_max_filesize || ''),
+                        'open_basedir: ' + (php.open_basedir || ''),
+                        'disable_functions: ' + (php.disable_functions || ''),
+                        'Extensions: pdo_sqlite=' + (exts.pdo_sqlite ? 'yes' : 'no')
+                            + ' zip=' + (exts.zip ? 'yes' : 'no')
+                            + ' curl=' + (exts.curl ? 'yes' : 'no')
+                            + ' openssl=' + (exts.openssl ? 'yes' : 'no'),
+                        '',
+                        'Functions: proc_open=' + (fns.proc_open ? 'yes' : 'no')
+                            + ' shell_exec=' + (fns.shell_exec ? 'yes' : 'no')
+                            + ' exec=' + (fns.exec ? 'yes' : 'no')
+                            + ' popen=' + (fns.popen ? 'yes' : 'no')
+                            + ' putenv=' + (fns.putenv ? 'yes' : 'no'),
+                        '',
+                        'Python: ' + (tools.python || '(not found on PATH)'),
+                        'ffmpeg: ' + (tools.ffmpeg || '(not found)'),
+                    ];
+                    if (cache) {
+                        lines.push('');
+                        lines.push('Launch diagnostics cache:');
+                        lines.push('  PHP CLI: ' + (cache.resolved_php || ''));
+                        lines.push('  Method: ' + (cache.recommended_method || ''));
+                        lines.push('  Reason: ' + (cache.recommended_reason || ''));
+                        lines.push('  Cached at: ' + (cache.cached_at || ''));
+                    }
+                    lines.push('');
+                    lines.push('Generated at: ' + (report.generated_at || ''));
+                    return lines.join('\n');
+                }
+
+                async function loadReport() {
+                    refreshBtn.disabled = true;
+                    if (statusEl) {
+                        statusEl.hidden = false;
+                        statusEl.textContent = 'Loading environment…';
+                    }
+                    try {
+                        const resp = await fetch('/biblioteca/environment-report.php', {
+                            method: 'GET',
+                            credentials: 'same-origin',
+                        });
+                        const data = await resp.json().catch(() => ({}));
+                        if (!resp.ok || data.ok !== true) {
+                            throw new Error(data.error || 'Environment report failed');
+                        }
+                        latestText = formatReport(data.report);
+                        bodyEl.textContent = latestText;
+                        bodyEl.hidden = false;
+                        overallEl.className = 'badge audit-status-badge status-ok';
+                        overallEl.textContent = 'Ready';
+                        messageEl.textContent = 'Host facts for this install (no secrets). Use Copy report when filing a hosting ticket.';
+                        if (statusEl) {
+                            statusEl.textContent = 'Environment loaded.';
+                        }
+                    } catch (error) {
+                        overallEl.className = 'badge audit-status-badge status-error';
+                        overallEl.textContent = 'Failed';
+                        messageEl.textContent = error.message || 'Environment report failed';
+                        if (statusEl) {
+                            statusEl.textContent = error.message || 'Environment report failed';
+                        }
+                    } finally {
+                        refreshBtn.disabled = false;
+                    }
+                }
+
+                refreshBtn.addEventListener('click', () => {
+                    loadReport().catch(() => {});
+                });
+                copyBtn.addEventListener('click', async () => {
+                    if (!latestText) {
+                        return;
+                    }
+                    try {
+                        await navigator.clipboard.writeText(latestText);
+                        if (statusEl) {
+                            statusEl.hidden = false;
+                            statusEl.textContent = 'Copied environment report.';
+                        }
+                    } catch (error) {
+                        if (statusEl) {
+                            statusEl.hidden = false;
+                            statusEl.textContent = 'Could not copy — select the report text manually.';
+                        }
+                    }
+                });
+
+                loadReport().catch(() => {});
             })();
 
             (function initBackupExportTab() {

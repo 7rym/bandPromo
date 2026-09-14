@@ -360,7 +360,14 @@ file_put_contents($lock_file, 'running');
 
 $started = false;
 
-$diagnostics = bandpromo_build_run_launch_diagnostics($root_dir, $log_file, $python, $script, $is_windows);
+$diagnostics = bandpromo_build_run_launch_diagnostics(
+    $root_dir,
+    $log_file,
+    $python,
+    $script,
+    $is_windows,
+    !empty($request_data['force_diag']) || !empty($_GET['diag']) || !empty($_POST['force_diag'])
+);
 $debug['launch_diagnostics'] = [
     'recommended_method' => $diagnostics['recommended_method'] ?? null,
     'recommended_reason' => $diagnostics['recommended_reason'] ?? null,

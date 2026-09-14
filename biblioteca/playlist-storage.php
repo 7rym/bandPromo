@@ -2197,6 +2197,7 @@ function bandpromo_playlist_publish_player_payload(string $root, string $playlis
             'track_count' => 0,
             'player_built_at' => '',
             'changed' => $hadPayload,
+            'covers_healed' => 0,
         ];
     }
 
@@ -2306,6 +2307,7 @@ function bandpromo_playlist_publish_player_payload(string $root, string $playlis
         'player_built_at' => (string) ($document['player_built_at'] ?? ''),
         'brand_id' => $brandId,
         'changed' => $changed,
+        'covers_healed' => $healedCovers,
     ];
 }
 
@@ -2327,11 +2329,17 @@ function bandpromo_playlist_player_payload_fingerprint(array $document): string
     return hash('sha256', $encoded);
 }
 
-function bandpromo_playlist_publish_all_player_payloads(string $root): array
+/**
+ * @param callable|null $onProgress function (string $message): void
+ */
+function bandpromo_playlist_publish_all_player_payloads(string $root, ?callable $onProgress = null): array
 {
     $published = [];
     $errors = [];
+    $coversHealed = 0;
+    $payloadsChanged = 0;
 
+    $entries = [];
     foreach (bandpromo_playlist_registry_entries($root) as $entry) {
         if (!is_array($entry)) {
             continue;
@@ -2340,20 +2348,68 @@ function bandpromo_playlist_publish_all_player_payloads(string $root): array
         if ($playlistId === '') {
             continue;
         }
+        $entries[] = [
+            'id' => $playlistId,
+            'track_count' => is_array($entry['entries'] ?? null) ? count($entry['entries']) : (int) ($entry['track_count'] ?? 0),
+        ];
+    }
 
+    $total = count($entries);
+    foreach ($entries as $index => $meta) {
+        $playlistId = $meta['id'];
+        $n = $index + 1;
+        $trackHint = (int) ($meta['track_count'] ?? 0);
+        if ($onProgress !== null) {
+            $onProgress(sprintf(
+                '[%d/%d] Publishing player playlist %s%s...',
+                $n,
+                $total,
+                $playlistId,
+                $trackHint > 0 ? ' (' . $trackHint . ' track(s))' : ''
+            ));
+        }
+
+        $started = microtime(true);
         try {
-            $published[] = bandpromo_playlist_publish_player_payload($root, $playlistId);
+            $result = bandpromo_playlist_publish_player_payload($root, $playlistId);
+            $published[] = $result;
+            $coversHealed += (int) ($result['covers_healed'] ?? 0);
+            if (!empty($result['changed'])) {
+                $payloadsChanged++;
+            }
+            $elapsed = microtime(true) - $started;
+            if ($onProgress !== null) {
+                $trackCount = (int) ($result['track_count'] ?? 0);
+                if (!empty($result['changed'])) {
+                    $onProgress(sprintf(
+                        '  done in %.1fs — published (%d track(s))',
+                        $elapsed,
+                        $trackCount
+                    ));
+                } else {
+                    $onProgress(sprintf(
+                        '  done in %.1fs — already up to date (%d track(s))',
+                        $elapsed,
+                        $trackCount
+                    ));
+                }
+            }
         } catch (Throwable $throwable) {
             $errors[] = [
                 'playlist_id' => $playlistId,
                 'error' => $throwable->getMessage(),
             ];
+            if ($onProgress !== null) {
+                $onProgress('  FAILED: ' . $throwable->getMessage());
+            }
         }
     }
 
     return [
         'published' => $published,
         'errors' => $errors,
+        'covers_healed' => $coversHealed,
+        'payloads_changed' => $payloadsChanged,
     ];
 }
 

@@ -3,6 +3,11 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/build-launcher.php';
 
+function bandpromo_build_launch_diag_cache_path(string $root): string
+{
+    return rtrim($root, '/\\') . '/log/build-launch-diag.json';
+}
+
 function bandpromo_build_diag_log(string $logFile, string $message): void
 {
     if ($logFile === '') {
@@ -10,6 +15,86 @@ function bandpromo_build_diag_log(string $logFile, string $message): void
     }
 
     file_put_contents($logFile, '[diag] ' . rtrim($message) . "\n", FILE_APPEND);
+}
+
+/**
+ * Try to reuse a previous successful launch-diagnostics snapshot when the
+ * cached PHP CLI still smokes. Returns null when a full walk is required.
+ */
+function bandpromo_build_try_reuse_launch_diagnostics(
+    string $root,
+    string $logFile,
+    string $python,
+    string $script
+): ?array {
+    $cachePath = bandpromo_build_launch_diag_cache_path($root);
+    if (!is_file($cachePath)) {
+        return null;
+    }
+
+    $raw = @file_get_contents($cachePath);
+    if (!is_string($raw) || $raw === '') {
+        return null;
+    }
+    $cached = json_decode($raw, true);
+    if (!is_array($cached)) {
+        return null;
+    }
+
+    $resolvedPhp = trim((string) ($cached['resolved_php'] ?? ''));
+    $method = trim((string) ($cached['recommended_method'] ?? ''));
+    $reason = trim((string) ($cached['recommended_reason'] ?? ''));
+    if ($resolvedPhp === '' || $method === '') {
+        return null;
+    }
+
+    if (!bandpromo_build_php_cli_usable($resolvedPhp)) {
+        bandpromo_build_diag_log($logFile, 'Launch diagnostics cache stale — PHP CLI smoke failed; running full walk.');
+        return null;
+    }
+
+    bandpromo_build_diag_log(
+        $logFile,
+        'Launch diagnostics: reused (PHP CLI ' . $resolvedPhp . ', method=' . $method . ')'
+    );
+    bandpromo_build_diag_log($logFile, 'Python path=' . $python);
+    bandpromo_build_diag_log($logFile, 'Build script=' . $script . ' ' . (is_file($script) ? 'exists' : 'missing'));
+
+    return [
+        'resolved_php' => $resolvedPhp,
+        'php_smoke_binary' => (string) ($cached['php_smoke_binary'] ?? $resolvedPhp),
+        'recommended_method' => $method,
+        'recommended_reason' => $reason !== '' ? $reason : 'Reused previous successful diagnostics.',
+        'checks' => is_array($cached['checks'] ?? null) ? $cached['checks'] : [],
+        'reused' => true,
+    ];
+}
+
+function bandpromo_build_store_launch_diagnostics(string $root, array $diagnostics): void
+{
+    $cachePath = bandpromo_build_launch_diag_cache_path($root);
+    $dir = dirname($cachePath);
+    if (!is_dir($dir)) {
+        @mkdir($dir, 0750, true);
+    }
+
+    $payload = [
+        'resolved_php' => (string) ($diagnostics['resolved_php'] ?? ''),
+        'php_smoke_binary' => (string) ($diagnostics['php_smoke_binary'] ?? ''),
+        'recommended_method' => (string) ($diagnostics['recommended_method'] ?? ''),
+        'recommended_reason' => (string) ($diagnostics['recommended_reason'] ?? ''),
+        'checks' => [
+            'python_imports' => $diagnostics['checks']['python_imports'] ?? null,
+            'ffmpeg' => $diagnostics['checks']['ffmpeg'] ?? null,
+            'php_proc_open_smoke' => $diagnostics['checks']['php_proc_open_smoke'] ?? null,
+        ],
+        'cached_at' => gmdate('c'),
+    ];
+
+    @file_put_contents(
+        $cachePath,
+        json_encode($payload, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT)
+    );
 }
 
 function bandpromo_build_diag_exec_output(string $command): array
@@ -127,8 +212,16 @@ function bandpromo_build_run_launch_diagnostics(
     string $logFile,
     string $python,
     string $script,
-    bool $isWindows
+    bool $isWindows,
+    bool $forceFull = false
 ): array {
+    if (!$forceFull) {
+        $reused = bandpromo_build_try_reuse_launch_diagnostics($root, $logFile, $python, $script);
+        if (is_array($reused)) {
+            return $reused;
+        }
+    }
+
     $runnerScript = __DIR__ . '/build-runner.php';
     $logDir = $root . '/log';
     $resolvedPhp = bandpromo_resolve_php_cli();
@@ -338,13 +431,17 @@ function bandpromo_build_run_launch_diagnostics(
 
     bandpromo_build_diag_log($logFile, 'Launch diagnostics finished.');
 
-    return [
+    $result = [
         'resolved_php' => $resolvedPhp,
         'php_smoke_binary' => $phpSmokeBinary,
         'recommended_method' => $recommended,
         'recommended_reason' => $reason,
         'checks' => $checks,
+        'reused' => false,
     ];
+    bandpromo_build_store_launch_diagnostics($root, $result);
+
+    return $result;
 }
 
 function bandpromo_build_diag_nohup_smoke(string $binary, string $logDir, bool $isPython = false): array

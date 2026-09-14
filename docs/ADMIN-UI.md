@@ -40,9 +40,9 @@ Do not invent a second under-nav title pattern for new Content editors unless th
 | Status (Deliverables) | Yes | Yes |
 | Backup, export & import | Yes | Yes |
 | Audit | No | Yes |
-| Security | No | Yes |
+| Environment | No | Yes |
 
-Repair catalogue on Status is **developer-only**. Direct `?stab=audit` or `?stab=security` redirects operators to Status.
+Repair catalogue on Status is **developer-only**. Direct `?stab=audit` or `?stab=environment` (legacy `?stab=security`) redirects operators to Status.
 
 Operator feedback uses toasts today; unified toast → inbox is planned for v0.9 — [OPERATOR-MESSAGING.md](OPERATOR-MESSAGING.md).
 

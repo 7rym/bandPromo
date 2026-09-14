@@ -39,7 +39,7 @@ bandPromo is a modern, self-hosted platform for private music releases and fan e
 - Operator-facing validation actions and file-level metadata health badges for faster repair workflows
 - Upload-time **background delivery automation**: audio, image, and video derivatives prepare automatically after upload; Content pools list **delivery-ready** assets only; progress and failures surface in **Notifications**
 - Build actions under **System → Status**: **Refresh site files** (catalogue → audio/image optimize → **SFX delivery** → video → playlists → visual catch-up → social → PWA). **Repair catalogue** is developer-only recovery, not an operator health check.
-- **System → Security**: install host-protection sanity check (managed `.htaccess` / `.user.ini` vs templates) with optional preview/repair
+- **System → Environment**: host environment report (PHP/Python/ffmpeg/launch path) plus install host-protection sanity check (managed `.htaccess` / `.user.ini` vs templates) with optional preview/repair (developer-only; legacy `?stab=security` redirects here)
 - Admin-panel **package updater** for hosted operators (immutable release packages); after install, refreshes the locked platform Demo PCF when the published `demo-content` SHA is newer
 - Separate admin audit trail under **System → Audit**
 - Built-in documentation browser with operator/developer doc separation

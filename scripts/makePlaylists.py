@@ -17,6 +17,7 @@ import os
 import json
 import re
 import subprocess
+import threading
 from datetime import datetime, timezone
 from mutagen import File
 
@@ -1736,7 +1737,7 @@ def generate_playlist():
 def publish_player_playlist_payloads():
     script = ROOT_DIR / 'biblioteca' / 'build-player-playlists.php'
     if not script.exists():
-        print(f"⚠️  Player playlist publish script not found: {script}")
+        print("⚠️  Player playlist publish script not found: {0}".format(script))
         return
 
     php = resolve_php_cli()
@@ -1744,33 +1745,49 @@ def publish_player_playlist_payloads():
         print('❌ Could not resolve PHP CLI for player playlist publish.')
         sys.exit(1)
 
-    print('Publishing static player JSON for every playlist in the registry...')
+    print('Starting player playlist publish (PHP CLI)...')
+    sys.stdout.flush()
+
     try:
-        result = subprocess.run(
-            [php, str(script)],
+        proc = subprocess.Popen(
+            [php, '-f', str(script)],
             cwd=str(ROOT_DIR),
             stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            universal_newlines=True,
-            check=False,
+            stderr=subprocess.STDOUT,
         )
     except Exception as exc:
-        print(f"❌ Could not publish player playlist payloads: {exc}")
+        print("❌ Could not publish player playlist payloads: {0}".format(exc))
         sys.exit(1)
 
-    if result.stdout:
-        for line in result.stdout.splitlines():
+    stop_heartbeat = threading.Event()
+
+    def _heartbeat():
+        elapsed = 0
+        while not stop_heartbeat.wait(30):
+            elapsed += 30
+            print('Playlist: still working... ({0}s)'.format(elapsed))
+            sys.stdout.flush()
+
+    heartbeat = threading.Thread(target=_heartbeat)
+    heartbeat.daemon = True
+    heartbeat.start()
+
+    try:
+        assert proc.stdout is not None
+        for raw_line in iter(proc.stdout.readline, b''):
+            line = raw_line.decode('utf-8', errors='replace').rstrip('\n')
             if line.strip():
                 print(line)
-    if result.returncode != 0:
-        if result.stderr:
-            for line in result.stderr.splitlines():
-                if line.strip():
-                    print(line)
-        print('❌ Player playlist publish failed.')
-        sys.exit(1)
+                sys.stdout.flush()
+    finally:
+        stop_heartbeat.set()
+        heartbeat.join(timeout=2)
 
-    print('✓ Player playlist payloads published for all playlists.')
+    proc.stdout.close()
+    proc.wait()
+    if proc.returncode != 0:
+        print('❌ Player playlist publish failed.')
+        sys.exit(proc.returncode or 1)
 
 
 def generate_validation_scan():

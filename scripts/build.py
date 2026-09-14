@@ -37,6 +37,62 @@ except Exception:
     pass
 
 try:
+    from build_log_util import (
+        StageTimingRecorder,
+        format_build_duration,
+        is_error_log_line,
+        log_line,
+        maybe_collect_error,
+        monotonic_now,
+        print_repeated_errors,
+        utc_stamp,
+    )
+except Exception:
+    def utc_stamp():
+        return datetime.now(timezone.utc).strftime('%H:%M:%S')
+
+    def format_build_duration(seconds):
+        total = max(0, int(round(float(seconds))))
+        hours, rem = divmod(total, 3600)
+        minutes, secs = divmod(rem, 60)
+        if hours > 0:
+            return '{0}h {1}m {2}s'.format(hours, minutes, secs)
+        if minutes > 0:
+            return '{0}m {1}s'.format(minutes, secs)
+        return '{0}s'.format(secs)
+
+    def log_line(message, error_collector=None):
+        print('[{0}] {1}'.format(utc_stamp(), message))
+        sys.stdout.flush()
+
+    def maybe_collect_error(line, error_collector):
+        return
+
+    def is_error_log_line(line):
+        return 'FAILED' in str(line).upper()
+
+    class StageTimingRecorder(object):
+        def __init__(self):
+            self.entries = []
+
+        def record(self, stage_id, label, seconds, ok):
+            self.entries.append({
+                'id': stage_id,
+                'label': label,
+                'seconds': seconds,
+                'ok': ok,
+            })
+
+        def print_table(self):
+            return
+
+    def print_repeated_errors(error_lines):
+        return
+
+    def monotonic_now():
+        return time.monotonic()
+
+try:
     from bandpromo_build_stats import (
         empty_build_stats,
         merge_build_stats,
@@ -604,9 +660,12 @@ def print_stage_banner(script_name, stage_index=None, stage_total=None, stage_la
     width = 70
     rule = '=' * width
     lines = []
+    stamp = utc_stamp()
     if stage_index is not None and stage_total is not None:
         label = str(stage_label or '').strip() or 'stage'
-        lines.append('Stage {}/{} — {}'.format(stage_index, stage_total, label))
+        lines.append('[{0}] Stage {1}/{2} — {3}'.format(stamp, stage_index, stage_total, label))
+    else:
+        lines.append('[{0}] Stage'.format(stamp))
     lines.append('Script: {}'.format(script_name))
 
     print()
@@ -618,7 +677,7 @@ def print_stage_banner(script_name, stage_index=None, stage_total=None, stage_la
     sys.stdout.flush()
 
 
-def run_script(script_path, env_extras=None, stage_index=None, stage_total=None, stage_label=''):
+def run_script(script_path, env_extras=None, stage_index=None, stage_total=None, stage_label='', error_collector=None):
     """Run a build sub-script, streaming its output line by line.
 
     Returns (ok, stats_dict). Machine BUILD_STATS lines are consumed for the
@@ -659,19 +718,48 @@ def run_script(script_path, env_extras=None, stage_index=None, stage_total=None,
             if parsed is not None:
                 merge_build_stats(stage_stats, parsed)
                 continue
+            maybe_collect_error(line, error_collector)
             print(line)
             sys.stdout.flush()
         proc.stdout.close()
         proc.wait()
         if proc.returncode != 0:
-            print('FAILED Script exited with code ' + str(proc.returncode))
+            fail = 'FAILED Script exited with code ' + str(proc.returncode)
+            maybe_collect_error(fail, error_collector)
+            print(fail)
             sys.stdout.flush()
             return False, stage_stats
         return True, stage_stats
     except FileNotFoundError:
-        print('FAILED Script not found: ' + str(script_path))
+        fail = 'FAILED Script not found: ' + str(script_path)
+        maybe_collect_error(fail, error_collector)
+        print(fail)
         sys.stdout.flush()
         return False, stage_stats
+
+
+def playlist_stage_marker_path():
+    return ROOT_DIR / 'log' / 'build-playlist-stage.json'
+
+
+def read_playlist_stage_marker():
+    path = playlist_stage_marker_path()
+    if not path.is_file():
+        return {}
+    try:
+        loaded = json.loads(path.read_text(encoding='utf-8'))
+        return loaded if isinstance(loaded, dict) else {}
+    except Exception:
+        return {}
+
+
+def should_skip_visual_catchup():
+    """Skip catchup when playlist stage reports no newly extracted/healed covers."""
+    marker = read_playlist_stage_marker()
+    if not marker:
+        return False
+    covers = int(marker.get('covers_healed') or 0) + int(marker.get('covers_extracted') or 0)
+    return covers <= 0
 
 
 def load_build_meta():
@@ -755,23 +843,41 @@ def stage_lookup(manifest):
     return lookup
 
 
-def log_stage_boundary(stage_id, exit_code=None):
+def log_stage_boundary(stage_id, exit_code=None, duration_seconds=None):
+    stamp = utc_stamp()
     if exit_code is None:
-        print('STAGE_START:' + stage_id)
+        print('[{0}] STAGE_START:{1}'.format(stamp, stage_id))
     else:
-        print('STAGE_END:' + stage_id + ':' + str(exit_code))
+        print('[{0}] STAGE_END:{1}:{2}'.format(stamp, stage_id, exit_code))
+        if duration_seconds is not None:
+            print('STAGE_TIMING:{0}:{1:.1f}'.format(stage_id, float(duration_seconds)))
     sys.stdout.flush()
 
 
-def run_publish_stage(stage, ffmpeg_path, index, total, stats_total=None):
+def run_publish_stage(stage, ffmpeg_path, index, total, stats_total=None, timing_recorder=None, error_collector=None):
     stage_id = str(stage.get('id', '')).strip()
     label = str(stage.get('label') or stage_id or 'stage').strip()
     script_name = str(stage.get('script', '')).strip()
     if not stage_id or not script_name:
-        print('FAILED Invalid stage definition: ' + repr(stage_id))
+        fail = 'FAILED Invalid stage definition: ' + repr(stage_id)
+        maybe_collect_error(fail, error_collector)
+        print(fail)
         sys.stdout.flush()
-        log_stage_boundary(stage_id or 'unknown', 1)
+        log_stage_boundary(stage_id or 'unknown', 1, 0)
+        if timing_recorder is not None:
+            timing_recorder.record(stage_id or 'unknown', label, 0, False)
         return False
+
+    if stage_id == 'visual-delivery-catchup' and should_skip_visual_catchup():
+        log_stage_boundary(stage_id)
+        group = str(stage.get('group') or '').strip()
+        if group:
+            print('STAGE_GROUP:' + group)
+        log_line('Skipping visual delivery catchup — playlist stage reported no new covers.', error_collector)
+        log_stage_boundary(stage_id, 0, 0)
+        if timing_recorder is not None:
+            timing_recorder.record(stage_id, label, 0, True)
+        return True
 
     log_stage_boundary(stage_id)
     group = str(stage.get('group') or '').strip()
@@ -786,18 +892,25 @@ def run_publish_stage(stage, ffmpeg_path, index, total, stats_total=None):
     if stage.get('requires_ffmpeg'):
         env_extras['FFMPEG_PATH'] = ffmpeg_path
 
+    started = monotonic_now()
     ok, stage_stats = run_script(
         SCRIPT_DIR / script_name,
         env_extras,
         stage_index=index,
         stage_total=total,
         stage_label=label,
+        error_collector=error_collector,
     )
+    elapsed = monotonic_now() - started
     if isinstance(stats_total, dict):
         merge_build_stats(stats_total, stage_stats)
-    log_stage_boundary(stage_id, 0 if ok else 1)
+    log_stage_boundary(stage_id, 0 if ok else 1, elapsed)
+    if timing_recorder is not None:
+        timing_recorder.record(stage_id, label, elapsed, ok)
     if not ok:
-        print('\n❌ Build failed at stage: ' + stage_id)
+        fail = 'Build failed at stage: ' + stage_id
+        maybe_collect_error(fail, error_collector)
+        print('\n❌ ' + fail)
         sys.stdout.flush()
     return ok
 
@@ -905,19 +1018,7 @@ def run_preflight():
     return ffmpeg_path
 
 
-def format_build_duration(seconds):
-    """Human-readable elapsed time for the publish summary."""
-    total = max(0, int(round(float(seconds))))
-    hours, rem = divmod(total, 3600)
-    minutes, secs = divmod(rem, 60)
-    if hours > 0:
-        return '{0}h {1}m {2}s'.format(hours, minutes, secs)
-    if minutes > 0:
-        return '{0}m {1}s'.format(minutes, secs)
-    return '{0}s'.format(secs)
-
-
-def print_build_success_banner(elapsed, profile, stage_count, stats):
+def print_build_success_banner(elapsed, profile, stage_count, stats, timing_recorder=None, error_lines=None):
     """Closing banner — reassurance after the long stage log."""
     width = 70
     rule = '=' * width
@@ -940,23 +1041,26 @@ def print_build_success_banner(elapsed, profile, stage_count, stats):
         + int(manifest['failed'])
     )
     stage_label = '{0} stage{1}'.format(stage_count, '' if stage_count == 1 else 's')
+    error_lines = error_lines or []
 
     print('')
     print(rule)
-    if failed > 0:
+    if failed > 0 or error_lines:
         print('  ⚠  PUBLISH FINISHED WITH WARNINGS')
     else:
         print('  ✅  YOUR SITE IS READY')
     print(rule)
     print('')
-    if failed > 0:
+    if failed > 0 or error_lines:
         print('  Finished in {0} ({1}, profile: {2}).'.format(elapsed, stage_label, profile))
-        print('  Some items need attention — see the stage log above.')
     else:
         print('  Publish finished in {0}.'.format(elapsed))
         print('  All {0} succeeded (profile: {1}).'.format(stage_label, profile))
         print('  Your public site now has the latest listener-ready files.')
     print('')
+
+    if timing_recorder is not None:
+        timing_recorder.print_table()
 
     def print_section(title, rows):
         if not any(int(count or 0) for _label, count in rows):
@@ -999,10 +1103,31 @@ def print_build_success_banner(elapsed, profile, stage_count, stats):
         ('Need attention', manifest['failed']),
     ])
 
-    if failed == 0:
+    print_repeated_errors(error_lines)
+
+    if failed == 0 and not error_lines:
         print('  You\'re done — open the site and enjoy the result.')
     else:
-        print('  Fix the items above, then rebuild when ready.')
+        print('  Fix the items listed above, then rebuild when ready.')
+    print(rule)
+    print('')
+    sys.stdout.flush()
+
+
+def print_build_failure_banner(elapsed, stage_id, timing_recorder=None, error_lines=None):
+    width = 70
+    rule = '=' * width
+    print('')
+    print(rule)
+    print('  ❌  PUBLISH FAILED')
+    print(rule)
+    print('')
+    print('  Stopped after {0} at stage: {1}'.format(elapsed, stage_id))
+    print('')
+    if timing_recorder is not None:
+        timing_recorder.print_table()
+    print_repeated_errors(error_lines or [])
+    print('  Fix the errors above, then rebuild when ready.')
     print(rule)
     print('')
     sys.stdout.flush()
@@ -1010,19 +1135,31 @@ def print_build_success_banner(elapsed, profile, stage_count, stats):
 
 def main():
     started_at = datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ')
-    started_mono = time.monotonic()
+    started_mono = monotonic_now()
+    timing_recorder = StageTimingRecorder()
+    error_collector = []
     print('LOG_STARTED:' + started_at)
     print('[' + started_at.replace('T', ' ').replace('Z', ' UTC') + '] Python publish pipeline starting')
     print("\n=== bandPromo Build Pipeline ===")
-    print(f"Root: {ROOT_DIR}\n")
+    print("Root: {0}\n".format(ROOT_DIR))
     sys.stdout.flush()
 
+    preflight_started = monotonic_now()
     log_stage_boundary('preflight')
     ffmpeg_path = run_preflight()
+    preflight_elapsed = monotonic_now() - preflight_started
     if not ffmpeg_path:
-        log_stage_boundary('preflight', 1)
+        log_stage_boundary('preflight', 1, preflight_elapsed)
+        timing_recorder.record('preflight', 'Preflight', preflight_elapsed, False)
+        print_build_failure_banner(
+            format_build_duration(monotonic_now() - started_mono),
+            'preflight',
+            timing_recorder,
+            error_collector,
+        )
         return 1
-    log_stage_boundary('preflight', 0)
+    log_stage_boundary('preflight', 0, preflight_elapsed)
+    timing_recorder.record('preflight', 'Preflight', preflight_elapsed, True)
 
     manifest = load_stage_manifest()
     if manifest is None:
@@ -1049,15 +1186,45 @@ def main():
     for index, stage_id in enumerate(stage_ids, start=1):
         stage = stages_by_id.get(stage_id)
         if not isinstance(stage, dict):
-            print('FAILED Unknown stage id: ' + stage_id)
+            fail = 'FAILED Unknown stage id: ' + stage_id
+            maybe_collect_error(fail, error_collector)
+            print(fail)
             sys.stdout.flush()
-            log_stage_boundary(stage_id, 1)
+            log_stage_boundary(stage_id, 1, 0)
+            timing_recorder.record(stage_id, stage_id, 0, False)
+            print_build_failure_banner(
+                format_build_duration(monotonic_now() - started_mono),
+                stage_id,
+                timing_recorder,
+                error_collector,
+            )
             return 1
-        if not run_publish_stage(stage, ffmpeg_path, index, total, stats_total):
+        if not run_publish_stage(
+            stage,
+            ffmpeg_path,
+            index,
+            total,
+            stats_total,
+            timing_recorder=timing_recorder,
+            error_collector=error_collector,
+        ):
+            print_build_failure_banner(
+                format_build_duration(monotonic_now() - started_mono),
+                stage_id,
+                timing_recorder,
+                error_collector,
+            )
             return 1
 
-    elapsed = format_build_duration(time.monotonic() - started_mono)
-    print_build_success_banner(elapsed, profile, total, stats_total)
+    elapsed = format_build_duration(monotonic_now() - started_mono)
+    print_build_success_banner(
+        elapsed,
+        profile,
+        total,
+        stats_total,
+        timing_recorder=timing_recorder,
+        error_lines=error_collector,
+    )
     return 0
 
 

@@ -48,6 +48,7 @@ SPECIAL_DIR = ROOT_DIR / 'media' / 'special'
 ASSET_REGISTRY_FILE = ROOT_DIR / 'data' / 'assets' / 'registry.json'
 MEDIA_DIR    = ROOT_DIR / 'media'
 OPTIMIZE_MODE = os.environ.get('BANDPROMO_OPTIMIZE_MODE', '').strip().lower() or 'image-only'
+OPTIMIZE_VERBOSE = os.environ.get('BANDPROMO_OPTIMIZE_VERBOSE', '').strip() == '1'
 _XXHASH_WARNED = False
 
 
@@ -592,7 +593,7 @@ def visual_image_delivery_is_fresh(asset, source_path, required_variants):
     return True
 
 
-def process_visual_image_asset(asset):
+def process_visual_image_asset(asset, quiet_skip=False):
     """Write media/visual/delivery/{id}/{variant} from the visual master."""
     asset_id = str(asset.get('id') or '').strip()
     source = visual_working_path_for_asset(asset)
@@ -611,7 +612,8 @@ def process_visual_image_asset(asset):
     source_width, source_height = image_master_pixel_size(source)
     if visual_image_delivery_is_fresh(asset, source, required):
         stamp_visual_master_dimensions(asset_id, source_width, source_height)
-        print("    → Delivery: already up to date (master XXH3 match) — skipped")
+        if not quiet_skip:
+            print("    → Delivery: already up to date (master XXH3 match) — skipped")
         return 'skipped'
 
     preserve_alpha = role in ('brand-logo', 'style-ref') or bool(asset.get('has_alpha'))
@@ -1060,14 +1062,6 @@ def process_audio_delivery(
 
     # Prefer registry display for the headline when tags are not read yet.
     headline = format_track_label(display_artist, display_title, master_filename)
-    print(f"\n🎵 Processing: {headline}")
-    print(f"  → Source tier: {source_tier}")
-    if display_artist or display_title:
-        print(f"  → Catalogue display: {format_track_label(display_artist, display_title, master_filename)}")
-    else:
-        print("  → Catalogue display: (empty — using filename for logs)")
-
-    print(f"  → Asset file: {master_filename}")
 
     if (
         not force_rebuild
@@ -1078,7 +1072,11 @@ def process_audio_delivery(
             recorded_source_mtime,
         )
     ):
-        print("  → Delivery: already up to date (tagless + master XXH3 match) — skipped")
+        if OPTIMIZE_VERBOSE:
+            print("\n🎵 Processing: {0}".format(headline))
+            print("  → Source tier: {0}".format(source_tier))
+            print("  → Asset file: {0}".format(master_filename))
+            print("  → Delivery: already up to date (tagless + master XXH3 match) — skipped")
         if asset_id:
             update_audio_asset_delivery(
                 asset_id,
@@ -1088,7 +1086,18 @@ def process_audio_delivery(
             )
         return 'skipped'
 
-    print(f"  → Delivery route: {'MP3 copy (source-aware)' if delivery_mode == 'copy' else 'Transcode to MP3 320kbps'}")
+    print("\n🎵 Processing: {0}".format(headline))
+    print("  → Source tier: {0}".format(source_tier))
+    if display_artist or display_title:
+        print("  → Catalogue display: {0}".format(format_track_label(display_artist, display_title, master_filename)))
+    else:
+        print("  → Catalogue display: (empty — using filename for logs)")
+
+    print("  → Asset file: {0}".format(master_filename))
+
+    print("  → Delivery route: {0}".format(
+        'MP3 copy (source-aware)' if delivery_mode == 'copy' else 'Transcode to MP3 320kbps'
+    ))
 
     if delivery_mode == 'copy':
         print("  → Copying MP3 source to delivery tier...")
@@ -1169,9 +1178,12 @@ def main():
 
     if include_audio:
         print("\n🎵 Processing registered audio delivery...")
+        if not OPTIMIZE_VERBOSE:
+            print("  (Summary mode — set BANDPROMO_OPTIMIZE_VERBOSE=1 for per-track skip detail)")
         if os.environ.get('BANDPROMO_FORCE_AUDIO_DELIVERY', '').strip() == '1':
             print("ℹ️  BANDPROMO_FORCE_AUDIO_DELIVERY=1 — rebuilding every delivery MP3")
-        for item in audio_queue:
+        audio_total = len(audio_queue)
+        for index, item in enumerate(audio_queue, start=1):
             master_filename = item.get('master_filename')
             result = process_audio_delivery(
                 master_filename,
@@ -1188,9 +1200,18 @@ def main():
                 converted += 1
             else:
                 failed += 1
+            if not OPTIMIZE_VERBOSE and (index % 10 == 0 or index == audio_total):
+                print(
+                    "  Audio {0}/{1} — {2} built, {3} fresh, {4} failed".format(
+                        index, audio_total, converted, skipped, failed
+                    )
+                )
+                sys.stdout.flush()
 
     # ── Visual registry image delivery (asset-id variants) ─────────────────────────
     print("\n🎨 Processing visual registry image delivery...")
+    if not OPTIMIZE_VERBOSE:
+        print("  (Summary mode — set BANDPROMO_OPTIMIZE_VERBOSE=1 for per-image skip detail)")
     VISUAL_DELIVERY_ROOT.mkdir(parents=True, exist_ok=True)
     visual_queue = load_registry_visual_image_queue()
     # Defense in depth: one delivery pass per on-disk basename even if the
@@ -1209,23 +1230,34 @@ def main():
     visual_skipped = 0
     visual_failed = 0
     if visual_queue:
-        for asset in visual_queue:
+        visual_total = len(visual_queue)
+        for index, asset in enumerate(visual_queue, start=1):
             asset_id = str(asset.get('id') or '').strip()
             label = asset.get('original_filename') or asset_id
-            if asset_id and label != asset_id:
-                print("  Processing visual: {} ({})".format(label, asset_id))
-            else:
-                print("  Processing visual: {}".format(label))
-            result = process_visual_image_asset(asset)
+            quiet_skip = not OPTIMIZE_VERBOSE
+            if OPTIMIZE_VERBOSE:
+                if asset_id and label != asset_id:
+                    print("  Processing visual: {} ({})".format(label, asset_id))
+                else:
+                    print("  Processing visual: {}".format(label))
+            result = process_visual_image_asset(asset, quiet_skip=quiet_skip)
             if result == 'skipped':
                 visual_skipped += 1
             elif result:
                 visual_count += 1
+                if not OPTIMIZE_VERBOSE:
+                    print("  ✓ Built visual: {0}".format(label))
             else:
                 visual_failed += 1
-                print(f"    ⚠️  Skipped or failed: {label}")
-        if visual_skipped:
-            print(f"  ✓ Visual images rebuilt: {visual_count}; already up to date: {visual_skipped}")
+                print("    ⚠️  Skipped or failed: {0}".format(label))
+            if not OPTIMIZE_VERBOSE and (index % 25 == 0 or index == visual_total):
+                print(
+                    "  Visual {0}/{1} — {2} built, {3} fresh, {4} failed".format(
+                        index, visual_total, visual_count, visual_skipped, visual_failed
+                    )
+                )
+                sys.stdout.flush()
+        print("  ✓ Visual images rebuilt: {0}; already up to date: {1}".format(visual_count, visual_skipped))
     else:
         print("  ✓ No registered visual image assets")
 
