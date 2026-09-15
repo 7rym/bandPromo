@@ -2,6 +2,8 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-09-15 22:15 - Published Status health redesign for fleet testing: thin Refresh start (prep in background), Site health + one next step, Refresh consent, under-the-hood Repair, job heartbeats, admin Welcome health cards.
+
 2026-09-15 22:05 - Admins see Welcome catalogue-health cards (delivery → Refresh; repair → ask developer). Softer notification copy for tune-ups. Publish prep registers waiting uploads; Repair heartbeats + Apply confirm. Native Python Repair Apply body remains follow-on.
 
 2026-09-15 22:00 - Publish prep reconciles waiting audio uploads (clears stuck “still preparing”); Repair supervisor heartbeats + Apply confirm after Preview; repair poller exposes `job` progress. Full native-Python Repair Apply remains a follow-on (CLI pipeline still under Python ownership).

@@ -2,20 +2,12 @@
 
 ## Resume point
 
-**Status health redesign** — slices 1–5 done locally (**build 494** pending this checkpoint). Ahead of origin; **not published** unless asked.
+Published for fleet testing: **Status health redesign** (thin Refresh start, Site health next-step, consent, under-the-hood Repair, heartbeats). Testers: Site update on HITZ / Vanilla / Spandexual Tension, then exercise System → Status.
 
-### Shipped in this session (local checkpoints)
-
-1. Thin Refresh start + Python/CLI prep + heartbeats  
-2. Refresh progress chip / stuck warning / under-the-hood log  
-3. Site health next_step + Refresh consent + Repair under the hood  
-4. Waiting-upload reconcile in prep; Repair heartbeats + Apply confirm  
-5. Admin Welcome health visibility + softer notifications + FEATURES  
-
-### Follow-on (not blocking)
+### Follow-on
 
 - Native Python port of Repair **Apply body** (still PHP CLI under Python supervisor).
-- Publish stages that still shell PHP CLI (e.g. catalogue) — same port pattern.
+- Remaining publish stages that shell PHP CLI (same port pattern).
 
 ### Active fleet
 
