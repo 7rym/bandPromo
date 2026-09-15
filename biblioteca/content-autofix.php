@@ -24,7 +24,10 @@ $dryRun = !empty($body['dry_run']);
 $root = dirname(__DIR__);
 
 if (!$dryRun) {
-    @set_time_limit(120);
+    // Shared hosts often ignore set_time_limit and keep php.ini 30s CPU. Still bump
+    // aggressively so hosts that allow it give Repair room; steps also re-bump.
+    @set_time_limit(600);
+    @ini_set('max_execution_time', '600');
     ignore_user_abort(true);
 }
 

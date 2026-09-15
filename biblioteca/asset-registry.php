@@ -223,6 +223,29 @@ function bandpromo_asset_file_sha256(string $path): string
 }
 
 /**
+ * Shared-host Repair/Publish must not SHA-256 multi‑hundred‑MB masters (HITZ I/O
+ * burned 30s CPU over minutes of wall clock). Prefer xxh3; SHA-256 only for
+ * modest stills used by legacy dedupe.
+ */
+function bandpromo_asset_sha256_max_bytes(): int
+{
+    return 12 * 1024 * 1024;
+}
+
+function bandpromo_asset_file_sha256_bounded(string $path): string
+{
+    if ($path === '' || !is_file($path)) {
+        return '';
+    }
+    $size = @filesize($path);
+    if ($size === false || (int) $size > bandpromo_asset_sha256_max_bytes()) {
+        return '';
+    }
+
+    return bandpromo_asset_file_sha256($path);
+}
+
+/**
  * XXH3-64 hex digest of file bytes (PHP 8.1+ hash_file('xxh3')).
  */
 function bandpromo_asset_file_xxh3(string $path): string
@@ -304,12 +327,13 @@ function bandpromo_asset_ensure_visual_content_sha256(string $root, string $asse
         }
     }
     if ($existingSha === '') {
-        $sha = bandpromo_asset_file_sha256($path);
+        $sha = bandpromo_asset_file_sha256_bounded($path);
         if ($sha !== '') {
             $asset['content_sha256'] = $sha;
             $existingSha = $sha;
         }
     }
+    // xxh3 alone is enough — do not fail when bounded SHA-256 is skipped for large stills.
     if ($existingXxh3 === '' && $existingSha === '') {
         return '';
     }
@@ -1548,21 +1572,50 @@ function bandpromo_asset_registry_prune_duplicate_visuals(array &$registry): boo
 
 /**
  * Backfill content_xxh3 / content_sha256 on visual image assets from original or master bytes.
+ *
+ * @param float $maxSeconds Soft wall-clock budget (0 = no limit). Stops mid-loop so
+ *                          shared-host Repair can finish other steps and be re-run.
  */
-function bandpromo_asset_registry_backfill_visual_content_hashes(string $root, array &$registry): bool
+function bandpromo_asset_registry_backfill_visual_content_hashes(
+    string $root,
+    array &$registry,
+    float $maxSeconds = 0.0
+): bool
 {
     if (!isset($registry['assets']) || !is_array($registry['assets'])) {
         return false;
     }
 
+    $deadline = $maxSeconds > 0.0 ? microtime(true) + $maxSeconds : 0.0;
     $changed = false;
     foreach ($registry['assets'] as $assetId => $asset) {
+        if ($deadline > 0.0 && microtime(true) >= $deadline) {
+            break;
+        }
         if (!is_array($asset) || ($asset['kind'] ?? '') !== 'visual' || ($asset['media_type'] ?? '') !== 'image') {
             continue;
         }
         $existingXxh3 = strtolower(trim((string) ($asset['content_xxh3'] ?? '')));
         $existingSha = strtolower(trim((string) ($asset['content_sha256'] ?? '')));
         if ($existingXxh3 !== '' && $existingSha !== '') {
+            continue;
+        }
+        // xxh3 alone satisfies dedupe; optionally fill bounded SHA-256 when cheap.
+        if ($existingXxh3 !== '' && $existingSha === '') {
+            $pathQuick = bandpromo_asset_visual_content_hash_source_path($root, $asset);
+            if ($pathQuick === '') {
+                continue;
+            }
+            $hash = bandpromo_asset_file_sha256_bounded($pathQuick);
+            if ($hash === '') {
+                continue;
+            }
+            $asset['content_sha256'] = $hash;
+            $normalized = bandpromo_asset_normalize_entry($asset);
+            if ($normalized !== null) {
+                $registry['assets'][$assetId] = $normalized;
+                $changed = true;
+            }
             continue;
         }
         $path = bandpromo_asset_visual_content_hash_source_path($root, $asset);
@@ -1577,7 +1630,7 @@ function bandpromo_asset_registry_backfill_visual_content_hashes(string $root, a
             }
         }
         if ($existingSha === '') {
-            $hash = bandpromo_asset_file_sha256($path);
+            $hash = bandpromo_asset_file_sha256_bounded($path);
             if ($hash !== '') {
                 $asset['content_sha256'] = $hash;
                 $existingSha = $hash;
@@ -1615,7 +1668,10 @@ function bandpromo_asset_registry_dedupe_visuals_by_content_hash(string $root, a
         if (!is_array($asset) || ($asset['kind'] ?? '') !== 'visual' || ($asset['media_type'] ?? '') !== 'image') {
             continue;
         }
-        $hash = strtolower(trim((string) ($asset['content_sha256'] ?? '')));
+        $hash = strtolower(trim((string) ($asset['content_xxh3'] ?? '')));
+        if ($hash === '') {
+            $hash = strtolower(trim((string) ($asset['content_sha256'] ?? '')));
+        }
         if ($hash === '') {
             continue;
         }

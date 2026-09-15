@@ -80,6 +80,12 @@ function bandpromo_content_autofix_log_begin(string $root, bool $dryRun, string 
     bandpromo_content_autofix_log_write($root, 'Source: ' . $state['source']);
     bandpromo_content_autofix_log_write($root, 'PHP max_execution_time: ' . ($maxTime !== '' ? $maxTime : 'unknown'));
     bandpromo_content_autofix_log_write($root, 'PHP memory_limit: ' . ($memory !== '' ? $memory : 'unknown'));
+    if (!$dryRun) {
+        bandpromo_content_autofix_log_write(
+            $root,
+            'Note: Apply avoids heavy SHA-256 of large masters; hosts that ignore set_time_limit stay on php.ini limits.'
+        );
+    }
 
     register_shutdown_function(static function () use ($root): void {
         $state = &bandpromo_content_autofix_log_state();
@@ -113,6 +119,10 @@ function bandpromo_content_autofix_log_step_start(string $root, string $id, stri
 {
     $state = &bandpromo_content_autofix_log_state();
     $state['step'] = $id;
+    // Re-arm time budget between steps when the host allows set_time_limit.
+    if (($state['mode'] ?? '') === 'apply') {
+        @set_time_limit(600);
+    }
     bandpromo_content_autofix_log_write($root, '> start ' . $id . ' — ' . $label);
 }
 
@@ -1322,7 +1332,8 @@ function bandpromo_content_autofix_backfill_visual_content_hashes(string $root, 
         }
         $hasXxh3 = strtolower(trim((string) ($asset['content_xxh3'] ?? ''))) !== '';
         $hasSha = strtolower(trim((string) ($asset['content_sha256'] ?? ''))) !== '';
-        if ($hasXxh3 && $hasSha) {
+        // xxh3 alone clears the Welcome nag / dedupe need; SHA-256 is optional.
+        if ($hasXxh3 || ($hasSha && !in_array('xxh3', hash_algos(), true))) {
             continue;
         }
         $source = bandpromo_asset_visual_content_hash_source_path($root, $asset);
@@ -1354,7 +1365,7 @@ function bandpromo_content_autofix_backfill_visual_content_hashes(string $root, 
         return $step;
     }
 
-    $changed = bandpromo_asset_registry_backfill_visual_content_hashes($root, $registry);
+    $changed = bandpromo_asset_registry_backfill_visual_content_hashes($root, $registry, 20.0);
     if ($changed) {
         bandpromo_asset_write_registry($root, $registry);
     }
@@ -1362,6 +1373,30 @@ function bandpromo_content_autofix_backfill_visual_content_hashes(string $root, 
     $step['items'] = $items;
     if (!$changed) {
         $step['skipped'] = 1;
+    } else {
+        // Recount remaining so operators know to re-run Apply on large catalogues.
+        $left = 0;
+        foreach ($registry['assets'] as $asset) {
+            if (!is_array($asset) || ($asset['kind'] ?? '') !== 'visual' || ($asset['media_type'] ?? '') !== 'image') {
+                continue;
+            }
+            if (strtolower(trim((string) ($asset['content_xxh3'] ?? ''))) !== '') {
+                continue;
+            }
+            if (strtolower(trim((string) ($asset['content_sha256'] ?? ''))) !== ''
+                && !in_array('xxh3', hash_algos(), true)
+            ) {
+                continue;
+            }
+            if (bandpromo_asset_visual_content_hash_source_path($root, $asset) !== '') {
+                $left++;
+            }
+        }
+        if ($left > 0) {
+            $step['warnings'][] = 'Hash backfill paused with ' . $left
+                . ' visual(s) still pending — run Repair Apply again.';
+            $step['changed'] = max(1, $pending - $left);
+        }
     }
 
     return $step;
@@ -1473,7 +1508,10 @@ function bandpromo_content_autofix_run(string $root, bool $dryRun = false, strin
                 ]);
             }
         } else {
-            bandpromo_asset_registry_ensure_migrated($root, true);
+            // Light only: heavy migrate SHA-256s every visual master and times out on
+            // HITZ-class hosts (php.ini 30s CPU; set_time_limit often ignored).
+            // Hash backfill / reconcile / tier heal live in the pipeline steps below.
+            bandpromo_asset_registry_ensure_migrated($root, false);
             bandpromo_campaign_ensure_seeded($root);
             bandpromo_playlist_ensure_seeded($root);
             bandpromo_gallery_ensure_seeded($root);

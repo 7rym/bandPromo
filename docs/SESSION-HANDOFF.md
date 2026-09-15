@@ -2,22 +2,28 @@
 
 ## Resume point
 
-**Published `v0.8.57 build 485`** (`v0.8.57-build-485`) — HITZ Files/player hotfix.
+**Repair Apply timeout fix ready** (local `v0.8.58`) — HITZ Apply aborted in `seed_containers` at `asset-registry.php` `hash_file` under php.ini **30s CPU** (wall clock looked like minutes because hashing is I/O-bound).
 
-### On HITZ next
+### Fix
 
-1. **Site update** to build 485.
-2. Open **Files → Audio** once (undercount rebuild) — expect playlist masters, not only the old 53 leftovers.
-3. **Repair catalogue → Apply**, then **Refresh site files** (covers + brand libraries).
-4. Confirm `/play` track covers and Files → Brand assets (All brands).
-5. Keep 108-file ZIP until healthy; associate Retroscopy orphans into campaign Tracks when ready.
+- Apply seed uses **light** migrate only (no heavy SHA-256 of all visuals).
+- Visual content hash: prefer **xxh3**; SHA-256 only for files ≤12 MB.
+- Hash backfill is time-budgeted; re-run Apply if warnings say pending remain.
+- `set_time_limit(600)` re-armed each step (hosts that ignore it still benefit from less work).
+
+### On HITZ after publish
+
+1. Site update to the new build.
+2. Repair Apply again (may need 2 passes if hash backfill pauses).
+3. Refresh site files for covers.
+4. Confirm Files → Audio / Brand assets / player covers.
 
 ### Active fleet
 
 | Host | Persona |
 |------|---------|
 | bandpromo.site | Vanilla |
-| hitz.no | HITZ (apply 485) |
+| hitz.no | HITZ |
 | spandexualtension.com | Band / release sequence |
 
 ### Local workspace

@@ -2,6 +2,8 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-09-15 11:40 - Repair catalogue Apply: do not run heavy registry migrate (full SHA-256 of every visual) on shared hosts — HITZ aborted seed_containers at `hash_file` under php.ini 30s CPU. Prefer xxh3; bound SHA-256 to ≤12 MB; budget hash backfill; re-arm set_time_limit between steps.
+
 2026-09-14 22:10 - Published **v0.8.57 build 485** (`v0.8.57-build-485`): HITZ Files index undercount + Brand assets library heal + player cover retention after Refresh.
 
 2026-09-14 15:20 - HITZ Files/player hotfix: atomic Files index rebuild under lock (no clear-then-empty race); ensure-target rebuilds when index undercounts resolvable registry masters (HITZ stuck at 53 while playlist masters existed on disk). Brand libraries: reseed when membership is empty or only dead ids (Brand assets All brands blank). Playlist materialize invalidates registry cache and re-persists Python-extracted covers. Repair Apply gains brand-library heal step. Keep Visual cover refs when delivery is briefly missing.
