@@ -2,19 +2,12 @@
 
 ## Resume point
 
-**Repair Apply timeout fix ready** (local `v0.8.58`) — HITZ Apply aborted in `seed_containers` at `asset-registry.php` `hash_file` under php.ini **30s CPU** (wall clock looked like minutes because hashing is I/O-bound).
+**Published `v0.8.58 build 487`** (`v0.8.58-build-487`) — Repair Apply no longer dies hashing every visual master under HITZ’s 30s CPU limit.
 
-### Fix
+### On HITZ
 
-- Apply seed uses **light** migrate only (no heavy SHA-256 of all visuals).
-- Visual content hash: prefer **xxh3**; SHA-256 only for files ≤12 MB.
-- Hash backfill is time-budgeted; re-run Apply if warnings say pending remain.
-- `set_time_limit(600)` re-armed each step (hosts that ignore it still benefit from less work).
-
-### On HITZ after publish
-
-1. Site update to the new build.
-2. Repair Apply again (may need 2 passes if hash backfill pauses).
+1. Site update to **487**.
+2. Repair Apply again (re-run if hash backfill warns pending remain).
 3. Refresh site files for covers.
 4. Confirm Files → Audio / Brand assets / player covers.
 
@@ -23,7 +16,7 @@
 | Host | Persona |
 |------|---------|
 | bandpromo.site | Vanilla |
-| hitz.no | HITZ |
+| hitz.no | HITZ (apply 487) |
 | spandexualtension.com | Band / release sequence |
 
 ### Local workspace
