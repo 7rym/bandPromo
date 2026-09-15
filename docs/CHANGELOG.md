@@ -2,6 +2,8 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-09-15 22:45 - HITZ hotfix: stop double-wrapping stdout in `build.py` (ValueError: I/O operation on closed file on Python 3.6); harden `stdio_utf8` against detach/double-wrap; stop notifications from writing “steps waiting” into Peek under the hood.
+
 2026-09-15 22:40 - Encoding policy: always-apply Cursor rule for UTF-8 + LF line endings; `stdio_utf8` reports/reconfigures non-UTF-8 hosts in Publish preflight; `.gitattributes` enforces LF for tracked text (CRLF accepted on read).
 
 2026-09-15 22:25 - HITZ trust hotfix: Refresh prep reads PHP output as UTF-8 (ASCII locale no longer crashes on ellipsis); help boxes default closed (Status no longer opens a scare banner); Site update no longer auto-starts Refresh or claims “Rebuilding…”; under-the-hood “steps waiting” nudge removed.

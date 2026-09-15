@@ -46,7 +46,11 @@ def ensure_utf8_process_env(environ=None):
 
 
 def configure():
-    """Force UTF-8 stdio with replacement errors when possible."""
+    """Force UTF-8 stdio with replacement errors when possible.
+
+    Never double-wrap sys.stdout.buffer — that closes the previous TextIOWrapper
+    on GC and causes ValueError: I/O operation on closed file (HITZ / Py 3.6).
+    """
     ensure_utf8_process_env()
 
     if getattr(sys, '_bandpromo_utf8_stdio', False):
@@ -56,24 +60,29 @@ def configure():
         stream = getattr(sys, stream_name, None)
         if stream is None:
             continue
+        current = _stream_encoding(stream)
+        if is_utf8_encoding(current):
+            continue
         try:
             if hasattr(stream, 'reconfigure'):
                 stream.reconfigure(encoding='utf-8', errors='replace', line_buffering=True)
-            elif hasattr(stream, 'detach'):
-                raw = stream.detach()
+                continue
+            # Python 3.6 path: wrap the underlying buffer once only.
+            buffer_obj = getattr(stream, 'buffer', None)
+            if buffer_obj is not None:
                 setattr(
                     sys,
                     stream_name,
-                    io.TextIOWrapper(raw, encoding='utf-8', errors='replace', line_buffering=True),
+                    io.TextIOWrapper(
+                        buffer_obj,
+                        encoding='utf-8',
+                        errors='replace',
+                        line_buffering=True,
+                    ),
                 )
-            elif hasattr(stream, 'buffer'):
-                setattr(
-                    sys,
-                    stream_name,
-                    io.TextIOWrapper(stream.buffer, encoding='utf-8', errors='replace', line_buffering=True),
-                )
+                # Drop the old wrapper reference so we do not keep two owners;
+                # do not call detach() — that closes the buffer for other wrappers.
         except Exception:
-            # Keep the original stream if reconfiguration is unavailable.
             pass
 
     sys._bandpromo_utf8_stdio = True

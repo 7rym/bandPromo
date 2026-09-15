@@ -3692,13 +3692,14 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     }
 
                     const statusEl = document.getElementById('buildStatus');
-                    if (statusEl && data.build_required === true && !statusEl.textContent) {
-                        statusEl.textContent = formatBuildHintMessage(state);
-                        statusEl.style.color = '#f0b429';
-                        statusEl.dataset.mode = 'nudge';
-                    } else if (statusEl && data.build_required !== true && statusEl.dataset.mode === 'nudge') {
+                    // Never put "steps waiting" into Peek under the hood — Site health / Refresh chip own that.
+                    if (statusEl && statusEl.dataset.mode === 'nudge') {
                         statusEl.textContent = '';
                         statusEl.removeAttribute('data-mode');
+                        statusEl.style.color = '';
+                    }
+                    if (typeof refreshBuildHint === 'function') {
+                        refreshBuildHint();
                     }
 
                     maybeRunRecommendedActionFromQuery();

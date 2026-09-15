@@ -123,17 +123,21 @@ except Exception:
     def scope_totals(stats, scope):
         return {'handled': 0, 'created': 0, 'fresh': 0, 'failed': 0}
 
-# Debug: capture default encoding BEFORE any reconfiguration
-_default_encoding = sys.stdout.encoding
-
-# Force UTF-8 output — compatible with Python 3.6+
-if hasattr(sys.stdout, 'reconfigure'):
-    sys.stdout.reconfigure(encoding='utf-8', errors='replace')
-else:
-    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace')
-
-print("Python version: " + sys.version)
-print("Default stdout encoding: " + str(_default_encoding))
+# Encoding is owned solely by stdio_utf8.configure() above — do not wrap
+# sys.stdout.buffer again here (closes the previous wrapper on Py 3.6 / HITZ).
+_default_encoding = None
+try:
+    _default_encoding = getattr(sys.stdout, 'encoding', None)
+except Exception:
+    _default_encoding = None
+try:
+    print('Python version: ' + sys.version)
+    print('Default stdout encoding: ' + str(_default_encoding))
+except Exception as print_exc:
+    try:
+        sys.stderr.write('stdout unavailable at startup: {0}\n'.format(print_exc))
+    except Exception:
+        pass
 
 REQUIREMENTS = SCRIPT_DIR / 'requirements.txt'
 VENDOR_DIR = SCRIPT_DIR / 'vendor'

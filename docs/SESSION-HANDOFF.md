@@ -2,18 +2,21 @@
 
 ## Resume point
 
-Published **v0.8.59 build 496** (pending) HITZ trust hotfix after 495 failed prep on ASCII locale.
+Published hotfix for HITZ stdout closed-file crash (**build 498** pending). After Site update: Refresh should get past Python startup.
 
-### Fixed in this hotfix
+### Fixed
 
-- Publish prep UTF-8 stream (no more `ascii codec` crash on HITZ)
-- Help default closed; Status help not a scare banner
-- Site update prompts for Refresh — does not auto-start or lie about rebuilding
-- Under-the-hood “steps waiting” nudge removed
+- Double UTF-8 wrap in `build.py` after `stdio_utf8.configure()` (Py 3.6 closed file)
+- Notifications no longer paint “steps waiting” into under-the-hood `buildStatus`
 
 ### Encoding / line endings
 
 Always UTF-8; preflight must warn and reconfigure ASCII-locale hosts. Repo text LF via `.gitattributes`. Rule: `.cursor/rules/utf8-line-endings.mdc`.
+
+### Follow-on
+
+- Native Python Repair Apply body
+- Remaining publish stages that shell PHP CLI
 
 ### Active fleet
 
