@@ -11,10 +11,9 @@ Published **v0.8.59 build 496** (pending) HITZ trust hotfix after 495 failed pre
 - Site update prompts for Refresh — does not auto-start or lie about rebuilding
 - Under-the-hood “steps waiting” nudge removed
 
-### Follow-on
+### Encoding / line endings
 
-- Native Python Repair Apply body
-- Further calm-copy polish after HITZ retest
+Always UTF-8; preflight must warn and reconfigure ASCII-locale hosts. Repo text LF via `.gitattributes`. Rule: `.cursor/rules/utf8-line-endings.mdc`.
 
 ### Active fleet
 

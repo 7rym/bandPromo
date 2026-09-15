@@ -975,6 +975,12 @@ def has_publishable_audio_sources():
 
 def run_preflight():
     print("-- Preflight -------------------------------")
+    try:
+        import stdio_utf8
+        stdio_utf8.log_preflight()
+    except Exception as enc_exc:
+        print('[encoding] Warning: could not verify UTF-8 stdio ({0}).'.format(enc_exc))
+
     if not ensure_runtime_files_seeded():
         return None
 

@@ -30,6 +30,8 @@ Welcome to the bandPromo codebase! This file provides essential guidance for AI 
 - **desktop.ini files:** Windows may create these metadata files in folders (historically also via Google Drive sync). They are **not** tracked by git (see `.gitignore`). Never try to add them to git; they can corrupt `.git/refs/` if committed. If you accidentally commit one, remove it immediately.
 - **Local workspace:** the operator checkout lives at a normal path (currently `C:\dev\bandpromo`) with `.git` in-tree. The old Google Drive sync layout is retired; `scripts/protect-google-drive-git.ps1` remains only for any leftover Drive-synced clones.
 - Use UTF-8 encoding for all tracked repository files and generated logs/artifacts committed to git.
+- **UTF-8 runtime:** process stdio and subprocess pipes must be UTF-8 (with `errors='replace'`). Publish/Repair preflight must detect non-UTF-8 host locales (e.g. HITZ `ANSI_X3.4-1968`), reconfigure via `scripts/stdio_utf8.py` when possible, and keep conversion fallbacks — never crash mid-job on ellipsis or non-ASCII paths. See `.cursor/rules/utf8-line-endings.mdc`.
+- **Line endings:** repository text uses **LF**. `.gitattributes` sets `text=auto eol=lf`. Readers accept CRLF or LF; writers emit LF unless an external format requires CRLF.
 - Keep repository-authored text in **UK English** only (not US English). See **Language** below.
 - Exception: content inside `biblioteca/templates/` and runtime user data (for example `data/`) may contain any language.
 - Always add a timestamped note to `docs/CHANGELOG.md` whenever repository files are changed.

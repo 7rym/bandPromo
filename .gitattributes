@@ -1,0 +1,28 @@
+# Canonical line endings for cross-platform (Windows + Linux) checkouts.
+* text=auto eol=lf
+
+# Keep binaries untouched.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.webp binary
+*.ico binary
+*.mp3 binary
+*.flac binary
+*.wav binary
+*.mp4 binary
+*.webm binary
+*.mov binary
+*.zip binary
+*.pcf binary
+*.pbf binary
+*.prp binary
+*.woff binary
+*.woff2 binary
+*.ttf binary
+*.otf binary
+
+# Windows scripts may keep CRLF when checked out on Windows for native hosts.
+*.bat text eol=crlf
+*.cmd text eol=crlf

@@ -72,11 +72,15 @@ def run_publish_prep(meta_name='build.meta.json'):
 
     log('[prep] PHP CLI: {0}'.format(php))
     env = os.environ.copy()
+    try:
+        import stdio_utf8
+        stdio_utf8.ensure_utf8_process_env(env)
+    except Exception:
+        env['PYTHONIOENCODING'] = 'utf-8:replace'
+        env['LANG'] = env.get('LANG') or 'C.UTF-8'
+        env['LC_ALL'] = env.get('LC_ALL') or 'C.UTF-8'
     env['BANDPROMO_PUBLISH_PREP_CLI'] = '1'
     env['BANDPROMO_BUILD_META'] = os.path.join(ROOT_DIR, 'log', meta_name)
-    env['PYTHONIOENCODING'] = 'utf-8:replace'
-    env['LANG'] = env.get('LANG') or 'C.UTF-8'
-    env['LC_ALL'] = env.get('LC_ALL') or 'C.UTF-8'
 
     popen_kwargs = {
         'cwd': ROOT_DIR,

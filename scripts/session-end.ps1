@@ -80,7 +80,8 @@ function Test-AllowedRepositoryPath {
         'bootstrap.php',
         'VERSION',
         'README.md',
-        'LICENSE'
+        'LICENSE',
+        '.gitattributes'
     )
 
     return $allowedFiles -contains $normalized
