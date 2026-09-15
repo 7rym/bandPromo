@@ -152,20 +152,71 @@ def png_has_visible_transparency(img):
     return False
 
 
-def _copy_cover_fallback(source_path, dest_path, reason):
-    """Best-effort delivery cover when conversion crashes or fails."""
+def _copy_cover_fallback(source_path, dest_path, reason, asset_id=''):
+    """Best-effort delivery cover when conversion crashes or fails.
+
+    Never write PNG/WebP bytes into a .jpg path — that breaks player thumbs.
+    Prefer an in-process Pillow save; if that fails, write with a matching
+    extension and return that path so the registry points at readable bytes.
+    """
+    asset_label = asset_id.strip() if asset_id else os.path.basename(str(source_path))
+    dest_path = Path(dest_path)
+    dest_path.parent.mkdir(parents=True, exist_ok=True)
+    source_ext = Path(source_path).suffix.lower()
+    dest_ext = dest_path.suffix.lower()
+
+    # In-process convert first so we keep the requested delivery filename.
     try:
-        shutil.copy2(source_path, dest_path)
-        print("    ⚠️  Cover conversion skipped ({}); copied source instead: {}".format(
-            reason, os.path.basename(dest_path)
-        ))
-        return os.path.basename(dest_path)
+        with Image.open(str(source_path)) as img:
+            want_png = dest_ext == '.png'
+            if want_png:
+                if img.mode not in ('RGBA', 'LA', 'P'):
+                    img = img.convert('RGBA') if 'A' in img.getbands() else img.convert('RGB').convert('RGBA')
+                elif img.mode == 'P':
+                    img = img.convert('RGBA')
+                img.save(str(dest_path), 'PNG', optimize=True)
+            else:
+                if img.mode in ('RGBA', 'LA', 'P'):
+                    background = Image.new('RGB', img.size, (255, 255, 255))
+                    if img.mode == 'P':
+                        img = img.convert('RGBA')
+                    mask = img.split()[-1] if img.mode in ('RGBA', 'LA') else None
+                    background.paste(img, mask=mask)
+                    img = background
+                elif img.mode != 'RGB':
+                    img = img.convert('RGB')
+                img.save(str(dest_path), 'JPEG', quality=75, optimize=True)
+        print(
+            "    ⚠️  Cover conversion recovered in-process for {0} ({1}); wrote {2}".format(
+                asset_label, reason, dest_path.name
+            )
+        )
+        return str(dest_path)
+    except Exception as convert_error:
+        reason = '{0}; in-process also failed: {1}'.format(reason, convert_error)
+
+    # Last resort: copy with a matching extension so browsers can decode it.
+    fallback_dest = dest_path
+    if dest_ext in ('.jpg', '.jpeg') and source_ext not in ('.jpg', '.jpeg'):
+        fallback_dest = dest_path.with_suffix(source_ext if source_ext else '.bin')
+    elif dest_ext == '.png' and source_ext not in ('.png',):
+        fallback_dest = dest_path.with_suffix(source_ext if source_ext else '.bin')
+    try:
+        shutil.copy2(source_path, str(fallback_dest))
+        print(
+            "    ⚠️  Cover conversion skipped for {0} ({1}); copied source as {2}".format(
+                asset_label, reason, fallback_dest.name
+            )
+        )
+        return str(fallback_dest)
     except Exception as copy_error:
-        print("    ❌ Cover fallback copy failed: {}".format(copy_error))
+        print(
+            "    ❌ Cover fallback copy failed for {0}: {1}".format(asset_label, copy_error)
+        )
         return None
 
 
-def convert_cover_to_jpeg(source_path, dest_path, quality=75, max_edge=None):
+def convert_cover_to_jpeg(source_path, dest_path, quality=75, max_edge=None, asset_id=''):
     """
     Convert cover image to JPEG with medium quality and optional max edge resize.
 
@@ -213,7 +264,9 @@ def convert_cover_to_jpeg(source_path, dest_path, quality=75, max_edge=None):
             check=False,
         )
     except Exception as e:
-        return _copy_cover_fallback(source_path, dest_path, 'launcher error: {}'.format(e))
+        return _copy_cover_fallback(
+            source_path, dest_path, 'launcher error: {}'.format(e), asset_id=asset_id
+        )
 
     if result.returncode != 0:
         detail = (result.stderr or result.stdout or '').strip()
@@ -223,10 +276,12 @@ def convert_cover_to_jpeg(source_path, dest_path, quality=75, max_edge=None):
             reason = 'converter exited {}'.format(result.returncode)
         if detail:
             reason = '{}: {}'.format(reason, detail.splitlines()[-1][:200])
-        return _copy_cover_fallback(source_path, dest_path, reason)
+        return _copy_cover_fallback(source_path, dest_path, reason, asset_id=asset_id)
 
     if not os.path.exists(dest_path):
-        return _copy_cover_fallback(source_path, dest_path, 'converter produced no output')
+        return _copy_cover_fallback(
+            source_path, dest_path, 'converter produced no output', asset_id=asset_id
+        )
 
     try:
         source_size = os.path.getsize(source_path)
@@ -251,7 +306,7 @@ def image_source_has_alpha(source_path):
         return False
 
 
-def convert_image_delivery_variant(source_path, dest_path, max_width, max_height, quality=75, preserve_alpha=False):
+def convert_image_delivery_variant(source_path, dest_path, max_width, max_height, quality=75, preserve_alpha=False, asset_id=''):
     """
     Write one delivery variant. When preserve_alpha is True and the source has
     transparency, emit PNG; otherwise JPEG (flattening onto white only when needed).
@@ -326,10 +381,23 @@ def convert_image_delivery_variant(source_path, dest_path, max_width, max_height
             check=False,
         )
     except Exception as e:
-        return _copy_cover_fallback(source_path, str(dest_path), 'launcher error: {}'.format(e))
+        return _copy_cover_fallback(
+            source_path, str(dest_path), 'launcher error: {}'.format(e), asset_id=asset_id
+        )
 
     if result.returncode != 0 or not dest_path.exists():
-        return _copy_cover_fallback(source_path, str(dest_path), 'converter failed')
+        detail = (result.stderr or result.stdout or '').strip()
+        if result.returncode < 0:
+            reason = 'converter crashed (signal {})'.format(-result.returncode)
+        elif result.returncode != 0:
+            reason = 'converter exited {}'.format(result.returncode)
+        else:
+            reason = 'converter produced no output'
+        if detail:
+            reason = '{}: {}'.format(reason, detail.splitlines()[-1][:200])
+        return _copy_cover_fallback(
+            source_path, str(dest_path), reason, asset_id=asset_id
+        )
 
     print("    ✓ Variant {}: {} (max {}x{}px, {})".format(
         dest_path.stem, dest_path.name, max_width, max_height, 'PNG alpha' if use_png else 'JPEG'
@@ -639,6 +707,7 @@ def process_visual_image_asset(asset, quiet_skip=False):
             max_height=max_height,
             quality=quality,
             preserve_alpha=preserve_alpha,
+            asset_id=asset_id,
         )
         if written:
             variants_written[variant] = variant_manifest_entry(written)
@@ -1130,30 +1199,25 @@ def process_audio_delivery(
 def main():
     """Main media optimization function."""
     try:
-        from publish_prep import run_publish_prep
-        from job_heartbeat import touch_heartbeat
-        touch_heartbeat(
-            str(ROOT_DIR),
-            stage='prep',
-            message='Preparing your site for publish…',
-            name='optimize.meta.json',
-        )
-        prep_result = run_publish_prep('optimize.meta.json')
-        if prep_result == 'stopped':
-            print('Optimize stopped during preparation.')
-            sys.exit(0)
-        if prep_result != 'ok':
-            print('FAILED Optimize prep did not finish.')
-            sys.exit(1)
-        touch_heartbeat(
-            str(ROOT_DIR),
-            stage='optimize',
-            message='Refreshing delivery images…',
-            name='optimize.meta.json',
-        )
-    except Exception as prep_exc:
-        print('FAILED Optimize prep could not start: {0}'.format(prep_exc))
-        sys.exit(1)
+        from job_heartbeat import touch_heartbeat as _touch_hb
+    except Exception:
+        _touch_hb = None
+
+    def heartbeat(message):
+        if _touch_hb is None:
+            return
+        # Full publish polls build.meta.json; standalone optimize polls optimize.meta.json.
+        meta_name = 'build.meta.json'
+        if (ROOT_DIR / 'log' / 'build.lock').is_file():
+            meta_name = 'build.meta.json'
+        elif (ROOT_DIR / 'log' / 'optimize.lock').is_file():
+            meta_name = 'optimize.meta.json'
+        try:
+            _touch_hb(str(ROOT_DIR), stage='optimize', message=message, name=meta_name)
+        except Exception:
+            pass
+
+    heartbeat('Refreshing delivery images...')
 
     # Verify source directories exist
     include_audio = OPTIMIZE_MODE == 'full'
@@ -1233,6 +1297,13 @@ def main():
                     )
                 )
                 sys.stdout.flush()
+                heartbeat(
+                    'Audio delivery {0}/{1}'.format(index, audio_total)
+                )
+            elif index % 5 == 0:
+                heartbeat(
+                    'Audio delivery {0}/{1}'.format(index, audio_total)
+                )
 
     # ── Visual registry image delivery (asset-id variants) ─────────────────────────
     print("\n🎨 Processing visual registry image delivery...")
@@ -1283,6 +1354,13 @@ def main():
                     )
                 )
                 sys.stdout.flush()
+                heartbeat(
+                    'Visual delivery {0}/{1}'.format(index, visual_total)
+                )
+            elif index % 10 == 0:
+                heartbeat(
+                    'Visual delivery {0}/{1}'.format(index, visual_total)
+                )
         print("  ✓ Visual images rebuilt: {0}; already up to date: {1}".format(visual_count, visual_skipped))
     else:
         print("  ✓ No registered visual image assets")

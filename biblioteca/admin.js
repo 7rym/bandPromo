@@ -11804,7 +11804,10 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
             const publishStatusOverall = document.getElementById('publishStatusOverall');
             const publishRefreshChip = document.getElementById('publishRefreshChip');
             const publishJobStatus = document.getElementById('publishJobStatus');
-            const BUILD_HEARTBEAT_STUCK_SECONDS = 120;
+            // Only warn after long silence. Prefer log mtime over meta heartbeat —
+            // optimizeMedia can flood the log for minutes while meta stays stale.
+            const BUILD_SILENCE_WARN_SECONDS = 600;
+            const BUILD_SILENCE_DEAD_SECONDS = 120;
             let pollTimer      = null;
             let currentRunMode = 'full';
             let currentBuildTasks = [];
@@ -11826,6 +11829,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     running: ['Working', 'status-neutral'],
                     stopped: ['Stopped', 'status-neutral'],
                     failed: ['Did not finish', 'status-error'],
+                    warning: ['Finished with warnings', 'status-warning'],
                     success: ['Up to date', 'status-ok'],
                 };
                 const pair = map[state] || map.ready;
@@ -11856,29 +11860,51 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
             function formatBuildJobProgress(data) {
                 const job = data && data.job && typeof data.job === 'object' ? data.job : {};
                 const message = String(job.message || '').trim();
-                const age = Number(job.heartbeat_age_s);
-                const ageKnown = Number.isFinite(age) && age >= 0;
-                if (ageKnown && age >= BUILD_HEARTBEAT_STUCK_SECONDS) {
-                    const minutes = Math.max(2, Math.floor(age / 60));
+                const heartbeatAge = Number(job.heartbeat_age_s);
+                const logAge = Number(job.log_age_s);
+                const heartbeatKnown = Number.isFinite(heartbeatAge) && heartbeatAge >= 0;
+                const logKnown = Number.isFinite(logAge) && logAge >= 0;
+                // Freshest signal wins — log output proves the machine is alive.
+                let age = null;
+                if (heartbeatKnown && logKnown) {
+                    age = Math.min(heartbeatAge, logAge);
+                } else if (logKnown) {
+                    age = logAge;
+                } else if (heartbeatKnown) {
+                    age = heartbeatAge;
+                }
+                const ageKnown = age !== null;
+                const alive = job.alive !== false && job.alive !== 0 && job.alive !== '0';
+
+                if (!alive && ageKnown && age >= BUILD_SILENCE_DEAD_SECONDS) {
                     return {
-                        text: 'No updates for ' + minutes + ' min — may be stuck. You can Stop.',
+                        text: 'Refresh process is not running. Press Stop refresh, peek under the hood, then try again.',
+                        stuck: true,
+                    };
+                }
+                if (ageKnown && age >= BUILD_SILENCE_WARN_SECONDS) {
+                    const minutes = Math.max(1, Math.floor(age / 60));
+                    return {
+                        text: 'Still busy — no new log line for '
+                            + minutes
+                            + ' min (large catalogues take time). Safe to leave this page, or press Stop refresh to cancel.',
                         stuck: true,
                     };
                 }
                 if (message) {
                     if (ageKnown) {
                         return {
-                            text: 'Working — ' + message + ' · updated ' + age + 's ago · safe to leave this page',
+                            text: message + ' · updated ' + age + 's ago · safe to leave this page',
                             stuck: false,
                         };
                     }
                     return {
-                        text: 'Working — ' + message + ' · safe to leave this page',
+                        text: message + ' · safe to leave this page',
                         stuck: false,
                     };
                 }
                 return {
-                    text: 'Working — preparing site files · safe to leave this page',
+                    text: 'Preparing site files · safe to leave this page',
                     stuck: false,
                 };
             }
@@ -12297,12 +12323,27 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                         buildStatus.removeAttribute('data-mode');
                     }
                 } else if (success === true && !incomplete) {
-                    setPublishRefreshChip('success');
-                    setPublishJobStatus('Tune-up finished. Listener files are up to date.', { color: 'var(--success, #4ade80)' });
-                    if (buildStatus) {
-                        buildStatus.textContent = 'Finished';
-                        buildStatus.style.color = 'var(--success, #4ade80)';
-                        buildStatus.removeAttribute('data-mode');
+                    const logText = String(buildLog ? buildLog.textContent : '');
+                    const withWarnings = /PUBLISH FINISHED WITH WARNINGS|Cover conversion skipped|Need attention/i.test(logText);
+                    if (withWarnings) {
+                        setPublishRefreshChip('warning');
+                        setPublishJobStatus(
+                            'Finished with warnings — some listener files need attention. Peek under the hood for asset ids, then fix and refresh again.',
+                            { color: '#f0b429' }
+                        );
+                        if (buildStatus) {
+                            buildStatus.textContent = 'Finished with warnings';
+                            buildStatus.style.color = '#f0b429';
+                            buildStatus.removeAttribute('data-mode');
+                        }
+                    } else {
+                        setPublishRefreshChip('success');
+                        setPublishJobStatus('Tune-up finished. Listener files are up to date.', { color: 'var(--success, #4ade80)' });
+                        if (buildStatus) {
+                            buildStatus.textContent = 'Finished';
+                            buildStatus.style.color = 'var(--success, #4ade80)';
+                            buildStatus.removeAttribute('data-mode');
+                        }
                     }
                 } else if (success === false || incomplete) {
                     setPublishRefreshChip('failed');
@@ -12331,7 +12372,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 buildSessionActive = true;
                 hideRecommendedBuildChrome();
                 setPublishRefreshChip('running');
-                setPublishJobStatus('Working — starting… · safe to leave this page');
+                setPublishJobStatus('Starting… · safe to leave this page');
                 if (pollTimer) {
                     return;
                 }
@@ -12340,6 +12381,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 if (buildStopBtn) {
                     buildStopBtn.hidden = false;
                     buildStopBtn.disabled = false;
+                    buildStopBtn.textContent = 'Stop refresh';
                 }
                 if (buildStatus && buildStatus.dataset.mode === 'nudge') {
                     buildStatus.textContent = '';
@@ -12426,7 +12468,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                         setPublishJobStatus(progress.text, progress.stuck ? { color: '#f0b429' } : {});
                         if (buildStatus && buildStatus.dataset.mode !== 'nudge') {
                             buildStatus.style.color = progress.stuck ? '#f0b429' : '';
-                            buildStatus.textContent = progress.stuck ? 'May be stuck' : 'Working…';
+                            buildStatus.textContent = progress.stuck ? 'Taking longer…' : 'In progress';
                         }
                     }
 
@@ -12778,16 +12820,20 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                         const job = data.job && typeof data.job === 'object' ? data.job : {};
                         const message = String(job.message || '').trim();
                         const age = Number(job.heartbeat_age_s);
-                        if (Number.isFinite(age) && age >= 120) {
-                            statusEl.textContent = 'No Repair updates for '
-                                + Math.max(2, Math.floor(age / 60))
-                                + ' min — may be stuck. You can Stop.';
+                        const logAge = Number(job.log_age_s);
+                        const silenceAge = Number.isFinite(logAge) && logAge >= 0 && Number.isFinite(age)
+                            ? Math.min(age, logAge)
+                            : (Number.isFinite(age) ? age : logAge);
+                        if (Number.isFinite(silenceAge) && silenceAge >= 600) {
+                            statusEl.textContent = 'Still busy — no Repair log update for '
+                                + Math.max(1, Math.floor(silenceAge / 60))
+                                + ' min. Safe to leave this page, or press Stop repair to cancel.';
                             statusEl.style.color = '#f0b429';
                         } else if (message) {
                             statusEl.style.color = '';
-                            statusEl.textContent = Number.isFinite(age)
-                                ? ('Working — ' + message + ' · updated ' + age + 's ago · safe to leave this page')
-                                : ('Working — ' + message + ' · safe to leave this page');
+                            statusEl.textContent = Number.isFinite(silenceAge)
+                                ? (message + ' · updated ' + silenceAge + 's ago · safe to leave this page')
+                                : (message + ' · safe to leave this page');
                         } else {
                             statusEl.style.color = '';
                             statusEl.textContent = 'Repair running in the background… (safe to leave this page)';

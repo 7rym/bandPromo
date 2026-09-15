@@ -42,18 +42,22 @@ if (is_file($metaFile)) {
 }
 $heartbeatAt = (int) ($meta['heartbeat_at'] ?? $meta['updated_at'] ?? 0);
 $startedAt = (int) ($meta['started_at'] ?? 0);
+$logMtime = is_file($path) ? (int) filemtime($path) : 0;
+$logAge = $logMtime > 0 ? max(0, time() - $logMtime) : null;
 
 echo json_encode([
     'ok' => true,
     'content' => $content,
     'running' => $running,
     'locked' => $locked,
-    'mtime' => is_file($path) ? (int) filemtime($path) : 0,
+    'mtime' => $logMtime,
     'job' => [
         'stage' => trim((string) ($meta['stage'] ?? '')),
         'message' => trim((string) ($meta['message'] ?? '')),
         'started_at' => $startedAt > 0 ? $startedAt : null,
         'heartbeat_at' => $heartbeatAt > 0 ? $heartbeatAt : null,
         'heartbeat_age_s' => $heartbeatAt > 0 ? max(0, time() - $heartbeatAt) : null,
+        'log_mtime' => $logMtime > 0 ? $logMtime : null,
+        'log_age_s' => $logAge,
     ],
 ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);

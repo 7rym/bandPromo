@@ -1,28 +1,52 @@
 """
-Catalog stage — register uncatalogued audio, materialize masters, canonicalize filenames.
+Catalog stage — register uncatalogued audio, materialise masters, canonicalise filenames.
 
-Invokes biblioteca/build-catalog-cli.php so catalog rules stay in PHP with the asset registry.
+Owns the long-lived process and heartbeats. Registry mutation rules still live in
+biblioteca/build-catalog-cli.php (shared with admin Repair) so catalogue semantics
+stay single-sourced; this Python supervisor never goes silent on large hosts.
 """
+
+from __future__ import print_function
 
 import os
 import subprocess
 import sys
 import threading
+import time
 from pathlib import Path
 
 ROOT_DIR = Path(__file__).parent.parent
 CLI_SCRIPT = ROOT_DIR / 'biblioteca' / 'build-catalog-cli.php'
+META_NAME = 'build.meta.json'
 
-from php_cli import resolve_php_cli
+sys.path.insert(0, str(Path(__file__).parent))
+try:
+    import stdio_utf8
+    stdio_utf8.configure()
+except Exception:
+    pass
+
+from php_cli import resolve_php_cli  # noqa: E402
+from job_heartbeat import touch_heartbeat  # noqa: E402
 
 
-def _heartbeat(stop_event, interval_seconds=30):
-    """Keep the publish log mtime fresh while the PHP catalogue CLI runs silently."""
+def _heartbeat(stop_event, interval_seconds=15):
+    """Keep build.meta.json fresh while the catalogue CLI runs."""
     elapsed = 0
     while not stop_event.wait(interval_seconds):
         elapsed += interval_seconds
-        print('Catalog: still working... ({0}s)'.format(elapsed))
+        message = 'Catalogue stage still working... ({0}s)'.format(elapsed)
+        print(message)
         sys.stdout.flush()
+        try:
+            touch_heartbeat(
+                str(ROOT_DIR),
+                stage='catalog',
+                message=message,
+                name=META_NAME,
+            )
+        except Exception:
+            pass
 
 
 def main():
@@ -33,6 +57,16 @@ def main():
 
     print('Catalog: resolving PHP CLI...')
     sys.stdout.flush()
+    try:
+        touch_heartbeat(
+            str(ROOT_DIR),
+            stage='catalog',
+            message='Preparing asset catalogue...',
+            name=META_NAME,
+        )
+    except Exception:
+        pass
+
     php = resolve_php_cli()
     if php == '':
         print('FAILED Could not resolve PHP CLI for catalog stage')
@@ -41,13 +75,14 @@ def main():
 
     print('Catalog: using PHP CLI ' + php)
     print('Catalog: starting build-catalog-cli.php...')
+    print('Catalog: (registry rules stay in PHP; this stage keeps Status informed)')
     sys.stdout.flush()
 
     env = os.environ.copy()
     env['PYTHONIOENCODING'] = 'utf-8:replace'
 
     proc = subprocess.Popen(
-        [php, '-f', str(CLI_SCRIPT)],
+        [php, '-d', 'max_execution_time=0', '-f', str(CLI_SCRIPT)],
         cwd=str(ROOT_DIR),
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,
@@ -59,12 +94,25 @@ def main():
     heartbeat.daemon = True
     heartbeat.start()
 
+    last_meta = 0.0
     assert proc.stdout is not None
     try:
         for raw_line in iter(proc.stdout.readline, b''):
             line = raw_line.decode('utf-8', errors='replace').rstrip('\n')
             print(line)
             sys.stdout.flush()
+            now = time.time()
+            if now - last_meta >= 10:
+                last_meta = now
+                try:
+                    touch_heartbeat(
+                        str(ROOT_DIR),
+                        stage='catalog',
+                        message=(line[:120] if line else 'Catalogue stage running...'),
+                        name=META_NAME,
+                    )
+                except Exception:
+                    pass
     finally:
         stop_heartbeat.set()
         heartbeat.join(timeout=2)
@@ -76,6 +124,15 @@ def main():
         sys.stdout.flush()
         return proc.returncode or 1
 
+    try:
+        touch_heartbeat(
+            str(ROOT_DIR),
+            stage='catalog',
+            message='Catalogue stage finished.',
+            name=META_NAME,
+        )
+    except Exception:
+        pass
     return 0
 
 

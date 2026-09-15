@@ -2,21 +2,22 @@
 
 ## Resume point
 
-Published hotfix for HITZ stdout closed-file crash (**build 498** pending). After Site update: Refresh should get past Python startup.
+HITZ trust emergency hotfix ready to publish (build bump on session-end). After Site update on **hitz.no**: run **Refresh site files** once — cover fallback no longer writes PNG as `.jpg`; Status should show real stage progress instead of false “stuck”.
 
-### Fixed
+### Fixed this session
 
-- Double UTF-8 wrap in `build.py` after `stdio_utf8.configure()` (Py 3.6 closed file)
-- Notifications no longer paint “steps waiting” into under-the-hood `buildStatus`
+- False stuck: poller exposes `log_age_s`; UI prefers log mtime; warn only after ~10 min silence; **Stop refresh** label
+- Honest finish: warnings → “Finished with warnings”, not “Up to date”
+- Prep log: no more “omitted from log”; visual reconcile heartbeats
+- Double prep removed from `optimizeMedia.py`
+- Cover conversion: in-process recover + asset id in warnings; never copy PNG bytes to `.jpg`
+- Catalog/playlist supervisors keep `build.meta.json` heartbeats alive
 
-### Encoding / line endings
+### Still follow-on
 
-Always UTF-8; preflight must warn and reconfigure ASCII-locale hosts. Repo text LF via `.gitattributes`. Rule: `.cursor/rules/utf8-line-endings.mdc`.
-
-### Follow-on
-
-- Native Python Repair Apply body
-- Remaining publish stages that shell PHP CLI
+- Full Status page redesign (not copy polish)
+- Native Python catalogue registry mutations (supervisor is Python; rules still in `build-catalog-cli.php`)
+- Native Python Repair Apply body / remaining PHP playlist CLI
 
 ### Active fleet
 

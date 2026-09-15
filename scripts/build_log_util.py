@@ -14,6 +14,7 @@ _ERROR_LINE_RE = re.compile(
     r'(FAILED|finished with errors|Need attention|'
     r'Player playlist publish failed|Could not resolve PHP CLI|'
     r'Build failed at stage|failed to |'
+    r'Cover conversion skipped|Cover conversion recovered|'
     r'^Failed\s*:\s*[1-9]|❌)',
     re.IGNORECASE | re.MULTILINE,
 )
@@ -121,9 +122,12 @@ def print_repeated_errors(error_lines):
             continue
         seen.add(key)
         unique.append(key)
-    print('  Errors (repeated from the log)')
+    print('  Issues that need attention (from the log)')
     for line in unique:
         print('    - ' + line)
+    print('')
+    print('  Cover lines name the visual asset id. Open Files → Visual, fix that')
+    print('  master, then Refresh again — re-running unchanged repeats the same warnings.')
     print('')
     sys.stdout.flush()
 

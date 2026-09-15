@@ -1124,6 +1124,7 @@ def print_build_success_banner(elapsed, profile, stage_count, stats, timing_reco
         print('  You\'re done — open the site and enjoy the result.')
     else:
         print('  Fix the items listed above, then rebuild when ready.')
+        print('  Re-running Refresh without changing those assets will repeat the same warnings.')
     print(rule)
     print('')
     sys.stdout.flush()

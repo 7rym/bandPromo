@@ -1766,14 +1766,25 @@ def publish_player_playlist_payloads():
 
     stop_heartbeat = threading.Event()
 
-    def _heartbeat():
+    def _playlist_heartbeat():
         elapsed = 0
-        while not stop_heartbeat.wait(30):
-            elapsed += 30
-            print('Playlist: still working... ({0}s)'.format(elapsed))
+        while not stop_heartbeat.wait(15):
+            elapsed += 15
+            message = 'Playlist publish still working... ({0}s)'.format(elapsed)
+            print(message)
             sys.stdout.flush()
+            try:
+                from job_heartbeat import touch_heartbeat
+                touch_heartbeat(
+                    str(ROOT_DIR),
+                    stage='playlist-artifacts',
+                    message=message,
+                    name='build.meta.json',
+                )
+            except Exception:
+                pass
 
-    heartbeat = threading.Thread(target=_heartbeat)
+    heartbeat = threading.Thread(target=_playlist_heartbeat)
     heartbeat.daemon = True
     heartbeat.start()
 
@@ -1784,6 +1795,16 @@ def publish_player_playlist_payloads():
             if line.strip():
                 print(line)
                 sys.stdout.flush()
+                try:
+                    from job_heartbeat import touch_heartbeat
+                    touch_heartbeat(
+                        str(ROOT_DIR),
+                        stage='playlist-artifacts',
+                        message=line.strip()[:120],
+                        name='build.meta.json',
+                    )
+                except Exception:
+                    pass
     finally:
         stop_heartbeat.set()
         heartbeat.join(timeout=2)

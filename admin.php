@@ -2873,7 +2873,7 @@ if ($tab === 'analytics') {
                 <p id="publishJobStatus" class="build-log-status publish-action-status" hidden></p>
                 <div class="publish-actions-toolbar">
                     <button type="button" id="buildBtn" class="btn">Refresh site files</button>
-                    <button type="button" id="buildStopBtn" class="btn" hidden>Stop</button>
+                    <button type="button" id="buildStopBtn" class="btn" hidden>Stop refresh</button>
                     <button type="button" id="recommendedBuildBtn" class="btn" style="display:none" hidden></button>
                 </div>
             </div>
@@ -2901,7 +2901,7 @@ if ($tab === 'analytics') {
                     <div class="publish-actions-toolbar">
                         <button type="button" id="contentAutofixPreviewBtn" class="btn">Preview repairs</button>
                         <button type="button" id="contentAutofixApplyBtn" class="btn btn-primary" hidden>Apply repairs</button>
-                        <button type="button" id="contentAutofixStopBtn" class="btn" hidden>Stop</button>
+                        <button type="button" id="contentAutofixStopBtn" class="btn" hidden>Stop repair</button>
                     </div>
                     <p id="contentAutofixStatus" class="build-log-status publish-action-status" hidden></p>
                     <ul id="contentAutofixReport" class="welcome-list" hidden></ul>

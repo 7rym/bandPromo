@@ -169,18 +169,11 @@ try {
     $audioRecovered = (int) ($audioMasterReconcile['changed'] ?? 0);
     if ($audioRecovered > 0) {
         $logLine('[audio masters] Re-registered ' . $audioRecovered . ' uncatalogued master(s) into Files -> Audio.');
-        $shown = 0;
         foreach (($audioMasterReconcile['fixed'] ?? []) as $fixedName) {
             if (!is_string($fixedName) || trim($fixedName) === '') {
                 continue;
             }
-            if ($shown < 12) {
-                $logLine('[audio masters] + ' . $fixedName);
-            }
-            $shown++;
-        }
-        if ($shown > 12) {
-            $logLine('[audio masters] ... and ' . ($shown - 12) . ' more (omitted from log).');
+            $logLine('[audio masters] + ' . $fixedName);
         }
     } elseif (!empty($audioMasterReconcile['index_rebuilt'])) {
         $logLine('[audio masters] Rebuilt Files -> Audio index from registry (stale pool listing).');
@@ -213,18 +206,11 @@ try {
     $origFixed = (int) ($originalReconcile['changed'] ?? 0);
     if ($origFixed > 0) {
         $logLine('[audio uploads] Registered ' . $origFixed . ' waiting upload(s) into the catalogue.');
-        $shown = 0;
         foreach (($originalReconcile['fixed'] ?? []) as $fixedName) {
             if (!is_string($fixedName) || trim($fixedName) === '') {
                 continue;
             }
-            if ($shown < 12) {
-                $logLine('[audio uploads] + ' . $fixedName);
-            }
-            $shown++;
-        }
-        if ($shown > 12) {
-            $logLine('[audio uploads] ... and ' . ($shown - 12) . ' more (omitted from log).');
+            $logLine('[audio uploads] + ' . $fixedName);
         }
     } else {
         $logLine('[audio uploads] No waiting uploads to register.');
@@ -253,18 +239,17 @@ try {
     $recovered = (int) ($masterReconcile['changed'] ?? 0);
     if ($recovered > 0) {
         $logLine('[visual masters] Re-registered ' . $recovered . ' uncatalogued master(s) into the Visual pool.');
-        $shown = 0;
+        $listed = 0;
         foreach (($masterReconcile['fixed'] ?? []) as $fixedName) {
             if (!is_string($fixedName) || trim($fixedName) === '') {
                 continue;
             }
-            if ($shown < 12) {
-                $logLine('[visual masters] + ' . $fixedName);
+            $logLine('[visual masters] + ' . $fixedName);
+            $listed++;
+            // Keep heartbeat alive during large Visual reconciles.
+            if (($listed % 25) === 0) {
+                $touchMeta('prep', 'Checking visual masters... (' . $listed . '/' . $recovered . ')');
             }
-            $shown++;
-        }
-        if ($shown > 12) {
-            $logLine('[visual masters] ... and ' . ($shown - 12) . ' more (omitted from log).');
         }
     } elseif (!empty($masterReconcile['index_rebuilt'])) {
         $logLine('[visual masters] Rebuilt Files -> Visual index from registry (stale pool listing).');

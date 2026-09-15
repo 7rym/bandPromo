@@ -2,6 +2,8 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-09-15 23:55 - HITZ trust emergency after 42m Refresh: false “stuck/Stop” used meta heartbeat only while the log kept moving — now prefer log mtime, warn only after 10 min silence, label **Stop refresh**; never claim “Up to date” when the log has warnings; stop omitting prep catalogue lines; remove double publish_prep from `optimizeMedia` (prep once in `build.py`); heartbeats during audio/visual/playlist loops; cover fallback no longer writes PNG bytes as `.jpg` (in-process recover + asset ids); catalogue/playlist supervisors keep `build.meta.json` alive. Full Status page redesign remains follow-on.
+
 2026-09-15 22:45 - HITZ hotfix: stop double-wrapping stdout in `build.py` (ValueError: I/O operation on closed file on Python 3.6); harden `stdio_utf8` against detach/double-wrap; stop notifications from writing “steps waiting” into Peek under the hood.
 
 2026-09-15 22:40 - Encoding policy: always-apply Cursor rule for UTF-8 + LF line endings; `stdio_utf8` reports/reconfigures non-UTF-8 hosts in Publish preflight; `.gitattributes` enforces LF for tracked text (CRLF accepted on read).

@@ -134,6 +134,8 @@ $process = bandpromo_build_lock_process_state($lock_file);
 $heartbeatAt = (int) ($build_meta['heartbeat_at'] ?? $build_meta['updated_at'] ?? 0);
 $startedAt = (int) ($build_meta['started_at'] ?? 0);
 $heartbeatAge = $heartbeatAt > 0 ? max(0, time() - $heartbeatAt) : null;
+$logMtime = is_file($log_file) ? (int) @filemtime($log_file) : 0;
+$logAge = $logMtime > 0 ? max(0, time() - $logMtime) : null;
 
 echo json_encode([
     'content'    => $content,
@@ -141,7 +143,7 @@ echo json_encode([
     'mode' => $mode,
     'exit_code'  => $exit_code,
     'success'    => $success,
-    'mtime' => is_file($log_file) ? (int) @filemtime($log_file) : 0,
+    'mtime' => $logMtime,
     'publish_status' => $publish_status,
     'build_required' => !empty($build_required_state['required']),
     'build_required_state' => $build_required_state,
@@ -151,6 +153,8 @@ echo json_encode([
         'started_at' => $startedAt > 0 ? $startedAt : null,
         'heartbeat_at' => $heartbeatAt > 0 ? $heartbeatAt : null,
         'heartbeat_age_s' => $heartbeatAge,
+        'log_mtime' => $logMtime > 0 ? $logMtime : null,
+        'log_age_s' => $logAge,
         'pid' => isset($build_meta['pid']) ? (int) $build_meta['pid'] : ($process['pid'] ?? null),
         'alive' => $process['alive'],
     ],
