@@ -12177,6 +12177,11 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
             function stopPolling(success) {
                 if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
                 if (buildBtn) buildBtn.disabled = false;
+                const buildStopBtn = document.getElementById('buildStopBtn');
+                if (buildStopBtn) {
+                    buildStopBtn.hidden = true;
+                    buildStopBtn.disabled = false;
+                }
                 if (buildSpinner) buildSpinner.style.display = 'none';
                 if (buildStatus) {
                     const successLabel = '✅ Deliverables rebuild complete!';
@@ -12194,6 +12199,11 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     return;
                 }
                 if (buildBtn) buildBtn.disabled = true;
+                const buildStopBtn = document.getElementById('buildStopBtn');
+                if (buildStopBtn) {
+                    buildStopBtn.hidden = false;
+                    buildStopBtn.disabled = false;
+                }
                 if (buildSpinner) buildSpinner.style.display = 'inline';
                 pollTimer = setInterval(pollLog, 1000);
                 pollLog();
@@ -12362,6 +12372,33 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 });
             }
 
+            const buildStopBtn = document.getElementById('buildStopBtn');
+            if (buildStopBtn) {
+                buildStopBtn.addEventListener('click', async () => {
+                    buildStopBtn.disabled = true;
+                    if (buildStatus) {
+                        buildStatus.textContent = 'Stopping after the current stage…';
+                        buildStatus.style.color = '';
+                    }
+                    try {
+                        const csrfToken = typeof refreshAdminCsrfToken === 'function'
+                            ? await refreshAdminCsrfToken()
+                            : '';
+                        await fetch('/biblioteca/request-job-stop.php', {
+                            method: 'POST',
+                            credentials: 'same-origin',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                job: currentRunMode === 'optimize' ? 'optimize' : 'build',
+                                csrf_token: csrfToken,
+                            }),
+                        });
+                    } catch (error) {
+                        buildStopBtn.disabled = false;
+                    }
+                });
+            }
+
             attachBuildLogIfRunning();
             refreshBuildRequiredState(
                 isDeliverablesViewActive()
@@ -12378,6 +12415,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 const reportEl = document.getElementById('contentAutofixReport');
                 const previewBtn = document.getElementById('contentAutofixPreviewBtn');
                 const applyBtn = document.getElementById('contentAutofixApplyBtn');
+                const stopBtn = document.getElementById('contentAutofixStopBtn');
                 const logEl = document.getElementById('contentAutofixLog');
                 const logCard = document.getElementById('catalog-repair-log-card');
                 const logCopyBtn = document.getElementById('contentAutofixLogCopyBtn');
@@ -12387,6 +12425,18 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
 
                 let latestPreview = null;
                 let logPollTimer = null;
+                let repairJobPollTimer = null;
+                let repairRunning = false;
+
+                function setRepairRunningUi(running) {
+                    repairRunning = !!running;
+                    previewBtn.disabled = repairRunning;
+                    applyBtn.disabled = repairRunning;
+                    if (stopBtn) {
+                        stopBtn.hidden = !repairRunning;
+                        stopBtn.disabled = false;
+                    }
+                }
 
                 function renderAutofixLog(content) {
                     if (!logEl) {
@@ -12481,6 +12531,59 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     }, 800);
                 }
 
+                function stopRepairJobPoll() {
+                    if (repairJobPollTimer) {
+                        clearInterval(repairJobPollTimer);
+                        repairJobPollTimer = null;
+                    }
+                    stopAutofixLogPoll();
+                }
+
+                async function pollRepairJob() {
+                    const data = await refreshAutofixLog();
+                    if (!data) {
+                        return;
+                    }
+                    if (data.running) {
+                        setRepairRunningUi(true);
+                        statusEl.hidden = false;
+                        statusEl.textContent = 'Repair running in the background… (safe to leave this page)';
+                        if (logCard) {
+                            logCard.open = true;
+                        }
+                        return;
+                    }
+                    if (repairRunning) {
+                        stopRepairJobPoll();
+                        setRepairRunningUi(false);
+                        const text = String(data.content || '');
+                        const stopped = /stopped by operator/i.test(text);
+                        const failed = /!!!! |FAILED /i.test(text);
+                        statusEl.hidden = false;
+                        statusEl.textContent = stopped
+                            ? 'Repair stopped. Preview again when ready to continue.'
+                            : failed
+                                ? 'Repair finished with errors — see the Repair log.'
+                                : 'Repair finished. Preview again to confirm the catalogue is quiet.';
+                        applyBtn.hidden = false;
+                        if (!failed && !stopped) {
+                            await refreshBuildRequiredState({ full: true }).catch(() => {});
+                        }
+                    }
+                }
+
+                function beginRepairJobPolling() {
+                    setRepairRunningUi(true);
+                    startAutofixLogPoll();
+                    if (repairJobPollTimer) {
+                        return;
+                    }
+                    repairJobPollTimer = setInterval(() => {
+                        pollRepairJob().catch(() => {});
+                    }, 1500);
+                    pollRepairJob().catch(() => {});
+                }
+
                 function renderAutofixReport(report) {
                     if (!reportEl) {
                         return;
@@ -12506,11 +12609,11 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     reportEl.hidden = false;
                 }
 
-                async function runContentAutofix(dryRun) {
+                async function runContentAutofixPreview() {
                     previewBtn.disabled = true;
                     applyBtn.disabled = true;
                     statusEl.hidden = false;
-                    statusEl.textContent = dryRun ? 'Checking catalogue…' : 'Repairing catalogue…';
+                    statusEl.textContent = 'Checking catalogue…';
                     if (reportEl) {
                         reportEl.hidden = true;
                     }
@@ -12520,47 +12623,110 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                             method: 'POST',
                             credentials: 'same-origin',
                             headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ dry_run: dryRun }),
+                            body: JSON.stringify({ dry_run: true }),
                         });
                         const data = await resp.json().catch(() => ({}));
                         if (!resp.ok || data.error) {
-                            throw new Error(data.error || 'Catalogue repair failed');
+                            throw new Error(data.error || 'Catalogue preview failed');
                         }
                         latestPreview = data;
-                        statusEl.textContent = data.message || (dryRun ? 'Preview complete.' : 'Catalogue repair complete.');
+                        statusEl.textContent = data.message || 'Preview complete.';
                         renderAutofixReport(data);
-                        applyBtn.hidden = dryRun ? Number(data.changed_total || 0) === 0 : true;
-                        if (!dryRun && data.recommend_build) {
-                            await refreshBuildRequiredState({ full: true });
-                        }
+                        applyBtn.hidden = Number(data.changed_total || 0) === 0;
                     } catch (error) {
-                        const raw = String(error && error.message ? error.message : '');
-                        const timedOut = raw === '' || /failed to fetch|networkerror|unexpected end of json/i.test(raw);
-                        statusEl.textContent = timedOut
-                            ? 'The host stopped the repair before it finished. Open the Repair log to see the last step, then Preview again.'
-                            : (raw || 'Catalogue repair failed');
-                        if (reportEl && latestPreview) {
-                            renderAutofixReport(latestPreview);
-                        }
+                        statusEl.textContent = (error && error.message) || 'Catalogue preview failed';
                         if (logCard) {
                             logCard.open = true;
                         }
                     } finally {
                         stopAutofixLogPoll();
                         await refreshAutofixLog();
-                        previewBtn.disabled = false;
-                        applyBtn.disabled = false;
+                        if (!repairRunning) {
+                            previewBtn.disabled = false;
+                            applyBtn.disabled = false;
+                        }
                     }
                 }
 
-                previewBtn.addEventListener('click', () => runContentAutofix(true));
+                async function startBackgroundRepair() {
+                    if (repairRunning) {
+                        return;
+                    }
+                    statusEl.hidden = false;
+                    statusEl.textContent = 'Starting background Repair…';
+                    if (reportEl) {
+                        reportEl.hidden = true;
+                    }
+                    if (logCard) {
+                        logCard.open = true;
+                    }
+                    setRepairRunningUi(true);
+                    try {
+                        const csrfToken = typeof refreshAdminCsrfToken === 'function'
+                            ? await refreshAdminCsrfToken()
+                            : '';
+                        const resp = await fetch('/biblioteca/start-catalog-repair.php', {
+                            method: 'POST',
+                            credentials: 'same-origin',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ csrf_token: csrfToken }),
+                        });
+                        const data = await resp.json().catch(() => ({}));
+                        if (resp.status === 409 || data.busy) {
+                            statusEl.textContent = data.error || 'Repair already running.';
+                            beginRepairJobPolling();
+                            return;
+                        }
+                        if (!resp.ok || data.ok !== true) {
+                            throw new Error(data.error || 'Could not start Repair');
+                        }
+                        statusEl.textContent = data.message
+                            || 'Repair started in the background. Safe to leave this page.';
+                        beginRepairJobPolling();
+                    } catch (error) {
+                        setRepairRunningUi(false);
+                        statusEl.textContent = (error && error.message) || 'Could not start Repair';
+                    }
+                }
+
+                previewBtn.addEventListener('click', () => runContentAutofixPreview());
                 applyBtn.addEventListener('click', () => {
                     if (!latestPreview || Number(latestPreview.changed_total || 0) === 0) {
                         return;
                     }
-                    runContentAutofix(false);
+                    startBackgroundRepair();
                 });
-                refreshAutofixLog();
+                if (stopBtn) {
+                    stopBtn.addEventListener('click', async () => {
+                        stopBtn.disabled = true;
+                        statusEl.hidden = false;
+                        statusEl.textContent = 'Stopping after the current step…';
+                        try {
+                            const csrfToken = typeof refreshAdminCsrfToken === 'function'
+                                ? await refreshAdminCsrfToken()
+                                : '';
+                            await fetch('/biblioteca/request-job-stop.php', {
+                                method: 'POST',
+                                credentials: 'same-origin',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({
+                                    job: 'catalog_repair',
+                                    csrf_token: csrfToken,
+                                }),
+                            });
+                        } catch (error) {
+                            stopBtn.disabled = false;
+                        }
+                    });
+                }
+
+                refreshAutofixLog().then((data) => {
+                    if (data && data.running) {
+                        statusEl.hidden = false;
+                        statusEl.textContent = 'Repair already running in the background…';
+                        beginRepairJobPolling();
+                    }
+                }).catch(() => {});
             })();
 
             (function initPackageUpdater() {

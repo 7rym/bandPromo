@@ -2859,11 +2859,12 @@ if ($tab === 'analytics') {
                     <span class="role-badge role-developer">developer</span>
                 </div>
                 <p class="card-note">
-                    Recovers registry links, master filenames, and missing visual tags. Preview should go quiet after Apply when the catalogue is healthy. Apply when Preview still lists changes.
+                    Recovers registry links, master filenames, and missing visual tags. Preview is a quick check. Apply runs in the background (Python supervisor) until finished — you can leave this page. Press Stop to finish after the current step.
                 </p>
                 <div class="publish-actions-toolbar">
                     <button type="button" id="contentAutofixPreviewBtn" class="btn">Preview repairs</button>
                     <button type="button" id="contentAutofixApplyBtn" class="btn btn-primary" hidden>Apply repairs</button>
+                    <button type="button" id="contentAutofixStopBtn" class="btn" hidden>Stop</button>
                 </div>
                 <p id="contentAutofixStatus" class="build-log-status publish-action-status" hidden></p>
                 <ul id="contentAutofixReport" class="welcome-list" hidden></ul>
@@ -2888,6 +2889,7 @@ if ($tab === 'analytics') {
                 </p>
                 <div class="publish-actions-toolbar">
                     <button type="button" id="buildBtn" class="btn btn-primary">Refresh site files</button>
+                    <button type="button" id="buildStopBtn" class="btn" hidden>Stop</button>
                     <button type="button" id="recommendedBuildBtn" class="btn" style="display:none"></button>
                 </div>
             </div>

@@ -2,6 +2,8 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-09-15 17:45 - Catalogue Repair Apply is a background job (Python `catalogRepair.py` supervisor → PHP CLI pipeline): does not depend on an open browser; cooperative Stop finishes the current step. Refresh site files gains the same Stop pattern between publish stages. Preview stays a quick sync check.
+
 2026-09-15 16:55 - HITZ Repair: stop Apply aborting in `sync_audio_display` on 30s CPU hosts — CPU-aware step budgets (hash backfill no longer spends ~20s), incomplete-only audio display refresh with batch registry write + inspect cap, defer remaining pipeline steps cleanly, always release repair lock on fatal timeout. Welcome: missing delivery thumbnails point to Refresh site files (Repair cannot build card/thumb variants).
 
 2026-09-15 16:30 - System → Environment: host egress latency/throughput probe (Cloudflare + GitHub; bounded ≤2 MB / ≤3 s; soft-fail when outbound blocked) labelled as distinct from the login visitor speed test; show Publish/Optimize/Repair lock status. Manual Repair Preview/Apply acquires `catalog-repair.lock` (409 when busy). Site update refuses while build, optimize, or catalogue-repair locks are active.

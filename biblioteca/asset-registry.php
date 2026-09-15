@@ -1592,6 +1592,11 @@ function bandpromo_asset_registry_backfill_visual_content_hashes(
         if ($deadline > 0.0 && microtime(true) >= $deadline) {
             break;
         }
+        if (function_exists('bandpromo_content_autofix_stop_requested')
+            && bandpromo_content_autofix_stop_requested($root)
+        ) {
+            break;
+        }
         if (!is_array($asset) || ($asset['kind'] ?? '') !== 'visual' || ($asset['media_type'] ?? '') !== 'image') {
             continue;
         }

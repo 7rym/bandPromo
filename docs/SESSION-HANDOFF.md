@@ -2,17 +2,18 @@
 
 ## Resume point
 
-Published checkpoint covering **HITZ Repair CPU budget** + **Environment host egress / multi-operator locks** (this session). HITZ should Site-update, then:
+Published checkpoint: background **Repair Apply** + cooperative **Stop** for Repair and Refresh.
 
-1. **Repair Apply** (may need 2–3 passes until Preview is quiet — deferred steps are intentional on 30s hosts).
-2. **Refresh site files** for the ~449 missing delivery thumbnails (Repair does not build card/thumb variants).
-3. Confirm Welcome no longer mis-routes delivery-only gaps to Repair; Environment shows egress + lock status.
+### After Site update (HITZ)
 
-### Shipped in this checkpoint
+1. Preview → **Apply repairs** once (safe to leave the page; optional Stop).
+2. **Refresh site files** for missing delivery thumbnails (Stop available between stages).
 
-- Repair: CPU-aware yield / step budgets; incomplete-only audio display sync; lock release on fatal timeout.
-- Environment: host egress probe; build/optimize/repair lock status.
-- Site update refuses while Publish / Optimize / Repair locks are held; Manual Repair shares `catalog-repair.lock`.
+### Shipped
+
+- Apply: Python `catalogRepair.py` supervisor → PHP CLI pipeline; browser only start/poll/stop.
+- Stop: `log/*.stop` honoured after current Repair step / publish stage.
+- Preview remains a quick sync check.
 
 ### Active fleet
 

@@ -1183,7 +1183,37 @@ def main():
     stages_by_id = stage_lookup(manifest)
     total = len(stage_ids)
     stats_total = empty_build_stats()
+    stop_flag = ROOT_DIR / 'log' / 'build.stop'
+
+    def stop_requested():
+        try:
+            return stop_flag.is_file()
+        except Exception:
+            return False
+
+    def clear_stop_flag():
+        try:
+            if stop_flag.is_file():
+                stop_flag.unlink()
+        except Exception:
+            pass
+
+    clear_stop_flag()
+
     for index, stage_id in enumerate(stage_ids, start=1):
+        if stop_requested():
+            clear_stop_flag()
+            log_line('Stop requested — finishing after previous stage (cooperative).')
+            print('')
+            print('=' * 70)
+            print('  ⏹  PUBLISH STOPPED BY OPERATOR')
+            print('=' * 70)
+            print('')
+            print('  Stopped cleanly before stage: {0}'.format(stage_id))
+            print('  Start Refresh again when ready to continue.')
+            print('')
+            sys.stdout.flush()
+            return 0
         stage = stages_by_id.get(stage_id)
         if not isinstance(stage, dict):
             fail = 'FAILED Unknown stage id: ' + stage_id

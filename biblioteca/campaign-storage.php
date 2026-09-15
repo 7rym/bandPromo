@@ -2536,6 +2536,8 @@ function bandpromo_asset_refresh_all_audio_displays(
         if ($stopWork
             || ($maxInspects > 0 && $inspects >= $maxInspects)
             || ($budgetSeconds > 0 && (microtime(true) - $started) >= $budgetSeconds)
+            || (function_exists('bandpromo_content_autofix_stop_requested')
+                && bandpromo_content_autofix_stop_requested($root))
         ) {
             $stopWork = true;
             $remaining++;

@@ -397,6 +397,8 @@ if ($python === '' || !file_exists($script)) {
 }
 
 // Write lock file before launch. The background runner clears it when done.
+require_once __DIR__ . '/job-stop.php';
+bandpromo_job_stop_clear($root_dir, $mode === 'optimize' ? 'optimize' : 'build');
 file_put_contents($lock_file, 'running');
 
 $started = false;

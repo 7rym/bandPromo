@@ -85,9 +85,16 @@ function bandpromo_content_autofix_seconds_remaining(): float
 
 /**
  * True when Apply should stop starting heavy steps (leave headroom to finish cleanly).
+ * Background CLI / Python-supervised Apply must not yield — web 30s limits do not apply.
  */
 function bandpromo_content_autofix_should_yield(float $reserveSeconds = 6.0): bool
 {
+    $state = &bandpromo_content_autofix_log_state();
+    $source = (string) ($state['source'] ?? '');
+    if ($source === 'cli' || $source === 'background' || getenv('BANDPROMO_REPAIR_CLI') === '1') {
+        return false;
+    }
+
     $max = (float) ini_get('max_execution_time');
     if ($max <= 0) {
         return false;
@@ -97,10 +104,27 @@ function bandpromo_content_autofix_should_yield(float $reserveSeconds = 6.0): bo
 }
 
 /**
+ * Cooperative stop requested for catalogue Repair (background Apply).
+ */
+function bandpromo_content_autofix_stop_requested(string $root): bool
+{
+    require_once __DIR__ . '/job-stop.php';
+
+    return bandpromo_job_stop_requested($root, 'catalog_repair');
+}
+
+/**
  * Per-step work budget for Apply on short max_execution_time hosts.
  */
 function bandpromo_content_autofix_step_budget_seconds(float $preferred = 8.0): float
 {
+    $state = &bandpromo_content_autofix_log_state();
+    $source = (string) ($state['source'] ?? '');
+    if ($source === 'cli' || $source === 'background' || getenv('BANDPROMO_REPAIR_CLI') === '1') {
+        // Background jobs are not web-SAPI limited — no artificial short budget.
+        return max($preferred, 600.0);
+    }
+
     $max = (float) ini_get('max_execution_time');
     if ($max <= 0) {
         return $preferred;
@@ -143,7 +167,10 @@ function bandpromo_content_autofix_log_begin(string $root, bool $dryRun, string 
     if (!is_dir($dir) && !@mkdir($dir, 0755, true) && !is_dir($dir)) {
         return;
     }
-    @file_put_contents($path, '');
+    // Background CLI appends into the log the supervisor already opened; do not wipe.
+    if ($state['source'] !== 'cli') {
+        @file_put_contents($path, '');
+    }
 
     $maxTime = (string) ini_get('max_execution_time');
     $memory = (string) ini_get('memory_limit');
@@ -152,10 +179,16 @@ function bandpromo_content_autofix_log_begin(string $root, bool $dryRun, string 
     bandpromo_content_autofix_log_write($root, 'Source: ' . $state['source']);
     bandpromo_content_autofix_log_write($root, 'PHP max_execution_time: ' . ($maxTime !== '' ? $maxTime : 'unknown'));
     bandpromo_content_autofix_log_write($root, 'PHP memory_limit: ' . ($memory !== '' ? $memory : 'unknown'));
-    if (!$dryRun) {
+    if (!$dryRun && $state['source'] !== 'cli') {
         bandpromo_content_autofix_log_write(
             $root,
-            'Note: Apply avoids heavy SHA-256 of large masters; hosts that ignore set_time_limit stay on php.ini limits.'
+            'Note: web Apply is limited on some hosts; use background Apply (Python supervisor) for large catalogues.'
+        );
+    }
+    if (!$dryRun && $state['source'] === 'cli') {
+        bandpromo_content_autofix_log_write(
+            $root,
+            'Note: background Apply — runs until finished or Stop; does not depend on the browser staying open.'
         );
     }
 
@@ -823,10 +856,12 @@ function bandpromo_content_autofix_sync_audio_display(string $root, bool $dryRun
         return $step;
     }
 
-    // Incomplete only + hard budget: each inspect spawns Python and was killing
-    // HITZ Apply after hash backfill ate most of the 30s CPU limit.
-    $budget = bandpromo_content_autofix_step_budget_seconds(6.0);
-    $result = bandpromo_asset_refresh_all_audio_displays($root, true, $budget, 10);
+    // Incomplete-only refresh. Web Apply keeps a short budget; CLI runs to completion / Stop.
+    $state = &bandpromo_content_autofix_log_state();
+    $cli = (($state['source'] ?? '') === 'cli') || getenv('BANDPROMO_REPAIR_CLI') === '1';
+    $budget = $cli ? 0.0 : bandpromo_content_autofix_step_budget_seconds(6.0);
+    $maxInspects = $cli ? 0 : 10;
+    $result = bandpromo_asset_refresh_all_audio_displays($root, true, $budget, $maxInspects);
     $step['changed'] = (int) ($result['changed'] ?? 0);
     $step['items'] = is_array($result['items'] ?? null) ? $result['items'] : [];
     $remaining = (int) ($result['remaining'] ?? 0);
@@ -1705,8 +1740,17 @@ function bandpromo_content_autofix_run(string $root, bool $dryRun = false, strin
     ];
 
     $deferredSteps = [];
+    $stoppedByOperator = false;
     foreach ($pipeline as $callable) {
         $stepId = (string) preg_replace('/^bandpromo_content_autofix_/', '', $callable);
+        if (!$dryRun && bandpromo_content_autofix_stop_requested($root)) {
+            $stoppedByOperator = true;
+            bandpromo_content_autofix_log_write(
+                $root,
+                '~ stop honoured before ' . $stepId . ' — finishing cleanly'
+            );
+            break;
+        }
         if (!$dryRun && bandpromo_content_autofix_should_yield(6.0)) {
             $deferredSteps[] = $stepId;
             bandpromo_content_autofix_log_write(
@@ -1733,6 +1777,26 @@ function bandpromo_content_autofix_run(string $root, bool $dryRun = false, strin
             $errors[] = $throwable->getMessage();
             bandpromo_content_autofix_log_write($root, '  ERROR ' . $stepId . ': ' . $throwable->getMessage());
         }
+        if (!$dryRun && bandpromo_content_autofix_stop_requested($root)) {
+            $stoppedByOperator = true;
+            bandpromo_content_autofix_log_write(
+                $root,
+                '~ stop honoured after ' . $stepId
+            );
+            break;
+        }
+    }
+
+    if ($stoppedByOperator) {
+        require_once __DIR__ . '/job-stop.php';
+        bandpromo_job_stop_clear($root, 'catalog_repair');
+        $steps[] = bandpromo_content_autofix_step_result('stopped_by_operator', 'Stopped by operator', [
+            'changed' => 0,
+            'skipped' => 1,
+            'items' => [],
+            'warnings' => ['Repair stopped after the current step. Start Apply again to continue.'],
+        ]);
+        bandpromo_content_autofix_log_write($root, '==== stopped by operator ====');
     }
 
     if ($deferredSteps !== []) {
@@ -1750,7 +1814,7 @@ function bandpromo_content_autofix_run(string $root, bool $dryRun = false, strin
         $changedTotal = max(1, $changedTotal);
     }
 
-    $recommendBuild = !$dryRun && $changedTotal > 0;
+    $recommendBuild = !$dryRun && $changedTotal > 0 && !$stoppedByOperator;
     if ($recommendBuild) {
         bandpromo_mark_build_required('content_autofix');
     }
@@ -1758,24 +1822,30 @@ function bandpromo_content_autofix_run(string $root, bool $dryRun = false, strin
     $partialNote = $deferredSteps !== []
         ? ' Some steps were deferred because this host limits PHP CPU time — run Apply again until Preview goes quiet.'
         : '';
+    if ($stoppedByOperator) {
+        $partialNote = ' Stopped by operator after the current step.';
+    }
 
     $report = [
         'ok' => true,
         'dry_run' => $dryRun,
         'changed_total' => $changedTotal,
         'recommend_build' => $recommendBuild,
+        'stopped' => $stoppedByOperator,
         'steps' => $steps,
         'errors' => $errors,
-        'has_warnings' => $errors !== [] || $deferredSteps !== [],
+        'has_warnings' => $errors !== [] || $deferredSteps !== [] || $stoppedByOperator,
         'deferred_steps' => $deferredSteps,
         'message' => $dryRun
             ? ($changedTotal > 0
                 ? 'Preview complete. Apply will perform the listed repairs. Preview again afterwards — a healthy catalogue should then show everything up to date.'
                 : 'Preview complete. Catalogue looks healthy — nothing to repair.')
-            : ($changedTotal > 0
-                ? 'Catalogue repair finished.' . $partialNote
-                    . ' Preview again to confirm. Missing visual thumbnails need Refresh site files, not another Repair pass.'
-                : 'Catalogue already matches the current registry and container links.'),
+            : ($stoppedByOperator
+                ? 'Catalogue repair stopped. Start Apply again when ready. Missing visual thumbnails need Refresh site files.'
+                : ($changedTotal > 0
+                    ? 'Catalogue repair finished.' . $partialNote
+                        . ' Preview again to confirm. Missing visual thumbnails need Refresh site files, not another Repair pass.'
+                    : 'Catalogue already matches the current registry and container links.')),
     ];
     bandpromo_content_autofix_log_finish($root, $report);
 
