@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-09-15 21:05 - Refresh site files thin start: `build.php` only locks, writes meta, and launches Python (no web prep). Publish prep (Demo ensure, brand heal, audio/visual master reconcile) runs in background via `publish-prep-cli.php` from `build.py` / `optimizeMedia.py`. Job meta heartbeats (`stage` / `message` / `heartbeat_at`); poller returns `job` liveness fields. Orphan lock clear copy states the run did **not** finish successfully.
+
+2026-09-15 20:15 - Refresh UI: keep Recommended hidden for the whole run (including before the lock appears); show Running / Still working status when the log is quiet; phase markers after audio/visual prep and before Python launch; cap per-file master spam in the log.
+
+2026-09-15 20:05 - Refresh site files UI: blank the build log immediately on start and ignore the previous finished log until the new run locks; hide “steps waiting” / Recommended while a build is already running (spinner alone means in progress).
+
 2026-09-15 17:45 - Catalogue Repair Apply is a background job (Python `catalogRepair.py` supervisor → PHP CLI pipeline): does not depend on an open browser; cooperative Stop finishes the current step. Refresh site files gains the same Stop pattern between publish stages. Preview stays a quick sync check.
 
 2026-09-15 16:55 - HITZ Repair: stop Apply aborting in `sync_audio_display` on 30s CPU hosts — CPU-aware step budgets (hash backfill no longer spends ~20s), incomplete-only audio display refresh with batch registry write + inspect cap, defer remaining pipeline steps cleanly, always release repair lock on fatal timeout. Welcome: missing delivery thumbnails point to Refresh site files (Repair cannot build card/thumb variants).

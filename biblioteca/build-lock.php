@@ -156,8 +156,9 @@ function bandpromo_build_clear_stale_lock(
         return true;
     }
 
-    $label = $paths['mode'] === 'optimize' ? 'optimize' : 'build';
-    $message = "\n[system] Cleared stale {$label} lock — no active output was detected. You can start again.\n";
+    $label = $paths['mode'] === 'optimize' ? 'optimize' : 'refresh';
+    $message = "\n[system] This {$label} did not finish (no running process was found). "
+        . "It was not successful — check the log under the hood, then try again.\n";
     @file_put_contents($paths['log'], $message, FILE_APPEND);
     @unlink($paths['lock']);
 

@@ -3581,6 +3581,15 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 });
             }
 
+            function hideRecommendedBuildChrome() {
+                if (!recommendedBuildBtn) {
+                    return;
+                }
+                recommendedBuildBtn.hidden = true;
+                recommendedBuildBtn.style.display = 'none';
+                recommendedBuildBtn.textContent = '';
+            }
+
             function setBuildRequiredNudge(required, reasons, action, tasks) {
                 currentBuildRequired = required === true;
                 currentBuildAction = typeof action === 'string' ? action : 'none';
@@ -3590,12 +3599,17 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 refreshBuildActionCopy();
 
                 if (!recommendedBuildBtn) return;
+                // Never advertise "Recommended: Refresh" while Refresh is already running.
+                if (buildSessionActive || pollTimer || buildLaunchPending) {
+                    hideRecommendedBuildChrome();
+                    return;
+                }
                 if (!currentBuildRequired) {
-                    recommendedBuildBtn.style.display = 'none';
-                    recommendedBuildBtn.textContent = '';
+                    hideRecommendedBuildChrome();
                     return;
                 }
 
+                recommendedBuildBtn.hidden = false;
                 recommendedBuildBtn.style.display = '';
                 recommendedBuildBtn.textContent = `⚡ Recommended: ${getBuildActionLabel()}`;
             }
@@ -11791,6 +11805,13 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
             let pollTimer      = null;
             let currentRunMode = 'full';
             let currentBuildTasks = [];
+            // True from Refresh click until polling ends — suppresses "steps waiting" / Recommended
+            // while a build is already underway, and ignores stale log paints.
+            let buildSessionActive = false;
+            let buildAwaitingFreshLog = false;
+            // True while waiting for build.php to create the lock (avoid false "finished").
+            let buildLaunchPending = false;
+            let buildLastLogMtime = 0;
 
             async function copyBuildLog() {
                 if (!buildLog || !buildLogCopyBtn) {
@@ -11895,7 +11916,15 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
 
             function refreshBuildHint() {
                 if (!buildStatus) return;
-                if (pollTimer) return;
+                // Spinner already says Building… — do not keep the yellow "steps waiting" nudge.
+                if (pollTimer || buildSessionActive || buildLaunchPending) {
+                    if (buildStatus.dataset.mode === 'nudge') {
+                        buildStatus.textContent = '';
+                        buildStatus.removeAttribute('data-mode');
+                        buildStatus.style.color = '';
+                    }
+                    return;
+                }
                 if (currentBuildRequired) {
                     buildStatus.textContent = formatBuildHintMessage({
                         action: currentBuildAction,
@@ -12176,6 +12205,10 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
 
             function stopPolling(success) {
                 if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
+                buildSessionActive = false;
+                buildAwaitingFreshLog = false;
+                buildLaunchPending = false;
+                buildLastLogMtime = 0;
                 if (buildBtn) buildBtn.disabled = false;
                 const buildStopBtn = document.getElementById('buildStopBtn');
                 if (buildStopBtn) {
@@ -12190,11 +12223,15 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     buildStatus.style.color = success === true ? 'var(--success, #4ade80)' : '#f55';
                     buildStatus.removeAttribute('data-mode');
                 }
+                // Re-evaluate Recommended / nudge only after the run ends.
+                setBuildRequiredNudge(currentBuildRequired, currentBuildReasons, currentBuildAction, currentBuildTasks);
                 refreshBuildHint();
             }
 
             function beginBuildPolling(mode = currentRunMode) {
                 currentRunMode = mode === 'optimize' ? 'optimize' : 'full';
+                buildSessionActive = true;
+                hideRecommendedBuildChrome();
                 if (pollTimer) {
                     return;
                 }
@@ -12203,6 +12240,11 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 if (buildStopBtn) {
                     buildStopBtn.hidden = false;
                     buildStopBtn.disabled = false;
+                }
+                if (buildStatus && buildStatus.dataset.mode === 'nudge') {
+                    buildStatus.textContent = '';
+                    buildStatus.removeAttribute('data-mode');
+                    buildStatus.style.color = '';
                 }
                 if (buildSpinner) buildSpinner.style.display = 'inline';
                 pollTimer = setInterval(pollLog, 1000);
@@ -12249,9 +12291,48 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                         exit_code: data.exit_code,
                         has_publish_status: !!data.publish_status,
                     });
+
+                    // After Refresh click, ignore the previous finished log until the new run
+                    // has cleared the file and written its setup header (lock can appear first).
+                    if (buildAwaitingFreshLog) {
+                        const content = String(data.content || '');
+                        const looksFresh = /\[setup\] Preparing your site for publish/i.test(content)
+                            || /\[setup\] Starting publish build/i.test(content)
+                            || (data.is_running === true && content.trim() === '')
+                            || (data.is_running === true
+                                && content.length < 400
+                                && /LOG_STARTED:/i.test(content));
+                        if (!looksFresh) {
+                            return;
+                        }
+                        buildAwaitingFreshLog = false;
+                    }
+
                     if (data.content !== undefined && buildLog) {
                         buildLog.textContent = data.content || '(empty)';
                         scrollLog();
+                    }
+
+                    const mtime = Number(data.mtime || 0);
+                    if (mtime > 0) {
+                        buildLastLogMtime = mtime;
+                    }
+                    if (buildSessionActive && buildStatus && buildStatus.dataset.mode !== 'nudge') {
+                        const age = buildLastLogMtime > 0
+                            ? Math.max(0, Math.floor(Date.now() / 1000) - buildLastLogMtime)
+                            : 0;
+                        if (data.is_running || buildLaunchPending) {
+                            buildStatus.style.color = '';
+                            if (buildLaunchPending && !data.is_running) {
+                                buildStatus.textContent = 'Starting… preparing catalogue on the server';
+                            } else if (age >= 8) {
+                                buildStatus.textContent = 'Still working… ('
+                                    + age
+                                    + 's since last log line — normal during launch / catalogue)';
+                            } else {
+                                buildStatus.textContent = 'Running…';
+                            }
+                        }
                     }
 
                     if (data.publish_status) {
@@ -12269,7 +12350,13 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                         refreshBuildHint();
                     }
 
+                    hideRecommendedBuildChrome();
+
                     if (!data.is_running) {
+                        // Do not treat "no lock yet" as finished while build.php is still starting.
+                        if (buildLaunchPending) {
+                            return;
+                        }
                         stopPolling(data.success === true);
                     }
                 } catch (e) {
@@ -12281,14 +12368,32 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 buildBtn.addEventListener('click', async () => {
                     currentRunMode = 'full';
                     console.groupCollapsed('[build] Start button clicked');
+                    buildSessionActive = true;
+                    buildAwaitingFreshLog = true;
+                    buildLaunchPending = true;
+                    buildLastLogMtime = 0;
+                    if (pollTimer) {
+                        clearInterval(pollTimer);
+                        pollTimer = null;
+                    }
                     buildBtn.disabled  = true;
-                    buildSpinner.style.display = 'inline';
-                    buildStatus.textContent = '';
-                    buildLog.textContent = '⏳ Starting build…\n';
+                    if (buildSpinner) buildSpinner.style.display = 'inline';
+                    hideRecommendedBuildChrome();
+                    if (buildStatus) {
+                        buildStatus.textContent = 'Starting…';
+                        buildStatus.removeAttribute('data-mode');
+                        buildStatus.style.color = '';
+                    }
+                    if (buildLog) {
+                        buildLog.textContent = '⏳ Starting build…\n';
+                    }
                     const logCard = document.getElementById('build-log-card');
                     if (logCard && logCard.tagName === 'DETAILS') {
                         logCard.open = true;
                     }
+                    // Poll immediately so the UI picks up the cleared log as soon as PHP
+                    // takes the lock — do not wait for the long build.php prep to finish.
+                    beginBuildPolling('full');
 
                     try {
                         const resp = await fetch('/biblioteca/build.php', {
@@ -12317,20 +12422,21 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                                 });
                                 const probeData = await probe.json();
                                 if (probeData && (probeData.is_running || probeData.running)) {
+                                    buildAwaitingFreshLog = false;
+                                    buildLaunchPending = false;
                                     if (probeData.content && buildLog) {
                                         buildLog.textContent = probeData.content;
                                         scrollLog();
-                                    } else if (buildLog) {
-                                        buildLog.textContent = '⏳ Build is running (start response timed out; attached to live log)…\n';
                                     }
-                                    beginBuildPolling(probeData.mode || currentRunMode || 'full');
                                     console.groupEnd();
                                     return;
                                 }
                             } catch (probeErr) {
                                 console.error('[build] could not probe build log after non-JSON start', probeErr);
                             }
-                            buildLog.textContent = '❌ Invalid response from build endpoint';
+                            if (buildLog) {
+                                buildLog.textContent = '❌ Invalid response from build endpoint';
+                            }
                             stopPolling(false);
                             console.groupEnd();
                             return;
@@ -12345,15 +12451,18 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
 
                         if (data.error) {
                             if (data.running) {
+                                buildAwaitingFreshLog = false;
+                                buildLaunchPending = false;
                                 if (data.content && buildLog) {
                                     buildLog.textContent = data.content;
                                     scrollLog();
                                 }
-                                beginBuildPolling(data.mode || currentRunMode);
                                 console.groupEnd();
                                 return;
                             }
-                            buildLog.textContent = '❌ ' + data.error;
+                            if (buildLog) {
+                                buildLog.textContent = '❌ ' + data.error;
+                            }
                             if (data.debug) {
                                 console.error('[build] launcher failure debug', data.debug);
                             }
@@ -12361,11 +12470,14 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                             console.groupEnd();
                             return;
                         }
-                        beginBuildPolling('full');
+                        buildAwaitingFreshLog = false;
+                        buildLaunchPending = false;
                         console.groupEnd();
                     } catch (e) {
                         console.error('[build] network/launch error', e);
-                        buildLog.textContent = '❌ Network error: ' + e.message;
+                        if (buildLog) {
+                            buildLog.textContent = '❌ Network error: ' + e.message;
+                        }
                         stopPolling(false);
                         console.groupEnd();
                     }

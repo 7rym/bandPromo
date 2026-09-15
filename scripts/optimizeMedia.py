@@ -1129,6 +1129,32 @@ def process_audio_delivery(
 
 def main():
     """Main media optimization function."""
+    try:
+        from publish_prep import run_publish_prep
+        from job_heartbeat import touch_heartbeat
+        touch_heartbeat(
+            str(ROOT_DIR),
+            stage='prep',
+            message='Preparing your site for publish…',
+            name='optimize.meta.json',
+        )
+        prep_result = run_publish_prep('optimize.meta.json')
+        if prep_result == 'stopped':
+            print('Optimize stopped during preparation.')
+            sys.exit(0)
+        if prep_result != 'ok':
+            print('FAILED Optimize prep did not finish.')
+            sys.exit(1)
+        touch_heartbeat(
+            str(ROOT_DIR),
+            stage='optimize',
+            message='Refreshing delivery images…',
+            name='optimize.meta.json',
+        )
+    except Exception as prep_exc:
+        print('FAILED Optimize prep could not start: {0}'.format(prep_exc))
+        sys.exit(1)
+
     # Verify source directories exist
     include_audio = OPTIMIZE_MODE == 'full'
 

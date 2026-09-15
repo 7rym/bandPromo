@@ -1144,6 +1144,50 @@ def main():
     print("Root: {0}\n".format(ROOT_DIR))
     sys.stdout.flush()
 
+    try:
+        from job_heartbeat import touch_heartbeat
+        touch_heartbeat(
+            str(ROOT_DIR),
+            stage='prep',
+            message='Preparing your site for publish…',
+            name='build.meta.json',
+        )
+        from publish_prep import run_publish_prep
+        prep_result = run_publish_prep('build.meta.json')
+    except Exception as prep_exc:
+        print('FAILED Publish prep could not start: {0}'.format(prep_exc))
+        sys.stdout.flush()
+        return 1
+
+    if prep_result == 'stopped':
+        print('')
+        print('=' * 70)
+        print('  PUBLISH STOPPED BY OPERATOR')
+        print('=' * 70)
+        print('')
+        print('  Stopped during preparation. Start Refresh again when ready.')
+        print('')
+        sys.stdout.flush()
+        return 0
+    if prep_result != 'ok':
+        print_build_failure_banner(
+            format_build_duration(monotonic_now() - started_mono),
+            'prep',
+            timing_recorder,
+            error_collector,
+        )
+        return 1
+
+    try:
+        touch_heartbeat(
+            str(ROOT_DIR),
+            stage='preflight',
+            message='Checking tools and audio sources…',
+            name='build.meta.json',
+        )
+    except Exception:
+        pass
+
     preflight_started = monotonic_now()
     log_stage_boundary('preflight')
     ffmpeg_path = run_preflight()
@@ -1229,6 +1273,16 @@ def main():
                 error_collector,
             )
             return 1
+        try:
+            from job_heartbeat import touch_heartbeat as _touch_hb
+            _touch_hb(
+                str(ROOT_DIR),
+                stage=stage_id,
+                message=str(stage.get('label') or stage_id),
+                name='build.meta.json',
+            )
+        except Exception:
+            pass
         if not run_publish_stage(
             stage,
             ffmpeg_path,

@@ -2,18 +2,18 @@
 
 ## Resume point
 
-Published checkpoint: background **Repair Apply** + cooperative **Stop** for Repair and Refresh.
+**Status health redesign** (plan `refresh_site_files_ui_899761a4`) — slice work with local checkpoints (no publish until asked).
 
-### After Site update (HITZ)
+### Done
 
-1. Preview → **Apply repairs** once (safe to leave the page; optional Stop).
-2. **Refresh site files** for missing delivery thumbnails (Stop available between stages).
+- **Slice 1:** Thin `build.php` start; prep in Python → `publish-prep-cli.php`; heartbeats in meta; poller `job` fields; honest orphan-lock copy.
 
-### Shipped
+### Next
 
-- Apply: Python `catalogRepair.py` supervisor → PHP CLI pipeline; browser only start/poll/stop.
-- Stop: `log/*.stop` honoured after current Repair step / publish stage.
-- Preview remains a quick sync check.
+- **Slice 2:** Poll heartbeat → Refresh progress/stuck/failed chrome (friendly status line).
+- **Slice 3:** Full System → Status health-page redesign (recommendation, consent, under the hood).
+- **Slice 4:** Port Repair Apply off PHP CLI into Python; stuck prep clear.
+- **Slice 5:** Operator health visibility + FEATURES docs.
 
 ### Active fleet
 

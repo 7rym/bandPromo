@@ -130,14 +130,29 @@ if ($success) {
     $build_required_state = bandpromo_get_build_required_state();
 }
 
+$process = bandpromo_build_lock_process_state($lock_file);
+$heartbeatAt = (int) ($build_meta['heartbeat_at'] ?? $build_meta['updated_at'] ?? 0);
+$startedAt = (int) ($build_meta['started_at'] ?? 0);
+$heartbeatAge = $heartbeatAt > 0 ? max(0, time() - $heartbeatAt) : null;
+
 echo json_encode([
     'content'    => $content,
     'is_running' => $is_running,
     'mode' => $mode,
     'exit_code'  => $exit_code,
     'success'    => $success,
+    'mtime' => is_file($log_file) ? (int) @filemtime($log_file) : 0,
     'publish_status' => $publish_status,
     'build_required' => !empty($build_required_state['required']),
     'build_required_state' => $build_required_state,
+    'job' => [
+        'stage' => trim((string) ($build_meta['stage'] ?? '')),
+        'message' => trim((string) ($build_meta['message'] ?? '')),
+        'started_at' => $startedAt > 0 ? $startedAt : null,
+        'heartbeat_at' => $heartbeatAt > 0 ? $heartbeatAt : null,
+        'heartbeat_age_s' => $heartbeatAge,
+        'pid' => isset($build_meta['pid']) ? (int) $build_meta['pid'] : ($process['pid'] ?? null),
+        'alive' => $process['alive'],
+    ],
 ], JSON_UNESCAPED_UNICODE);
 exit;
