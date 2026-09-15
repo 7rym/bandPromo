@@ -5376,6 +5376,42 @@ canvas { max-width: 100%; height: auto; }
     background: var(--surface);
 }
 
+.publish-next-step {
+    padding: 12px 14px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: var(--surface);
+}
+
+.publish-next-step strong {
+    display: block;
+    font-size: 14px;
+    margin-bottom: 6px;
+}
+
+.publish-next-step p {
+    margin: 0 0 6px;
+    font-size: 13px;
+    line-height: 1.45;
+    color: var(--muted);
+}
+
+.publish-next-step p:last-child {
+    margin-bottom: 0;
+}
+
+.publish-next-step--recommended {
+    border-color: rgba(240, 180, 41, 0.45);
+}
+
+.publish-next-step--needs_fix {
+    border-color: rgba(240, 180, 41, 0.7);
+}
+
+.publish-next-step-hint {
+    color: var(--text) !important;
+}
+
 .publish-status-check strong {
     display: block;
     font-size: 13px;

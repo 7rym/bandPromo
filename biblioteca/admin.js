@@ -11947,12 +11947,8 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 triggeredBuildRunFromQuery = true;
                 clearRecommendedRunQuery();
                 const postUpdateVersion = consumePostPackageUpdateFlash();
-                openBuildLogCard();
-
-                // run_recommended=1 is an explicit follow-up (Site update or Notifications).
-                // Always start Rebuild all deliverables — do not gate on build-required
-                // state, which can read false after redirect and skip the rebuild while
-                // the toast still claimed it was running.
+                // Do not auto-open the raw log — surface status is enough.
+                // Consent happens when Refresh is clicked (runRecommendedAction → buildBtn).
                 const runResult = runRecommendedAction();
                 if (postUpdateVersion !== null) {
                     showPostPackageUpdateToast(postUpdateVersion, runResult);
@@ -12014,17 +12010,31 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 if (!status || typeof status !== 'object') {
                     publishStatusOverall.textContent = 'Unavailable';
                     publishStatusOverall.className = 'badge audit-status-badge status-neutral';
-                    publishStatusSummary.innerHTML = '<p class="publish-status-empty">Delivery status is not available right now.</p>';
+                    publishStatusSummary.innerHTML = '<p class="publish-status-empty">Site health is not available right now.</p>';
                     return;
                 }
 
                 const repairStatus = catalogRepair && typeof catalogRepair === 'object' ? String(catalogRepair.status || '') : '';
                 const repairMessage = catalogRepair && typeof catalogRepair === 'object' ? String(catalogRepair.message || '').trim() : '';
-                const ok = status.ok === true && repairStatus !== 'running' && repairStatus !== 'warning' && repairStatus !== 'error';
-                publishStatusOverall.textContent = repairStatus === 'running'
-                    ? 'Preparing uploads'
-                    : (ok ? 'All clear' : 'Needs attention');
-                publishStatusOverall.className = `badge audit-status-badge ${ok ? 'status-ok' : 'status-warning'}`;
+                const nextStep = status.next_step && typeof status.next_step === 'object' ? status.next_step : null;
+                const nextSeverity = nextStep ? String(nextStep.severity || 'ok') : (status.ok === true ? 'ok' : 'recommended');
+
+                if (repairStatus === 'running' || buildSessionActive || pollTimer || buildLaunchPending) {
+                    publishStatusOverall.textContent = 'Preparing';
+                    publishStatusOverall.className = 'badge audit-status-badge status-neutral';
+                } else if (nextSeverity === 'needs_fix') {
+                    publishStatusOverall.textContent = 'Needs a fix';
+                    publishStatusOverall.className = 'badge audit-status-badge status-warning';
+                } else if (nextSeverity === 'recommended') {
+                    publishStatusOverall.textContent = 'Tune-up recommended';
+                    publishStatusOverall.className = 'badge audit-status-badge status-warning';
+                } else if (nextSeverity === 'failed') {
+                    publishStatusOverall.textContent = 'Tune-up failed';
+                    publishStatusOverall.className = 'badge audit-status-badge status-error';
+                } else {
+                    publishStatusOverall.textContent = 'Healthy';
+                    publishStatusOverall.className = 'badge audit-status-badge status-ok';
+                }
 
                 const inventory = status.inventory && typeof status.inventory === 'object' ? status.inventory : null;
                 const delivery = inventory && inventory.delivery ? inventory.delivery : {};
@@ -12042,7 +12052,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     inventoryHtml += `
                         <div class="delivery-inventory-hero ${deliveryComplete ? 'is-complete' : ''}">
                             <div class="delivery-inventory-copy">
-                                <strong>${bandpromoAdminEscapeHtml(headline || 'Your site inventory')}</strong>
+                                <strong>${bandpromoAdminEscapeHtml(headline || 'Your site health')}</strong>
                                 ${subheadline ? `<span>${bandpromoAdminEscapeHtml(subheadline)}</span>` : ''}
                             </div>
                             ${audioTotal > 0 ? `
@@ -12080,26 +12090,27 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     }
                 }
 
-                const checks = Array.isArray(status.checks) ? status.checks : [];
-                let checksHtml = '';
+                let nextHtml = '';
                 if (repairMessage !== '') {
-                    checksHtml += `<p class="publish-status-note">${bandpromoAdminEscapeHtml(repairMessage)}</p>`;
+                    nextHtml += `<p class="publish-status-note">${bandpromoAdminEscapeHtml(repairMessage)}</p>`;
                 }
-                if (checks.length) {
-                    checksHtml += `<div class="delivery-status-checks">${checks.map((check) => `
-                        <article class="publish-status-check">
-                            <strong>${bandpromoAdminEscapeHtml(check.label || check.id || 'Issue')} (${Number(check.count || 0)})</strong>
-                            <p>${bandpromoAdminEscapeHtml(check.detail || '')}</p>
-                            <p>${bandpromoAdminEscapeHtml(check.action || '')}</p>
-                        </article>
-                    `).join('')}</div>`;
-                } else if (ok) {
-                    checksHtml += '<p class="publish-status-empty">Streaming files match your catalogue.</p>';
+                if (nextStep && nextSeverity !== 'ok') {
+                    const cta = String(nextStep.cta || 'none');
+                    nextHtml += `
+                        <div class="publish-next-step publish-next-step--${bandpromoAdminEscapeHtml(nextSeverity)}">
+                            <strong>${bandpromoAdminEscapeHtml(nextStep.title || 'Next step')}</strong>
+                            <p>${bandpromoAdminEscapeHtml(nextStep.body || '')}</p>
+                            ${cta === 'refresh' ? '<p class="publish-next-step-hint">When you are ready, use <strong>Refresh site files</strong> below — we will ask before starting.</p>' : ''}
+                            ${cta === 'ask_developer' ? '<p class="publish-next-step-hint">Ask a developer to open <strong>Peek under the hood → Repair catalogue</strong>.</p>' : ''}
+                        </div>
+                    `;
+                } else if (!repairStatus || repairStatus === 'ok' || repairStatus === '') {
+                    nextHtml += '<p class="publish-status-empty">The bandPromo machine is idle. Listener files match your catalogue.</p>';
                 }
 
                 publishStatusSummary.innerHTML = `
                     ${inventoryHtml}
-                    ${checksHtml}
+                    ${nextHtml}
                 `;
             }
 
@@ -12453,6 +12464,28 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
 
             if (buildBtn) {
                 buildBtn.addEventListener('click', async () => {
+                    if (pollTimer || buildLaunchPending) {
+                        return;
+                    }
+                    const confirmFn = typeof window.bandpromoConfirm === 'function'
+                        ? window.bandpromoConfirm
+                        : null;
+                    let confirmed = true;
+                    if (confirmFn) {
+                        confirmed = await confirmFn({
+                            title: 'Follow this recommendation?',
+                            body: 'The bandPromo machine will prepare streaming files, covers, and playlists from what you already saved. This keeps listeners up to date and helps the next Site update go smoothly. Safe to leave this page while it runs.',
+                            confirmLabel: 'Yes, go ahead',
+                            cancelLabel: 'Not now',
+                        });
+                    } else {
+                        confirmed = window.confirm(
+                            'Prepare streaming files now? Safe to leave this page. Keeps listeners current and helps the next Site update.'
+                        );
+                    }
+                    if (!confirmed) {
+                        return;
+                    }
                     currentRunMode = 'full';
                     console.groupCollapsed('[build] Start button clicked');
                     buildSessionActive = true;
@@ -12466,18 +12499,17 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     buildBtn.disabled  = true;
                     if (buildSpinner) buildSpinner.style.display = 'inline';
                     hideRecommendedBuildChrome();
+                    setPublishRefreshChip('running');
+                    setPublishJobStatus('Working — starting… · safe to leave this page');
                     if (buildStatus) {
                         buildStatus.textContent = 'Starting…';
                         buildStatus.removeAttribute('data-mode');
                         buildStatus.style.color = '';
                     }
                     if (buildLog) {
-                        buildLog.textContent = '⏳ Starting build…\n';
+                        buildLog.textContent = 'Starting…\n';
                     }
-                    const logCard = document.getElementById('build-log-card');
-                    if (logCard && logCard.tagName === 'DETAILS') {
-                        logCard.open = true;
-                    }
+                    // Keep the raw log closed unless the operator already had it open.
                     // Poll immediately so the UI picks up the cleared log as soon as PHP
                     // takes the lock — do not wait for the long build.php prep to finish.
                     beginBuildPolling('full');

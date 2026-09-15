@@ -589,51 +589,104 @@ function bandpromo_publish_status_summary(string $root, array $options = []): ar
     $buildState = bandpromo_get_build_required_state();
     $pendingPublish = !empty($buildState['required']);
     $checks = [];
+    $taskLabels = [
+        'playlist-scan' => 'playlist order',
+        'audio-delivery' => 'song streaming files',
+        'image-delivery' => 'artwork',
+        'video-delivery' => 'video',
+        'sfx-delivery' => 'sound effects',
+    ];
 
-    if (count($uncataloguedMasters) > 0) {
+    $masterCount = count($uncataloguedMasters);
+    $originalCount = count($uncatalogued);
+    $missingCount = count($missingDelivery);
+
+    if ($masterCount > 0) {
         $checks[] = [
             'id' => 'uncatalogued_audio_masters',
-            'severity' => 'attention',
-            'label' => 'Audio masters waiting for Files',
-            'count' => count($uncataloguedMasters),
-            'detail' => 'Durable masters exist on disk but are not yet in the asset registry (common after PCF import drift).',
-            'action' => 'Publish or Repair catalogue re-registers them into Files → Audio as orphans — nothing is deleted.',
+            'severity' => 'needs_fix',
+            'label' => 'Songs on disk are not in Files yet',
+            'count' => $masterCount,
+            'detail' => 'Some song files are on the server but not listed in Files yet.',
+            'action' => 'Refresh site files usually registers them. If this remains, ask a developer to run Repair catalogue.',
         ];
     }
 
-    if (count($uncatalogued) > 0) {
+    if ($originalCount > 0) {
         $checks[] = [
             'id' => 'uncatalogued_audio',
-            'severity' => 'attention',
-            'label' => 'Uploads still being prepared',
-            'count' => count($uncatalogued),
-            'detail' => 'bandPromo is registering new audio files so delivery can be created.',
-            'action' => 'This usually finishes automatically within a few moments.',
+            'severity' => 'needs_fix',
+            'label' => 'Uploads still waiting to finish registering',
+            'count' => $originalCount,
+            'detail' => 'Some uploads never finished joining the catalogue.',
+            'action' => 'Refresh may help. If the count does not fall, ask a developer — this does not clear by itself after a few moments.',
         ];
     }
 
-    if ($missingDelivery !== []) {
+    if ($missingCount > 0) {
         $checks[] = [
             'id' => 'missing_audio_delivery',
-            'severity' => 'attention',
-            'label' => 'Streaming files still missing',
-            'count' => count($missingDelivery),
-            'detail' => 'Some catalogued audio does not have listener-ready MP3 delivery files yet.',
-            'action' => 'bandPromo usually creates these after uploads and saves. Use Refresh site files if you want to rebuild everything now.',
+            'severity' => 'recommended',
+            'label' => 'Some tracks are not stream-ready yet',
+            'count' => $missingCount,
+            'detail' => 'Listeners need prepared streaming files for these tracks.',
+            'action' => 'Use Refresh site files to prepare them.',
         ];
     }
 
     if ($pendingPublish) {
         $tasks = is_array($buildState['tasks'] ?? null) ? $buildState['tasks'] : [];
+        $friendlyTasks = [];
+        foreach ($tasks as $task) {
+            $key = (string) $task;
+            $friendlyTasks[] = $taskLabels[$key] ?? str_replace('-', ' ', $key);
+        }
         $checks[] = [
             'id' => 'publish_pending',
-            'severity' => 'attention',
-            'label' => 'Delivery refresh recommended',
+            'severity' => 'recommended',
+            'label' => 'A tune-up will keep listener files current',
             'count' => max(1, count($tasks)),
-            'detail' => $tasks !== []
-                ? 'Pending: ' . implode(', ', array_map('strval', $tasks))
-                : 'Recent site changes may need updated delivery files.',
-            'action' => 'Use Rebuild all deliverables when you want extra reassurance that everything is current.',
+            'detail' => $friendlyTasks !== []
+                ? 'Waiting on: ' . implode(', ', $friendlyTasks) . '.'
+                : 'Recent changes may need updated listener files.',
+            'action' => 'Refresh site files when you are ready — also keeps the install ready for the next Site update.',
+        ];
+    }
+
+    // One operator-facing next step (priority order).
+    $nextStep = [
+        'severity' => 'ok',
+        'title' => 'Your site is healthy',
+        'body' => 'Listener files look ready. Uploads and saves usually keep things current on their own.',
+        'cta' => 'none',
+    ];
+    if ($masterCount > 0 || $originalCount > 0) {
+        $bits = [];
+        if ($masterCount > 0) {
+            $bits[] = $masterCount . ' song file(s) not in Files yet';
+        }
+        if ($originalCount > 0) {
+            $bits[] = $originalCount . ' upload(s) still waiting to finish registering';
+        }
+        $nextStep = [
+            'severity' => 'needs_fix',
+            'title' => 'Catalogue needs a hand',
+            'body' => implode('. ', $bits) . '. Refresh often fixes this; if it remains, ask a developer to Repair catalogue.',
+            'cta' => 'refresh',
+        ];
+    } elseif ($missingCount > 0) {
+        $nextStep = [
+            'severity' => 'recommended',
+            'title' => 'Prepare streaming files',
+            'body' => $missingCount . ' track(s) are not stream-ready yet. A tune-up prepares them for listeners and keeps the site ready for future Site updates.',
+            'cta' => 'refresh',
+        ];
+    } elseif ($pendingPublish) {
+        $nextStep = [
+            'severity' => 'recommended',
+            'title' => 'Tune-up recommended',
+            'body' => 'A short Refresh keeps everything current for listeners and future-proofs the install for the next Site update.',
+            'cta' => 'refresh',
         ];
     }
 
@@ -665,6 +718,7 @@ function bandpromo_publish_status_summary(string $root, array $options = []): ar
         ],
         'inventory' => $inventory,
         'checks' => $checks,
+        'next_step' => $nextStep,
         'samples' => [
             'uncatalogued' => array_slice($uncatalogued, 0, 5),
             'missing_delivery' => array_slice($missingDelivery, 0, 5),

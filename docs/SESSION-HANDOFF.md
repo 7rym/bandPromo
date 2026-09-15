@@ -8,10 +8,10 @@
 
 - **Slice 1:** Thin `build.php` start; prep in Python → `publish-prep-cli.php`; heartbeats in meta; poller `job` fields; honest orphan-lock copy.
 - **Slice 2:** Refresh chip + heartbeat status line; stuck ~2 min; under-the-hood log label; no Recommended CTA / urgency help.
+- **Slice 3:** Status health page — next_step, consent ask, Repair under the hood.
 
 ### Next
 
-- **Slice 3:** Full System → Status health-page redesign (recommendation, consent, under the hood for Repair).
 - **Slice 4:** Port Repair Apply off PHP CLI into Python; stuck prep clear.
 - **Slice 5:** Operator health visibility + FEATURES docs.
 

@@ -2,6 +2,8 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-09-15 21:40 - System → Status health redesign: Site health chip + one next_step (no scare-box stack); friendly copy; Refresh consent (Not now / Yes, go ahead); Repair moved under Peek under the hood (developer); run_recommended no longer auto-opens the raw log.
+
 2026-09-15 21:20 - Refresh progress UX: status chip + live job line from meta heartbeats (stuck warning after ~2 min quiet); neutral Refresh button; log renamed “Peek under the hood” and no longer forced open; Recommended CTA hidden; help box stays calm (no urgency rewrite); orphan/incomplete runs map to Did not finish.
 
 2026-09-15 21:05 - Refresh site files thin start: `build.php` only locks, writes meta, and launches Python (no web prep). Publish prep (Demo ensure, brand heal, audio/visual master reconcile) runs in background via `publish-prep-cli.php` from `build.py` / `optimizeMedia.py`. Job meta heartbeats (`stage` / `message` / `heartbeat_at`); poller returns `job` liveness fields. Orphan lock clear copy states the run did **not** finish successfully.
