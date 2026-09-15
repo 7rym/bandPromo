@@ -40,16 +40,24 @@ def write_job_meta(root, updates, name='build.meta.json', merge=True):
         if not os.path.isdir(log_dir):
             os.makedirs(log_dir)
         with open(path, 'w', encoding='utf-8') as handle:
-            json.dump(meta, handle, ensure_ascii=False, separators=(',', ':'))
+            json.dump(meta, handle, ensure_ascii=True, separators=(',', ':'))
     except Exception:
         pass
     return meta
 
 
+# Prefer ASCII punctuation in meta so ASCII-locale hosts never choke on ellipsis.
 def touch_heartbeat(root, stage='', message='', name='build.meta.json'):
     updates = {}
     if stage:
         updates['stage'] = stage
     if message:
-        updates['message'] = message
+        # Keep operator-facing meta readable on ASCII locales.
+        safe = (
+            str(message)
+            .replace('\u2026', '...')
+            .replace('\u2014', '-')
+            .replace('\u2013', '-')
+        )
+        updates['message'] = safe
     return write_job_meta(root, updates, name=name, merge=True)

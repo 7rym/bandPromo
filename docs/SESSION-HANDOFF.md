@@ -2,12 +2,19 @@
 
 ## Resume point
 
-Published for fleet testing: **Status health redesign** (thin Refresh start, Site health next-step, consent, under-the-hood Repair, heartbeats). Testers: Site update on HITZ / Vanilla / Spandexual Tension, then exercise System → Status.
+Published **v0.8.59 build 496** (pending) HITZ trust hotfix after 495 failed prep on ASCII locale.
+
+### Fixed in this hotfix
+
+- Publish prep UTF-8 stream (no more `ascii codec` crash on HITZ)
+- Help default closed; Status help not a scare banner
+- Site update prompts for Refresh — does not auto-start or lie about rebuilding
+- Under-the-hood “steps waiting” nudge removed
 
 ### Follow-on
 
-- Native Python port of Repair **Apply body** (still PHP CLI under Python supervisor).
-- Remaining publish stages that shell PHP CLI (same port pattern).
+- Native Python Repair Apply body
+- Further calm-copy polish after HITZ retest
 
 ### Active fleet
 

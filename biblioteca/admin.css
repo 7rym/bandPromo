@@ -1070,6 +1070,13 @@ button.danger:not(.btn):not(.icon-btn):hover { background: #d32f2f; }
     border-radius: 0 0 6px 6px;
     margin-bottom: 14px;
 }
+/* Status help must never read as an alert banner under the System tabs. */
+#help-build.admin-help-box:not(.collapsed) {
+    margin-top: 0.75rem;
+    border-top: 1px solid rgba(96,165,250,0.2);
+    border-radius: 6px;
+    background: rgba(15, 23, 42, 0.55);
+}
 .admin-help-box.collapsed {
     display: none;
 }

@@ -22,6 +22,11 @@ STOP_FLAG = os.path.join(ROOT_DIR, 'log', 'catalog-repair.stop')
 META_NAME = 'catalog-repair.meta.json'
 
 sys.path.insert(0, SCRIPT_DIR)
+try:
+    import stdio_utf8
+    stdio_utf8.configure()
+except Exception:
+    pass
 from php_cli import resolve_php_cli  # noqa: E402
 from job_heartbeat import touch_heartbeat  # noqa: E402
 
@@ -31,8 +36,11 @@ def utc_stamp():
 
 
 def log(message):
-    print('[{0}] {1}'.format(utc_stamp(), message))
-    sys.stdout.flush()
+    try:
+        print('[{0}] {1}'.format(utc_stamp(), message))
+        sys.stdout.flush()
+    except Exception:
+        pass
 
 
 def stop_requested():
@@ -45,7 +53,7 @@ def main():
     touch_heartbeat(
         ROOT_DIR,
         stage='starting',
-        message='Starting catalogue Repair…',
+        message='Starting catalogue Repair...',
         name=META_NAME,
     )
 
@@ -69,15 +77,30 @@ def main():
 
     env = os.environ.copy()
     env['BANDPROMO_REPAIR_CLI'] = '1'
+    env['PYTHONIOENCODING'] = 'utf-8:replace'
+    env['LANG'] = env.get('LANG') or 'C.UTF-8'
+    env['LC_ALL'] = env.get('LC_ALL') or 'C.UTF-8'
 
     touch_heartbeat(
         ROOT_DIR,
         stage='apply',
-        message='Applying catalogue repairs…',
+        message='Applying catalogue repairs...',
         name=META_NAME,
     )
     log('Launching Repair Apply (safe to leave this page)')
     try:
+        proc = subprocess.Popen(
+            [php, '-d', 'max_execution_time=0', CLI_SCRIPT],
+            cwd=ROOT_DIR,
+            env=env,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            encoding='utf-8',
+            errors='replace',
+            universal_newlines=True,
+            bufsize=1,
+        )
+    except TypeError:
         proc = subprocess.Popen(
             [php, '-d', 'max_execution_time=0', CLI_SCRIPT],
             cwd=ROOT_DIR,
@@ -94,14 +117,20 @@ def main():
 
     if proc.stdout is not None:
         for line in proc.stdout:
-            line = line.rstrip('\r\n')
+            try:
+                line = line.rstrip('\r\n')
+            except Exception:
+                continue
             if line:
-                print(line)
-                sys.stdout.flush()
+                try:
+                    print(line)
+                    sys.stdout.flush()
+                except Exception:
+                    pass
                 touch_heartbeat(
                     ROOT_DIR,
                     stage='apply',
-                    message='Applying catalogue repairs…',
+                    message='Applying catalogue repairs...',
                     name=META_NAME,
                 )
 

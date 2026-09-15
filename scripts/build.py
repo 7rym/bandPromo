@@ -31,6 +31,11 @@ TEMPLATE_ICONS_ZIP = ROOT_DIR / 'biblioteca' / 'templates' / 'icons' / 'bP-icons
 # Site-local vendor path before any third-party imports in child stages.
 sys.path.insert(0, str(SCRIPT_DIR))
 try:
+    import stdio_utf8
+    stdio_utf8.configure()
+except Exception:
+    pass
+try:
     import bandpromo_python_path
     bandpromo_python_path.ensure_vendor_on_sys_path()
 except Exception:
@@ -1149,7 +1154,7 @@ def main():
         touch_heartbeat(
             str(ROOT_DIR),
             stage='prep',
-            message='Preparing your site for publish…',
+            message='Preparing your site for publish...',
             name='build.meta.json',
         )
         from publish_prep import run_publish_prep
@@ -1182,7 +1187,7 @@ def main():
         touch_heartbeat(
             str(ROOT_DIR),
             stage='preflight',
-            message='Checking tools and audio sources…',
+            message='Checking tools and audio sources...',
             name='build.meta.json',
         )
     except Exception:

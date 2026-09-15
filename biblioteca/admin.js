@@ -621,14 +621,18 @@ function toggleHelp(key) {
     localStorage.setItem('adminHelp_' + key, opening ? 'open' : 'closed');
 }
 
-// Restore help box states on page load (default: open for new users)
+// Restore help box states on page load (default: closed — Status must stay calm)
 document.querySelectorAll('.admin-help-box').forEach(box => {
     const key   = box.id.replace('help-', '');
     const state = localStorage.getItem('adminHelp_' + key);
     const btn   = document.getElementById('helpBtn-' + key);
-    if (state !== 'closed') {
+    // Only open when the operator previously chose open. Never default-open.
+    if (state === 'open') {
         box.classList.remove('collapsed');
         if (btn) btn.classList.add('active');
+    } else {
+        box.classList.add('collapsed');
+        if (btn) btn.classList.remove('active');
     }
 });
 
@@ -1610,14 +1614,14 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
 
                 if (runResult === 'started' || runResult === 'already-running') {
                     showAdminToast(
-                        versionPrefix + 'Rebuilding deliverables for your public site…',
+                        versionPrefix + 'Refresh is running — safe to leave this page.',
                         'success'
                     );
                     return;
                 }
 
                 showAdminToast(
-                    versionPrefix + 'Click Refresh site files to refresh your public site.',
+                    versionPrefix + 'When you are ready, use Refresh site files on Site health (we will ask before starting).',
                     'success'
                 );
             }
@@ -11947,11 +11951,17 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 triggeredBuildRunFromQuery = true;
                 clearRecommendedRunQuery();
                 const postUpdateVersion = consumePostPackageUpdateFlash();
-                // Do not auto-open the raw log — surface status is enough.
-                // Consent happens when Refresh is clicked (runRecommendedAction → buildBtn).
-                const runResult = runRecommendedAction();
+                // Never auto-start a long Refresh after Site update — ask on the button instead.
                 if (postUpdateVersion !== null) {
-                    showPostPackageUpdateToast(postUpdateVersion, runResult);
+                    showPostPackageUpdateToast(postUpdateVersion, 'prompt');
+                } else if (typeof showAdminToast === 'function') {
+                    showAdminToast(
+                        'When you are ready, use Refresh site files (we will ask before starting).',
+                        'success'
+                    );
+                }
+                if (typeof setPublishRefreshChip === 'function' && currentBuildRequired) {
+                    setPublishRefreshChip('recommended');
                 }
             }
 
@@ -11972,26 +11982,12 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
 
             function refreshBuildHint() {
                 if (!buildStatus) return;
-                // Spinner already says Building… — do not keep the yellow "steps waiting" nudge.
-                if (pollTimer || buildSessionActive || buildLaunchPending) {
-                    if (buildStatus.dataset.mode === 'nudge') {
-                        buildStatus.textContent = '';
-                        buildStatus.removeAttribute('data-mode');
-                        buildStatus.style.color = '';
-                    }
-                    return;
-                }
-                if (currentBuildRequired) {
-                    buildStatus.textContent = formatBuildHintMessage({
-                        action: currentBuildAction,
-                        tasks: currentBuildTasks,
-                        reasons: currentBuildReasons,
-                    });
-                    buildStatus.style.color = '#f0b429';
-                    buildStatus.dataset.mode = 'nudge';
-                } else if (buildStatus.dataset.mode === 'nudge') {
+                // Never park the yellow "steps waiting" nudge inside Peek under the hood.
+                // Site health / Refresh chip carry the recommendation.
+                if (buildStatus.dataset.mode === 'nudge') {
                     buildStatus.textContent = '';
                     buildStatus.removeAttribute('data-mode');
+                    buildStatus.style.color = '';
                 }
             }
 

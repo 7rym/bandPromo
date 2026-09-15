@@ -2,7 +2,7 @@
 declare(strict_types=1);
 
 /**
- * CLI publish prep — reconcile masters, heal brands, optional Demo PCF ensure.
+ * CLI publish prep - reconcile masters, heal brands, optional Demo PCF ensure.
  * Run by scripts/publish_prep.py before the Python publish stages.
  * Not bound by web max_execution_time.
  */
@@ -58,13 +58,13 @@ $touchMeta = static function (string $stage, string $message) use ($metaPath, $m
 };
 
 if (bandpromo_job_stop_requested($root, $jobKey)) {
-    $logLine('[prep] Stop requested before prep — exiting.');
+    $logLine('[prep] Stop requested before prep - exiting.');
     fwrite(STDOUT, "PREP_STOPPED\n");
     exit(0);
 }
 
-$touchMeta('prep', 'Preparing your site for publish…');
-$logLine('[prep] Preparing your site for publish…');
+$touchMeta('prep', 'Preparing your site for publish...');
+$logLine('[prep] Preparing your site for publish...');
 
 if ($mode === 'full') {
     bandpromo_run_publish_preflight($root, static function (string $line) use ($logLine): void {
@@ -72,12 +72,12 @@ if ($mode === 'full') {
     });
 }
 
-$logLine('[prep] Starting publish preparation…');
+$logLine('[prep] Starting publish preparation...');
 
 if ($ensureDemo) {
     try {
-        $logLine('[prep] Preparing Demo PCF download/import (progress appears below)…');
-        $touchMeta('prep', 'Preparing Demo campaign package…');
+        $logLine('[prep] Preparing Demo PCF download/import (progress appears below)...');
+        $touchMeta('prep', 'Preparing Demo campaign package...');
         $package = bandpromo_ensure_demo_campaign_package(
             $root,
             BANDPROMO_RELEASE_MANIFEST_URL,
@@ -119,14 +119,14 @@ if ($ensureDemo) {
 }
 
 if (bandpromo_job_stop_requested($root, $jobKey)) {
-    $logLine('[prep] Stop requested — exiting after Demo step.');
+    $logLine('[prep] Stop requested - exiting after Demo step.');
     fwrite(STDOUT, "PREP_STOPPED\n");
     exit(0);
 }
 
 try {
     require_once __DIR__ . '/brand-storage.php';
-    $touchMeta('prep', 'Checking brand and shell media…');
+    $touchMeta('prep', 'Checking brand and shell media...');
     bandpromo_brand_ensure_seeded($root);
     foreach (bandpromo_brand_heal_install_shell_media($root) as $note) {
         $logLine('[shell media] ' . $note);
@@ -140,7 +140,7 @@ try {
 
 try {
     require_once __DIR__ . '/visual-master-helpers.php';
-    $touchMeta('prep', 'Checking visual intake…');
+    $touchMeta('prep', 'Checking visual intake...');
     $legacyRelocate = bandpromo_visual_relocate_all_legacy_originals($root);
     if (!empty($legacyRelocate['ran'])) {
         $logLine('[visual intake] ' . (string) ($legacyRelocate['message'] ?? 'Legacy Visual intake check finished.'));
@@ -156,19 +156,19 @@ try {
 }
 
 if (bandpromo_job_stop_requested($root, $jobKey)) {
-    $logLine('[prep] Stop requested — exiting before audio masters.');
+    $logLine('[prep] Stop requested - exiting before audio masters.');
     fwrite(STDOUT, "PREP_STOPPED\n");
     exit(0);
 }
 
 try {
     require_once __DIR__ . '/asset-registry.php';
-    $touchMeta('prep', 'Checking audio masters for Files…');
-    $logLine('[prep] Checking audio masters for Files → Audio…');
+    $touchMeta('prep', 'Checking audio masters for Files...');
+    $logLine('[prep] Checking audio masters for Files -> Audio...');
     $audioMasterReconcile = bandpromo_reconcile_uncatalogued_audio_masters($root);
     $audioRecovered = (int) ($audioMasterReconcile['changed'] ?? 0);
     if ($audioRecovered > 0) {
-        $logLine('[audio masters] Re-registered ' . $audioRecovered . ' uncatalogued master(s) into Files → Audio.');
+        $logLine('[audio masters] Re-registered ' . $audioRecovered . ' uncatalogued master(s) into Files -> Audio.');
         $shown = 0;
         foreach (($audioMasterReconcile['fixed'] ?? []) as $fixedName) {
             if (!is_string($fixedName) || trim($fixedName) === '') {
@@ -180,10 +180,10 @@ try {
             $shown++;
         }
         if ($shown > 12) {
-            $logLine('[audio masters] … and ' . ($shown - 12) . ' more (omitted from log).');
+            $logLine('[audio masters] ... and ' . ($shown - 12) . ' more (omitted from log).');
         }
     } elseif (!empty($audioMasterReconcile['index_rebuilt'])) {
-        $logLine('[audio masters] Rebuilt Files → Audio index from registry (stale pool listing).');
+        $logLine('[audio masters] Rebuilt Files -> Audio index from registry (stale pool listing).');
     } else {
         $logLine('[audio masters] No uncatalogued masters to recover.');
     }
@@ -200,15 +200,15 @@ try {
 }
 
 if (bandpromo_job_stop_requested($root, $jobKey)) {
-    $logLine('[prep] Stop requested — exiting before audio uploads.');
+    $logLine('[prep] Stop requested - exiting before audio uploads.');
     fwrite(STDOUT, "PREP_STOPPED\n");
     exit(0);
 }
 
 try {
     require_once __DIR__ . '/asset-registry.php';
-    $touchMeta('prep', 'Finishing uploads that never registered…');
-    $logLine('[prep] Checking uploads still waiting to register…');
+    $touchMeta('prep', 'Finishing uploads that never registered...');
+    $logLine('[prep] Checking uploads still waiting to register...');
     $originalReconcile = bandpromo_reconcile_uncatalogued_audio_originals($root);
     $origFixed = (int) ($originalReconcile['changed'] ?? 0);
     if ($origFixed > 0) {
@@ -224,7 +224,7 @@ try {
             $shown++;
         }
         if ($shown > 12) {
-            $logLine('[audio uploads] … and ' . ($shown - 12) . ' more (omitted from log).');
+            $logLine('[audio uploads] ... and ' . ($shown - 12) . ' more (omitted from log).');
         }
     } else {
         $logLine('[audio uploads] No waiting uploads to register.');
@@ -244,8 +244,8 @@ try {
     $logLine('[audio uploads] Reconcile skipped: ' . $throwable->getMessage());
 }
 
-$logLine('[prep] Checking visual masters…');
-$touchMeta('prep', 'Checking visual masters…');
+$logLine('[prep] Checking visual masters...');
+$touchMeta('prep', 'Checking visual masters...');
 
 try {
     require_once __DIR__ . '/asset-registry.php';
@@ -264,10 +264,10 @@ try {
             $shown++;
         }
         if ($shown > 12) {
-            $logLine('[visual masters] … and ' . ($shown - 12) . ' more (omitted from log).');
+            $logLine('[visual masters] ... and ' . ($shown - 12) . ' more (omitted from log).');
         }
     } elseif (!empty($masterReconcile['index_rebuilt'])) {
-        $logLine('[visual masters] Rebuilt Files → Visual index from registry (stale pool listing).');
+        $logLine('[visual masters] Rebuilt Files -> Visual index from registry (stale pool listing).');
     } else {
         $logLine('[visual masters] No uncatalogued masters to recover.');
     }
@@ -286,7 +286,7 @@ try {
     $logLine('[visual masters] Master reconcile skipped: ' . $throwable->getMessage());
 }
 
-$touchMeta('prep', 'Preparation finished — starting publish stages…');
+$touchMeta('prep', 'Preparation finished - starting publish stages...');
 $logLine('[prep] Preparation finished.');
 fwrite(STDOUT, "PREP_OK\n");
 exit(0);
