@@ -199,6 +199,51 @@ try {
     $logLine('[audio masters] Reconcile skipped: ' . $throwable->getMessage());
 }
 
+if (bandpromo_job_stop_requested($root, $jobKey)) {
+    $logLine('[prep] Stop requested — exiting before audio uploads.');
+    fwrite(STDOUT, "PREP_STOPPED\n");
+    exit(0);
+}
+
+try {
+    require_once __DIR__ . '/asset-registry.php';
+    $touchMeta('prep', 'Finishing uploads that never registered…');
+    $logLine('[prep] Checking uploads still waiting to register…');
+    $originalReconcile = bandpromo_reconcile_uncatalogued_audio_originals($root);
+    $origFixed = (int) ($originalReconcile['changed'] ?? 0);
+    if ($origFixed > 0) {
+        $logLine('[audio uploads] Registered ' . $origFixed . ' waiting upload(s) into the catalogue.');
+        $shown = 0;
+        foreach (($originalReconcile['fixed'] ?? []) as $fixedName) {
+            if (!is_string($fixedName) || trim($fixedName) === '') {
+                continue;
+            }
+            if ($shown < 12) {
+                $logLine('[audio uploads] + ' . $fixedName);
+            }
+            $shown++;
+        }
+        if ($shown > 12) {
+            $logLine('[audio uploads] … and ' . ($shown - 12) . ' more (omitted from log).');
+        }
+    } else {
+        $logLine('[audio uploads] No waiting uploads to register.');
+    }
+    foreach (($originalReconcile['failed'] ?? []) as $failure) {
+        if (!is_array($failure)) {
+            continue;
+        }
+        $logLine(
+            '[audio uploads] Could not register '
+            . (string) ($failure['filename'] ?? '?')
+            . ': '
+            . (string) ($failure['error'] ?? ($failure['warning'] ?? 'unknown'))
+        );
+    }
+} catch (Throwable $throwable) {
+    $logLine('[audio uploads] Reconcile skipped: ' . $throwable->getMessage());
+}
+
 $logLine('[prep] Checking visual masters…');
 $touchMeta('prep', 'Checking visual masters…');
 

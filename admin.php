@@ -782,25 +782,35 @@ if ($tab === 'analytics') {
                 $catalogHealth = bandpromo_asset_registry_health_snapshot(__DIR__);
             }
             ?>
-            <?php if (!empty($catalogHealth['needs_attention']) && $currentUserRole === 'developer'): ?>
+            <?php if (!empty($catalogHealth['needs_attention']) && in_array($currentUserRole, ['developer', 'admin'], true)): ?>
             <?php
             $catalogAttentionKind = (string) ($catalogHealth['attention_kind'] ?? 'repair');
+            $isDeveloper = $currentUserRole === 'developer';
             $catalogCtaLabel = trim((string) ($catalogHealth['cta_label'] ?? ''));
             if ($catalogCtaLabel === '') {
                 $catalogCtaLabel = $catalogAttentionKind === 'delivery'
                     ? 'Open Refresh site files'
-                    : 'Open Repair catalogue';
+                    : ($isDeveloper ? 'Open Repair catalogue' : 'Open Site health');
+            }
+            if (!$isDeveloper && $catalogAttentionKind === 'repair') {
+                $catalogCtaLabel = 'Open Site health';
+            }
+            $catalogHref = (string) ($catalogHealth['href'] ?? '?tab=system&stab=deliverables');
+            if (!$isDeveloper || $catalogAttentionKind === 'delivery') {
+                $catalogHref = '?tab=system&stab=deliverables#publishActionsCard';
             }
             ?>
             <div class="card welcome-catalog-repair-card" id="welcomeCatalogRepairCard">
                 <h2><?php echo $catalogAttentionKind === 'delivery'
-                    ? '🖼️ Visuals need delivery files'
-                    : '🔧 Catalogue needs a repair pass'; ?></h2>
+                    ? 'Listener files need a tune-up'
+                    : 'Catalogue needs a developer repair'; ?></h2>
                 <p class="card-note">
                     <?php if ($catalogAttentionKind === 'delivery'): ?>
-                    Developer-only: registry entries are present, but card/thumb delivery files have not been built yet. Use <strong>Refresh site files</strong> under System → Status — Repair catalogue will not create those thumbnails.
+                    Some artwork or streaming files are not ready for listeners yet. Use <strong>Refresh site files</strong> under System → Status — we will ask before starting.
+                    <?php elseif ($isDeveloper): ?>
+                    Registry housekeeping that does not run on every page load. Preview (dry-run) then Apply under System → Status → Peek under the hood. This does not publish the public site by itself.
                     <?php else: ?>
-                    Developer-only: registry housekeeping that does not run on every page load. Preview and apply under System → Status. This does not publish the public site by itself.
+                    Something in the catalogue needs a developer to run <strong>Repair catalogue</strong> (under System → Status → Peek under the hood). You can still open Site health to Refresh when that is the right next step.
                     <?php endif; ?>
                 </p>
                 <?php if (!empty($catalogHealth['reasons']) && is_array($catalogHealth['reasons'])): ?>
@@ -811,7 +821,7 @@ if ($tab === 'analytics') {
                 </ul>
                 <?php endif; ?>
                 <div class="card-actions">
-                    <a class="btn btn-primary" href="<?php echo htmlspecialchars((string) ($catalogHealth['href'] ?? '?tab=system&amp;stab=deliverables#catalog-repair')); ?>"><?php echo htmlspecialchars($catalogCtaLabel); ?></a>
+                    <a class="btn btn-primary" href="<?php echo htmlspecialchars($catalogHref); ?>"><?php echo htmlspecialchars($catalogCtaLabel); ?></a>
                 </div>
             </div>
             <?php endif; ?>

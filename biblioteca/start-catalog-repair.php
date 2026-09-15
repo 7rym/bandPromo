@@ -94,11 +94,23 @@ if ($python === '' || !is_file($script)) {
 @file_put_contents($lockFile, 'running');
 
 $runId = function_exists('random_bytes') ? bin2hex(random_bytes(8)) : uniqid('repair_', true);
+$startedAt = time();
+@file_put_contents($root . '/log/catalog-repair.meta.json', json_encode([
+    'run_id' => $runId,
+    'started_at' => $startedAt,
+    'updated_at' => $startedAt,
+    'heartbeat_at' => $startedAt,
+    'stage' => 'starting',
+    'message' => 'Starting catalogue Repair…',
+    'pid' => null,
+], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
+
 $diagnostics = bandpromo_build_run_launch_diagnostics($root, $logFile, $python, $script, $isWindows, false);
 $launch = bandpromo_build_launch_background($python, $script, $logFile, $lockFile, $runId, $isWindows, $diagnostics);
 
 if (empty($launch['started'])) {
     @unlink($lockFile);
+    @unlink($root . '/log/catalog-repair.meta.json');
     http_response_code(500);
     echo json_encode([
         'ok' => false,
@@ -112,8 +124,17 @@ if (empty($launch['started'])) {
     exit;
 }
 
-if (!$isWindows && !empty($launch['pid'])) {
+if (!empty($launch['pid'])) {
     @file_put_contents($lockFile, (string) $launch['pid']);
+    @file_put_contents($root . '/log/catalog-repair.meta.json', json_encode([
+        'run_id' => $runId,
+        'started_at' => $startedAt,
+        'updated_at' => time(),
+        'heartbeat_at' => time(),
+        'stage' => 'starting',
+        'message' => 'Starting catalogue Repair…',
+        'pid' => (int) $launch['pid'],
+    ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
 }
 
 bandpromo_admin_audit_log('content_autofix_apply_started', [

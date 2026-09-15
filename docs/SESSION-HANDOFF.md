@@ -2,18 +2,20 @@
 
 ## Resume point
 
-**Status health redesign** (plan `refresh_site_files_ui_899761a4`) — slice work with local checkpoints (no publish until asked).
+**Status health redesign** — slices 1–5 done locally (**build 494** pending this checkpoint). Ahead of origin; **not published** unless asked.
 
-### Done
+### Shipped in this session (local checkpoints)
 
-- **Slice 1:** Thin `build.php` start; prep in Python → `publish-prep-cli.php`; heartbeats in meta; poller `job` fields; honest orphan-lock copy.
-- **Slice 2:** Refresh chip + heartbeat status line; stuck ~2 min; under-the-hood log label; no Recommended CTA / urgency help.
-- **Slice 3:** Status health page — next_step, consent ask, Repair under the hood.
+1. Thin Refresh start + Python/CLI prep + heartbeats  
+2. Refresh progress chip / stuck warning / under-the-hood log  
+3. Site health next_step + Refresh consent + Repair under the hood  
+4. Waiting-upload reconcile in prep; Repair heartbeats + Apply confirm  
+5. Admin Welcome health visibility + softer notifications + FEATURES  
 
-### Next
+### Follow-on (not blocking)
 
-- **Slice 4:** Port Repair Apply off PHP CLI into Python; stuck prep clear.
-- **Slice 5:** Operator health visibility + FEATURES docs.
+- Native Python port of Repair **Apply body** (still PHP CLI under Python supervisor).
+- Publish stages that still shell PHP CLI (e.g. catalogue) — same port pattern.
 
 ### Active fleet
 

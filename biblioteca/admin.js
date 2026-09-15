@@ -1676,16 +1676,16 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 if (afterPackageUpdate) {
                     return {
                         severity: 'fix-before-publish',
-                        title: 'Site update installed — rebuild deliverables',
+                        title: 'Site update installed — tune-up recommended',
                         file: '',
                         checkedAt: String(buildState.updated_at || '').trim(),
                         details: [
-                            { text: 'Your content and settings were preserved. Rebuilding deliverables refreshes listener-ready files and the site manifest for the new version.' },
+                            { text: 'Your content and settings were preserved. Refresh site files so listeners get the new version and the install stays ready for the next update.' },
                             ...(taskDetails.length ? [{ text: `Pending: ${taskDetails.join('; ')}.` }] : []),
                         ],
                         actions: [
                             { label: actionLabel, action: 'run-recommended-build' },
-                            { label: 'Go to Deliverables', href: buildBuildTabUrl() },
+                            { label: 'Open Site health', href: buildBuildTabUrl() },
                         ],
                     };
                 }
@@ -1697,8 +1697,8 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     const lastError = String(buildState.last_error || '').trim();
                     const details = [
                         { text: lastError !== ''
-                            ? 'Automatic preparation after upload did not finish. Fix the issue below, then retry from Deliverables if needed.'
-                            : 'Your edits are saved in admin. Refresh site files when you are ready for visitors to get the latest files.' },
+                            ? 'Automatic preparation after upload did not finish. Check Site health, then try Refresh if needed.'
+                            : 'Your edits are saved. Refresh site files when you are ready for visitors to hear the latest.' },
                         { text: taskIntro },
                     ];
                     if (lastError !== '') {
@@ -1708,29 +1708,29 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     return {
                         severity: 'recommended-fix',
                         title: lastError !== ''
-                            ? 'Upload preparation needs attention'
+                            ? 'Upload preparation needs a hand'
                             : 'Saved changes are not live yet',
                         file: '',
                         checkedAt: String(buildState.updated_at || '').trim(),
                         details,
                         actions: [
                             { label: actionLabel, action: 'run-recommended-build' },
-                            { label: 'Go to Deliverables', href: buildBuildTabUrl() },
+                            { label: 'Open Site health', href: buildBuildTabUrl() },
                         ],
                     };
                 }
 
-                const introDetail = { text: 'You made changes that are saved in admin but may still need refreshed delivery files for visitors.' };
+                const introDetail = { text: 'You made changes that are saved in admin but may still need refreshed listener files.' };
 
                 return {
                     severity: 'build-step',
-                    title: 'Delivery files may need a refresh',
+                    title: 'Tune-up recommended',
                     file: '',
                     checkedAt: String(buildState.updated_at || '').trim(),
                     details: [introDetail, ...summaryDetails],
                     actions: [
                         { label: actionLabel, action: 'run-recommended-build' },
-                        { label: 'Go to Deliverables', href: buildBuildTabUrl() },
+                        { label: 'Open Site health', href: buildBuildTabUrl() },
                     ],
                 };
             }
@@ -12778,9 +12778,22 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     if (data.running) {
                         setRepairRunningUi(true);
                         statusEl.hidden = false;
-                        statusEl.textContent = 'Repair running in the background… (safe to leave this page)';
-                        if (logCard) {
-                            logCard.open = true;
+                        const job = data.job && typeof data.job === 'object' ? data.job : {};
+                        const message = String(job.message || '').trim();
+                        const age = Number(job.heartbeat_age_s);
+                        if (Number.isFinite(age) && age >= 120) {
+                            statusEl.textContent = 'No Repair updates for '
+                                + Math.max(2, Math.floor(age / 60))
+                                + ' min — may be stuck. You can Stop.';
+                            statusEl.style.color = '#f0b429';
+                        } else if (message) {
+                            statusEl.style.color = '';
+                            statusEl.textContent = Number.isFinite(age)
+                                ? ('Working — ' + message + ' · updated ' + age + 's ago · safe to leave this page')
+                                : ('Working — ' + message + ' · safe to leave this page');
+                        } else {
+                            statusEl.style.color = '';
+                            statusEl.textContent = 'Repair running in the background… (safe to leave this page)';
                         }
                         return;
                     }
@@ -12921,8 +12934,25 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 }
 
                 previewBtn.addEventListener('click', () => runContentAutofixPreview());
-                applyBtn.addEventListener('click', () => {
+                applyBtn.addEventListener('click', async () => {
                     if (!latestPreview || Number(latestPreview.changed_total || 0) === 0) {
+                        return;
+                    }
+                    const confirmFn = typeof window.bandpromoConfirm === 'function'
+                        ? window.bandpromoConfirm
+                        : null;
+                    let confirmed = true;
+                    if (confirmFn) {
+                        confirmed = await confirmFn({
+                            title: 'Apply catalogue repairs?',
+                            body: 'Preview already showed what will change. Apply runs in the background and is safe to leave. Stop finishes after the current step.',
+                            confirmLabel: 'Yes, apply repairs',
+                            cancelLabel: 'Not now',
+                        });
+                    } else {
+                        confirmed = window.confirm('Apply the previewed catalogue repairs in the background?');
+                    }
+                    if (!confirmed) {
                         return;
                     }
                     startBackgroundRepair();
