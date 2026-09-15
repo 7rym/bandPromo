@@ -43,6 +43,78 @@ function &bandpromo_content_autofix_log_state(): array
     return $state;
 }
 
+/**
+ * CPU seconds used by this PHP process (Linux getrusage). Falls back to wall clock.
+ * Shared hosts enforce max_execution_time as CPU time — wall clock alone is unsafe.
+ */
+function bandpromo_content_autofix_cpu_seconds_used(): float
+{
+    if (function_exists('getrusage')) {
+        $usage = @getrusage();
+        if (is_array($usage)) {
+            $user = (float) ($usage['ru_utime.tv_sec'] ?? 0)
+                + ((float) ($usage['ru_utime.tv_usec'] ?? 0) / 1000000.0);
+            $sys = (float) ($usage['ru_stime.tv_sec'] ?? 0)
+                + ((float) ($usage['ru_stime.tv_usec'] ?? 0) / 1000000.0);
+
+            return max(0.0, $user + $sys);
+        }
+    }
+
+    $state = &bandpromo_content_autofix_log_state();
+    $started = (float) ($state['started_unix'] ?? 0.0);
+    if ($started <= 0.0) {
+        $started = (float) ($_SERVER['REQUEST_TIME_FLOAT'] ?? microtime(true));
+    }
+
+    return max(0.0, microtime(true) - $started);
+}
+
+/**
+ * Seconds left before php.ini max_execution_time (0 / unlimited → large number).
+ */
+function bandpromo_content_autofix_seconds_remaining(): float
+{
+    $max = (float) ini_get('max_execution_time');
+    if ($max <= 0) {
+        return 3600.0;
+    }
+
+    return max(0.0, $max - bandpromo_content_autofix_cpu_seconds_used());
+}
+
+/**
+ * True when Apply should stop starting heavy steps (leave headroom to finish cleanly).
+ */
+function bandpromo_content_autofix_should_yield(float $reserveSeconds = 6.0): bool
+{
+    $max = (float) ini_get('max_execution_time');
+    if ($max <= 0) {
+        return false;
+    }
+
+    return bandpromo_content_autofix_seconds_remaining() <= max(2.0, $reserveSeconds);
+}
+
+/**
+ * Per-step work budget for Apply on short max_execution_time hosts.
+ */
+function bandpromo_content_autofix_step_budget_seconds(float $preferred = 8.0): float
+{
+    $max = (float) ini_get('max_execution_time');
+    if ($max <= 0) {
+        return $preferred;
+    }
+    $remaining = bandpromo_content_autofix_seconds_remaining();
+    if ($remaining <= 5.0) {
+        return 0.0;
+    }
+    // Keep later pipeline steps alive on 30s CPU hosts (HITZ).
+    $capped = min($preferred, max(2.0, $max * 0.22));
+
+    return max(2.0, min($capped, $remaining - 5.0));
+}
+
 function bandpromo_content_autofix_log_write(string $root, string $line): void
 {
     $dir = rtrim($root, '/\\') . DIRECTORY_SEPARATOR . 'log';
@@ -751,19 +823,36 @@ function bandpromo_content_autofix_sync_audio_display(string $root, bool $dryRun
         return $step;
     }
 
-    $result = bandpromo_asset_refresh_all_audio_displays($root);
+    // Incomplete only + hard budget: each inspect spawns Python and was killing
+    // HITZ Apply after hash backfill ate most of the 30s CPU limit.
+    $budget = bandpromo_content_autofix_step_budget_seconds(6.0);
+    $result = bandpromo_asset_refresh_all_audio_displays($root, true, $budget, 10);
     $step['changed'] = (int) ($result['changed'] ?? 0);
     $step['items'] = is_array($result['items'] ?? null) ? $result['items'] : [];
-
-    $metaRestore = bandpromo_asset_restore_audio_meta_from_unregistered_masters($root);
-    $restored = (int) ($metaRestore['restored'] ?? 0);
-    if ($restored > 0) {
-        $step['changed'] += $restored;
+    $remaining = (int) ($result['remaining'] ?? 0);
+    if ($remaining > 0) {
         $step['items'][] = [
-            'restored_from_leftover_masters' => $restored,
-            'covers' => (int) ($metaRestore['covers'] ?? 0),
-            'details' => $metaRestore['items'] ?? [],
+            'remaining_incomplete' => $remaining,
+            'note' => 'More audio display rows left — run Apply again.',
         ];
+        $step['warnings'][] = $remaining . ' audio display row(s) still incomplete; re-run Apply.';
+    }
+
+    if (!bandpromo_content_autofix_should_yield(5.0)) {
+        $metaRestore = bandpromo_asset_restore_audio_meta_from_unregistered_masters($root);
+        $restored = (int) ($metaRestore['restored'] ?? 0);
+        if ($restored > 0) {
+            $step['changed'] += $restored;
+            $step['items'][] = [
+                'restored_from_leftover_masters' => $restored,
+                'covers' => (int) ($metaRestore['covers'] ?? 0),
+                'details' => $metaRestore['items'] ?? [],
+            ];
+        }
+    }
+
+    if ($step['changed'] === 0 && $remaining === 0 && empty($step['warnings'])) {
+        $step['skipped'] = 1;
     }
 
     return $step;
@@ -1365,7 +1454,8 @@ function bandpromo_content_autofix_backfill_visual_content_hashes(string $root, 
         return $step;
     }
 
-    $changed = bandpromo_asset_registry_backfill_visual_content_hashes($root, $registry, 20.0);
+    $hashBudget = bandpromo_content_autofix_step_budget_seconds(8.0);
+    $changed = bandpromo_asset_registry_backfill_visual_content_hashes($root, $registry, $hashBudget);
     if ($changed) {
         bandpromo_asset_write_registry($root, $registry);
     }
@@ -1614,8 +1704,19 @@ function bandpromo_content_autofix_run(string $root, bool $dryRun = false, strin
         'bandpromo_content_autofix_refresh_validation',
     ];
 
+    $deferredSteps = [];
     foreach ($pipeline as $callable) {
         $stepId = (string) preg_replace('/^bandpromo_content_autofix_/', '', $callable);
+        if (!$dryRun && bandpromo_content_autofix_should_yield(6.0)) {
+            $deferredSteps[] = $stepId;
+            bandpromo_content_autofix_log_write(
+                $root,
+                '~ defer ' . $stepId . ' — CPU budget low ('
+                . number_format(bandpromo_content_autofix_seconds_remaining(), 1)
+                . 's left); re-run Apply'
+            );
+            continue;
+        }
         bandpromo_content_autofix_log_step_start($root, $stepId, $callable);
         $started = microtime(true);
         try {
@@ -1634,10 +1735,29 @@ function bandpromo_content_autofix_run(string $root, bool $dryRun = false, strin
         }
     }
 
+    if ($deferredSteps !== []) {
+        $steps[] = bandpromo_content_autofix_step_result('deferred_for_budget', 'Deferred steps (re-run Apply)', [
+            'changed' => 0,
+            'skipped' => count($deferredSteps),
+            'items' => $deferredSteps,
+            'warnings' => [
+                'Host CPU time ran low; deferred '
+                . count($deferredSteps)
+                . ' step(s). Run Apply again to continue.',
+            ],
+        ]);
+        // Keep Preview noisy so the operator knows to continue.
+        $changedTotal = max(1, $changedTotal);
+    }
+
     $recommendBuild = !$dryRun && $changedTotal > 0;
     if ($recommendBuild) {
         bandpromo_mark_build_required('content_autofix');
     }
+
+    $partialNote = $deferredSteps !== []
+        ? ' Some steps were deferred because this host limits PHP CPU time — run Apply again until Preview goes quiet.'
+        : '';
 
     $report = [
         'ok' => true,
@@ -1646,13 +1766,15 @@ function bandpromo_content_autofix_run(string $root, bool $dryRun = false, strin
         'recommend_build' => $recommendBuild,
         'steps' => $steps,
         'errors' => $errors,
-        'has_warnings' => $errors !== [],
+        'has_warnings' => $errors !== [] || $deferredSteps !== [],
+        'deferred_steps' => $deferredSteps,
         'message' => $dryRun
             ? ($changedTotal > 0
                 ? 'Preview complete. Apply will perform the listed repairs. Preview again afterwards — a healthy catalogue should then show everything up to date.'
                 : 'Preview complete. Catalogue looks healthy — nothing to repair.')
             : ($changedTotal > 0
-                ? 'Catalogue repair finished. Preview again to confirm everything is up to date. bandPromo will refresh delivery files automatically when needed.'
+                ? 'Catalogue repair finished.' . $partialNote
+                    . ' Preview again to confirm. Missing visual thumbnails need Refresh site files, not another Repair pass.'
                 : 'Catalogue already matches the current registry and container links.'),
     ];
     bandpromo_content_autofix_log_finish($root, $report);

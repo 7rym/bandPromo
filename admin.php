@@ -783,10 +783,25 @@ if ($tab === 'analytics') {
             }
             ?>
             <?php if (!empty($catalogHealth['needs_attention']) && $currentUserRole === 'developer'): ?>
+            <?php
+            $catalogAttentionKind = (string) ($catalogHealth['attention_kind'] ?? 'repair');
+            $catalogCtaLabel = trim((string) ($catalogHealth['cta_label'] ?? ''));
+            if ($catalogCtaLabel === '') {
+                $catalogCtaLabel = $catalogAttentionKind === 'delivery'
+                    ? 'Open Refresh site files'
+                    : 'Open Repair catalogue';
+            }
+            ?>
             <div class="card welcome-catalog-repair-card" id="welcomeCatalogRepairCard">
-                <h2>🔧 Catalogue needs a repair pass</h2>
+                <h2><?php echo $catalogAttentionKind === 'delivery'
+                    ? '🖼️ Visuals need delivery files'
+                    : '🔧 Catalogue needs a repair pass'; ?></h2>
                 <p class="card-note">
+                    <?php if ($catalogAttentionKind === 'delivery'): ?>
+                    Developer-only: registry entries are present, but card/thumb delivery files have not been built yet. Use <strong>Refresh site files</strong> under System → Status — Repair catalogue will not create those thumbnails.
+                    <?php else: ?>
                     Developer-only: registry housekeeping that does not run on every page load. Preview and apply under System → Status. This does not publish the public site by itself.
+                    <?php endif; ?>
                 </p>
                 <?php if (!empty($catalogHealth['reasons']) && is_array($catalogHealth['reasons'])): ?>
                 <ul class="welcome-list">
@@ -796,7 +811,7 @@ if ($tab === 'analytics') {
                 </ul>
                 <?php endif; ?>
                 <div class="card-actions">
-                    <a class="btn btn-primary" href="<?php echo htmlspecialchars((string) ($catalogHealth['href'] ?? '?tab=system&amp;stab=deliverables#catalog-repair')); ?>">Open Repair catalogue</a>
+                    <a class="btn btn-primary" href="<?php echo htmlspecialchars((string) ($catalogHealth['href'] ?? '?tab=system&amp;stab=deliverables#catalog-repair')); ?>"><?php echo htmlspecialchars($catalogCtaLabel); ?></a>
                 </div>
             </div>
             <?php endif; ?>
@@ -3342,7 +3357,7 @@ if ($tab === 'analytics') {
                     <span id="environmentReportOverall" class="badge audit-status-badge status-neutral">Loading…</span>
                 </div>
                 <p id="environmentReportMessage" class="card-note">
-                    Collecting PHP, Python, ffmpeg, and launch-path facts for this install…
+                    Collecting PHP, Python, ffmpeg, disk/CPU/RAM probes, and launch-path facts for this install…
                 </p>
                 <div class="publish-actions-toolbar environment-report-actions">
                     <button type="button" id="environmentReportRefreshBtn" class="btn btn-primary">🔄 Refresh</button>

@@ -57,6 +57,42 @@ function bandpromo_catalog_repair_is_locked(string $root): bool
     return true;
 }
 
+/**
+ * Try to acquire the shared catalogue-repair lock (manual Repair + background prep).
+ * Stale locks older than 5 minutes are cleared first.
+ */
+function bandpromo_catalog_repair_try_acquire(string $root): bool
+{
+    if (bandpromo_catalog_repair_is_locked($root)) {
+        return false;
+    }
+
+    $lockPath = bandpromo_catalog_repair_lock_path($root);
+    $logDir = dirname($lockPath);
+    if (!is_dir($logDir) && !mkdir($logDir, 0777, true) && !is_dir($logDir)) {
+        return false;
+    }
+
+    // Exclusive create — fail if another process won the race.
+    $handle = @fopen($lockPath, 'x');
+    if ($handle === false) {
+        return false;
+    }
+
+    fwrite($handle, (string) getmypid() . "\n" . (string) time());
+    fclose($handle);
+
+    return true;
+}
+
+function bandpromo_catalog_repair_release(string $root): void
+{
+    $lockPath = bandpromo_catalog_repair_lock_path($root);
+    if (is_file($lockPath)) {
+        @unlink($lockPath);
+    }
+}
+
 function bandpromo_catalog_repair_should_run(string $root, array $reconcileResult = []): bool
 {
     if (bandpromo_catalog_repair_is_locked($root)) {
@@ -113,16 +149,12 @@ function bandpromo_catalog_repair_maybe_run(string $root, array $reconcileResult
         ];
     }
 
-    $lockPath = bandpromo_catalog_repair_lock_path($root);
-    $logDir = dirname($lockPath);
-    if (!is_dir($logDir) && !mkdir($logDir, 0777, true) && !is_dir($logDir)) {
+    if (!bandpromo_catalog_repair_try_acquire($root)) {
         return [
-            'status' => 'error',
-            'message' => 'Could not start catalogue preparation.',
+            'status' => 'running',
+            'message' => 'bandPromo is preparing uploads in the background.',
         ];
     }
-
-    @file_put_contents($lockPath, (string) time());
 
     try {
         $report = bandpromo_content_autofix_run($root, false, 'background');
@@ -163,6 +195,6 @@ function bandpromo_catalog_repair_maybe_run(string $root, array $reconcileResult
             'message' => $throwable->getMessage(),
         ];
     } finally {
-        @unlink($lockPath);
+        bandpromo_catalog_repair_release($root);
     }
 }

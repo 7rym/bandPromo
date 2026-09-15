@@ -13098,6 +13098,12 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     const tools = report.build_tools || {};
                     const exts = php.extensions || {};
                     const cache = tools.launch_diag_cache || null;
+                    const res = report.resources || {};
+                    const disk = res.disk || {};
+                    const phpMem = res.php_memory || {};
+                    const cpu = res.cpu || {};
+                    const ram = res.ram || {};
+                    const load = res.load_average || null;
                     const lines = [
                         'App version: ' + (app.version || '(unknown)'),
                         'Host: ' + (app.host || '(unknown)'),
@@ -13124,9 +13130,142 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                             + ' popen=' + (fns.popen ? 'yes' : 'no')
                             + ' putenv=' + (fns.putenv ? 'yes' : 'no'),
                         '',
-                        'Python: ' + (tools.python || '(not found on PATH)'),
-                        'ffmpeg: ' + (tools.ffmpeg || '(not found)'),
+                        'Resources (best-effort; shared hosts often hide machine hardware):',
                     ];
+                    if (res.uname) {
+                        lines.push('  uname: ' + res.uname);
+                    }
+                    if (res.architecture) {
+                        lines.push('  architecture: ' + res.architecture);
+                    }
+                    lines.push(
+                        '  Disk (install root): free ' + (disk.free_label || '(unknown)')
+                            + ' / total ' + (disk.total_label || '(unknown)')
+                    );
+                    if (disk.note) {
+                        lines.push('    (' + disk.note + ')');
+                    }
+                    lines.push(
+                        '  PHP memory: limit ' + (phpMem.limit || '(unknown)')
+                            + '; now ' + (phpMem.usage_label || '(unknown)')
+                            + '; peak ' + (phpMem.peak_label || '(unknown)')
+                    );
+                    if (phpMem.note) {
+                        lines.push('    (' + phpMem.note + ')');
+                    }
+                    if (load && typeof load === 'object') {
+                        lines.push(
+                            '  Load average: '
+                                + (load['1m'] != null ? load['1m'] : '?') + ' / '
+                                + (load['5m'] != null ? load['5m'] : '?') + ' / '
+                                + (load['15m'] != null ? load['15m'] : '?')
+                                + ' (1m / 5m / 15m)'
+                        );
+                    } else {
+                        lines.push('  Load average: (unavailable)');
+                    }
+                    if (cpu.available) {
+                        lines.push(
+                            '  CPU: '
+                                + (cpu.model || '(model unknown)')
+                                + (cpu.logical_cpus != null ? '; logical CPUs ' + cpu.logical_cpus : '')
+                                + (cpu.source ? ' [' + cpu.source + ']' : '')
+                        );
+                    } else {
+                        lines.push('  CPU: (unavailable on this host)');
+                    }
+                    if (ram.available) {
+                        lines.push(
+                            '  Host RAM: total ' + (ram.total_label || '(unknown)')
+                                + (ram.available_label && ram.available_label !== '(unavailable)'
+                                    ? '; available ' + ram.available_label
+                                    : '')
+                                + (ram.source ? ' [' + ram.source + ']' : '')
+                        );
+                        if (ram.note) {
+                            lines.push('    (' + ram.note + ')');
+                        }
+                    } else {
+                        lines.push('  Host RAM: (unavailable on this host)');
+                    }
+                    const resNotes = Array.isArray(res.notes) ? res.notes : [];
+                    resNotes.forEach((note) => {
+                        if (note) {
+                            lines.push('  Note: ' + note);
+                        }
+                    });
+                    const net = res.network || {};
+                    lines.push('');
+                    lines.push('Host network (egress) — not the login visitor speed test:');
+                    if (net.available === false && (!Array.isArray(net.latency) || net.latency.length === 0)) {
+                        lines.push('  (unavailable — outbound HTTPS blocked or not configured)');
+                    } else {
+                        const latencyRows = Array.isArray(net.latency) ? net.latency : [];
+                        latencyRows.forEach((row) => {
+                            if (!row) {
+                                return;
+                            }
+                            if (row.ok) {
+                                lines.push(
+                                    '  Latency ' + (row.label || row.id || 'target') + ': '
+                                        + (row.latency_ms != null ? row.latency_ms + ' ms' : '(unknown)')
+                                );
+                            } else {
+                                lines.push(
+                                    '  Latency ' + (row.label || row.id || 'target') + ': failed'
+                                        + (row.error ? ' (' + row.error + ')' : '')
+                                );
+                            }
+                        });
+                        const thr = net.throughput || null;
+                        if (thr && thr.ok) {
+                            lines.push(
+                                '  Throughput: '
+                                    + (thr.mbps != null ? thr.mbps + ' Mbps' : '(unknown)')
+                                    + ' (' + (thr.bytes_label || thr.bytes || '?')
+                                    + ' via ' + (thr.source || 'egress')
+                                    + (thr.elapsed_ms != null ? ' in ' + thr.elapsed_ms + ' ms' : '')
+                                    + ')'
+                            );
+                            if (thr.note) {
+                                lines.push('    (' + thr.note + ')');
+                            }
+                        } else if (thr) {
+                            lines.push(
+                                '  Throughput: unavailable'
+                                    + (thr.error ? ' (' + thr.error + ')' : '')
+                            );
+                        } else {
+                            lines.push('  Throughput: (not measured)');
+                        }
+                    }
+                    const netNotes = Array.isArray(net.notes) ? net.notes : [];
+                    netNotes.forEach((note) => {
+                        if (note) {
+                            lines.push('  Note: ' + note);
+                        }
+                    });
+                    const locks = report.locks || {};
+                    lines.push('');
+                    lines.push('Operator locks:');
+                    ['build', 'optimize', 'catalog_repair'].forEach((key) => {
+                        const lock = locks[key] || {};
+                        const label = lock.label || key;
+                        if (lock.active) {
+                            lines.push(
+                                '  ' + label + ': ACTIVE'
+                                    + (lock.mtime ? ' since ' + lock.mtime : '')
+                            );
+                        } else {
+                            lines.push('  ' + label + ': idle');
+                        }
+                    });
+                    if (locks.note) {
+                        lines.push('  Note: ' + locks.note);
+                    }
+                    lines.push('');
+                    lines.push('Python: ' + (tools.python || '(not found on PATH)'));
+                    lines.push('ffmpeg: ' + (tools.ffmpeg || '(not found)'));
                     if (cache) {
                         lines.push('');
                         lines.push('Launch diagnostics cache:');
@@ -13160,7 +13299,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                         bodyEl.hidden = false;
                         overallEl.className = 'badge audit-status-badge status-ok';
                         overallEl.textContent = 'Ready';
-                        messageEl.textContent = 'Host facts for this install (no secrets). Use Copy report when filing a hosting ticket.';
+                        messageEl.textContent = 'Host facts for this install (no secrets). Disk/CPU/RAM and host egress are best-effort — shared hosts often hide hardware or block outbound HTTPS. Use Copy report when filing a hosting ticket.';
                         if (statusEl) {
                             statusEl.textContent = 'Environment loaded.';
                         }

@@ -2500,13 +2500,25 @@ function bandpromo_asset_ensure_audio_display_after_upload(
  *                             (Publish path — do not overwrite operator-saved display).
  * @return array{changed:int, items: list<string>}
  */
-function bandpromo_asset_refresh_all_audio_displays(string $root, bool $onlyIncomplete = false): array
-{
-    bandpromo_asset_registry_ensure_migrated($root);
+function bandpromo_asset_refresh_all_audio_displays(
+    string $root,
+    bool $onlyIncomplete = false,
+    float $budgetSeconds = 0.0,
+    int $maxInspects = 0
+): array {
+    bandpromo_asset_registry_ensure_migrated($root, false);
 
+    $registry = bandpromo_asset_load_registry($root);
     $changed = 0;
     $items = [];
-    foreach (bandpromo_asset_load_registry($root)['assets'] as $asset) {
+    $remaining = 0;
+    $inspects = 0;
+    $started = microtime(true);
+    $budgetSeconds = $budgetSeconds > 0 ? $budgetSeconds : 0.0;
+    $maxInspects = $maxInspects > 0 ? $maxInspects : 0;
+    $stopWork = false;
+
+    foreach ($registry['assets'] as $assetId => $asset) {
         if (!is_array($asset) || ($asset['kind'] ?? '') !== 'audio') {
             continue;
         }
@@ -2516,19 +2528,49 @@ function bandpromo_asset_refresh_all_audio_displays(string $root, bool $onlyInco
             continue;
         }
 
+        $existingDisplay = is_array($asset['display'] ?? null) ? $asset['display'] : [];
         if ($onlyIncomplete && bandpromo_asset_audio_display_is_complete(bandpromo_asset_read_audio_display($asset))) {
             continue;
         }
 
-        if (bandpromo_asset_refresh_audio_display($root, $masterFile)) {
-            $changed++;
+        if ($stopWork
+            || ($maxInspects > 0 && $inspects >= $maxInspects)
+            || ($budgetSeconds > 0 && (microtime(true) - $started) >= $budgetSeconds)
+        ) {
+            $stopWork = true;
+            $remaining++;
+            continue;
+        }
+
+        $inspect = bandpromo_campaign_inspect_master_metadata($root, $masterFile);
+        $display = bandpromo_asset_build_audio_display_from_inspect($inspect, '', $existingDisplay);
+        $inspects++;
+        if (trim((string) ($display['title'] ?? '')) === '') {
+            $remaining++;
+            continue;
+        }
+
+        $existingCover = bandpromo_asset_normalize_media_ref((string) ($existingDisplay['cover'] ?? ''));
+        if ($existingCover !== '') {
+            $display['cover'] = $existingCover;
+        }
+
+        $registry['assets'][$assetId]['display'] = $display;
+        $changed++;
+        if (count($items) < 24) {
             $items[] = $masterFile;
         }
+    }
+
+    if ($changed > 0) {
+        bandpromo_asset_write_registry($root, $registry);
     }
 
     return [
         'changed' => $changed,
         'items' => $items,
+        'remaining' => $remaining,
+        'inspects' => $inspects,
     ];
 }
 

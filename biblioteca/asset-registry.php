@@ -2399,11 +2399,13 @@ function bandpromo_list_uncatalogued_audio_originals(string $root): array
  *
  * @return array{
  *   needs_attention: bool,
+ *   attention_kind: string,
  *   missing_image_delivery: int,
  *   missing_content_hash: int,
  *   legacy_audio_masters: int,
  *   reasons: list<string>,
- *   href: string
+ *   href: string,
+ *   cta_label: string
  * }
  */
 function bandpromo_asset_registry_health_snapshot(string $root): array
@@ -2417,11 +2419,13 @@ function bandpromo_asset_registry_health_snapshot(string $root): array
     } catch (Throwable $throwable) {
         return [
             'needs_attention' => true,
+            'attention_kind' => 'repair',
             'missing_image_delivery' => 0,
             'missing_content_hash' => 0,
             'legacy_audio_masters' => 0,
             'reasons' => ['Asset registry could not be read.'],
             'href' => '?tab=system&stab=deliverables#catalog-repair',
+            'cta_label' => 'Open Repair catalogue',
         ];
     }
 
@@ -2456,29 +2460,61 @@ function bandpromo_asset_registry_health_snapshot(string $root): array
     }
 
     $reasons = [];
-    if ($missingImageDelivery > 0) {
-        $reasons[] = $missingImageDelivery === 1
-            ? '1 visual is missing delivery thumbnails.'
-            : $missingImageDelivery . ' visuals are missing delivery thumbnails.';
-    }
-    if ($missingContentHash > 0) {
+    $needsRepair = $missingContentHash > 0 || $legacyAudioMasters > 0;
+    $needsDelivery = $missingImageDelivery > 0;
+
+    if ($needsRepair && $missingContentHash > 0) {
         $reasons[] = $missingContentHash === 1
             ? '1 visual is missing a content hash used for dedupe.'
             : $missingContentHash . ' visuals are missing content hashes used for dedupe.';
     }
-    if ($legacyAudioMasters > 0) {
+    if ($needsRepair && $legacyAudioMasters > 0) {
         $reasons[] = $legacyAudioMasters === 1
             ? '1 audio master still uses a legacy filename.'
             : $legacyAudioMasters . ' audio masters still use legacy filenames.';
     }
+    if ($needsDelivery) {
+        $reasons[] = $missingImageDelivery === 1
+            ? '1 visual is missing delivery thumbnails (build with Refresh site files).'
+            : $missingImageDelivery . ' visuals are missing delivery thumbnails (build with Refresh site files).';
+    }
+
+    // Prefer Repair CTA when registry housekeeping is needed; delivery-only → Refresh.
+    if ($needsRepair) {
+        return [
+            'needs_attention' => true,
+            'attention_kind' => 'repair',
+            'missing_image_delivery' => $missingImageDelivery,
+            'missing_content_hash' => $missingContentHash,
+            'legacy_audio_masters' => $legacyAudioMasters,
+            'reasons' => $reasons,
+            'href' => '?tab=system&stab=deliverables#catalog-repair',
+            'cta_label' => 'Open Repair catalogue',
+        ];
+    }
+
+    if ($needsDelivery) {
+        return [
+            'needs_attention' => true,
+            'attention_kind' => 'delivery',
+            'missing_image_delivery' => $missingImageDelivery,
+            'missing_content_hash' => $missingContentHash,
+            'legacy_audio_masters' => $legacyAudioMasters,
+            'reasons' => $reasons,
+            'href' => '?tab=system&stab=deliverables#publishActionsCard',
+            'cta_label' => 'Open Refresh site files',
+        ];
+    }
 
     return [
-        'needs_attention' => $reasons !== [],
-        'missing_image_delivery' => $missingImageDelivery,
-        'missing_content_hash' => $missingContentHash,
-        'legacy_audio_masters' => $legacyAudioMasters,
-        'reasons' => $reasons,
+        'needs_attention' => false,
+        'attention_kind' => 'none',
+        'missing_image_delivery' => 0,
+        'missing_content_hash' => 0,
+        'legacy_audio_masters' => 0,
+        'reasons' => [],
         'href' => '?tab=system&stab=deliverables#catalog-repair',
+        'cta_label' => 'Open Repair catalogue',
     ];
 }
 

@@ -45,6 +45,26 @@ $root = dirname(__DIR__);
 $stage = 'precheck';
 
 try {
+    require_once __DIR__ . '/build-lock.php';
+    require_once __DIR__ . '/catalog-repair-auto.php';
+
+    // Do not extract over a live Publish / Optimize / Repair — wait for that work to finish.
+    if (bandpromo_build_lock_active($root, 'full')) {
+        throw new RuntimeException(
+            'Site update cannot start while Publish / Refresh site files is running. Wait for it to finish, then try again.'
+        );
+    }
+    if (bandpromo_build_lock_active($root, 'optimize')) {
+        throw new RuntimeException(
+            'Site update cannot start while Optimize is running. Wait for it to finish, then try again.'
+        );
+    }
+    if (bandpromo_catalog_repair_is_locked($root)) {
+        throw new RuntimeException(
+            'Site update cannot start while Repair catalogue (or background catalogue preparation) is running. Wait for it to finish, then try again.'
+        );
+    }
+
     // Video delivery auto-retry can spin forever on broken hosts; clear it first so
     // package extraction is not fighting ffmpeg/python lock files.
     require_once __DIR__ . '/auto-build-tasks.php';

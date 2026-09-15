@@ -4,6 +4,7 @@ declare(strict_types=1);
 require_once __DIR__ . '/admin-audit.php';
 require_once __DIR__ . '/admin-api-guard.php';
 require_once __DIR__ . '/content-autofix-helpers.php';
+require_once __DIR__ . '/catalog-repair-auto.php';
 
 header('Content-Type: application/json; charset=utf-8');
 
@@ -31,6 +32,27 @@ if (!$dryRun) {
     ignore_user_abort(true);
 }
 
+if (!bandpromo_catalog_repair_try_acquire($root)) {
+    http_response_code(409);
+    echo json_encode([
+        'ok' => false,
+        'error' => 'Repair already running. Wait for the current Repair or background catalogue preparation to finish, then try again.',
+        'busy' => true,
+    ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+    exit;
+}
+
+// Fatal timeout can skip finally on some hosts — always release the shared lock.
+$repairLockReleased = false;
+$releaseRepairLock = static function () use ($root, &$repairLockReleased): void {
+    if ($repairLockReleased) {
+        return;
+    }
+    $repairLockReleased = true;
+    bandpromo_catalog_repair_release($root);
+};
+register_shutdown_function($releaseRepairLock);
+
 try {
     $report = bandpromo_content_autofix_run($root, $dryRun);
 
@@ -55,4 +77,6 @@ try {
         'ok' => false,
         'error' => $throwable->getMessage(),
     ]);
+} finally {
+    $releaseRepairLock();
 }

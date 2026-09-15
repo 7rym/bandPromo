@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-09-15 16:55 - HITZ Repair: stop Apply aborting in `sync_audio_display` on 30s CPU hosts — CPU-aware step budgets (hash backfill no longer spends ~20s), incomplete-only audio display refresh with batch registry write + inspect cap, defer remaining pipeline steps cleanly, always release repair lock on fatal timeout. Welcome: missing delivery thumbnails point to Refresh site files (Repair cannot build card/thumb variants).
+
+2026-09-15 16:30 - System → Environment: host egress latency/throughput probe (Cloudflare + GitHub; bounded ≤2 MB / ≤3 s; soft-fail when outbound blocked) labelled as distinct from the login visitor speed test; show Publish/Optimize/Repair lock status. Manual Repair Preview/Apply acquires `catalog-repair.lock` (409 when busy). Site update refuses while build, optimize, or catalogue-repair locks are active.
+
+2026-09-15 12:40 - System → Environment: best-effort host resource probes (disk free/total on install root, PHP memory usage, load average, `/proc` or shell CPU/RAM when allowed). Shared hosts that hide hardware show explicit unavailable notes.
+
 2026-09-15 11:45 - Published **v0.8.58 build 487** (`v0.8.58-build-487`): Repair Apply skips heavy SHA-256 migrate that aborted HITZ seed_containers under 30s CPU.
 
 2026-09-15 11:40 - Repair catalogue Apply: do not run heavy registry migrate (full SHA-256 of every visual) on shared hosts — HITZ aborted seed_containers at `hash_file` under php.ini 30s CPU. Prefer xxh3; bound SHA-256 to ≤12 MB; budget hash backfill; re-arm set_time_limit between steps.

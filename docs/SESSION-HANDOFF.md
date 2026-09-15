@@ -2,21 +2,24 @@
 
 ## Resume point
 
-**Published `v0.8.58 build 487`** (`v0.8.58-build-487`) — Repair Apply no longer dies hashing every visual master under HITZ’s 30s CPU limit.
+Published checkpoint covering **HITZ Repair CPU budget** + **Environment host egress / multi-operator locks** (this session). HITZ should Site-update, then:
 
-### On HITZ
+1. **Repair Apply** (may need 2–3 passes until Preview is quiet — deferred steps are intentional on 30s hosts).
+2. **Refresh site files** for the ~449 missing delivery thumbnails (Repair does not build card/thumb variants).
+3. Confirm Welcome no longer mis-routes delivery-only gaps to Repair; Environment shows egress + lock status.
 
-1. Site update to **487**.
-2. Repair Apply again (re-run if hash backfill warns pending remain).
-3. Refresh site files for covers.
-4. Confirm Files → Audio / Brand assets / player covers.
+### Shipped in this checkpoint
+
+- Repair: CPU-aware yield / step budgets; incomplete-only audio display sync; lock release on fatal timeout.
+- Environment: host egress probe; build/optimize/repair lock status.
+- Site update refuses while Publish / Optimize / Repair locks are held; Manual Repair shares `catalog-repair.lock`.
 
 ### Active fleet
 
 | Host | Persona |
 |------|---------|
 | bandpromo.site | Vanilla |
-| hitz.no | HITZ (apply 487) |
+| hitz.no | HITZ |
 | spandexualtension.com | Band / release sequence |
 
 ### Local workspace
