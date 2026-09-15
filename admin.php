@@ -2883,23 +2883,25 @@ if ($tab === 'analytics') {
             <div id="publishActionsCard" class="card publish-actions-card">
                 <div class="build-validation-head">
                     <h3>🔄 Refresh site files</h3>
+                    <span id="publishRefreshChip" class="badge audit-status-badge status-neutral">Ready</span>
                 </div>
                 <p class="card-note">
-                    Rebuilds listener-facing streaming files, covers, and playlists from what you already saved. Not required after a normal upload or playlist save. Site update may start this automatically.
+                    Prepares listener-facing streaming files, covers, and playlists from what you already saved. Not required after a normal upload or playlist save. Safe to leave this page while it runs.
                 </p>
+                <p id="publishJobStatus" class="build-log-status publish-action-status" hidden></p>
                 <div class="publish-actions-toolbar">
-                    <button type="button" id="buildBtn" class="btn btn-primary">Refresh site files</button>
+                    <button type="button" id="buildBtn" class="btn">Refresh site files</button>
                     <button type="button" id="buildStopBtn" class="btn" hidden>Stop</button>
-                    <button type="button" id="recommendedBuildBtn" class="btn" style="display:none"></button>
+                    <button type="button" id="recommendedBuildBtn" class="btn" style="display:none" hidden></button>
                 </div>
             </div>
 
             <details id="build-log-card" class="card deliverables-log-card">
                 <summary class="deliverables-log-summary">
-                    <span>📋 Build log</span>
+                    <span>📋 Peek under the hood</span>
                     <span class="build-log-meta">
                         <button type="button" id="buildLogCopyBtn" class="btn">Copy log</button>
-                        <span id="buildSpinner" class="build-log-spinner" style="display:none">⏳ Building…</span>
+                        <span id="buildSpinner" class="build-log-spinner" style="display:none">⏳ Working…</span>
                         <span id="buildStatus" class="build-log-status"></span>
                     </span>
                 </summary>

@@ -3597,21 +3597,16 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 currentBuildTasks = Array.isArray(tasks) ? tasks : [];
 
                 refreshBuildActionCopy();
-
-                if (!recommendedBuildBtn) return;
-                // Never advertise "Recommended: Refresh" while Refresh is already running.
+                // Recommended is a chip on the Refresh card — not a second competing CTA.
+                hideRecommendedBuildChrome();
                 if (buildSessionActive || pollTimer || buildLaunchPending) {
-                    hideRecommendedBuildChrome();
                     return;
                 }
-                if (!currentBuildRequired) {
-                    hideRecommendedBuildChrome();
-                    return;
+                if (currentBuildRequired) {
+                    setPublishRefreshChip('recommended');
+                } else if (publishRefreshChip && !/Did not finish|Stopped|Working/i.test(publishRefreshChip.textContent || '')) {
+                    setPublishRefreshChip('ready');
                 }
-
-                recommendedBuildBtn.hidden = false;
-                recommendedBuildBtn.style.display = '';
-                recommendedBuildBtn.textContent = `⚡ Recommended: ${getBuildActionLabel()}`;
             }
 
             let renderPackageUpdateStatus = null;
@@ -11802,6 +11797,9 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
             const publishStatusCard = document.getElementById('publishStatusCard');
             const publishStatusSummary = document.getElementById('publishStatusSummary');
             const publishStatusOverall = document.getElementById('publishStatusOverall');
+            const publishRefreshChip = document.getElementById('publishRefreshChip');
+            const publishJobStatus = document.getElementById('publishJobStatus');
+            const BUILD_HEARTBEAT_STUCK_SECONDS = 120;
             let pollTimer      = null;
             let currentRunMode = 'full';
             let currentBuildTasks = [];
@@ -11812,6 +11810,79 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
             // True while waiting for build.php to create the lock (avoid false "finished").
             let buildLaunchPending = false;
             let buildLastLogMtime = 0;
+
+            function setPublishRefreshChip(state, label) {
+                if (!publishRefreshChip) {
+                    return;
+                }
+                const map = {
+                    ready: ['Ready', 'status-neutral'],
+                    recommended: ['Tune-up recommended', 'status-warning'],
+                    running: ['Working', 'status-neutral'],
+                    stopped: ['Stopped', 'status-neutral'],
+                    failed: ['Did not finish', 'status-error'],
+                    success: ['Up to date', 'status-ok'],
+                };
+                const pair = map[state] || map.ready;
+                publishRefreshChip.textContent = label || pair[0];
+                publishRefreshChip.className = 'badge audit-status-badge ' + pair[1];
+            }
+
+            function setPublishJobStatus(text, options = {}) {
+                if (!publishJobStatus) {
+                    return;
+                }
+                const value = String(text || '').trim();
+                if (!value) {
+                    publishJobStatus.hidden = true;
+                    publishJobStatus.textContent = '';
+                    publishJobStatus.style.color = '';
+                    return;
+                }
+                publishJobStatus.hidden = false;
+                publishJobStatus.textContent = value;
+                if (options.color) {
+                    publishJobStatus.style.color = options.color;
+                } else {
+                    publishJobStatus.style.color = '';
+                }
+            }
+
+            function formatBuildJobProgress(data) {
+                const job = data && data.job && typeof data.job === 'object' ? data.job : {};
+                const message = String(job.message || '').trim();
+                const age = Number(job.heartbeat_age_s);
+                const ageKnown = Number.isFinite(age) && age >= 0;
+                if (ageKnown && age >= BUILD_HEARTBEAT_STUCK_SECONDS) {
+                    const minutes = Math.max(2, Math.floor(age / 60));
+                    return {
+                        text: 'No updates for ' + minutes + ' min — may be stuck. You can Stop.',
+                        stuck: true,
+                    };
+                }
+                if (message) {
+                    if (ageKnown) {
+                        return {
+                            text: 'Working — ' + message + ' · updated ' + age + 's ago · safe to leave this page',
+                            stuck: false,
+                        };
+                    }
+                    return {
+                        text: 'Working — ' + message + ' · safe to leave this page',
+                        stuck: false,
+                    };
+                }
+                return {
+                    text: 'Working — preparing site files · safe to leave this page',
+                    stuck: false,
+                };
+            }
+
+            function logLooksLikeIncompleteRun(content) {
+                const text = String(content || '');
+                return /did not finish \(no running process/i.test(text)
+                    || /Cleared stale .+ lock/i.test(text);
+            }
 
             async function copyBuildLog() {
                 if (!buildLog || !buildLogCopyBtn) {
@@ -11896,21 +11967,10 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 if (buildBtn) {
                     buildBtn.textContent = 'Refresh site files';
                 }
-                if (buildHelpBox) {
-                    if (currentBuildRequired) {
-                        const tasks = formatBuildTaskList({ tasks: currentBuildTasks });
-                        const actionLabel = getBuildActionLabel();
-                        const taskLine = tasks.length
-                            ? `Pending now: <strong>${bandpromoAdminEscapeHtml(tasks.join(' · '))}</strong>.`
-                            : 'Pending now: bandPromo still has delivery work to finish.';
-                        const afterPackageUpdate = currentBuildReasons.includes('package_update');
-                        const intro = afterPackageUpdate
-                            ? 'Site update preserved your content. Refreshing site files is the normal next step so listeners get the new version.'
-                            : `${actionLabel} is the recommended next step for the current pending work.`;
-                        buildHelpBox.innerHTML = `${intro} ${taskLine} Jobs continue in the background while this log updates.`;
-                    } else {
-                        buildHelpBox.innerHTML = 'Uploads and saves usually prepare streaming files on their own. Use <strong>Refresh site files</strong> only if something is missing or after a Site update.';
-                    }
+                // Keep help calm — do not rewrite it into an urgency banner.
+                if (buildHelpBox && currentBuildRequired === false) {
+                    buildHelpBox.innerHTML = 'This page is the health of your catalogue: campaigns, playlists, tracks, and whether those tracks can stream.<br><br>'
+                        + 'Uploads and saves usually prepare streaming files automatically. Use <strong>Refresh site files</strong> if something is missing or after a Site update.';
                 }
             }
 
@@ -12216,12 +12276,42 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     buildStopBtn.disabled = false;
                 }
                 if (buildSpinner) buildSpinner.style.display = 'none';
-                if (buildStatus) {
-                    const successLabel = '✅ Deliverables rebuild complete!';
-                    const failLabel = '❌ Deliverables rebuild failed.';
-                    buildStatus.textContent = success === true ? successLabel : success === false ? failLabel : '';
-                    buildStatus.style.color = success === true ? 'var(--success, #4ade80)' : '#f55';
-                    buildStatus.removeAttribute('data-mode');
+                const incomplete = logLooksLikeIncompleteRun(buildLog ? buildLog.textContent : '');
+                const stopped = /PUBLISH STOPPED|STOPPED BY OPERATOR|Stop requested|Preparation stopped/i.test(
+                    String(buildLog ? buildLog.textContent : '')
+                );
+                if (stopped) {
+                    setPublishRefreshChip('stopped');
+                    setPublishJobStatus('Stopped. Start again when you are ready.');
+                    if (buildStatus) {
+                        buildStatus.textContent = 'Stopped';
+                        buildStatus.style.color = '';
+                        buildStatus.removeAttribute('data-mode');
+                    }
+                } else if (success === true && !incomplete) {
+                    setPublishRefreshChip('success');
+                    setPublishJobStatus('Tune-up finished. Listener files are up to date.', { color: 'var(--success, #4ade80)' });
+                    if (buildStatus) {
+                        buildStatus.textContent = 'Finished';
+                        buildStatus.style.color = 'var(--success, #4ade80)';
+                        buildStatus.removeAttribute('data-mode');
+                    }
+                } else if (success === false || incomplete) {
+                    setPublishRefreshChip('failed');
+                    setPublishJobStatus('That tune-up did not finish. Peek under the hood for details, then try again.', { color: '#f55' });
+                    if (buildStatus) {
+                        buildStatus.textContent = 'Did not finish';
+                        buildStatus.style.color = '#f55';
+                        buildStatus.removeAttribute('data-mode');
+                    }
+                } else {
+                    setPublishRefreshChip(currentBuildRequired ? 'recommended' : 'ready');
+                    setPublishJobStatus('');
+                    if (buildStatus) {
+                        buildStatus.textContent = '';
+                        buildStatus.style.color = '';
+                        buildStatus.removeAttribute('data-mode');
+                    }
                 }
                 // Re-evaluate Recommended / nudge only after the run ends.
                 setBuildRequiredNudge(currentBuildRequired, currentBuildReasons, currentBuildAction, currentBuildTasks);
@@ -12232,6 +12322,8 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 currentRunMode = mode === 'optimize' ? 'optimize' : 'full';
                 buildSessionActive = true;
                 hideRecommendedBuildChrome();
+                setPublishRefreshChip('running');
+                setPublishJobStatus('Working — starting… · safe to leave this page');
                 if (pollTimer) {
                     return;
                 }
@@ -12298,6 +12390,9 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                         const content = String(data.content || '');
                         const looksFresh = /\[setup\] Preparing your site for publish/i.test(content)
                             || /\[setup\] Starting publish build/i.test(content)
+                            || /\[setup\] Starting in the background/i.test(content)
+                            || /\[setup\] Starting Python pipeline/i.test(content)
+                            || /\[prep\]/i.test(content)
                             || (data.is_running === true && content.trim() === '')
                             || (data.is_running === true
                                 && content.length < 400
@@ -12317,21 +12412,13 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     if (mtime > 0) {
                         buildLastLogMtime = mtime;
                     }
-                    if (buildSessionActive && buildStatus && buildStatus.dataset.mode !== 'nudge') {
-                        const age = buildLastLogMtime > 0
-                            ? Math.max(0, Math.floor(Date.now() / 1000) - buildLastLogMtime)
-                            : 0;
-                        if (data.is_running || buildLaunchPending) {
-                            buildStatus.style.color = '';
-                            if (buildLaunchPending && !data.is_running) {
-                                buildStatus.textContent = 'Starting… preparing catalogue on the server';
-                            } else if (age >= 8) {
-                                buildStatus.textContent = 'Still working… ('
-                                    + age
-                                    + 's since last log line — normal during launch / catalogue)';
-                            } else {
-                                buildStatus.textContent = 'Running…';
-                            }
+                    if (buildSessionActive && (data.is_running || buildLaunchPending)) {
+                        const progress = formatBuildJobProgress(data);
+                        setPublishRefreshChip('running');
+                        setPublishJobStatus(progress.text, progress.stuck ? { color: '#f0b429' } : {});
+                        if (buildStatus && buildStatus.dataset.mode !== 'nudge') {
+                            buildStatus.style.color = progress.stuck ? '#f0b429' : '';
+                            buildStatus.textContent = progress.stuck ? 'May be stuck' : 'Working…';
                         }
                     }
 
