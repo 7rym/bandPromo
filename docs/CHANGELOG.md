@@ -2,6 +2,8 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-09-16 23:00 - Site update: stop marking `package_update` as build-required (redundant Notifications “tune-up / Quick health check” while auto Quick check runs). Clear leftover `package_update` when Site health starts; close the notifications modal on auto-start.
+
 2026-09-16 22:50 - Site update auto Quick check: start from sessionStorage flash too (pre-update admin.js often redirected without `run_recommended=1`). Retry start until Site health UI is ready; site-health-admin.js also auto-starts after Status load.
 
 2026-09-16 22:40 - Operator deliverable counts: Activity / build summaries use **built / kept / failed** (kept = fingerprint matched, existing file left alone). Internal BUILD_STATS key remains `fresh` for parsers.

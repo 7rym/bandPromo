@@ -1706,21 +1706,10 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 const action = 'full';
                 const actionLabel = getBuildActionLabel();
 
+                // Site update auto-starts Quick health check — do not also nag
+                // “run a Quick health check” in Notifications.
                 if (afterPackageUpdate) {
-                    return {
-                        severity: 'fix-before-publish',
-                        title: 'Site update installed — tune-up recommended',
-                        file: '',
-                        checkedAt: String(buildState.updated_at || '').trim(),
-                        details: [
-                            { text: 'Your content and settings were preserved. Open Site health and run a Quick health check so listeners stay current after the update.' },
-                            ...(taskDetails.length ? [{ text: `Pending: ${taskDetails.join('; ')}.` }] : []),
-                        ],
-                        actions: [
-                            { label: actionLabel, action: 'run-recommended-build' },
-                            { label: 'Open Site health', href: buildBuildTabUrl() },
-                        ],
-                    };
+                    return null;
                 }
 
                 if (setupComplete) {
@@ -12073,6 +12062,12 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     attempts += 1;
                     const runResult = startSiteHealthQuickCheck();
                     if (runResult === 'started' || runResult === 'already-running') {
+                        if (typeof closeOperatorNotifications === 'function') {
+                            closeOperatorNotifications();
+                        }
+                        if (typeof refreshBuildRequiredState === 'function') {
+                            refreshBuildRequiredState({ full: true }).catch(() => {});
+                        }
                         if (postUpdateVersion !== null) {
                             showPostPackageUpdateToast(postUpdateVersion, runResult);
                         } else if (typeof showAdminToast === 'function') {

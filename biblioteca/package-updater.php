@@ -512,7 +512,10 @@ function bandpromo_package_run_post_update_tasks(string $root, array $applyResul
     // in bandPromo.zip; campaign media arrives via PCF at setup (or operator import).
     // When the durable demo-content package moved since this install's marker,
     // refresh the locked platform demo so older hosts pick up new standards.
-    $buildRequired = bandpromo_mark_build_required('package_update');
+    // Site health Check/Treat is the normal post-update follow-up (auto Quick check).
+    // Do not mark package_update as build-required — that only creates a redundant
+    // Notifications “tune-up recommended / run Quick health check” card.
+    $buildRequired = bandpromo_clear_build_required_reasons(['package_update']);
     $demoRefresh = bandpromo_package_refresh_demo_prp_if_needed($root);
     $legacyRelocate = bandpromo_package_relocate_legacy_visual_intake($root);
     $installMigrations = bandpromo_install_migrations_run_after_update($root, $applyResult);

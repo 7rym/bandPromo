@@ -218,6 +218,47 @@ function bandpromo_mark_build_required(string $reason): array {
     return $state;
 }
 
+/**
+ * Drop named reasons and rebuild tasks from what remains.
+ *
+ * @param list<string> $reasonsToClear
+ */
+function bandpromo_clear_build_required_reasons(array $reasonsToClear): array
+{
+    $clear = [];
+    foreach ($reasonsToClear as $reason) {
+        $reason = trim((string) $reason);
+        if ($reason !== '') {
+            $clear[$reason] = true;
+        }
+    }
+    if ($clear === []) {
+        return bandpromo_get_build_required_state();
+    }
+
+    $state = bandpromo_get_build_required_state();
+    $reasons = [];
+    foreach ((isset($state['reasons']) && is_array($state['reasons']) ? $state['reasons'] : []) as $reason) {
+        $reason = (string) $reason;
+        if (isset($clear[$reason])) {
+            continue;
+        }
+        $reasons[] = $reason;
+    }
+    $tasks = bandpromo_collect_tasks_for_reasons($reasons);
+    $next = [
+        'required' => !empty($tasks),
+        'action' => bandpromo_max_action_for_tasks($tasks),
+        'updated_at' => gmdate('c'),
+        'reasons' => array_values($reasons),
+        'tasks' => $tasks,
+        'last_error' => !empty($tasks) ? (string) ($state['last_error'] ?? '') : '',
+    ];
+    bandpromo_write_build_required_state($next);
+
+    return $next;
+}
+
 function bandpromo_set_build_required_last_error(string $message): array
 {
     $state = bandpromo_get_build_required_state();

@@ -465,6 +465,9 @@
                 } catch (error) {
                     // Ignore.
                 }
+                if (typeof window.closeOperatorNotifications === 'function') {
+                    window.closeOperatorNotifications();
+                }
                 return;
             }
             await new Promise((resolve) => setTimeout(resolve, 250));
