@@ -96,12 +96,12 @@ def _add_content_dedupe_findings(plan, registry):
     clusters = dedupe.find_content_hash_clusters(registry, progress_cb=_progress)
     stats = getattr(dedupe.find_content_hash_clusters, 'last_stats', {}) or {}
     log.info(
-        'Content scan: {0} candidates; audio duration-groups={1} '
-        '(skipped no-duration {2}); video groups={3} (skipped {4}); '
+        'Content scan: {0} candidates; audio stream-groups={1} '
+        '(fingerprinted {2}); video groups={3} (skipped no-duration {4}); '
         'still dim-groups={5}; demux attempts={6}; stills hashed={7}.'.format(
             stats.get('candidates', 0),
-            stats.get('audio_multi_duration_groups', 0),
-            stats.get('audio_skipped_no_duration', 0),
+            stats.get('audio_multi_stream_groups', 0),
+            stats.get('audio_fingerprinted', 0),
             stats.get('video_multi_duration_groups', 0),
             stats.get('video_skipped_no_duration', 0),
             stats.get('still_multi_dim_groups', 0),

@@ -4,10 +4,10 @@ Duplicate master detection for Site health.
 
 Quick: same byte-size buckets → whole-file XXH3 clusters.
 Full: content fingerprints ignoring tags/metadata:
-  - audio / video: ffmpeg stream-copy demux into temp/, then XXH3 of the
-    shared prefix (truncated to the shortest demux dump in the candidate group)
+  - audio: full demux-copy hash of the audio elementary stream (no duration gate;
+    dual ID3/APE artwork cannot hide identical bitstreams)
+  - video: duration bucket → demux-copy into temp/, hash shared prefix
   - stills: Pillow RGB pixels within matching pixel dimensions
-Audio/video Full only compares within the same integer duration (seconds) bucket.
 
 Keep policy: campaign/playlist/brand/gallery/page refs win; if two+ members are
 campaign-linked (or otherwise hard-referenced), cluster is conflict (warn only).
@@ -244,6 +244,102 @@ def _ensure_dedupe_temp_root():
     except Exception:
         return ''
     return SITE_HEALTH_TEMP_DIR
+
+
+def _demux_stream_fingerprint(src_path, stream_map):
+    """
+    XXH3 of the full stream-copied elementary stream (tags/container ignored).
+
+    Returns (digest_hex, byte_count). Empty digest on failure.
+    Hashes stdout — no temp file; dual ID3/APE artwork cannot change the result.
+    """
+    ffmpeg = _resolve_ffmpeg()
+    if not ffmpeg or xxhash is None or not src_path or not os.path.isfile(src_path):
+        return '', 0
+    try:
+        proc = subprocess.Popen(
+            [
+                ffmpeg, '-nostdin', '-hide_banner', '-loglevel', 'error',
+                '-i', src_path,
+                '-map', stream_map,
+                '-c', 'copy',
+                '-f', 'data',
+                '-',
+            ],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.DEVNULL,
+        )
+    except Exception:
+        return '', 0
+    hasher = xxhash.xxh3_64()
+    total = 0
+    stdout = proc.stdout
+    if stdout is None:
+        try:
+            proc.kill()
+        except Exception:
+            pass
+        return '', 0
+    try:
+        while True:
+            chunk = stdout.read(1024 * 1024)
+            if not chunk:
+                break
+            hasher.update(chunk)
+            total += len(chunk)
+        proc.wait()
+    except Exception:
+        try:
+            proc.kill()
+        except Exception:
+            pass
+        return '', 0
+    if total <= 0:
+        return '', 0
+    digest = hasher.hexdigest().lower()
+    if not digest or digest == ('0' * len(digest)):
+        return '', 0
+    return digest, total
+
+
+def _cluster_audio_by_stream_hash(members, progress_cb=None, progress_state=None):
+    """
+    Full-audio path: demux-copy hash every member (no duration pre-bucket).
+
+    Same compressed audio with different ID3/APE/artwork → identical digest.
+    True remasters / different encodes → different digest.
+    """
+    if xxhash is None or not members:
+        return []
+    by_digest = defaultdict(list)
+    for asset in members:
+        if progress_state is not None and progress_cb:
+            progress_state['current'] = progress_state.get('current', 0) + 1
+            current = progress_state['current']
+            total = progress_state.get('total') or current
+            if current == 1 or current % 5 == 0 or current == total:
+                progress_cb(current, total)
+        path = _master_path(asset)
+        if not path or not os.path.isfile(path):
+            continue
+        digest, nbytes = _demux_stream_fingerprint(path, '0:a:0')
+        if not digest:
+            continue
+        # Include byte count so a pathological hash collision across sizes is split.
+        key = '{0}:{1}'.format(nbytes, digest)
+        by_digest[key].append(asset)
+
+    clusters = []
+    for digest, group in by_digest.items():
+        if len(group) < 2:
+            continue
+        clusters.append({
+            'digest': digest,
+            'members': group,
+            'kind': 'audio',
+        })
+    clusters.sort(key=lambda c: (-len(c['members']), c.get('digest') or ''))
+    return clusters
 
 
 def _demux_copy_to_file(src_path, stream_map, dest_path, max_bytes):
@@ -710,18 +806,18 @@ def find_file_hash_clusters(registry, progress_cb=None):
 
 def find_content_hash_clusters(registry, progress_cb=None):
     """
-    Full path: content fingerprints only inside cheap pre-buckets.
+    Full path: content fingerprints ignoring tags/metadata.
 
-    Audio: same duration → demux-copy audio stream to temp/, hash min shared bytes.
-    Video: same duration → demux-copy video stream to temp/, hash min shared bytes.
+    Audio: demux-copy hash of the full audio elementary stream for every
+    candidate (no duration pre-bucket — dual ID3/APE artwork must not hide clones).
+    Video: same integer duration → demux-copy to temp/, hash min shared bytes.
     Stills: same pixel width×height → RGB hash.
-    Singletons never touch ffmpeg/Pillow.
     """
     stats = {
         'candidates': 0,
-        'audio_skipped_no_duration': 0,
+        'audio_fingerprinted': 0,
+        'audio_multi_stream_groups': 0,
         'video_skipped_no_duration': 0,
-        'audio_multi_duration_groups': 0,
         'video_multi_duration_groups': 0,
         'still_multi_dim_groups': 0,
         'demuxed': 0,
@@ -734,18 +830,14 @@ def find_content_hash_clusters(registry, progress_cb=None):
         return []
     assets = _candidate_assets(registry)
     stats['candidates'] = len(assets)
-    audio_by_duration = defaultdict(list)
+    audio_assets = []
     video_by_duration = defaultdict(list)
     still_by_dims = defaultdict(list)
     for asset in assets:
         kind = str(asset.get('kind') or '').strip().lower()
         media_type = str(asset.get('media_type') or '').strip().lower()
         if kind == 'audio':
-            duration = _asset_duration_sec(asset)
-            if duration <= 0:
-                stats['audio_skipped_no_duration'] += 1
-                continue
-            audio_by_duration[duration].append(asset)
+            audio_assets.append(asset)
             continue
         if kind == 'visual' and media_type == 'video':
             duration = _asset_duration_sec(asset)
@@ -768,23 +860,22 @@ def find_content_hash_clusters(registry, progress_cb=None):
                 continue
             still_by_dims[dims].append(asset)
 
-    audio_groups = [g for g in audio_by_duration.values() if len(g) >= 2]
     video_groups = [g for g in video_by_duration.values() if len(g) >= 2]
     still_groups = [g for g in still_by_dims.values() if len(g) >= 2]
-    stats['audio_multi_duration_groups'] = len(audio_groups)
     stats['video_multi_duration_groups'] = len(video_groups)
     stats['still_multi_dim_groups'] = len(still_groups)
 
-    demux_total = sum(len(g) for g in audio_groups) + sum(len(g) for g in video_groups)
+    demux_total = len(audio_assets) + sum(len(g) for g in video_groups)
     still_total = sum(len(g) for g in still_groups)
     progress_state = {'current': 0, 'total': max(1, demux_total + still_total)}
 
     try:
         import log as health_log
         health_log.info(
-            'Content buckets ready: {0} audio duration-group(s), {1} video group(s), '
-            '{2} still dim-group(s); fingerprinting up to {3} master(s)...'.format(
-                len(audio_groups),
+            'Content buckets ready: {0} audio (full demux-hash, no duration gate), '
+            '{1} video duration-group(s), {2} still dim-group(s); '
+            'fingerprinting up to {3} master(s)...'.format(
+                len(audio_assets),
                 len(video_groups),
                 len(still_groups),
                 demux_total + still_total,
@@ -794,16 +885,18 @@ def find_content_hash_clusters(registry, progress_cb=None):
         pass
 
     clusters = []
-    for group in audio_groups:
+    if audio_assets:
         before = progress_state['current']
-        clusters.extend(
-            _cluster_demux_group(
-                group, '0:a:0', 'audio',
-                progress_cb=progress_cb,
-                progress_state=progress_state,
-            )
+        audio_clusters = _cluster_audio_by_stream_hash(
+            audio_assets,
+            progress_cb=progress_cb,
+            progress_state=progress_state,
         )
-        stats['demuxed'] += max(0, progress_state['current'] - before)
+        clusters.extend(audio_clusters)
+        stats['audio_fingerprinted'] = max(0, progress_state['current'] - before)
+        stats['audio_multi_stream_groups'] = len(audio_clusters)
+        stats['demuxed'] += stats['audio_fingerprinted']
+
     for group in video_groups:
         before = progress_state['current']
         clusters.extend(

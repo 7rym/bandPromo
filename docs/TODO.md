@@ -128,7 +128,7 @@ Source of truth: [BUILD-PIPELINE-PLAN.md](BUILD-PIPELINE-PLAN.md). Doctor Status
 - [x] **Retire `stage_exec` bridge** from Status Treat/Force — deleted `stage_exec.py` (2026-09-16).
 - [x] **Duplicate masters (Quick + Full)** — Quick: size + file XXH3; Full: PCM/RGB content fingerprint; Review → Apply keeps campaign-linked, removes safe clones; conflict clusters warn only (2026-09-16).
 - [ ] **Cover extract** as part of treat_audio (plan: tags/covers) — C chip / embedded artwork → visual cover ref where safe.
-- [ ] **Fleet acceptance** — HITZ Full check after publish should surface Cleaning House / Remixes content clones; re-smoke Force on Vanilla/Spandexual after Status UX publish.
+- [ ] **Fleet acceptance** — HITZ Full check after publish (full audio demux-hash, no duration gate) should surface Cleaning House dual-tag / Remastered clones when streams match; re-smoke Force on Vanilla/Spandexual after Status UX publish.
 
 ## v0.8 management slice (Brand + Visual pool + content AI)
 

@@ -2,6 +2,8 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-09-16 19:35 - Site health Full audio dedupe: hash the full demux-copied audio stream (no duration pre-bucket) so dual ID3/APE artwork clones with different file sizes/tag durations still match; video keeps duration buckets.
+
 2026-09-16 19:25 - Site health dedupe Apply: collapse loser→keeper chains before delete (file-hash keeper must not be deleted while still referenced as an intermediate); retarget all then delete; Files visual index rebuild strips stale rows (fixes broken Unused thumbs after mass dedupe).
 
 2026-09-16 19:15 - Site health dedupe Apply: only remove the probe class on the Review plan (file-hash after Quick; content demux only if Full put it on the plan). No silent Full fingerprint during Treat after a Quick Review; Activity suggests optional Full check afterward.
