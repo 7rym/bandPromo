@@ -11,6 +11,7 @@ header('Content-Type: application/json; charset=utf-8');
 
 $root = dirname(__DIR__);
 $logFile = $root . '/log/site-health.log';
+$runnerLogFile = $root . '/log/site-health.runner.log';
 $lockFile = $root . '/log/site-health.lock';
 $metaFile = $root . '/log/site-health.meta.json';
 $planFile = $root . '/data/site-health-plan.json';
@@ -36,7 +37,15 @@ if (is_file($logFile)) {
 }
 
 $exitCode = null;
-if (preg_match('/\nEXITCODE:(\-?\d+)\s*$/', $log, $m)) {
+$runnerLog = '';
+if (is_file($runnerLogFile)) {
+    $rawRunner = @file_get_contents($runnerLogFile);
+    $runnerLog = is_string($rawRunner) ? $rawRunner : '';
+}
+if (preg_match('/\nEXITCODE:(\-?\d+)\s*$/', $runnerLog, $m)) {
+    $exitCode = (int) $m[1];
+} elseif (preg_match('/\nEXITCODE:(\-?\d+)\s*$/', $log, $m)) {
+    // Legacy: older builds wrote EXITCODE into the Activity log.
     $exitCode = (int) $m[1];
     $log = (string) preg_replace('/\nEXITCODE:\-?\d+\s*$/', '', $log);
 }

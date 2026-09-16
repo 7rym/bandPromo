@@ -31,7 +31,7 @@ import plan as plan_mod  # noqa: E402
 import triage  # noqa: E402
 import investigate  # noqa: E402
 import followup  # noqa: E402
-from paths import META_NAME, ROOT_DIR  # noqa: E402
+from paths import LOG_PATH, META_NAME, ROOT_DIR  # noqa: E402
 from stopflag import clear_stop, stop_requested  # noqa: E402
 
 try:
@@ -230,6 +230,7 @@ def main(argv=None):
     args = parser.parse_args(argv)
 
     clear_stop()
+    log.begin_run(LOG_PATH)
     write_job_meta(ROOT_DIR, {
         'status': 'running',
         'mode': args.mode,
@@ -254,6 +255,7 @@ def main(argv=None):
             'status': 'idle' if exit_code == 0 else 'failed',
             'exit_code': exit_code,
         }, name=META_NAME, merge=True)
+        log.close_run()
 
     return exit_code
 

@@ -2,16 +2,13 @@
 
 ## Resume point
 
-**HITZ false-healthy hotfix — publish ASAP.**
+**Status plan/Activity desync fix — publish with false-healthy follow-on.**
 
-Root cause: site_health `is_asset_id` used `{26}` instead of bandPromo `{20}` Crockford body, so every real master was ignored (`ast_* 0`) and Check reported healthy with registry 0 audio / 185 disk masters.
+Local Check now correctly reports 2 uncatalogued visual masters; Activity log matches plan (`ast_* 28`, `needs_treatment`).
 
-### HITZ ops (after publish)
+### HITZ
 
-1. Site update  
-2. Check site health — must show critical uncatalogued audio  
-3. Treat recommended  
-4. Confirm Files → Audio  
+Still needs **506** (asset-id `{20}` fix) then Check → Treat. This follow-on keeps Activity honest when checks run from CLI or admin.
 
 ### Local workspace
 

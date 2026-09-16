@@ -2,6 +2,8 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-09-16 13:10 - Site health Status trust: Activity log now resets with every Check/Treat/Force (CLI tees into `site-health.log`) so plan findings cannot sit next to a stale `HEALTH_RESULT:healthy` from an older run. Treat recommended stays enabled and primary when findings exist.
+
 2026-09-16 13:05 - Hotfix site health false-healthy on HITZ: asset-id matcher used `{26}` instead of bandPromo's `{20}` Crockford body, so every real `ast_*` master was ignored (`ast_* 0` with hundreds on disk) and Check reported healthy with an empty audio registry. Also add a critical safety finding when registry audio is 0 but disk masters exist.
 
 2026-09-16 13:00 - Site health Treat rebuilds Files indexes in Python (`scripts/site_health/files_index.py`): audio strip+registry rebuild and visual upsert under `media-library-state.lock`; PHP `site-health-rebuild-index-cli.php` kept as fallback only.

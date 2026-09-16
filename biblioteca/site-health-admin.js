@@ -95,17 +95,30 @@
 
         if (!plan || Object.keys(plan).length === 0) {
             findingsEl.innerHTML = '<p class="publish-status-empty">No check yet — start with Check site health.</p>';
-            treatBtn.hidden = true;
+            if (treatBtn) {
+                treatBtn.hidden = true;
+                treatBtn.classList.remove('btn-primary');
+            }
             return;
         }
 
         if (findings.length === 0) {
             findingsEl.innerHTML = '<p class="publish-status-empty">Nothing needs treatment. Listener catalogue looks healthy.</p>';
-            treatBtn.hidden = true;
+            if (treatBtn) {
+                treatBtn.hidden = true;
+                treatBtn.classList.remove('btn-primary');
+            }
             return;
         }
 
-        treatBtn.hidden = false;
+        if (treatBtn) {
+            treatBtn.hidden = false;
+            treatBtn.disabled = false;
+            treatBtn.classList.add('btn-primary');
+        }
+        if (forceBtn) {
+            forceBtn.disabled = false;
+        }
         const rows = findings.map((finding) => {
             const severity = String(finding.severity || 'attention');
             const title = escapeHtml(finding.title || finding.id || 'Finding');

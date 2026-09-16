@@ -59,6 +59,8 @@ $script = $scriptMap[$mode];
 $lockFile = $logDir . '/site-health.lock';
 $metaFile = $logDir . '/site-health.meta.json';
 $logFile = $logDir . '/site-health.log';
+// build-runner EXITCODE / chatter — not the operator Activity pane
+$runnerLogFile = $logDir . '/site-health.runner.log';
 $isWindows = strtoupper(substr(PHP_OS_FAMILY, 0, 3)) === 'WIN';
 
 if (!is_file($script)) {
@@ -84,7 +86,7 @@ if ($python === '') {
     exit;
 }
 
-@file_put_contents($logFile, '');
+@file_put_contents($runnerLogFile, '');
 $startedAt = time();
 $runId = function_exists('random_bytes') ? bin2hex(random_bytes(8)) : uniqid('health_', true);
 @file_put_contents($metaFile, json_encode([
@@ -100,7 +102,7 @@ $runId = function_exists('random_bytes') ? bin2hex(random_bytes(8)) : uniqid('he
 
 @file_put_contents($lockFile, 'running');
 bandpromo_job_stop_clear($root, 'site_health');
-$launch = bandpromo_build_launch_background($python, $script, $logFile, $lockFile, $runId, $isWindows, null);
+$launch = bandpromo_build_launch_background($python, $script, $runnerLogFile, $lockFile, $runId, $isWindows, null);
 
 if (empty($launch['started'])) {
     @unlink($lockFile);
