@@ -2,6 +2,8 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-09-16 19:45 - Site health Activity: first line includes app VERSION (`running bandPromo vX.Y.Z build N`).
+
 2026-09-16 19:35 - Site health Full audio dedupe: hash the full demux-copied audio stream (no duration pre-bucket) so dual ID3/APE artwork clones with different file sizes/tag durations still match; video keeps duration buckets.
 
 2026-09-16 19:25 - Site health dedupe Apply: collapse loser→keeper chains before delete (file-hash keeper must not be deleted while still referenced as an intermediate); retarget all then delete; Files visual index rebuild strips stale rows (fixes broken Unused thumbs after mass dedupe).

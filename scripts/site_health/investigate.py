@@ -68,7 +68,7 @@ def _add_content_dedupe_findings(plan, registry):
 
     log.info(
         'Deep probe: content fingerprints for duplicate masters '
-        '(audio/video demux-copy in temp/ by duration; still RGB by dimensions)...'
+        '(audio full demux-hash; video demux-copy by duration; still RGB by dimensions)...'
     )
 
     def _progress(current, total):

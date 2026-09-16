@@ -51,8 +51,9 @@ except Exception:
 
 
 def _site_banner():
-    """First Activity line: which install this job is running on."""
+    """First Activity line: which install this job is running on + app version."""
     import json
+
     config_path = os.path.join(ROOT_DIR, 'web-config.json')
     name = ''
     url = ''
@@ -74,12 +75,17 @@ def _site_banner():
                 break
         host = text.split('/')[0].strip()
     if name and host:
-        return 'Site health running on {0} ({1})'.format(name, host)
-    if name:
-        return 'Site health running on {0}'.format(name)
-    if host:
-        return 'Site health running on {0}'.format(host)
-    return 'Site health running on this install'
+        base = 'Site health running on {0} ({1})'.format(name, host)
+    elif name:
+        base = 'Site health running on {0}'.format(name)
+    elif host:
+        base = 'Site health running on {0}'.format(host)
+    else:
+        base = 'Site health running on this install'
+    version = plan_mod.read_app_version()
+    if version:
+        return '{0} (running bandPromo {1})'.format(base, version)
+    return base
 
 
 def run_check(deep=False):
