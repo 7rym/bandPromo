@@ -24,9 +24,19 @@
       "visual-delivery-catchup",
       "social-assets",
       "pwa-manifest"
+    ],
+    "dry-run": [
+      "dry-run-diagnostics"
     ]
   },
   "stages": [
+    {
+      "id": "dry-run-diagnostics",
+      "label": "Read-only diagnostics (duplicates and registry health)",
+      "group": "diagnostics",
+      "script": "buildDryRunDiagnostics.py",
+      "skippable": true
+    },
     {
       "id": "catalog",
       "label": "Prepare asset catalog and audio masters",

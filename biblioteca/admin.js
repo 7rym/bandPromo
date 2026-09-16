@@ -11818,6 +11818,28 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
             // True while waiting for build.php to create the lock (avoid false "finished").
             let buildLaunchPending = false;
             let buildLastLogMtime = 0;
+            const BUILD_LOG_STICKY_BOTTOM_PX = 24;
+            let buildLogAutoScroll = true;
+            const BUILD_DRY_RUN_ONCE_KEY = 'bandpromo.buildDryRunOnce.v1';
+
+            function consumeBuildDryRunOncePreference() {
+                try {
+                    const raw = window.localStorage.getItem(BUILD_DRY_RUN_ONCE_KEY);
+                    const shouldDryRun = raw === null ? true : raw === '1';
+                    window.localStorage.setItem(BUILD_DRY_RUN_ONCE_KEY, '0');
+                    return shouldDryRun;
+                } catch (_error) {
+                    return true;
+                }
+            }
+
+            function markBuildDryRunPending() {
+                try {
+                    window.localStorage.setItem(BUILD_DRY_RUN_ONCE_KEY, '1');
+                } catch (_error) {
+                    // Ignore storage failures and keep running.
+                }
+            }
 
             function setPublishRefreshChip(state, label) {
                 if (!publishRefreshChip) {
@@ -12022,7 +12044,16 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
             refreshBuildActionCopy();
 
             function scrollLog() {
-                if (buildLog) buildLog.scrollTop = buildLog.scrollHeight;
+                if (buildLog && buildLogAutoScroll) {
+                    buildLog.scrollTop = buildLog.scrollHeight;
+                }
+            }
+
+            if (buildLog) {
+                buildLog.addEventListener('scroll', () => {
+                    const distanceToBottom = buildLog.scrollHeight - (buildLog.scrollTop + buildLog.clientHeight);
+                    buildLogAutoScroll = distanceToBottom <= BUILD_LOG_STICKY_BOTTOM_PX;
+                });
             }
 
             function renderPublishStatusSummary(status, catalogRepair) {
@@ -12510,19 +12541,27 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                         ? window.bandpromoConfirm
                         : null;
                     let confirmed = true;
+                    const runDryRun = consumeBuildDryRunOncePreference();
                     if (confirmFn) {
                         confirmed = await confirmFn({
-                            title: 'Follow this recommendation?',
-                            body: 'The bandPromo machine will prepare streaming files, covers, and playlists from what you already saved. This keeps listeners up to date and helps the next Site update go smoothly. Safe to leave this page while it runs.',
-                            confirmLabel: 'Yes, go ahead',
+                            title: runDryRun ? 'Run diagnostics dry-run?' : 'Follow this recommendation?',
+                            body: runDryRun
+                                ? 'This run will be read-only diagnostics: no prep healing, no media rebuild, no playlist publish. It reports issues and duplicate clusters only.'
+                                : 'The bandPromo machine will prepare streaming files, covers, and playlists from what you already saved. This keeps listeners up to date and helps the next Site update go smoothly. Safe to leave this page while it runs.',
+                            confirmLabel: runDryRun ? 'Run dry-run' : 'Yes, go ahead',
                             cancelLabel: 'Not now',
                         });
                     } else {
                         confirmed = window.confirm(
-                            'Prepare streaming files now? Safe to leave this page. Keeps listeners current and helps the next Site update.'
+                            runDryRun
+                                ? 'Run read-only diagnostics now? This dry-run checks issues only and does not rebuild files.'
+                                : 'Prepare streaming files now? Safe to leave this page. Keeps listeners current and helps the next Site update.'
                         );
                     }
                     if (!confirmed) {
+                        if (runDryRun) {
+                            markBuildDryRunPending();
+                        }
                         return;
                     }
                     currentRunMode = 'full';
@@ -12548,6 +12587,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     if (buildLog) {
                         buildLog.textContent = 'Starting…\n';
                     }
+                    buildLogAutoScroll = true;
                     // Keep the raw log closed unless the operator already had it open.
                     // Poll immediately so the UI picks up the cleared log as soon as PHP
                     // takes the lock — do not wait for the long build.php prep to finish.
@@ -12560,7 +12600,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                                 'X-Requested-With': 'XMLHttpRequest',
                                 'Content-Type': 'application/json',
                             },
-                            body: JSON.stringify({ mode: 'full' }),
+                            body: JSON.stringify({ mode: 'full', profile: runDryRun ? 'dry-run' : 'full' }),
                         });
                         const raw = await resp.text();
                         let data = null;

@@ -977,7 +977,7 @@ def has_publishable_audio_sources():
     return supported, unsupported
 
 
-def run_preflight():
+def run_preflight(read_only=False):
     print("-- Preflight -------------------------------")
     try:
         import stdio_utf8
@@ -985,45 +985,97 @@ def run_preflight():
     except Exception as enc_exc:
         print('[encoding] Warning: could not verify UTF-8 stdio ({0}).'.format(enc_exc))
 
-    if not ensure_runtime_files_seeded():
-        return None
+    if read_only:
+        print('Dry-run preflight: read-only checks enabled (no runtime seeding or rebuild writes).')
+        for _template_rel, target_rel, _kind in RUNTIME_TEMPLATE_MAP:
+            target_path = ROOT_DIR / target_rel
+            if not target_path.exists():
+                print('  ⚠ Missing runtime file: {0}'.format(target_path))
+        for _template_rel, json_rel in PAGE_TEMPLATE_MAP:
+            json_path = ROOT_DIR / json_rel
+            if not json_path.exists():
+                print('  ⚠ Missing page runtime file: {0}'.format(json_path))
+    else:
+        if not ensure_runtime_files_seeded():
+            return None
 
-    if not seed_page_runtime_files():
-        return None
+        if not seed_page_runtime_files():
+            return None
 
-    if not install_pip_dependencies():
-        return None
+    if read_only:
+        ok_imports, missing_imports = _verify_required_python_imports()
+        if ok_imports:
+            print('  ✅ Python build packages importable (dry-run did not install).')
+        else:
+            print('  ⚠ Python packages not importable (ok for diagnostics-only): {0}'.format(
+                ', '.join(missing_imports) if missing_imports else 'unknown'
+            ))
+    else:
+        if not install_pip_dependencies():
+            return None
 
-    ffmpeg_path = ensure_ffmpeg()
+    ffmpeg_path = ''
+    if not read_only:
+        ffmpeg_path = ensure_ffmpeg()
+    else:
+        existing_ffmpeg = find_ffmpeg()
+        if existing_ffmpeg:
+            print('  ✅ ffmpeg found: {0}'.format(existing_ffmpeg))
+            ffmpeg_path = existing_ffmpeg
+        else:
+            print('  ⚠ ffmpeg not found (ok for diagnostics-only dry-run).')
+            # Sentinel so dry-run preflight does not fail when ffmpeg is absent.
+            ffmpeg_path = 'dry-run'
 
     print("-- Checking icons in media/icons --")
-    ensure_icons()
+    if read_only:
+        icons_dir = ROOT_DIR / 'media' / 'icons'
+        required_icons = [
+            'apple-touch-icon.png',
+            'favicon-16x16.png',
+            'favicon-32x32.png',
+            'favicon-96x96.png',
+            'favicon.ico',
+            'web-app-manifest-192x192.png',
+            'web-app-manifest-512x512.png',
+        ]
+        missing = [name for name in required_icons if not (icons_dir / name).exists()]
+        if missing:
+            print('  ⚠ Missing icons (dry-run did not extract): {0}'.format(', '.join(missing)))
+        else:
+            print('  ✅ All required icons present.')
+    else:
+        ensure_icons()
 
     # Ensure original intake dir exists for operator uploads (PRP may only ship masters).
-    audio_orig = ROOT_DIR / 'media' / 'audio' / 'original'
-    audio_orig.mkdir(parents=True, exist_ok=True)
-    (ROOT_DIR / 'media' / 'audio' / 'master').mkdir(parents=True, exist_ok=True)
+    if not read_only:
+        audio_orig = ROOT_DIR / 'media' / 'audio' / 'original'
+        audio_orig.mkdir(parents=True, exist_ok=True)
+        (ROOT_DIR / 'media' / 'audio' / 'master').mkdir(parents=True, exist_ok=True)
 
     supported_audio, unsupported_audio = has_publishable_audio_sources()
 
     if not supported_audio:
-        print("\n❌ No publishable audio found (upload originals or import a PCF with audio masters).")
-        print("   Checked: media/audio/original and media/audio/master (+ asset registry).")
-        if unsupported_audio:
-            print("   Unsupported audio files present: " + ', '.join(sorted(unsupported_audio)))
-            print("   Current supported source formats: FLAC, MP3, and WAV")
-        print("   Upload your source files via Admin → Files, or re-run setup Demo PCF import.")
-        sys.stdout.flush()
-        return None
-
-    orig_count = sum(1 for tier, _name in supported_audio if tier == 'original')
-    master_count = sum(1 for tier, _name in supported_audio if tier in ('master', 'registry-master'))
-    print(
-        "  ✅ Publishable audio ready ({0} original, {1} master/registry).".format(
-            orig_count,
-            master_count,
+        if read_only:
+            print('  ⚠ No publishable audio found (reported only; dry-run continues).')
+        else:
+            print("\n❌ No publishable audio found (upload originals or import a PCF with audio masters).")
+            print("   Checked: media/audio/original and media/audio/master (+ asset registry).")
+            if unsupported_audio:
+                print("   Unsupported audio files present: " + ', '.join(sorted(unsupported_audio)))
+                print("   Current supported source formats: FLAC, MP3, and WAV")
+            print("   Upload your source files via Admin → Files, or re-run setup Demo PCF import.")
+            sys.stdout.flush()
+            return None
+    else:
+        orig_count = sum(1 for tier, _name in supported_audio if tier == 'original')
+        master_count = sum(1 for tier, _name in supported_audio if tier in ('master', 'registry-master'))
+        print(
+            "  ✅ Publishable audio ready ({0} original, {1} master/registry).".format(
+                orig_count,
+                master_count,
+            )
         )
-    )
 
     if unsupported_audio:
         print("⚠️  Unsupported source audio will be skipped: " + ', '.join(sorted(unsupported_audio)))
@@ -1160,39 +1212,63 @@ def main():
     print("Root: {0}\n".format(ROOT_DIR))
     sys.stdout.flush()
 
+    meta = load_build_meta()
+    profile = 'full'
+    if isinstance(meta, dict):
+        profile = str(meta.get('profile') or 'full').strip() or 'full'
+    dry_run_profile = (profile == 'dry-run')
+
     try:
         from job_heartbeat import touch_heartbeat
-        touch_heartbeat(
-            str(ROOT_DIR),
-            stage='prep',
-            message='Preparing your site for publish...',
-            name='build.meta.json',
-        )
-        from publish_prep import run_publish_prep
-        prep_result = run_publish_prep('build.meta.json')
-    except Exception as prep_exc:
-        print('FAILED Publish prep could not start: {0}'.format(prep_exc))
-        sys.stdout.flush()
-        return 1
+    except Exception:
+        def touch_heartbeat(*_args, **_kwargs):
+            return None
 
-    if prep_result == 'stopped':
-        print('')
-        print('=' * 70)
-        print('  PUBLISH STOPPED BY OPERATOR')
-        print('=' * 70)
-        print('')
-        print('  Stopped during preparation. Start Refresh again when ready.')
-        print('')
+    if dry_run_profile:
+        print('[dry-run] Skipping publish preparation (read-only diagnostics mode).')
         sys.stdout.flush()
-        return 0
-    if prep_result != 'ok':
-        print_build_failure_banner(
-            format_build_duration(monotonic_now() - started_mono),
-            'prep',
-            timing_recorder,
-            error_collector,
-        )
-        return 1
+        try:
+            touch_heartbeat(
+                str(ROOT_DIR),
+                stage='dry-run',
+                message='Read-only diagnostics — no rebuilds…',
+                name='build.meta.json',
+            )
+        except Exception:
+            pass
+    else:
+        try:
+            touch_heartbeat(
+                str(ROOT_DIR),
+                stage='prep',
+                message='Preparing your site for publish...',
+                name='build.meta.json',
+            )
+            from publish_prep import run_publish_prep
+            prep_result = run_publish_prep('build.meta.json')
+        except Exception as prep_exc:
+            print('FAILED Publish prep could not start: {0}'.format(prep_exc))
+            sys.stdout.flush()
+            return 1
+
+        if prep_result == 'stopped':
+            print('')
+            print('=' * 70)
+            print('  PUBLISH STOPPED BY OPERATOR')
+            print('=' * 70)
+            print('')
+            print('  Stopped during preparation. Start Refresh again when ready.')
+            print('')
+            sys.stdout.flush()
+            return 0
+        if prep_result != 'ok':
+            print_build_failure_banner(
+                format_build_duration(monotonic_now() - started_mono),
+                'prep',
+                timing_recorder,
+                error_collector,
+            )
+            return 1
 
     try:
         touch_heartbeat(
@@ -1206,7 +1282,7 @@ def main():
 
     preflight_started = monotonic_now()
     log_stage_boundary('preflight')
-    ffmpeg_path = run_preflight()
+    ffmpeg_path = run_preflight(read_only=dry_run_profile)
     preflight_elapsed = monotonic_now() - preflight_started
     if not ffmpeg_path:
         log_stage_boundary('preflight', 1, preflight_elapsed)
