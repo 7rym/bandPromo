@@ -2,6 +2,8 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-09-16 10:35 - Hotfix Refresh crash after inventory-only catalogue (`ValueError` unpack in `build.py`); Status now steers uncatalogued audio to Repair Apply (not Refresh); Refresh stops early when inventory finds masters needing Repair.
+
 2026-09-16 09:15 - HITZ optimisation plan (stop burning disk on empty catalogue): dry-run now reports disk vs registry mismatch and refuses to claim “site ready”; Refresh prep/catalog are inventory-only (heal/register only via Repair Apply); audio upload reuses/replaces the existing master for the same original instead of minting another `ast_*`; Repair Apply / catalogue register never mint new masters from originals (link/register in place only). On HITZ: Site update → Repair Apply first to re-register disk masters into Files → Audio, then Refresh.
 
 2026-09-16 08:50 - Refresh UX safety pass for HITZ: build log auto-refresh now respects manual scrolling (no forced jump while reading older lines); Refresh defaults the next run to a one-time **dry-run** profile that skips publish prep and mutating stages, then runs read-only duplicate diagnostics (`buildDryRunDiagnostics.py`) so operators can inspect asset duplication without heavy disk churn. Dry-run preflight stays non-mutating (no mkdir/seed/pip/ffmpeg install).

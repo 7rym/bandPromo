@@ -12155,6 +12155,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                             <strong>${bandpromoAdminEscapeHtml(nextStep.title || 'Next step')}</strong>
                             <p>${bandpromoAdminEscapeHtml(nextStep.body || '')}</p>
                             ${cta === 'refresh' ? '<p class="publish-next-step-hint">When you are ready, use <strong>Refresh site files</strong> below — we will ask before starting.</p>' : ''}
+                            ${cta === 'repair' ? '<p class="publish-next-step-hint">Open <strong>Peek under the hood → Repair catalogue</strong>, Preview, then <strong>Apply</strong>. Confirm Files → Audio before Refreshing.</p>' : ''}
                             ${cta === 'ask_developer' ? '<p class="publish-next-step-hint">Ask a developer to open <strong>Peek under the hood → Repair catalogue</strong>.</p>' : ''}
                         </div>
                     `;

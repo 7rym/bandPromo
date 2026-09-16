@@ -608,7 +608,7 @@ function bandpromo_publish_status_summary(string $root, array $options = []): ar
             'label' => 'Songs on disk are not in Files yet',
             'count' => $masterCount,
             'detail' => 'Some song files are on the server but not listed in Files yet.',
-            'action' => 'Refresh site files usually registers them. If this remains, ask a developer to run Repair catalogue.',
+            'action' => 'Open Peek under the hood → Repair catalogue → Apply. Do not Refresh until Files → Audio lists your tracks.',
         ];
     }
 
@@ -619,7 +619,7 @@ function bandpromo_publish_status_summary(string $root, array $options = []): ar
             'label' => 'Uploads still waiting to finish registering',
             'count' => $originalCount,
             'detail' => 'Some uploads never finished joining the catalogue.',
-            'action' => 'Refresh may help. If the count does not fall, ask a developer — this does not clear by itself after a few moments.',
+            'action' => 'Open Peek under the hood → Repair catalogue → Apply. Refresh will not register these.',
         ];
     }
 
@@ -671,8 +671,8 @@ function bandpromo_publish_status_summary(string $root, array $options = []): ar
         $nextStep = [
             'severity' => 'needs_fix',
             'title' => 'Catalogue needs a hand',
-            'body' => implode('. ', $bits) . '. Refresh often fixes this; if it remains, ask a developer to Repair catalogue.',
-            'cta' => 'refresh',
+            'body' => implode('. ', $bits) . '. Use Repair catalogue Apply to register existing masters in place — Refresh will not heal this.',
+            'cta' => 'repair',
         ];
     } elseif ($missingCount > 0) {
         $nextStep = [
