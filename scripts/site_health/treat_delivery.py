@@ -2,51 +2,50 @@
 """
 Listener delivery treatments (audio stills + video).
 
-Algorithms live in optimizeMedia.py / optimizeVideo.py; Status Treat owns the
-phase order and HEALTH_* logging via stage_exec (cutover bridge — not long PHP).
-SFX lives in treat_sfx.py.
+Algorithms run in-process via delivery_audio / delivery_visual / delivery_video
+(shared encode helpers remain in optimizeMedia.py / optimizeVideo.py).
 """
 
 from __future__ import print_function
 
 import log
-from stage_exec import run_stage_script
+from delivery_audio import run_audio_delivery
+from delivery_video import run_video_delivery
+from delivery_visual import run_visual_still_delivery
 
 
 def treat_audio_visual_delivery(force=False):
-    """Rebuild audio + still-image deliverables via optimizeMedia.py."""
+    """Rebuild audio + still-image deliverables in-process."""
     log.phase('treat:delivery')
-    env = {
-        'BANDPROMO_OPTIMIZE_MODE': 'full',
-    }
     if force:
-        env['BANDPROMO_FORCE_AUDIO_DELIVERY'] = '1'
-        env['BANDPROMO_FORCE_VISUAL_DELIVERY'] = '1'
         log.info('Force delivery rebuild (audio + still images).')
     else:
         log.info('Delivery rebuild (stale/missing audio + still images only).')
-    ok, _code = run_stage_script(
-        'optimizeMedia.py',
-        env_extra=env,
-        label='Audio and still-image delivery',
-    )
+
+    ok_audio = run_audio_delivery(force=force)
+    if not ok_audio:
+        log.treat_result('audio_visual_delivery', 'failed', 1)
+        return False
+
+    try:
+        from stopflag import stop_requested
+    except Exception:
+        def stop_requested():
+            return False
+
+    if stop_requested():
+        log.treat_result('audio_visual_delivery', 'failed', 1)
+        return False
+
+    ok_visual = run_visual_still_delivery(force=force)
+    ok = ok_audio and ok_visual
     log.treat_result('audio_visual_delivery', 'ok' if ok else 'failed', 0 if ok else 1)
     return ok
 
 
 def treat_video_delivery(force=False):
     log.phase('treat:video')
-    env = {}
-    if force:
-        env['BANDPROMO_FORCE_VIDEO_DELIVERY'] = '1'
-        log.info('Force video delivery rebuild.')
-    else:
-        log.info('Video delivery rebuild.')
-    ok, _code = run_stage_script(
-        'optimizeVideo.py',
-        env_extra=env,
-        label='Video delivery',
-    )
+    ok = run_video_delivery(force=force)
     log.treat_result('video_delivery', 'ok' if ok else 'failed', 0 if ok else 1)
     return ok
 

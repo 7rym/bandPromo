@@ -4,22 +4,15 @@
 from __future__ import print_function
 
 import log
-from stage_exec import run_stage_script
+from chrome_pwa import generate_manifest
+from chrome_social import generate_share_images
 
 
 def treat_chrome():
     log.phase('treat:chrome')
     log.info('Updating share images and PWA manifest.')
-    ok_social, _code = run_stage_script(
-        'makeSocial.py',
-        env_extra={},
-        label='Share images',
-    )
-    ok_pwa, _code2 = run_stage_script(
-        'makePWA.py',
-        env_extra={},
-        label='PWA manifest',
-    )
+    ok_social = generate_share_images()
+    ok_pwa = generate_manifest()
     ok = ok_social and ok_pwa
     log.treat_result('site_chrome', 'ok' if ok else 'failed', 0 if ok else 1)
     return ok

@@ -229,12 +229,16 @@ def recorded_audio_mode(asset) -> str:
 
 
 def needs_refresh(source_path: Path, target_path: Path) -> bool:
+    if os.environ.get('BANDPROMO_FORCE_VIDEO_DELIVERY', '').strip() == '1':
+        return True
     if not target_path.exists():
         return True
     return source_path.stat().st_mtime > target_path.stat().st_mtime
 
 
 def stream_needs_refresh(source_path: Path, target_path: Path, asset, keep_audio: bool) -> bool:
+    if os.environ.get('BANDPROMO_FORCE_VIDEO_DELIVERY', '').strip() == '1':
+        return True
     desired = audio_mode_label(keep_audio)
     if recorded_audio_mode(asset) != desired:
         return True

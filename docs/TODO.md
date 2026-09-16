@@ -23,7 +23,7 @@ Rules for this file:
 
 **Active gate (2026-08-18):** lock and ship **PCF** (`.pcf`) as the only campaign data handoff — setup imports `bandPromo-demo.pcf` (legacy `.prp` still accepted); round-trips on Spandexual Tension / HITZ (Twisted Chronicles deferred to v0.9). See [PORTABILITY.md](PORTABILITY.md) §3 and TODO → Portable Campaign Files.
 
-**Active gate (2026-09-16):** **System → Status site health** — doctor model is **partially built**. Reopened: port legacy stage algorithms out of `stage_exec`, and treat bare Untitled register as a **bad import**. See [Site health (Status)](#site-health-status--v0-8-critical) and [BUILD-PIPELINE-PLAN.md](BUILD-PIPELINE-PLAN.md).
+**Active gate (2026-09-16):** **System → Status site health** — doctor model is **partially built**. Legacy stage port (rule 6 / `stage_exec`) is **done**. Still open: bare Untitled register as a **bad import** (HITZ Treat after publish), cover extract. See [Site health (Status)](#site-health-status--v0-8-critical) and [BUILD-PIPELINE-PLAN.md](BUILD-PIPELINE-PLAN.md).
 
 **Policy (2026-08-08):** no special-case demo content handling beyond setup PCF import, lock / localhost unlock + export, hide, and duplicate. Collapse remaining heal/force/`bandPromo_*`→demo ownership forks onto normal release ownership. See [PLATFORM-MODEL.md](PLATFORM-MODEL.md) / [PORTABILITY.md](PORTABILITY.md).
 
@@ -123,11 +123,11 @@ Source of truth: [BUILD-PIPELINE-PLAN.md](BUILD-PIPELINE-PLAN.md). Doctor Status
 
 **Open (reopened 2026-09-16):**
 
-- [ ] **Bad import / tag fill** — register-in-place must populate registry `display` from master embedded tags (**registry ← master only**). Bare `Untitled` rows are incomplete Treat; heal existing empties; never write empty registry display onto masters.
-- [ ] **Port legacy stage algorithms** into `site_health` (`treat_delivery` / playlists / chrome / sfx) — stop wrapping `optimizeMedia.py`, `optimizeVideo.py`, `buildSfxDelivery.py`, `makePlaylists.py`, `makeSocial.py`, `makePWA.py` via `stage_exec`.
-- [ ] **Retire `stage_exec` bridge** from Status Treat/Force once ports are fleet-proven (archive or delete wrappers).
+- [ ] **Bad import / tag fill** — register-in-place must populate registry `display` from master embedded tags (**registry ← master only**). Bare `Untitled` rows are incomplete Treat; heal existing empties; never write empty registry display onto masters. (Code present; HITZ Treat after publish.)
+- [x] **Port legacy stage algorithms** into `site_health` (`treat_delivery` / playlists / chrome / sfx) — in-process `delivery_*` + `chrome_*` + `php_stage`; no `stage_exec` on Status Treat/Force (2026-09-16).
+- [x] **Retire `stage_exec` bridge** from Status Treat/Force — deleted `stage_exec.py` (2026-09-16).
 - [ ] **Cover extract** as part of treat_audio (plan: tags/covers) — C chip / embedded artwork → visual cover ref where safe.
-- [ ] **Fleet acceptance** — HITZ Treat after publish (tag fill + visual `original_filename` wipe fix); keep Vanilla/Spandexual honest.
+- [ ] **Fleet acceptance** — HITZ Treat after publish (tag fill + visual `original_filename` wipe fix); re-smoke Force on Vanilla/Spandexual after this port.
 
 ## v0.8 management slice (Brand + Visual pool + content AI)
 

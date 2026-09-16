@@ -2,6 +2,8 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-09-16 16:45 - Site health rule 6: port legacy stages into `site_health` — in-process `delivery_audio` / `delivery_visual` / `delivery_video`, `chrome_social` + `chrome_pwa`, SFX/playlists via `php_stage`; delete `stage_exec` from Treat/Force. `BANDPROMO_FORCE_VIDEO_DELIVERY` honoured. Local smoke: delivery + chrome + SFX + playlists OK.
+
 2026-09-16 16:15 - Site health Treat liveness on HITZ-scale visual rebuilds: optimizeMedia heartbeats `site-health.meta.json` when Treat owns the lock (Status was stuck on stale "Working..."); stage_exec refreshes that heartbeat from streamed progress; summary-mode delivery logs milestones only; Status Activity poll returns the live log tail (~200KB) so a multi-thousand-line rebuild cannot freeze the pane.
 
 2026-09-16 16:05 - Site health plan reopened as **partially built**: TODO + BUILD-PIPELINE-PLAN + Cursor plan restore open items for legacy stage port (`stage_exec` bridge) and fleet acceptance. Bad-import fix: audio register-in-place fills registry display from master tags (`audio_display.py`, registry ← master only); triage flags bare Untitled rows; Treat heals them without writing empty display onto masters.
