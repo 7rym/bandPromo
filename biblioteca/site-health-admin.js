@@ -183,6 +183,9 @@
 
         if (!plan || Object.keys(plan).length === 0) {
             findingsEl.innerHTML = '<p class="publish-status-empty">No check yet — start with Quick health check.</p>';
+            if (running) {
+                return;
+            }
             setPreviewMode(false);
             if (treatBtn) {
                 treatBtn.hidden = true;
@@ -193,6 +196,9 @@
 
         if (findings.length === 0) {
             findingsEl.innerHTML = '<p class="publish-status-empty">Nothing needs treatment. Listener catalogue looks healthy.</p>';
+            if (running) {
+                return;
+            }
             setPreviewMode(false);
             if (treatBtn) {
                 treatBtn.hidden = true;
@@ -216,6 +222,12 @@
         }).join('');
         findingsEl.innerHTML = '<div class="publish-status-checks">' + rows + '</div>';
 
+        // While a job is running, setRunningUi owns chrome (status + Stop only).
+        // Do not re-enable or unhide Check / Review / Force here.
+        if (running) {
+            return;
+        }
+
         if (previewOpen) {
             setPreviewMode(true);
         } else if (treatBtn) {
@@ -233,6 +245,7 @@
             }
         }
         if (forceBtn) {
+            forceBtn.hidden = false;
             forceBtn.disabled = false;
         }
     }
@@ -242,19 +255,35 @@
         if (spinnerEl) {
             spinnerEl.style.display = running ? '' : 'none';
         }
+        // Busy: hide start / review / force; only Stop stays available.
         checkBtn.disabled = running;
+        checkBtn.hidden = running;
         if (checkFullBtn) {
             checkFullBtn.disabled = running;
+            checkFullBtn.hidden = running;
         }
         forceBtn.disabled = running;
+        forceBtn.hidden = running;
         if (treatBtn) {
             treatBtn.disabled = running;
+            if (running) {
+                treatBtn.hidden = true;
+            }
         }
         if (treatApplyBtn) {
             treatApplyBtn.disabled = running;
+            if (running) {
+                treatApplyBtn.hidden = true;
+            }
         }
         if (treatCancelBtn) {
             treatCancelBtn.disabled = running;
+            if (running) {
+                treatCancelBtn.hidden = true;
+            }
+        }
+        if (previewEl && running) {
+            previewEl.hidden = true;
         }
         if (stopBtn) {
             stopBtn.hidden = !running;
@@ -276,8 +305,11 @@
                 logEl.scrollTop = logEl.scrollHeight;
             }
             const plan = data.plan && typeof data.plan === 'object' ? data.plan : {};
+            // Set running before renderPlan so action buttons stay hidden while busy.
+            const isRunning = !!data.running;
+            running = isRunning;
             renderPlan(plan);
-            setRunningUi(!!data.running);
+            setRunningUi(isRunning);
             if (!data.running) {
                 setOverall(data.overall || plan.overall || 'unknown');
                 if (data.exit_code === 0) {

@@ -711,7 +711,8 @@ def process_visual_image_asset(asset, quiet_skip=False):
         )
         if written:
             variants_written[variant] = variant_manifest_entry(written)
-            print("    → Built {}: {}".format(variant, Path(written).name))
+            if not quiet_skip:
+                print("    → Built {}: {}".format(variant, Path(written).name))
 
     if variants_written:
         source_digest = file_xxh3_hex(source)
@@ -1206,9 +1207,13 @@ def main():
     def heartbeat(message):
         if _touch_hb is None:
             return
-        # Full publish polls build.meta.json; standalone optimize polls optimize.meta.json.
+        # Site health Treat streams optimizeMedia under site-health.lock and polls
+        # site-health.meta.json. Without that target, Status stays on a stale
+        # "Applying treatments..." while delivery is still working.
         meta_name = 'build.meta.json'
-        if (ROOT_DIR / 'log' / 'build.lock').is_file():
+        if (ROOT_DIR / 'log' / 'site-health.lock').is_file():
+            meta_name = 'site-health.meta.json'
+        elif (ROOT_DIR / 'log' / 'build.lock').is_file():
             meta_name = 'build.meta.json'
         elif (ROOT_DIR / 'log' / 'optimize.lock').is_file():
             meta_name = 'optimize.meta.json'
@@ -1342,7 +1347,9 @@ def main():
                 visual_skipped += 1
             elif result:
                 visual_count += 1
-                if not OPTIMIZE_VERBOSE:
+                # Summary mode: milestones only (every 25). Per-image lines flood
+                # site-health Activity and can stall the Status poller.
+                if OPTIMIZE_VERBOSE:
                     print("  ✓ Built visual: {0}".format(label))
             else:
                 visual_failed += 1

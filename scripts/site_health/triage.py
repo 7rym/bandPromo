@@ -237,6 +237,28 @@ def run_triage(plan, deep=False, suppress_json_drift=False):
                     'Files → Audio will look empty until they are registered in place.'
                 ).format(len(pending_audio)),
             )
+
+        # Bare register (id only, no tag fill) is a bad import — Files shows Untitled.
+        if not pending_audio and len(audio) > 0:
+            try:
+                import audio_display
+                bare = audio_display.incomplete_audio_masters(registry)
+            except Exception as exc:
+                log.info('Audio display completeness probe skipped: {0}'.format(exc))
+                bare = []
+            if bare:
+                plan_mod.add_finding(
+                    plan, 'audio_display_missing_tags', 'attention',
+                    'Some tracks are in Files without tag data', len(bare),
+                    'audio_fill_display_from_tags',
+                    sample=[p.get('master_filename') for p in bare],
+                    body=(
+                        '{0} registered audio asset(s) have empty or Untitled display. '
+                        'Treat reads embedded master tags into the registry '
+                        '(registry ← master only; master tags are not rewritten).'
+                    ).format(len(bare)),
+                )
+
         if pending_visual:
             plan_mod.add_finding(
                 plan, 'uncatalogued_visual_masters', 'attention',

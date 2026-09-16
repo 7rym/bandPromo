@@ -261,18 +261,31 @@ def inspect_mp3(path):
     }
 
 
-def inspect_master(path):
-    suffix = path.suffix.lower()
-    audio = File(str(path))
-    if audio is None or getattr(audio, 'info', None) is None:
-        respond({'ok': False, 'error': 'Could not read audio metadata'}, 1)
+def try_inspect_master(path):
+    """
+    Read embedded tags from an audio master without exiting the process.
 
-    if suffix == '.flac':
-        details = inspect_flac(path, FLAC(str(path)))
-    elif suffix == '.mp3':
-        details = inspect_mp3(path)
-    else:
-        respond({'ok': False, 'error': 'Unsupported audio master format'}, 1)
+    Returns a details dict on success, or None when the file cannot be read.
+    Used by site_health register-in-place (registry ← master only; never writes tags).
+    """
+    path = Path(path)
+    suffix = path.suffix.lower()
+    try:
+        audio = File(str(path))
+    except Exception:
+        return None
+    if audio is None or getattr(audio, 'info', None) is None:
+        return None
+
+    try:
+        if suffix == '.flac':
+            details = inspect_flac(path, FLAC(str(path)))
+        elif suffix == '.mp3':
+            details = inspect_mp3(path)
+        else:
+            return None
+    except Exception:
+        return None
 
     duration = getattr(audio.info, 'length', 0) or 0
     bitrate = getattr(audio.info, 'bitrate', 0) or 0
@@ -288,6 +301,17 @@ def inspect_master(path):
         'file_size_bytes': int(path.stat().st_size) if path.exists() else 0,
         'sidecar_cover': get_sidecar_cover(path.name),
     })
+    return details
+
+
+def inspect_master(path):
+    details = try_inspect_master(path)
+    if details is None:
+        path = Path(path)
+        suffix = path.suffix.lower()
+        if suffix not in ('.flac', '.mp3'):
+            respond({'ok': False, 'error': 'Unsupported audio master format'}, 1)
+        respond({'ok': False, 'error': 'Could not read audio metadata'}, 1)
     return details
 
 

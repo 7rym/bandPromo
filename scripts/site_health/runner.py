@@ -127,7 +127,11 @@ def run_treat():
     treat_ok = True
 
     # Plan order: audio → visual → sfx → links → playlists → chrome
-    if 'audio_register_in_place' in ids:
+    need_audio = any(
+        tid in ids
+        for tid in ('audio_register_in_place', 'audio_fill_display_from_tags')
+    )
+    if need_audio:
         import treat_audio
         treat_audio.treat_audio_register_in_place()
         did_register = True

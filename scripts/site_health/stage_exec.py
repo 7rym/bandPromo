@@ -17,6 +17,37 @@ except Exception:
 
 SCRIPTS_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 ROOT_DIR = os.path.dirname(SCRIPTS_DIR)
+META_NAME = 'site-health.meta.json'
+
+try:
+    from job_heartbeat import touch_heartbeat
+except Exception:
+    def touch_heartbeat(root, stage='', message='', name=META_NAME):
+        return {}
+
+
+def _heartbeat_from_stage_line(text, stage_label):
+    """Keep Status live message in sync while a legacy stage streams."""
+    if not text:
+        return
+    message = text.strip()
+    # Prefer compact progress lines operators can read at a glance.
+    lower = message.lower()
+    if 'visual ' in lower and '/' in message:
+        message = message.lstrip(' -').strip()
+    elif 'audio ' in lower and '/' in message:
+        message = message.lstrip(' -').strip()
+    elif len(message) > 120:
+        message = message[:117] + '...'
+    try:
+        touch_heartbeat(
+            ROOT_DIR,
+            stage='treat',
+            message=message or stage_label,
+            name=META_NAME,
+        )
+    except Exception:
+        pass
 
 
 def run_stage_script(script_name, env_extra=None, label=''):
@@ -76,6 +107,7 @@ def run_stage_script(script_name, env_extra=None, label=''):
         return False, 1
 
     assert proc.stdout is not None
+    line_count = 0
     for line in iter(proc.stdout.readline, '' if getattr(proc, 'encoding', None) else b''):
         if isinstance(line, bytes):
             text = line.decode('utf-8', errors='replace').rstrip('\n')
@@ -84,6 +116,20 @@ def run_stage_script(script_name, env_extra=None, label=''):
         if text:
             # Stage scripts print plain lines; site_health log.py stamps them.
             log.info(text)
+            line_count += 1
+            # Heartbeat on progress milestones, or every 25 lines so long
+            # image rebuilds never leave Status on a stale "Working...".
+            lower = text.lower()
+            is_progress = (
+                'visual ' in lower
+                or 'audio ' in lower
+                or 'built visual' in lower
+                or 'processing' in lower
+                or line_count == 1
+                or (line_count % 25) == 0
+            )
+            if is_progress:
+                _heartbeat_from_stage_line(text, label)
         if stop_requested():
             try:
                 proc.terminate()

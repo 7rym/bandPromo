@@ -212,7 +212,20 @@ def register_audio_master(registry, master_filename, master_format, asset_id, or
     by_master = registry.setdefault('by_master_filename', {})
     existing = str(by_master.get(master_filename) or '').strip()
     if existing and existing in registry.get('assets', {}):
-        return registry['assets'][existing]
+        entry = registry['assets'][existing]
+        # Bare rows (empty / Untitled display) still need tag fill.
+        try:
+            import audio_display
+            if audio_display.display_needs_tag_fill(entry):
+                audio_display.fill_entry_from_master_tags(entry)
+        except Exception:
+            pass
+        return entry
+
+    # Register-in-place masters have no separate original upload name — use the
+    # master filename so PHP normalize / indexes stay consistent.
+    if not original_filename:
+        original_filename = master_filename
 
     entry = {
         'id': asset_id,
@@ -226,6 +239,13 @@ def register_audio_master(registry, master_filename, master_format, asset_id, or
         'tags': [],
         'created_at': datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ'),
     }
+    # Capture content from the master (registry ← tags). Never invent empty shells
+    # that Files shows as Untitled while masters still hold real ID3/Vorbis data.
+    try:
+        import audio_display
+        audio_display.fill_entry_from_master_tags(entry)
+    except Exception:
+        pass
     registry.setdefault('assets', {})[asset_id] = entry
     by_master[master_filename] = asset_id
     if original_filename:
@@ -249,6 +269,10 @@ def register_visual_master(registry, master_filename, master_format, asset_id, m
         return registry['assets'][existing]
 
     intake = 'video' if media_type == 'video' else 'img'
+    # Register-in-place masters have no separate original upload name — use the
+    # master filename so PHP normalize keeps the row (empty original_filename
+    # would drop the visual on the next registry write-back).
+    original_filename = master_filename
     entry = {
         'id': asset_id,
         'kind': 'visual',
@@ -257,7 +281,7 @@ def register_visual_master(registry, master_filename, master_format, asset_id, m
         'brand_id': '',
         'role': 'unassigned',
         'has_alpha': False,
-        'original_filename': '',
+        'original_filename': original_filename,
         'master_filename': master_filename,
         'master_format': master_format,
         'release_id': '',
@@ -266,12 +290,13 @@ def register_visual_master(registry, master_filename, master_format, asset_id, m
             'title': 'Untitled video' if media_type == 'video' else 'Untitled image',
         },
         'tags': ['unassigned'],
-        'delivery': [],
+        'delivery': {},
         'content_sha256': '',
         'created_at': datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ'),
     }
     registry.setdefault('assets', {})[asset_id] = entry
     by_master[master_filename] = asset_id
+    registry.setdefault('by_original_filename', {})[original_filename] = asset_id
     return entry
 
 

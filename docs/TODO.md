@@ -23,6 +23,8 @@ Rules for this file:
 
 **Active gate (2026-08-18):** lock and ship **PCF** (`.pcf`) as the only campaign data handoff — setup imports `bandPromo-demo.pcf` (legacy `.prp` still accepted); round-trips on Spandexual Tension / HITZ (Twisted Chronicles deferred to v0.9). See [PORTABILITY.md](PORTABILITY.md) §3 and TODO → Portable Campaign Files.
 
+**Active gate (2026-09-16):** **System → Status site health** — doctor model is **partially built**. Reopened: port legacy stage algorithms out of `stage_exec`, and treat bare Untitled register as a **bad import**. See [Site health (Status)](#site-health-status--v0-8-critical) and [BUILD-PIPELINE-PLAN.md](BUILD-PIPELINE-PLAN.md).
+
 **Policy (2026-08-08):** no special-case demo content handling beyond setup PCF import, lock / localhost unlock + export, hide, and duplicate. Collapse remaining heal/force/`bandPromo_*`→demo ownership forks onto normal release ownership. See [PLATFORM-MODEL.md](PLATFORM-MODEL.md) / [PORTABILITY.md](PORTABILITY.md).
 
 **v0.8.5 hotfix slice (2026-07-09 — 2026-07-10):** closed-beta recovery after builds 302–305 Site-update gaps and player/catalogue regressions on hosted installs. **Shipped:** monotonic build ranking, Plesk/Linux publish launcher fixes, delivery-gated streaming, ISO date fields, playlist-from-release metadata, future playlist visibility, demo catalogue hide toggle (Settings + Welcome nudge), Site update dev-host reliability, ahead-of-published developer state. **Also shipped since:** backup/export MVP (2026-07-13), Brand core (build 320+), SQLite activity store (2026-07-12), playlist document materialization without `play/playlist.json` (build 331). **Still open:** page OG/share runtime wiring (v0.9; storage shipped), Brand-assets `media/special/` fold, content AI wizards; **then** beta fleet sync + legacy/fallback audit gate (3 remote test sites). Analytics SQLite tail shipped (2026-07-13). Files → Visual operator pool + Sound effects pool + Brand assets rename + content date-field unification shipped (2026-07-15/16). Visual registry + multi-variant delivery Phases 0b–2 shipped (2026-07-21).
@@ -105,6 +107,27 @@ Implementation order:
 - [x] Phase D — registry-scoped deliverables (`optimizeMedia.py` decoupled from playlist scope).
 - [x] Phase E — artifacts stage (`makePlaylists.py` after deliverables).
 - [x] Phase F — demote layout seed to setup-only (`run-layout-seed.php` + `scripts/initialSiteSeed.py`; removed from `build.py`).
+
+## Site health (Status) — v0.8 critical
+
+Source of truth: [BUILD-PIPELINE-PLAN.md](BUILD-PIPELINE-PLAN.md). Doctor Status UI is live; **do not mark this gate complete** while legacy stages are still wrapped or register drops tag content.
+
+**Shipped (partial):**
+
+- [x] Logging contract + Python runner (`scripts/site_health/`, `HEALTH_*` Activity).
+- [x] Triage / investigate / plan + Quick/Full Check.
+- [x] Status UI: findings + Review → Apply + Force + Stop; Refresh/Repair folded.
+- [x] Audio/visual register-in-place (identity) + Files index rebuild in Python.
+- [x] Follow-up verify after Treat.
+- [x] Status launcher cut over off `build.py` (still may subprocess legacy stage scripts).
+
+**Open (reopened 2026-09-16):**
+
+- [ ] **Bad import / tag fill** — register-in-place must populate registry `display` from master embedded tags (**registry ← master only**). Bare `Untitled` rows are incomplete Treat; heal existing empties; never write empty registry display onto masters.
+- [ ] **Port legacy stage algorithms** into `site_health` (`treat_delivery` / playlists / chrome / sfx) — stop wrapping `optimizeMedia.py`, `optimizeVideo.py`, `buildSfxDelivery.py`, `makePlaylists.py`, `makeSocial.py`, `makePWA.py` via `stage_exec`.
+- [ ] **Retire `stage_exec` bridge** from Status Treat/Force once ports are fleet-proven (archive or delete wrappers).
+- [ ] **Cover extract** as part of treat_audio (plan: tags/covers) — C chip / embedded artwork → visual cover ref where safe.
+- [ ] **Fleet acceptance** — HITZ Treat after publish (tag fill + visual `original_filename` wipe fix); keep Vanilla/Spandexual honest.
 
 ## v0.8 management slice (Brand + Visual pool + content AI)
 

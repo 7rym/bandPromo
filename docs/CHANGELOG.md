@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-09-16 16:15 - Site health Treat liveness on HITZ-scale visual rebuilds: optimizeMedia heartbeats `site-health.meta.json` when Treat owns the lock (Status was stuck on stale "Working..."); stage_exec refreshes that heartbeat from streamed progress; summary-mode delivery logs milestones only; Status Activity poll returns the live log tail (~200KB) so a multi-thousand-line rebuild cannot freeze the pane.
+
+2026-09-16 16:05 - Site health plan reopened as **partially built**: TODO + BUILD-PIPELINE-PLAN + Cursor plan restore open items for legacy stage port (`stage_exec` bridge) and fleet acceptance. Bad-import fix: audio register-in-place fills registry display from master tags (`audio_display.py`, registry ← master only); triage flags bare Untitled rows; Treat heals them without writing empty display onto masters.
+
+2026-09-16 15:25 - Site health HITZ Treat wipe + busy Status UI: register-in-place visuals now set `original_filename` from the master filename (and PHP normalize heals the same) so playlist publish cannot strip newly registered visuals; Status hides Check/Full/Review/Force/Apply while a job runs and keeps Stop + live status only.
+
+2026-09-16 14:45 - Spandexual Tension Site health Force (build 509): healthy Check → Force rebuilt 16 audio + 38 visuals → follow-up **healthy** on Python 3.6.9. Local + Vanilla already passed. HITZ Treat remains tester-manual.
+
+2026-09-16 14:40 - Local + Vanilla Site health acceptance (build 509): Quick check, Full check, Force full rebuild, and open player passed on the operator checkout and on **bandpromo.site**. HITZ Treat and Spandexual targeted Treat remain tester-manual.
+
 2026-09-16 14:15 - Site health plan completion: add `treat_sfx.py` + `treat_links.py`; Treat order audio → visual → sfx → links → playlists → chrome; drop PHP Files-index CLI fallbacks from Treat; UTF-8 stage_exec so Windows locales do not crash delivery; follow-up suppresses Treat-caused JSON fingerprint drift. Local Treat + follow-up proven healthy. Fleet acceptance next after publish.
 
 2026-09-16 14:00 - Site health cutover (plan items 6–7): Status remains Check/Treat/Force only; Welcome, Dashboard notifications, Site update follow-up, PCF/PBF toasts, and player operator notices retarget Site health (`#siteHealthCard`). Folded Refresh / Repair / Deliverables operator labels into Quick/Full check → Review → Apply. Site update refuses while `site-health.lock` is active. HITZ Treat still held for fleet acceptance.

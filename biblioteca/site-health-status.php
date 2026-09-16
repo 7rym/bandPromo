@@ -33,9 +33,28 @@ function bandpromo_site_health_load_json(string $path): array
 }
 
 // Operator Activity pane (Python-owned).
+// Cap payload size so a long visual rebuild cannot stall the Status poller —
+// operators still see the live tail (proof of progress).
 $log = '';
+$logMaxBytes = 200 * 1024;
 if (is_file($logFile)) {
-    $rawLog = @file_get_contents($logFile);
+    $rawLog = '';
+    $size = @filesize($logFile);
+    if (is_int($size) && $size > $logMaxBytes) {
+        $fh = @fopen($logFile, 'rb');
+        if ($fh !== false) {
+            @fseek($fh, -$logMaxBytes, SEEK_END);
+            $chunk = @stream_get_contents($fh);
+            @fclose($fh);
+            if (is_string($chunk) && $chunk !== '') {
+                $nl = strpos($chunk, "\n");
+                $rawLog = ($nl === false) ? $chunk : substr($chunk, $nl + 1);
+                $rawLog = "... (earlier Activity trimmed - job still writing)\n" . $rawLog;
+            }
+        }
+    } else {
+        $rawLog = @file_get_contents($logFile);
+    }
     $log = is_string($rawLog) ? $rawLog : '';
 }
 // Never show legacy EXITCODE crumbs if an old run wrote them into Activity.

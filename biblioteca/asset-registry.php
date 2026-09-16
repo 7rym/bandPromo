@@ -477,6 +477,12 @@ function bandpromo_asset_normalize_entry(array $entry): ?array
     }
 
     if ($kind === 'visual') {
+        // Register-in-place (and some older rows) may only have master_filename.
+        // Heal empty original from master before rejecting — otherwise PHP
+        // normalize drops the visual and the next write-back wipes Treat work.
+        if ($originalFilename === '' && $masterFilename !== '') {
+            $originalFilename = $masterFilename;
+        }
         if ($originalFilename === '') {
             return null;
         }
