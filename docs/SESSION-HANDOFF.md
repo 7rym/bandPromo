@@ -2,13 +2,16 @@
 
 ## Resume point
 
-**Status plan/Activity desync fix — publish with false-healthy follow-on.**
+**Publishing Quick/Full health check + Treat preview for fleet testing.**
 
-Local Check now correctly reports 2 uncatalogued visual masters; Activity log matches plan (`ast_* 28`, `needs_treatment`).
+Includes: Quick vs Full check, Review→Apply treatment, verbose Activity / brief UI, logging ownership, asset-id `{20}` fix (from 506).
 
-### HITZ
+### After publish — HITZ / local
 
-Still needs **506** (asset-id `{20}` fix) then Check → Treat. This follow-on keeps Activity honest when checks run from CLI or admin.
+1. Site update  
+2. Quick or Full health check  
+3. Review treatment → Apply when ready  
+4. Confirm Files → Audio (HITZ)
 
 ### Local workspace
 

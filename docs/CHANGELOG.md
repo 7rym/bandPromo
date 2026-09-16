@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-09-16 13:40 - Site health **Quick** vs **Full** check: Quick is the routine cache-aware exam; Full is read-only but busts fingerprint cache, always probes delivery/Files-index undercount/non-ast_* masters, and always runs investigate. Force remains the mutating rebuild. UI: Quick health check + Full health check buttons.
+
+2026-09-16 13:32 - Site health Treat preview: after findings, **Review treatment** shows a brief proposed-treatment list (read-only); **Apply treatment** is the only mutating step. UI stays brief; file details remain in Activity.
+
+2026-09-16 13:27 - Agreed preference: site health **logs may be verbose**, Status findings UI stays **brief** (title/count/body; filenames only in Activity). Rule + AGENTS updated; Status cards no longer list sample filenames.
+
+2026-09-16 13:25 - Site health Activity logs concrete finding items (filenames/ids) during investigate and diagnose, not only summary counts — via shared `log.items()`.
+
+2026-09-16 13:22 - Preference registered: centralized logging (`.cursor/rules/centralized-logging.mdc` + AGENTS.md) — one logger per subsystem; site health Activity owned by `scripts/site_health/log.py` only.
+
+2026-09-16 13:20 - Site health logging ownership: `scripts/site_health/log.py` is the sole writer of the Status Activity log (`log/site-health.log`), with UTC timestamps on every line. PHP only launches the job and reads the log; process EXITCODE stays on a private `site-health.runner.log` sidecar.
+
 2026-09-16 13:10 - Site health Status trust: Activity log now resets with every Check/Treat/Force (CLI tees into `site-health.log`) so plan findings cannot sit next to a stale `HEALTH_RESULT:healthy` from an older run. Treat recommended stays enabled and primary when findings exist.
 
 2026-09-16 13:05 - Hotfix site health false-healthy on HITZ: asset-id matcher used `{26}` instead of bandPromo's `{20}` Crockford body, so every real `ast_*` master was ignored (`ast_* 0` with hundreds on disk) and Check reported healthy with an empty audio registry. Also add a critical safety finding when registry audio is 0 but disk masters exist.

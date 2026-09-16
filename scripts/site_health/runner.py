@@ -44,19 +44,29 @@ except Exception:
         return {}
 
 
-def run_check():
-    log.phase('check')
-    log.info('Site health Check (read-only)')
-    touch_heartbeat(ROOT_DIR, stage='check', message='Running triage...', name=META_NAME)
+def run_check(deep=False):
+    deep = bool(deep)
+    mode_name = 'check_full' if deep else 'check'
+    log.phase(mode_name)
+    if deep:
+        log.info('Full health check (read-only, cache ignored, deeper probes)')
+    else:
+        log.info('Quick health check (read-only)')
+    touch_heartbeat(
+        ROOT_DIR,
+        stage=mode_name,
+        message='Running {0}...'.format('full triage' if deep else 'triage'),
+        name=META_NAME,
+    )
     plan = plan_mod.empty_plan()
-    plan['mode'] = 'check'
-    plan = triage.run_triage(plan)
+    plan['mode'] = mode_name
+    plan = triage.run_triage(plan, deep=deep)
     if stop_requested():
         log.info('Stop requested during Check.')
         log.result('needs_treatment')
         touch_heartbeat(ROOT_DIR, stage='idle', message='Check stopped', name=META_NAME)
         return 0
-    plan = investigate.run_investigate(plan)
+    plan = investigate.run_investigate(plan, deep=deep)
     plan_mod.overall_from_findings(plan)
     plan.pop('_registry_status', None)
     plan_mod.save_plan(plan)
@@ -80,6 +90,14 @@ def run_check():
             body = str(finding.get('body') or '').strip()
             if body:
                 log.info('  {0}'.format(body))
+            sample = finding.get('items_sample') or []
+            if sample:
+                shown = list(sample)[:12]
+                for item in shown:
+                    log.info('  - {0}'.format(item))
+                extra = int(finding.get('count') or 0) - len(shown)
+                if extra > 0:
+                    log.info('  - ... {0} more'.format(extra))
         log.result('needs_treatment')
     touch_heartbeat(ROOT_DIR, stage='idle', message='Check finished', name=META_NAME)
     return 0
@@ -125,6 +143,20 @@ def run_treat():
 
     if stop_requested():
         log.info('Stop requested after visual treat.')
+        followup.run_followup('treat')
+        touch_heartbeat(ROOT_DIR, stage='idle', message='Treat stopped', name=META_NAME)
+        return 0
+
+    if 'files_index_rebuild' in ids:
+        import files_index
+        log.phase('treat:files_index')
+        log.info('Rebuilding Files → Audio index from registry...')
+        count = files_index.rebuild_audio()
+        log.info('INDEX_REBUILT:audio ({0} rows)'.format(count))
+        log.treat_result('files_index_rebuild', 'ok', count)
+
+    if stop_requested():
+        log.info('Stop requested after Files index treat.')
         followup.run_followup('treat')
         touch_heartbeat(ROOT_DIR, stage='idle', message='Treat stopped', name=META_NAME)
         return 0
@@ -223,9 +255,9 @@ def main(argv=None):
     parser = argparse.ArgumentParser(description='bandPromo site health runner')
     parser.add_argument(
         '--mode',
-        choices=('check', 'treat', 'force'),
+        choices=('check', 'check_full', 'treat', 'force'),
         default='check',
-        help='check (dry exam), treat (apply plan), force (full delivery rebuild)',
+        help='check (quick), check_full (deep read-only), treat, force',
     )
     args = parser.parse_args(argv)
 
@@ -240,7 +272,9 @@ def main(argv=None):
     exit_code = 0
     try:
         if args.mode == 'check':
-            exit_code = run_check()
+            exit_code = run_check(deep=False)
+        elif args.mode == 'check_full':
+            exit_code = run_check(deep=True)
         elif args.mode == 'treat':
             exit_code = run_treat()
         else:

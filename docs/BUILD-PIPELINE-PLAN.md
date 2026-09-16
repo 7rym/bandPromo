@@ -12,8 +12,8 @@ This is **not** a rename of “Refresh site files,” and **not** a partial retr
 
 **We replace the entire current System → Status page content** with a dedicated **site health** page whose job is operator trust. The old Refresh-centric console (summary + Refresh primary + Peek/Repair as the main story) goes away as the operator-facing layout; its capabilities fold into Check / Treat / Force.
 
-1. **Check** — cheap, routine health checks (always safe to run)
-2. **Investigate** — deeper checks only where something sticks out
+1. **Check** — cheap, routine health checks (always safe to run); **Full check** for deeper read-only probes
+2. **Investigate** — deeper checks only where something sticks out (Full always enters this phase)
 3. **Diagnose** — plain-language findings + a worklist (what is wrong, what we would do)
 4. **Treat** — operator-confirmed apply (catalogue register, delivery rebuild, links, playlists, site chrome)
 5. **Verify** — re-check after treatment; confirm improvement or **warn** what remains
@@ -37,7 +37,7 @@ Rules:
 1. **No speculative full-tree work.** Deep checks and treatment only for what triage flagged (unless Force — see modes).
 2. **Empty worklist after triage → healthy.** Exit in seconds.
 3. **Register in place.** Existing disk masters are linked; never mint duplicate `ast_*` as a side effect.
-4. **Treatment is never silent.** Preview/diagnosis first; Apply is explicit.
+4. **Treatment is never silent.** Preview/diagnosis first; Apply is explicit. Status UI: **Review treatment** (read-only) → **Apply treatment** (mutates). Verbose evidence stays in Activity.
 5. **Follow-up is mandatory after treatment.** Never claim “site ready” while findings persist.
 6. **New scripts replace legacy stages.** Port behaviour from old build scripts into a new `scripts/site_health/` family with **one logging contract**. Do not keep wrapping `optimizeMedia.py` / `makePlaylists.py` / etc. as the long-term path. (ffmpeg/Pillow stay; our orchestration and log voice change.)
 7. **Python is the engine room.** Long Check/Treat loops, plan, delivery, and health logging run in Python. PHP remains for browser/admin endpoints. Retire long PHP CLIs (`build-catalog-cli`, `publish-prep-cli`, autofix CLI as Status engine). Registry treat mutations are ported to Python against the same JSON files admin PHP already uses.
@@ -46,16 +46,17 @@ Rules:
 
 | Mode | Mutates? | Role |
 |------|----------|------|
-| **Check site health** | No | Default exam. This **is** the dry-run — diagnose catastrophes and thrash risk before any write. |
-| **Treat preview** | No | Show planned treatments/counts before Apply. |
-| **Treat recommended** | Yes | Apply plan only, then follow-up verify. |
+| **Quick health check** | No | Routine exam. Cache-aware fingerprint baseline. This **is** the default dry-run. |
+| **Full health check** | No | Deeper read-only verify: ignores fingerprint cache, always probes delivery existence, Files index undercount, non-`ast_*` masters; rebuilds baseline after. Never mutates. |
+| **Treat preview** | No | **Review treatment** — show proposed treatments/counts before Apply (file lists in Activity). |
+| **Treat recommended** | Yes | **Apply treatment** — apply plan only, then follow-up verify. |
 | **Force full rebuild** | Yes | Bypass healthy short-circuit; rebuild all listener deliverables + playlists + site chrome. Does **not** mint masters or skip catalogue findings — Force is blocked while critical catalogue issues remain (treat register-in-place first). |
 
 ## New script family
 
 ```
 scripts/site_health/
-  log.py           # shared HEALTH_* log contract
+  log.py           # sole writer of log/site-health.log (timestamped HEALTH_* contract)
   runner.py        # Check / Treat / Force entry (Python engine room)
   triage.py
   investigate.py
@@ -69,6 +70,8 @@ scripts/site_health/
   treat_chrome.py
   followup.py
 ```
+
+PHP admin endpoints only **launch** the job and **read** the Activity log / plan. They must not append operator Activity lines (process EXITCODE may use a private runner sidecar).
 
 Legacy stage scripts and long PHP CLIs are **reference during port**, then retired from the operator Status path.
 

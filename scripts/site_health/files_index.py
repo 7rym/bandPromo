@@ -435,5 +435,14 @@ def rebuild_audio():
     return rebuild_target('audio')
 
 
+def count_target_rows(target):
+    """Count Files index rows for one target (read-only)."""
+    target = str(target or '').strip().lower()
+    state = _load_state()
+    files = state.get('files') if isinstance(state.get('files'), dict) else {}
+    prefix = target + '/'
+    return sum(1 for key in files if str(key).startswith(prefix))
+
+
 def rebuild_visual():
     return rebuild_targets(['illustrations', 'photos', 'video'])

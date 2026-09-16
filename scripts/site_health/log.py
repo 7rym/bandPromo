@@ -1,10 +1,18 @@
 # -*- coding: utf-8 -*-
-"""Unified HEALTH_* logging contract for site health."""
+"""
+Site health Activity log — sole writer of log/site-health.log.
+
+All Check / Treat / Force scripts must log through this module (phase / info /
+finding / progress / treat_result / result). PHP must not write the Activity
+log; it may only read it for Status, and may keep a private runner sidecar
+for process EXITCODE outside the operator pane.
+"""
 
 from __future__ import print_function
 
 import os
 import sys
+from datetime import datetime
 
 _log_fp = None
 
@@ -18,14 +26,12 @@ def _safe(text):
     )
 
 
-def begin_run(log_path):
-    """
-    Start a fresh Activity log for this job.
+def _utc_stamp():
+    return datetime.utcnow().strftime('%Y-%m-%d %H:%M:%SZ')
 
-    Python owns log/site-health.log so plan + Activity always match.
-    Admin launches redirect build-runner stdout to a side runner log;
-    CLI still sees lines on stdout.
-    """
+
+def begin_run(log_path):
+    """Truncate and open the Activity log for this job (Python-owned)."""
     global _log_fp
     close_run()
     path = str(log_path or '').strip()
@@ -51,16 +57,27 @@ def close_run():
 
 
 def emit(line):
-    """Print one operator/machine log line and flush."""
+    """
+    Write one Activity line with a UTC timestamp.
+
+    Format: [YYYY-MM-DD HH:MM:SSZ] message
+    Machine tokens (HEALTH_PHASE, HEALTH_RESULT, …) stay in the message body
+    so parsers can still match on the line.
+    """
     text = _safe(line).rstrip('\n')
+    # Avoid double-stamping if a caller already prefixed a stamp.
+    if text.startswith('[') and 'Z] ' in text[:28]:
+        stamped = text
+    else:
+        stamped = '[{0}] {1}'.format(_utc_stamp(), text)
     try:
-        sys.stdout.write(text + '\n')
+        sys.stdout.write(stamped + '\n')
         sys.stdout.flush()
     except Exception:
         pass
     if _log_fp is not None:
         try:
-            _log_fp.write(text + '\n')
+            _log_fp.write(stamped + '\n')
             _log_fp.flush()
         except Exception:
             pass
@@ -92,3 +109,27 @@ def result(outcome):
 
 def info(message):
     emit(_safe(message))
+
+
+def items(label, values, limit=12):
+    """Log a labelled list of concrete finding items via the shared logger."""
+    names = []
+    for value in values or []:
+        if isinstance(value, dict):
+            name = (
+                value.get('master_filename')
+                or value.get('asset_id')
+                or value.get('name')
+                or ''
+            )
+        else:
+            name = value
+        name = str(name or '').strip()
+        if name:
+            names.append(name)
+    info('{0}: {1}'.format(label, len(names)))
+    shown = names[: int(limit)]
+    for name in shown:
+        info('  - {0}'.format(name))
+    if len(names) > int(limit):
+        info('  - ... {0} more'.format(len(names) - int(limit)))

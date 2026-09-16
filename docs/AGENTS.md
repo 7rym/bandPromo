@@ -31,6 +31,7 @@ Welcome to the bandPromo codebase! This file provides essential guidance for AI 
 - **Local workspace:** the operator checkout lives at a normal path (currently `C:\dev\bandpromo`) with `.git` in-tree. The old Google Drive sync layout is retired; `scripts/protect-google-drive-git.ps1` remains only for any leftover Drive-synced clones.
 - Use UTF-8 encoding for all tracked repository files and generated logs/artifacts committed to git.
 - **UTF-8 runtime:** process stdio and subprocess pipes must be UTF-8 (with `errors='replace'`). Publish/Repair preflight must detect non-UTF-8 host locales (e.g. HITZ `ANSI_X3.4-1968`), reconfigure via `scripts/stdio_utf8.py` when possible, and keep conversion fallbacks — never crash mid-job on ellipsis or non-ASCII paths. See `.cursor/rules/utf8-line-endings.mdc`.
+- **Centralized logging:** prefer one shared logger per subsystem over ad-hoc `print` / `file_put_contents` into operator logs. **Logs may be verbose; UI stays brief** (title/count/body — detail in Activity). Site health Activity is owned solely by `scripts/site_health/log.py` (PHP launches/reads only). See `.cursor/rules/centralized-logging.mdc`.
 - **Line endings:** repository text uses **LF**. `.gitattributes` sets `text=auto eol=lf`. Readers accept CRLF or LF; writers emit LF unless an external format requires CRLF.
 - Keep repository-authored text in **UK English** only (not US English). See **Language** below.
 - Exception: content inside `biblioteca/templates/` and runtime user data (for example `data/`) may contain any language.

@@ -65,11 +65,8 @@ def run_stage_script(script_name, env_extra=None, label=''):
     for line in iter(proc.stdout.readline, ''):
         text = line.rstrip('\n')
         if text:
-            # Avoid double HEALTH_ prefixes from nested health runs.
-            if text.startswith('HEALTH_'):
-                log.emit(text)
-            else:
-                log.info(text)
+            # Stage scripts print plain lines; site_health log.py stamps them.
+            log.info(text)
         if stop_requested():
             try:
                 proc.terminate()

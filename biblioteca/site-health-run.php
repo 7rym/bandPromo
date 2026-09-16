@@ -46,20 +46,21 @@ if ($csrfToken !== '' && !validate_csrf_token($csrfToken)) {
 }
 
 $mode = strtolower(trim((string) ($request['mode'] ?? 'check')));
-if (!in_array($mode, ['check', 'treat', 'force'], true)) {
+if (!in_array($mode, ['check', 'check_full', 'treat', 'force'], true)) {
     $mode = 'check';
 }
 
 $scriptMap = [
     'check' => $root . '/scripts/siteHealthCheck.py',
+    'check_full' => $root . '/scripts/siteHealthCheckFull.py',
     'treat' => $root . '/scripts/siteHealthTreat.py',
     'force' => $root . '/scripts/siteHealthForce.py',
 ];
 $script = $scriptMap[$mode];
 $lockFile = $logDir . '/site-health.lock';
 $metaFile = $logDir . '/site-health.meta.json';
-$logFile = $logDir . '/site-health.log';
-// build-runner EXITCODE / chatter — not the operator Activity pane
+// Private process sidecar only (EXITCODE / runner chatter). Never the Activity pane —
+// Python scripts/site_health/log.py is the sole writer of log/site-health.log.
 $runnerLogFile = $logDir . '/site-health.runner.log';
 $isWindows = strtoupper(substr(PHP_OS_FAMILY, 0, 3)) === 'WIN';
 
@@ -132,6 +133,8 @@ echo json_encode([
     'running' => true,
     'run_id' => $runId,
     'message' => $mode === 'check'
-        ? 'Site health check started.'
-        : ($mode === 'treat' ? 'Treatment started.' : 'Force rebuild started.'),
+        ? 'Quick health check started.'
+        : ($mode === 'check_full'
+            ? 'Full health check started.'
+            : ($mode === 'treat' ? 'Treatment started.' : 'Force rebuild started.')),
 ]);

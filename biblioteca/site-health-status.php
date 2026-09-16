@@ -2,7 +2,9 @@
 declare(strict_types=1);
 
 /**
- * Poll site health plan + log + running state for System → Status.
+ * Poll site health plan + Activity log + running state for System → Status.
+ *
+ * Activity text is read-only here — written only by scripts/site_health/log.py.
  */
 
 require_once __DIR__ . '/admin-api-guard.php';
@@ -30,33 +32,44 @@ function bandpromo_site_health_load_json(string $path): array
     return is_array($decoded) ? $decoded : [];
 }
 
+// Operator Activity pane (Python-owned).
 $log = '';
 if (is_file($logFile)) {
     $rawLog = @file_get_contents($logFile);
     $log = is_string($rawLog) ? $rawLog : '';
 }
+// Never show legacy EXITCODE crumbs if an old run wrote them into Activity.
+$log = (string) preg_replace('/\nEXITCODE:\-?\d+\s*$/', '', $log);
 
-$exitCode = null;
+$meta = bandpromo_site_health_load_json($metaFile);
+$metaStatus = strtolower(trim((string) ($meta['status'] ?? '')));
+$metaExit = array_key_exists('exit_code', $meta) ? $meta['exit_code'] : null;
+if ($metaExit !== null && $metaExit !== '') {
+    $metaExit = (int) $metaExit;
+} else {
+    $metaExit = null;
+}
+
+// Process sidecar — build-runner EXITCODE only; not shown in Activity.
+$exitCode = $metaExit;
 $runnerLog = '';
 if (is_file($runnerLogFile)) {
     $rawRunner = @file_get_contents($runnerLogFile);
     $runnerLog = is_string($rawRunner) ? $rawRunner : '';
 }
-if (preg_match('/\nEXITCODE:(\-?\d+)\s*$/', $runnerLog, $m)) {
+if ($exitCode === null && preg_match('/\nEXITCODE:(\-?\d+)\s*$/', $runnerLog, $m)) {
     $exitCode = (int) $m[1];
-} elseif (preg_match('/\nEXITCODE:(\-?\d+)\s*$/', $log, $m)) {
-    // Legacy: older builds wrote EXITCODE into the Activity log.
-    $exitCode = (int) $m[1];
-    $log = (string) preg_replace('/\nEXITCODE:\-?\d+\s*$/', '', $log);
 }
 
-$running = is_file($lockFile) && $exitCode === null;
-if (is_file($lockFile) && $exitCode !== null) {
+$lockPresent = is_file($lockFile);
+$metaRunning = in_array($metaStatus, ['starting', 'running'], true);
+$running = $lockPresent && $exitCode === null && ($metaRunning || $metaStatus === '');
+if ($lockPresent && ($exitCode !== null || in_array($metaStatus, ['idle', 'failed'], true))) {
     @unlink($lockFile);
+    $running = false;
 }
 
 $plan = bandpromo_site_health_load_json($planFile);
-$meta = bandpromo_site_health_load_json($metaFile);
 
 $overall = (string) ($plan['overall'] ?? '');
 if ($overall === '' && $plan === []) {

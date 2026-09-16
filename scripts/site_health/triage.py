@@ -98,20 +98,33 @@ def json_fingerprints():
     return result
 
 
-def run_triage(plan):
+def run_triage(plan, deep=False):
     log.phase('triage')
+    deep = bool(deep)
     app_version = plan_mod.read_app_version()
     plan['app_version'] = app_version
     fp = host_fingerprint(app_version)
     plan['host_fingerprint'] = fp
     cache = load_fingerprint_cache()
     cache_hit = (
-        str(cache.get('host_fingerprint') or '') == fp
+        not deep
+        and str(cache.get('host_fingerprint') or '') == fp
         and str(cache.get('app_version') or '') == app_version
     )
-    log.info('Host fingerprint: {0} ({1})'.format(
-        fp, 'cache hit' if cache_hit else 'full environment check'
-    ))
+    if deep:
+        log.info('Host fingerprint: {0} (full check — cache ignored)'.format(fp))
+        # Bust trust: do not compare against prior JSON digests.
+        previous = {}
+        cache = {}
+    else:
+        log.info('Host fingerprint: {0} ({1})'.format(
+            fp, 'cache hit' if cache_hit else 'full environment check'
+        ))
+        previous = (
+            cache.get('json_fingerprints')
+            if isinstance(cache.get('json_fingerprints'), dict)
+            else {}
+        )
 
     py_ok = sys.version_info >= (3, 6)
     ffmpeg = ffmpeg_available()
@@ -173,12 +186,27 @@ def run_triage(plan):
         disk_audio_ast = [
             n for n in disk_audio if reg.is_asset_id(os.path.splitext(n)[0])
         ]
+        disk_audio_other = [
+            n for n in disk_audio if not reg.is_asset_id(os.path.splitext(n)[0])
+        ]
         disk_originals = reg.list_audio_originals_on_disk()
         disk_visual = reg.list_visual_masters_on_disk()
         log.info('Disk audio masters: {0} (ast_* {1}), originals: {2}'.format(
             len(disk_audio), len(disk_audio_ast), len(disk_originals)
         ))
         log.info('Disk visual masters: {0}'.format(len(disk_visual)))
+        if deep and disk_audio_other:
+            log.info('Non-ast_* audio masters on disk: {0}'.format(len(disk_audio_other)))
+            plan_mod.add_finding(
+                plan, 'non_ast_audio_masters', 'attention',
+                'Some audio masters are not named as asset ids', len(disk_audio_other),
+                '',
+                sample=disk_audio_other[:12],
+                body=(
+                    '{0} file(s) under media/audio/master are not ast_* masters. '
+                    'Register-in-place cannot claim them automatically — see Activity.'
+                ).format(len(disk_audio_other)),
+            )
 
         pending_audio = reg.uncatalogued_audio_masters(registry)
         pending_visual = reg.uncatalogued_visual_masters(registry)
@@ -219,7 +247,10 @@ def run_triage(plan):
             )
 
         # Cheap delivery existence checks (no checksums).
-        if not pending_audio:
+        # Quick skips delivery when register is pending; Full always probes.
+        check_audio_delivery = deep or not pending_audio
+        check_visual_delivery = deep or not pending_visual
+        if check_audio_delivery:
             missing_audio = reg.missing_audio_deliverables(registry)
             if missing_audio:
                 plan_mod.add_finding(
@@ -231,7 +262,7 @@ def run_triage(plan):
                         '{0} registered audio asset(s) lack an optimal MP3 under media/audio/optimal.'
                     ).format(len(missing_audio)),
                 )
-        if not pending_visual:
+        if check_visual_delivery:
             missing_visual = reg.missing_visual_deliveries(registry)
             if missing_visual:
                 plan_mod.add_finding(
@@ -244,8 +275,27 @@ def run_triage(plan):
                     ).format(len(missing_visual)),
                 )
 
+        if deep and len(audio) > 0:
+            try:
+                import files_index
+                indexed = files_index.count_target_rows('audio')
+            except Exception as exc:
+                log.info('Files index probe skipped: {0}'.format(exc))
+                indexed = -1
+            if indexed >= 0 and indexed < len(audio):
+                plan_mod.add_finding(
+                    plan, 'files_index_audio_undercount', 'attention',
+                    'Files → Audio index is behind the registry', len(audio) - indexed,
+                    'files_index_rebuild',
+                    sample=[],
+                    body=(
+                        'Files index has {0} audio row(s) but the registry lists {1}. '
+                        'Treat can rebuild the index without minting masters.'
+                    ).format(indexed, len(audio)),
+                )
+                log.info('Files index audio rows: {0} (registry {1})'.format(indexed, len(audio)))
+
     current_fps = json_fingerprints()
-    previous = cache.get('json_fingerprints') if isinstance(cache.get('json_fingerprints'), dict) else {}
     changed = []
     for key, meta in current_fps.items():
         prev = previous.get(key) if isinstance(previous.get(key), dict) else {}
@@ -253,7 +303,11 @@ def run_triage(plan):
             continue
         if prev.get('sha256') and prev.get('sha256') != meta.get('sha256'):
             changed.append(key)
-    if changed and previous:
+    if deep:
+        log.info('JSON fingerprints recomputed ({0} keys) — baseline rebuilt.'.format(
+            len(current_fps)
+        ))
+    elif changed and previous:
         plan_mod.add_finding(
             plan, 'json_changed', 'attention',
             'Site data files changed since last health check', len(changed),
@@ -271,6 +325,7 @@ def run_triage(plan):
         'host_fingerprint': fp,
         'app_version': app_version,
         'json_fingerprints': current_fps,
+        'last_check_deep': bool(deep),
     })
     save_fingerprint_cache(cache)
     return plan

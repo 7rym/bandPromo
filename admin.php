@@ -2850,7 +2850,7 @@ if ($tab === 'analytics') {
             <?php if ($systemTab === 'deliverables'): ?>
             <div class="admin-help-box collapsed" id="help-build">
                 This page is your site’s health exam: cheap checks first, deeper checks only when something sticks out, then a clear diagnosis and optional treatment.<br><br>
-                <strong>Check</strong> never changes files. <strong>Treat</strong> applies the recommended fixes (for example registering songs already on disk into Files). <strong>Force full rebuild</strong> rebuilds listener deliverables even when Check looks healthy — blocked while critical catalogue findings remain.
+                <strong>Quick health check</strong> is the routine read-only exam (may trust the last fingerprint baseline). <strong>Full health check</strong> is still read-only but ignores that cache and runs deeper probes. After findings, <strong>Review treatment</strong> shows what would run; <strong>Apply treatment</strong> is the only step that mutates. Details stay in Activity. <strong>Force full rebuild</strong> rebuilds listener deliverables — blocked while critical catalogue findings remain.
             </div>
 
             <div id="siteHealthCard" class="card publish-status-card">
@@ -2858,14 +2858,18 @@ if ($tab === 'analytics') {
                     <h3>Site health</h3>
                     <span id="siteHealthOverall" class="badge audit-status-badge status-neutral">Not checked yet</span>
                 </div>
-                <p id="siteHealthMeta" class="card-note" style="margin-top:0.35rem">Run <strong>Check site health</strong> for a read-only exam. Nothing is changed until you Treat.</p>
+                <p id="siteHealthMeta" class="card-note" style="margin-top:0.35rem">Run <strong>Quick health check</strong> for a routine exam, or <strong>Full health check</strong> for a deeper read-only verify. Nothing is changed until you Apply treatment.</p>
                 <div id="siteHealthFindings" class="publish-status-summary">
-                    <p class="publish-status-empty">No check yet — start with Check site health.</p>
+                    <p class="publish-status-empty">No check yet — start with Quick health check.</p>
                 </div>
+                <div id="siteHealthTreatPreview" class="publish-status-summary" hidden></div>
                 <p id="siteHealthJobStatus" class="build-log-status publish-action-status" hidden></p>
                 <div class="publish-actions-toolbar" style="margin-top:0.75rem">
-                    <button type="button" id="siteHealthCheckBtn" class="btn btn-primary">Check site health</button>
-                    <button type="button" id="siteHealthTreatBtn" class="btn" hidden>Treat recommended</button>
+                    <button type="button" id="siteHealthCheckBtn" class="btn btn-primary">Quick health check</button>
+                    <button type="button" id="siteHealthCheckFullBtn" class="btn">Full health check</button>
+                    <button type="button" id="siteHealthTreatBtn" class="btn" hidden>Review treatment</button>
+                    <button type="button" id="siteHealthTreatApplyBtn" class="btn btn-primary" hidden>Apply treatment</button>
+                    <button type="button" id="siteHealthTreatCancelBtn" class="btn" hidden>Not now</button>
                     <button type="button" id="siteHealthForceBtn" class="btn">Force full rebuild</button>
                     <button type="button" id="siteHealthStopBtn" class="btn" hidden>Stop</button>
                 </div>

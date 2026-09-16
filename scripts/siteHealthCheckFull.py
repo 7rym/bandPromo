@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-"""Entry: site health Quick Check (read-only)."""
+"""Entry: site health Full Check (read-only, deeper probes)."""
 from __future__ import print_function
 import os
 import sys
@@ -10,4 +10,4 @@ sys.path.insert(0, os.path.join(HERE, 'site_health'))
 from runner import main  # noqa: E402
 
 if __name__ == '__main__':
-    sys.exit(main(['--mode', 'check']))
+    sys.exit(main(['--mode', 'check_full']))
