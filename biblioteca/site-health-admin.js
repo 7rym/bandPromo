@@ -421,12 +421,55 @@
         if (running) {
             return 'already-running';
         }
-        if (!checkBtn || checkBtn.disabled) {
+        if (!checkBtn || checkBtn.disabled || checkBtn.hidden) {
             return 'unavailable';
         }
         checkBtn.click();
         return 'started';
     };
+
+    function shouldAutoStartQuickCheck() {
+        try {
+            const params = new URLSearchParams(window.location.search);
+            if (params.get('run_recommended') === '1') {
+                return true;
+            }
+            if (sessionStorage.getItem('bandpromo_run_site_health_check') === '1') {
+                return true;
+            }
+            if (sessionStorage.getItem('bandpromo_post_package_update')) {
+                return true;
+            }
+        } catch (error) {
+            // Ignore storage failures.
+        }
+        return false;
+    }
+
+    async function maybeAutoStartAfterUpdate() {
+        if (!shouldAutoStartQuickCheck()) {
+            return;
+        }
+        // Wait for the first status paint so we do not fight a busy lock.
+        await refreshStatus();
+        if (running) {
+            return;
+        }
+        let attempts = 0;
+        while (attempts < 8) {
+            attempts += 1;
+            const result = window.bandpromoStartSiteHealthQuickCheck();
+            if (result === 'started' || result === 'already-running') {
+                try {
+                    sessionStorage.removeItem('bandpromo_run_site_health_check');
+                } catch (error) {
+                    // Ignore.
+                }
+                return;
+            }
+            await new Promise((resolve) => setTimeout(resolve, 250));
+        }
+    }
 
     checkBtn.addEventListener('click', () => {
         setPreviewMode(false);
@@ -520,4 +563,5 @@
     }
 
     refreshStatus();
+    maybeAutoStartAfterUpdate();
 })();

@@ -2,7 +2,7 @@
 
 ## Resume point
 
-**Published v0.8.69 build 521.** Next: HITZ Site update — expect auto Quick health check; Dashboard should not nag missing content hashes; SFX Apply if still empty; Activity deliverable lines say **built / kept / failed**.
+**Fix Site update → Quick check auto-start (in flight):** pre-update JS redirected without `run_recommended=1`; now sessionStorage flash + Status-page retry also starts Quick check. Publish next, then re-test Site update on HITZ/Vanilla.
 
 ### Local workspace
 

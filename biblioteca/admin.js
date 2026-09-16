@@ -1582,10 +1582,30 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 document.body.appendChild(operatorNotificationsModal);
             }
 
+            function peekPostPackageUpdateFlash() {
+                try {
+                    if (sessionStorage.getItem('bandpromo_run_site_health_check') === '1') {
+                        return 'updated';
+                    }
+                    const raw = sessionStorage.getItem('bandpromo_post_package_update');
+                    if (!raw) {
+                        return null;
+                    }
+                    const payload = JSON.parse(raw);
+                    if (!payload || typeof payload !== 'object') {
+                        return null;
+                    }
+                    return String(payload.version || '').trim() || 'updated';
+                } catch (error) {
+                    return null;
+                }
+            }
+
             function consumePostPackageUpdateFlash() {
                 const storageKey = 'bandpromo_post_package_update';
                 let payload = null;
                 try {
+                    sessionStorage.removeItem('bandpromo_run_site_health_check');
                     const raw = sessionStorage.getItem(storageKey);
                     if (raw) {
                         payload = JSON.parse(raw);
@@ -1594,6 +1614,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 } catch (error) {
                     try {
                         sessionStorage.removeItem(storageKey);
+                        sessionStorage.removeItem('bandpromo_run_site_health_check');
                     } catch (storageError) {
                         // Ignore storage failures.
                     }
@@ -1636,6 +1657,9 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                         version: String(installedVersion || '').trim(),
                         at: Date.now(),
                     }));
+                    // Dedicated start flag — survives even when the pre-update page
+                    // redirected without run_recommended=1.
+                    sessionStorage.setItem('bandpromo_run_site_health_check', '1');
                 } catch (error) {
                     // Redirect still works when storage is unavailable.
                 }
@@ -12017,7 +12041,19 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
             }
 
             function maybeRunRecommendedActionFromQuery() {
-                if (!pendingBuildRunFromQuery || triggeredBuildRunFromQuery) {
+                if (triggeredBuildRunFromQuery) {
+                    return;
+                }
+
+                // Site update redirect is built by the *pre-update* admin.js still in
+                // memory. Older builds omitted run_recommended=1 but still set the
+                // sessionStorage flash — treat that flash as a start trigger too.
+                const postUpdatePending = peekPostPackageUpdateFlash();
+                const shouldRun = pendingBuildRunFromQuery || !!postUpdatePending;
+                if (!shouldRun) {
+                    return;
+                }
+                if (!isDeliverablesViewActive() && !document.getElementById('siteHealthCheckBtn')) {
                     return;
                 }
 
@@ -12031,25 +12067,33 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 openBuildLogCard();
 
                 // Quick health check is read-only and the normal post-update exam.
-                // Delay briefly so site-health-admin.js has finished wiring the button.
-                window.setTimeout(() => {
+                // Retry briefly so site-health-admin.js can finish wiring after a hard reload.
+                let attempts = 0;
+                const tryStart = () => {
+                    attempts += 1;
                     const runResult = startSiteHealthQuickCheck();
-                    if (postUpdateVersion !== null) {
-                        showPostPackageUpdateToast(postUpdateVersion, runResult);
-                        return;
-                    }
-                    if (typeof showAdminToast !== 'function') {
-                        return;
-                    }
                     if (runResult === 'started' || runResult === 'already-running') {
-                        showAdminToast('Quick health check is running — safe to leave this page.', 'success');
-                    } else {
+                        if (postUpdateVersion !== null) {
+                            showPostPackageUpdateToast(postUpdateVersion, runResult);
+                        } else if (typeof showAdminToast === 'function') {
+                            showAdminToast('Quick health check is running — safe to leave this page.', 'success');
+                        }
+                        return;
+                    }
+                    if (attempts < 8) {
+                        window.setTimeout(tryStart, 250);
+                        return;
+                    }
+                    if (postUpdateVersion !== null) {
+                        showPostPackageUpdateToast(postUpdateVersion, 'unavailable');
+                    } else if (typeof showAdminToast === 'function') {
                         showAdminToast(
                             'When you are ready, open Site health and run a Quick or Full health check.',
                             'success'
                         );
                     }
-                }, 350);
+                };
+                window.setTimeout(tryStart, 200);
             }
 
             if (recommendedBuildBtn) {
