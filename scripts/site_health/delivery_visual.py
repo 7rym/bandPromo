@@ -109,12 +109,12 @@ def run_visual_still_delivery(force=False):
                 'visual_delivery',
                 index,
                 total,
-                '{0} built, {1} fresh, {2} failed'.format(built, skipped, failed),
+                '{0} built, {1} kept, {2} failed'.format(built, skipped, failed),
             )
             _heartbeat('Visual delivery {0}/{1}'.format(index, total))
 
     log.info(
-        'Visual still delivery done: {0} built, {1} fresh, {2} failed.'.format(
+        'Visual still delivery done: {0} built, {1} kept, {2} failed.'.format(
             built, skipped, failed
         )
     )

@@ -114,7 +114,7 @@ def run_video_delivery(force=False):
                 'video_delivery',
                 index,
                 total,
-                '{0} built, {1} fresh, {2} failed'.format(built, skipped, failed),
+                '{0} built, {1} kept, {2} failed'.format(built, skipped, failed),
             )
             _heartbeat('Video delivery {0}/{1}'.format(index, total))
 
@@ -136,7 +136,7 @@ def run_video_delivery(force=False):
             )
 
     log.info(
-        'Video delivery done: {0} built, {1} fresh, {2} failed, {3} poster(s).'.format(
+        'Video delivery done: {0} built, {1} kept, {2} failed, {3} poster(s).'.format(
             built, skipped, failed, posters_ready
         )
     )

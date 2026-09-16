@@ -133,6 +133,10 @@ function bandpromo_catalog_repair_should_run(string $root, array $reconcileResul
     return (int) ($preview['changed_total'] ?? 0) > 0;
 }
 
+/**
+ * Background Repair Apply helper (orphaned — no Status CTA caller since Site health).
+ * Kept for possible developer CLI / future port; do not wire Welcome to this.
+ */
 function bandpromo_catalog_repair_maybe_run(string $root, array $reconcileResult = []): array
 {
     if (bandpromo_catalog_repair_is_locked($root)) {

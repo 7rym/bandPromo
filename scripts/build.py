@@ -1141,7 +1141,7 @@ def print_build_success_banner(elapsed, profile, stage_count, stats, timing_reco
     print('')
     if dry_run_needs_repair:
         print('  Stopped after catalogue inventory in {0} (profile: {1}).'.format(elapsed, profile))
-        print('  Uncatalogued masters must be registered via Repair catalogue Apply.')
+        print('  Uncatalogued masters must be registered via System → Status → Site health (Check → Apply).')
         print('  Do not Refresh again until Files → Audio lists your tracks.')
     elif is_dry_run:
         print('  Diagnostics finished in {0} (profile: dry-run).'.format(elapsed))
@@ -1180,29 +1180,29 @@ def print_build_success_banner(elapsed, profile, stage_count, stats, timing_reco
     print_section('Media files', [
         ('Checked', media_handled),
         ('New deliverables', media_created),
-        ('Already up to date', media_fresh),
+        ('Kept', media_fresh),
         ('Need attention', media_failed),
     ])
     print_section('Player playlists', [
         ('Updated', playlist['created']),
-        ('Already up to date', playlist['fresh']),
+        ('Kept', playlist['fresh']),
         ('Need attention', playlist['failed']),
     ])
     print_section('Share images', [
         ('Updated', social['created']),
-        ('Already up to date', social['fresh']),
+        ('Kept', social['fresh']),
         ('Need attention', social['failed']),
     ])
     print_section('Site manifest', [
         ('Updated', manifest['created']),
-        ('Already up to date', manifest['fresh']),
+        ('Kept', manifest['fresh']),
         ('Need attention', manifest['failed']),
     ])
 
     print_repeated_errors(error_lines)
 
     if dry_run_needs_repair:
-        print('  Next: Repair catalogue Apply (register in place), then Refresh.')
+        print('  Next: System → Status → Site health → Apply (register in place), then Force if needed.')
     elif is_dry_run:
         print('  Dry-run only — listener files were not updated.')
     elif failed == 0 and not error_lines:
@@ -1427,7 +1427,7 @@ def main():
             dry_run_needs_repair = True
             print('')
             print('  Catalogue inventory found uncatalogued masters — stopping Refresh.')
-            print('  Use Peek under the hood → Repair catalogue → Apply (register in place).')
+            print('  Use System → Status → Site health → Review → Apply (register in place).')
             print('  Then run Refresh site files to build listener deliverables.')
             print('')
             sys.stdout.flush()

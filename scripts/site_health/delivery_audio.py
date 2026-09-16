@@ -90,7 +90,7 @@ def run_audio_delivery(force=False):
                 'audio_delivery',
                 index,
                 total,
-                '{0} built, {1} fresh, {2} failed'.format(converted, skipped, failed),
+                '{0} built, {1} kept, {2} failed'.format(converted, skipped, failed),
             )
             _heartbeat('Audio delivery {0}/{1}'.format(index, total))
 
@@ -114,7 +114,7 @@ def run_audio_delivery(force=False):
         log.info('Removed {0} stale audio delivery file(s).'.format(removed))
 
     log.info(
-        'Audio delivery done: {0} built, {1} fresh, {2} failed.'.format(
+        'Audio delivery done: {0} built, {1} kept, {2} failed.'.format(
             converted, skipped, failed
         )
     )

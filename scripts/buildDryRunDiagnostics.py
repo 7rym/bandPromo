@@ -221,7 +221,7 @@ def main():
         print('          leaving a stable Files catalogue — that wasted time and disk.')
         print('')
         print('NEXT STEP (safe, no full rebuild):')
-        print('  1. System → Status → Peek under the hood → Repair catalogue')
+        print('  1. System → Status → Site health → Quick check → Review → Apply')
         print('  2. Preview, then Apply — this registers existing masters in place')
         print('     (no new copies; no 40-minute media rebuild).')
         print('  3. Confirm Files → Audio lists your tracks.')
@@ -235,7 +235,7 @@ def main():
         print('')
     elif len(uncatalogued_audio) > 0:
         print('WARNING: {0} audio master(s) on disk are not in the registry.'.format(len(uncatalogued_audio)))
-        print('         Run Repair catalogue Apply to register them in place.')
+        print('         Run Site health Apply to register them in place.')
         print('')
 
     if len(uncatalogued_visual) > 0 and len(visual_assets) == 0:
@@ -243,7 +243,7 @@ def main():
         print('CRITICAL: Visual registry is empty while {0} visual master(s) exist on disk.'.format(
             len(uncatalogued_visual)
         ))
-        print('          Same recovery: Repair catalogue Apply (register in place).')
+        print('          Same recovery: Site health Apply (register in place).')
         print('')
 
     audio_by_label, audio_by_hash = _cluster(audio_assets, _audio_label)

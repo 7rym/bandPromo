@@ -17,7 +17,7 @@ $warnings = is_array($result['warnings'] ?? null) ? $result['warnings'] : [];
 $failed = count($warnings);
 $handled = $built + $skipped + $failed;
 
-echo 'Sound effects delivery: ' . $built . ' built, ' . $skipped . ' already up to date';
+echo 'Sound effects delivery: ' . $built . ' built, ' . $skipped . ' kept';
 if ($failed > 0) {
     echo ', ' . $failed . ' warning' . ($failed === 1 ? '' : 's');
 }

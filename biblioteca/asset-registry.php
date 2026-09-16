@@ -2289,14 +2289,14 @@ function bandpromo_asset_registry_ensure_migrated(string $root, bool $heavy = fa
     try {
         bandpromo_reconcile_uncatalogued_visual_masters($root);
     } catch (Throwable $throwable) {
-        // Publish / Repair catalogue can retry; do not block admin boot.
+        // Publish / Site health Treat can retry; do not block admin boot.
     }
 
     // Same for audio: PCF/masters-only hosts may lack originals; durable bytes are masters.
     try {
         bandpromo_reconcile_uncatalogued_audio_masters($root);
     } catch (Throwable $throwable) {
-        // Publish / Repair catalogue can retry; do not block admin boot.
+        // Publish / Site health Treat can retry; do not block admin boot.
     }
 }
 
@@ -2408,6 +2408,11 @@ function bandpromo_list_uncatalogued_audio_originals(string $root): array
 /**
  * Cheap registry-only health snapshot for Welcome (no scandir/hash/tier migrate).
  *
+ * Site health owns operator catalogue/delivery treatments. This snapshot only
+ * surfaces gaps Site health can clear (missing visual delivery variants, legacy
+ * audio master filenames). Registry content_xxh3 gaps are NOT Welcome nags —
+ * Site health dedupe hashes live masters; intake still ensures hashes on register.
+ *
  * @return array{
  *   needs_attention: bool,
  *   attention_kind: string,
@@ -2456,6 +2461,7 @@ function bandpromo_asset_registry_health_snapshot(string $root): array
             if (!$hasCard && !$hasThumb) {
                 $missingImageDelivery++;
             }
+            // Diagnostic only — do not drive Welcome attention (Repair-era leftover).
             $hasXxh3 = strtolower(trim((string) ($asset['content_xxh3'] ?? ''))) !== '';
             $hasSha = strtolower(trim((string) ($asset['content_sha256'] ?? ''))) !== '';
             if (!$hasXxh3 && !$hasSha) {
@@ -2471,14 +2477,11 @@ function bandpromo_asset_registry_health_snapshot(string $root): array
     }
 
     $reasons = [];
-    $needsRepair = $missingContentHash > 0 || $legacyAudioMasters > 0;
+    // Missing registry content hashes are not a Site health finding and cannot be
+    // cleared by Check → Apply. Keep counting for diagnostics only.
+    $needsRepair = $legacyAudioMasters > 0;
     $needsDelivery = $missingImageDelivery > 0;
 
-    if ($needsRepair && $missingContentHash > 0) {
-        $reasons[] = $missingContentHash === 1
-            ? '1 visual is missing a content hash used for dedupe.'
-            : $missingContentHash . ' visuals are missing content hashes used for dedupe.';
-    }
     if ($needsRepair && $legacyAudioMasters > 0) {
         $reasons[] = $legacyAudioMasters === 1
             ? '1 audio master still uses a legacy filename.'

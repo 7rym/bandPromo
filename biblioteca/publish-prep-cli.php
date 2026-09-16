@@ -161,7 +161,7 @@ if ($inventoryOnly) {
                 break;
             }
         }
-        $logLine('[inventory] Do not Refresh to heal these — use Repair catalogue Apply.');
+        $logLine('[inventory] Do not Refresh to heal these — use System → Status → Site health Apply.');
     }
     $logLine('[prep] Inventory finished (no writes).');
     $logLine('[prep] Ready for publish stages.');

@@ -29,7 +29,7 @@ def generate_share_images():
     config = ms.load_config()
     src_image = ms.resolve_share_image(config)
     created = 0
-    fresh = 0
+    kept = 0
     failed = 0
 
     ms.validate_social_config(config)
@@ -75,7 +75,7 @@ def generate_share_images():
         if result == 'created':
             created += 1
         elif result == 'fresh':
-            fresh += 1
+            kept += 1
         else:
             failed += 1
             all_ok = False
@@ -89,8 +89,8 @@ def generate_share_images():
     except Exception:
         share_rel = ms.SHARE_DIR
     log.info(
-        'Share images: {0} created, {1} fresh, {2} failed → {3}/'.format(
-            created, fresh, failed, share_rel
+        'Share images: {0} created, {1} kept, {2} failed → {3}/'.format(
+            created, kept, failed, share_rel
         )
     )
     return all_ok

@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-09-16 22:40 - Operator deliverable counts: Activity / build summaries use **built / kept / failed** (kept = fingerprint matched, existing file left alone). Internal BUILD_STATS key remains `fresh` for parsers.
+
+2026-09-16 22:20 - Site update follow-up: restore auto Quick health check after install (`run_recommended=1` + start `siteHealthCheckBtn`). Notifications “Quick health check” navigates with the same flag. Fixes regression that only opened Status / showed a toast.
+
+2026-09-16 22:05 - Stale Repair leftovers: Welcome catalogue card no longer nags on missing visual `content_xxh3` (Site health dedupe does not use registry hashes; CTA could not clear it). Remove dead Repair catalogue Status JS (`initContentAutofix`). Retarget build/publish operator copy and ROADMAP/OPERATOR-MESSAGING/MEDIA-HANDLING to Site health.
+
 2026-09-16 20:00 - Site health SFX register-in-place: Check flags uncatalogued `media/sfx/master/ast_*` (HITZ had 0 registry SFX with masters on disk); Treat registers them, rebuilds Files → Sound effects index, then delivery. Force blocked while SFX catalogue findings remain.
 
 2026-09-16 19:45 - Site health Activity: first line includes app VERSION (`running bandPromo vX.Y.Z build N`).

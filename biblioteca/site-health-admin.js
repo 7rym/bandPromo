@@ -417,6 +417,17 @@
         }
     }
 
+    window.bandpromoStartSiteHealthQuickCheck = function bandpromoStartSiteHealthQuickCheck() {
+        if (running) {
+            return 'already-running';
+        }
+        if (!checkBtn || checkBtn.disabled) {
+            return 'unavailable';
+        }
+        checkBtn.click();
+        return 'started';
+    };
+
     checkBtn.addEventListener('click', () => {
         setPreviewMode(false);
         startMode('check');

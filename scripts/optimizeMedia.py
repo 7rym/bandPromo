@@ -57,7 +57,7 @@ def warn_xxhash_missing_once():
     if xxhash is not None or _XXHASH_WARNED:
         return
     _XXHASH_WARNED = True
-    print('  ⚠️  xxhash unavailable — skip-if-fresh disabled until scripts/vendor bootstrap succeeds')
+    print('  ⚠️  xxhash unavailable — skip-if-current disabled until scripts/vendor bootstrap succeeds')
 
 # Player card max CSS is 600px; deliver slightly above for sharpness.
 COVER_OPTIMAL_MAX_EDGE = 720
@@ -1261,7 +1261,7 @@ def main():
         audio_queue = load_registry_audio_delivery_queue()
         if not audio_queue:
             print("❌ No registered audio assets found in data/assets/registry.json")
-            print("   Run Repair catalogue or upload audio via Files first.")
+            print("   Run Site health Apply or upload audio via Files first.")
             sys.exit(1)
         print(f"✓ Found {len(audio_queue)} registered audio assets")
     print("=" * 70)
@@ -1303,7 +1303,7 @@ def main():
                 failed += 1
             if not OPTIMIZE_VERBOSE and (index % 10 == 0 or index == audio_total):
                 print(
-                    "  Audio {0}/{1} — {2} built, {3} fresh, {4} failed".format(
+                    "  Audio {0}/{1} — {2} built, {3} kept, {4} failed".format(
                         index, audio_total, converted, skipped, failed
                     )
                 )
@@ -1362,7 +1362,7 @@ def main():
                 print("    ⚠️  Skipped or failed: {0}".format(label))
             if not OPTIMIZE_VERBOSE and (index % 25 == 0 or index == visual_total):
                 print(
-                    "  Visual {0}/{1} — {2} built, {3} fresh, {4} failed".format(
+                    "  Visual {0}/{1} — {2} built, {3} kept, {4} failed".format(
                         index, visual_total, visual_count, visual_skipped, visual_failed
                     )
                 )
@@ -1427,13 +1427,13 @@ def main():
     print(f"✅ Optimization complete!")
     if include_audio:
         print(f"   Converted tracks : {converted}")
-        print(f"   Skipped (fresh)  : {skipped}")
+        print(f"   Kept (unchanged) : {skipped}")
         print(f"   Failed           : {failed}")
     else:
         print("   Converted tracks : skipped (image-only mode)")
         print("   Failed           : 0")
     print(f"   Unregistered images skipped : {orphan_count}")
-    print(f"   Visual registry images : rebuilt {visual_count}, fresh {visual_skipped}, failed {visual_failed}")
+    print(f"   Visual registry images : rebuilt {visual_count}, kept {visual_skipped}, failed {visual_failed}")
     print(f"   Cleaned up files       : {removed}")
     if include_audio:
         print(f"   Audio output     : {AUDIO_OPT_DIR}")

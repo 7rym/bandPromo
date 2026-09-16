@@ -2,16 +2,10 @@
 
 ## Resume point
 
-**SFX missing on HITZ (and any host with disk masters + empty registry):** Site health now probes `media/sfx/master`, flags `uncatalogued_sfx_masters`, and Treat runs `sfx_register_in_place` + Files SFX index rebuild + delivery. Publish, then on HITZ: Site update → Quick check → Review → Apply.
+**Session ended at build pending publish:** Site update → auto Quick health check restored; Welcome content-hash nag removed; dead Repair Status JS removed; deliverable Activity copy is **built / kept / failed**.
 
-### HITZ recovery checklist
-
-1. Site update to latest build (SFX register-in-place + prior Full audio dedupe / remap / index fixes).
-2. Status → Quick check — expect Sound effects finding if registry still 0 sfx with masters on disk.
-3. Review → Apply (registers SFX; rebuilds Files → Sound effects).
-4. Hard-refresh Files → Sound effects; login Welcome/Logged-in smoke.
-5. Full check still available for dual-tag audio content clones if needed.
+Next session: fleet smoke on HITZ after Site update (auto Quick check, SFX Apply if needed, confirm Dashboard no longer nags content hashes).
 
 ### Local workspace
 
-Checkout is **`C:\dev\bandpromo`**. Never wipe `data/` / `media/` / `log/` / `backups/` here. Local already has 4 registered SFX; HITZ was the empty-registry case.
+Checkout is **`C:\dev\bandpromo`**. Never wipe `data/` / `media/` / `log/` / `backups/` here.

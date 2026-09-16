@@ -1436,7 +1436,9 @@ function bandpromo_content_autofix_heal_visual_display(string $root, bool $dryRu
 
 /**
  * Backfill content_xxh3 / content_sha256 for visual images (original or master bytes).
- * Clears the Welcome “missing content hashes” nag for masters-only installs.
+ * Clears legacy Welcome “missing content hashes” nag when still invoked from
+ * bootstrap / seed migrate. Welcome no longer surfaces that nag (Site health
+ * owns operator health; registry hashes remain for intake / shared covers).
  */
 function bandpromo_content_autofix_backfill_visual_content_hashes(string $root, bool $dryRun): array
 {
