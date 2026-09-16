@@ -608,7 +608,7 @@ function bandpromo_publish_status_summary(string $root, array $options = []): ar
             'label' => 'Songs on disk are not in Files yet',
             'count' => $masterCount,
             'detail' => 'Some song files are on the server but not listed in Files yet.',
-            'action' => 'Open Peek under the hood → Repair catalogue → Apply. Do not Refresh until Files → Audio lists your tracks.',
+            'action' => 'Open System → Status, run a health check, then Review and Apply treatment. Do not Force until Files → Audio lists your tracks.',
         ];
     }
 
@@ -619,7 +619,7 @@ function bandpromo_publish_status_summary(string $root, array $options = []): ar
             'label' => 'Uploads still waiting to finish registering',
             'count' => $originalCount,
             'detail' => 'Some uploads never finished joining the catalogue.',
-            'action' => 'Open Peek under the hood → Repair catalogue → Apply. Refresh will not register these.',
+            'action' => 'Open System → Status, run a health check, then Review and Apply treatment.',
         ];
     }
 
@@ -630,7 +630,7 @@ function bandpromo_publish_status_summary(string $root, array $options = []): ar
             'label' => 'Some tracks are not stream-ready yet',
             'count' => $missingCount,
             'detail' => 'Listeners need prepared streaming files for these tracks.',
-            'action' => 'Use Refresh site files to prepare them.',
+            'action' => 'Open System → Status, Review treatment, then Apply (or Force only when the catalogue is clear).',
         ];
     }
 
@@ -649,7 +649,7 @@ function bandpromo_publish_status_summary(string $root, array $options = []): ar
             'detail' => $friendlyTasks !== []
                 ? 'Waiting on: ' . implode(', ', $friendlyTasks) . '.'
                 : 'Recent changes may need updated listener files.',
-            'action' => 'Refresh site files when you are ready — also keeps the install ready for the next Site update.',
+            'action' => 'Open System → Status when you are ready — Check, then Review and Apply treatment.',
         ];
     }
 
@@ -671,22 +671,22 @@ function bandpromo_publish_status_summary(string $root, array $options = []): ar
         $nextStep = [
             'severity' => 'needs_fix',
             'title' => 'Catalogue needs a hand',
-            'body' => implode('. ', $bits) . '. Use Repair catalogue Apply to register existing masters in place — Refresh will not heal this.',
-            'cta' => 'repair',
+            'body' => implode('. ', $bits) . '. Use Site health → Review → Apply to register existing masters in place.',
+            'cta' => 'site_health',
         ];
     } elseif ($missingCount > 0) {
         $nextStep = [
             'severity' => 'recommended',
             'title' => 'Prepare streaming files',
-            'body' => $missingCount . ' track(s) are not stream-ready yet. A tune-up prepares them for listeners and keeps the site ready for future Site updates.',
-            'cta' => 'refresh',
+            'body' => $missingCount . ' track(s) are not stream-ready yet. Site health treatment prepares them for listeners.',
+            'cta' => 'site_health',
         ];
     } elseif ($pendingPublish) {
         $nextStep = [
             'severity' => 'recommended',
             'title' => 'Tune-up recommended',
-            'body' => 'A short Refresh keeps everything current for listeners and future-proofs the install for the next Site update.',
-            'cta' => 'refresh',
+            'body' => 'Open Site health when you are ready — Check, then Review and Apply treatment to keep listener files current.',
+            'cta' => 'site_health',
         ];
     }
 

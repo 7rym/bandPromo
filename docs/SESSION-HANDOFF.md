@@ -2,16 +2,26 @@
 
 ## Resume point
 
-**Publishing Quick/Full health check + Treat preview for fleet testing.**
+**Site health plan implementation complete locally. Fleet acceptance in progress (publish → remote Check/Treat).**
 
-Includes: Quick vs Full check, Review→Apply treatment, verbose Activity / brief UI, logging ownership, asset-id `{20}` fix (from 506).
+### Proven locally
 
-### After publish — HITZ / local
+- Quick Check → healthy (after Treat)
+- Treat: visual register-in-place, delivery (optimizeMedia UTF-8 fixed), video, sfx, playlists, chrome
+- Follow-up: healthy (JSON drift from Treat no longer false-fails)
 
-1. Site update  
-2. Quick or Full health check  
-3. Review treatment → Apply when ready  
-4. Confirm Files → Audio (HITZ)
+### Modules
+
+`treat_sfx.py`, `treat_links.py` added; runner order audio → visual → sfx → links → playlists → chrome. Status off `build.py`. Labels folded.
+
+### Fleet (item 8)
+
+| Host | Status |
+|------|--------|
+| Local / operator checkout | Treat + follow-up **done** |
+| bandpromo.site (Vanilla) | Pending Site update + Quick Check |
+| hitz.no | Pending Site update + Treat (185 audio register-in-place) |
+| spandexualtension.com | Pending Site update + targeted Treat |
 
 ### Local workspace
 

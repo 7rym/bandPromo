@@ -124,7 +124,9 @@ def run_treat():
     treatments = plan.get('treatments') if isinstance(plan.get('treatments'), list) else []
     ids = [str(t.get('id') or '') for t in treatments]
     did_register = False
+    treat_ok = True
 
+    # Plan order: audio → visual → sfx → links → playlists → chrome
     if 'audio_register_in_place' in ids:
         import treat_audio
         treat_audio.treat_audio_register_in_place()
@@ -147,42 +149,42 @@ def run_treat():
         touch_heartbeat(ROOT_DIR, stage='idle', message='Treat stopped', name=META_NAME)
         return 0
 
-    if 'files_index_rebuild' in ids:
-        import files_index
-        log.phase('treat:files_index')
-        log.info('Rebuilding Files → Audio index from registry...')
-        count = files_index.rebuild_audio()
-        log.info('INDEX_REBUILT:audio ({0} rows)'.format(count))
-        log.treat_result('files_index_rebuild', 'ok', count)
-
-    if stop_requested():
-        log.info('Stop requested after Files index treat.')
-        followup.run_followup('treat')
-        touch_heartbeat(ROOT_DIR, stage='idle', message='Treat stopped', name=META_NAME)
-        return 0
-
+    need_sfx = 'sfx_delivery' in ids
     need_delivery = any(
         tid in ids
         for tid in ('listener_delivery', 'audio_delivery', 'visual_delivery')
     )
-    # After register-in-place, always rebuild missing/stale deliverables in the
-    # same Treat so one "Treat recommended" heals HITZ-style gaps.
-    delivery_ok = True
+    # After register-in-place, rebuild missing/stale deliverables in the same Treat.
     if need_delivery or did_register:
         import treat_delivery
-        delivery_ok = treat_delivery.treat_all_listener_delivery(force=False)
+        treat_ok = treat_delivery.treat_all_listener_delivery(force=False)
         need_delivery = True
+        need_sfx = False  # already chained inside treat_all_listener_delivery
+    elif need_sfx:
+        import treat_sfx
+        treat_ok = treat_sfx.treat_sfx(force=False)
 
     if stop_requested():
-        log.info('Stop requested after delivery treat.')
+        log.info('Stop requested after delivery/sfx treat.')
+        followup.run_followup('treat')
+        touch_heartbeat(ROOT_DIR, stage='idle', message='Treat stopped', name=META_NAME)
+        return 0
+
+    need_links = any(tid in ids for tid in ('container_links', 'files_index_rebuild'))
+    if treat_ok and (need_links or did_register):
+        import treat_links
+        treat_ok = treat_links.treat_links() and treat_ok
+
+    if stop_requested():
+        log.info('Stop requested after links treat.')
         followup.run_followup('treat')
         touch_heartbeat(ROOT_DIR, stage='idle', message='Treat stopped', name=META_NAME)
         return 0
 
     need_playlists = any(tid in ids for tid in ('playlists', 'container_links'))
-    if delivery_ok and (need_playlists or need_delivery):
+    if treat_ok and (need_playlists or need_delivery):
         import treat_playlists
-        treat_playlists.treat_playlists()
+        treat_ok = treat_playlists.treat_playlists() and treat_ok
 
     if stop_requested():
         log.info('Stop requested after playlists.')
@@ -191,13 +193,13 @@ def run_treat():
         return 0
 
     need_chrome = any(tid in ids for tid in ('site_chrome', 'container_links'))
-    if delivery_ok and (need_chrome or need_delivery):
+    if treat_ok and (need_chrome or need_delivery):
         import treat_chrome
-        treat_chrome.treat_chrome()
+        treat_ok = treat_chrome.treat_chrome() and treat_ok
 
     followup.run_followup('treat')
     touch_heartbeat(ROOT_DIR, stage='idle', message='Treat finished', name=META_NAME)
-    return 0 if delivery_ok else 1
+    return 0 if treat_ok else 1
 
 
 def run_force():
@@ -229,10 +231,17 @@ def run_force():
         return 0
 
     import treat_delivery
+    import treat_links
     import treat_playlists
     import treat_chrome
 
     ok = treat_delivery.treat_all_listener_delivery(force=True)
+    if stop_requested():
+        followup.run_followup('force')
+        touch_heartbeat(ROOT_DIR, stage='idle', message='Force stopped', name=META_NAME)
+        return 0
+    if ok:
+        treat_links.treat_links()
     if stop_requested():
         followup.run_followup('force')
         touch_heartbeat(ROOT_DIR, stage='idle', message='Force stopped', name=META_NAME)

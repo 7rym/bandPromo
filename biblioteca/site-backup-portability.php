@@ -2827,7 +2827,7 @@ function bandpromo_site_backup_run_import_job(string $root, string $jobId): arra
                 $summaryParts[] = 'Updated site URL to ' . $origin . '.';
             }
         }
-        $summaryParts[] = 'Open Deliverables after import if you want to refresh listener-ready files.';
+        $summaryParts[] = 'Open Status after import if you want to refresh listener-ready files via Site health.';
 
         $job['status'] = BANDPROMO_SITE_BACKUP_JOB_READY;
         $job['completed_at_utc'] = gmdate('c');

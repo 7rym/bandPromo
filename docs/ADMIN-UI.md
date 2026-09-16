@@ -42,7 +42,9 @@ Do not invent a second under-nav title pattern for new Content editors unless th
 | Audit | No | Yes |
 | Environment | No | Yes |
 
-**Status** is being rebuilt as the operator **site health** page (triage → diagnose → treat → follow-up) — see [BUILD-PIPELINE-PLAN.md](BUILD-PIPELINE-PLAN.md). It is not merely “Refresh site files UI.” Legacy Refresh / Repair catalogue actions fold into that flow; until the new page ships, Repair catalogue on Status remains **developer-only**. Direct `?stab=audit` or `?stab=environment` (legacy `?stab=security`) redirects operators to Status.
+**Status** is the operator **site health** page (triage → diagnose → treat → follow-up) — see [BUILD-PIPELINE-PLAN.md](BUILD-PIPELINE-PLAN.md). Legacy Refresh / Repair catalogue / Peek under the hood are folded into Check / Treat / Force; Status no longer surfaces those as primary actions.
+
+**Role policy (Status):** `admin` and `developer` may run Quick/Full check, Review → Apply treatment (including register-in-place), and Force full rebuild. Destructive future treatments (e.g. prune duplicates) stay developer-only when added. Direct `?stab=audit` or `?stab=environment` (legacy `?stab=security`) redirects operators to Status.
 
 Operator feedback uses toasts today; unified toast → inbox is planned for v0.9 — [OPERATOR-MESSAGING.md](OPERATOR-MESSAGING.md).
 

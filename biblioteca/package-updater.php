@@ -524,8 +524,8 @@ function bandpromo_package_run_post_update_tasks(string $root, array $applyResul
         'visual_legacy_relocate' => $legacyRelocate,
         'install_migrations' => $installMigrations,
         'build_required' => $buildRequired,
-        // Always open Deliverables after a package update. Rebuild all deliverables
-        // is the normal next step so listener-ready files match the new app code,
+        // Always open Status after a package update. Site health Check/Treat is the
+        // normal next step so listener-ready files match the new app code,
         // even when delivery status already looked clear.
         'follow_up' => 'open_build_tab',
     ];

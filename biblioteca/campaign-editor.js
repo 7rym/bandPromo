@@ -1642,7 +1642,7 @@
             const title = escapeHtml(item.title || item.id || 'Untitled');
             const metaBits = [];
             if (item.suggested) {
-                metaBits.push('Suggested — tracks already belong to this campaign (save associations or Repair catalogue to confirm)');
+                metaBits.push('Suggested — tracks already belong to this campaign (save associations or Site health Treat to confirm)');
             }
             if (item.publish_date) {
                 metaBits.push(String(item.publish_date));

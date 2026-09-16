@@ -48,10 +48,10 @@ try {
     require_once __DIR__ . '/build-lock.php';
     require_once __DIR__ . '/catalog-repair-auto.php';
 
-    // Do not extract over a live Publish / Optimize / Repair — wait for that work to finish.
+    // Do not extract over a live Publish / Optimize / Repair / Site health — wait for that work to finish.
     if (bandpromo_build_lock_active($root, 'full')) {
         throw new RuntimeException(
-            'Site update cannot start while Publish / Refresh site files is running. Wait for it to finish, then try again.'
+            'Site update cannot start while a legacy Publish / Refresh job is running. Wait for it to finish, then try again.'
         );
     }
     if (bandpromo_build_lock_active($root, 'optimize')) {
@@ -61,7 +61,13 @@ try {
     }
     if (bandpromo_catalog_repair_is_locked($root)) {
         throw new RuntimeException(
-            'Site update cannot start while Repair catalogue (or background catalogue preparation) is running. Wait for it to finish, then try again.'
+            'Site update cannot start while a catalogue repair job is running. Wait for it to finish, then try again.'
+        );
+    }
+    $siteHealthLock = $root . '/log/site-health.lock';
+    if (is_file($siteHealthLock)) {
+        throw new RuntimeException(
+            'Site update cannot start while Site health is running. Wait for it to finish, then try again.'
         );
     }
 
@@ -128,7 +134,7 @@ try {
     } elseif (is_array($demoRefresh) && empty($demoRefresh['ok'])) {
         $message .= ' Demo catalogue could not be refreshed automatically; rebuild may still use the previous demo files.';
     }
-    $message .= ' Opening Deliverables to rebuild listener-ready files for your public site.';
+    $message .= ' Opening Status so you can run a Quick health check and treat listener files if needed.';
 
     $orphanMigration = is_array($postUpdate['install_migrations'][BANDPROMO_INSTALL_MIGRATION_ORPHAN_PRIMARY_ID] ?? null)
         ? $postUpdate['install_migrations'][BANDPROMO_INSTALL_MIGRATION_ORPHAN_PRIMARY_ID]

@@ -2429,8 +2429,8 @@ function bandpromo_asset_registry_health_snapshot(string $root): array
             'missing_content_hash' => 0,
             'legacy_audio_masters' => 0,
             'reasons' => ['Asset registry could not be read.'],
-            'href' => '?tab=system&stab=deliverables#catalog-repair',
-            'cta_label' => 'Open Repair catalogue',
+            'href' => '?tab=system&stab=deliverables#siteHealthCard',
+            'cta_label' => 'Open Site health',
         ];
     }
 
@@ -2480,11 +2480,10 @@ function bandpromo_asset_registry_health_snapshot(string $root): array
     }
     if ($needsDelivery) {
         $reasons[] = $missingImageDelivery === 1
-            ? '1 visual is missing delivery thumbnails (build with Refresh site files).'
-            : $missingImageDelivery . ' visuals are missing delivery thumbnails (build with Refresh site files).';
+            ? '1 visual is missing delivery thumbnails (use Site health → Review → Apply).'
+            : $missingImageDelivery . ' visuals are missing delivery thumbnails (use Site health → Review → Apply).';
     }
 
-    // Prefer Repair CTA when registry housekeeping is needed; delivery-only → Refresh.
     if ($needsRepair) {
         return [
             'needs_attention' => true,
@@ -2493,8 +2492,8 @@ function bandpromo_asset_registry_health_snapshot(string $root): array
             'missing_content_hash' => $missingContentHash,
             'legacy_audio_masters' => $legacyAudioMasters,
             'reasons' => $reasons,
-            'href' => '?tab=system&stab=deliverables#catalog-repair',
-            'cta_label' => 'Open Repair catalogue',
+            'href' => '?tab=system&stab=deliverables#siteHealthCard',
+            'cta_label' => 'Open Site health',
         ];
     }
 
@@ -2506,8 +2505,8 @@ function bandpromo_asset_registry_health_snapshot(string $root): array
             'missing_content_hash' => $missingContentHash,
             'legacy_audio_masters' => $legacyAudioMasters,
             'reasons' => $reasons,
-            'href' => '?tab=system&stab=deliverables#publishActionsCard',
-            'cta_label' => 'Open Refresh site files',
+            'href' => '?tab=system&stab=deliverables#siteHealthCard',
+            'cta_label' => 'Open Site health',
         ];
     }
 
@@ -2518,8 +2517,8 @@ function bandpromo_asset_registry_health_snapshot(string $root): array
         'missing_content_hash' => 0,
         'legacy_audio_masters' => 0,
         'reasons' => [],
-        'href' => '?tab=system&stab=deliverables#catalog-repair',
-        'cta_label' => 'Open Repair catalogue',
+        'href' => '?tab=system&stab=deliverables#siteHealthCard',
+        'cta_label' => 'Open Site health',
     ];
 }
 

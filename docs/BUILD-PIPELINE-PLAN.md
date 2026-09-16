@@ -90,11 +90,11 @@ Demo PCF ensure stays on Site update / setup. Dedupe/prune stays later operator-
 1. Logging contract + runner shell — **done**  
 2. Planner spine (triage/investigate → plan; healthy early exit) — **done**  
 3. Status health UI v1 (findings + Check / Treat + Activity) — **done**  
-4. Treat modules: audio/visual register-in-place; listener delivery + playlists + chrome; Force rebuild — **done** (stages still subprocess legacy scripts)  
+4. Treat modules: audio/visual register-in-place; `treat_sfx` / `treat_links`; listener delivery + playlists + chrome; Force rebuild — **done** (delivery/playlists/chrome still call legacy Python stage scripts via `stage_exec` cutover bridge; no long PHP catalogue CLIs on the Status path)  
 5. Follow-up verify — **done**  
-5b. Files index rebuild in Python (Treat) — **done** (PHP CLI fallback)  
-6. Cut over Status off `build.py` stage manifest; retire legacy stage entrypoints  
-7. Fold Refresh/Repair labels into Status  
+5b. Files index rebuild in Python (Treat) — **done** (PHP CLI fallbacks removed)  
+6. Cut over Status off `build.py` stage manifest; retire legacy stage entrypoints — **done** (Status UI launches `siteHealth*.py` only; Welcome/Dashboard/Site update/player nudges retarget `#siteHealthCard`)  
+7. Fold Refresh/Repair labels into Status — **done** (operator copy uses Check / Review / Apply / Force; legacy build UI removed from Status markup)  
 8. Fleet acceptance (HITZ / Vanilla / Spandexual)
 
 ## Explicit non-goals

@@ -119,7 +119,7 @@ if ($deliveryWarning !== '') {
     $warnings[] = $deliveryWarning;
 }
 if ($missing_delivery !== []) {
-    $warnings[] = 'Some tracks are saved in the playlist but still need audio delivery before playback will work. Check Python/ffmpeg, then save again or use System → Deliverables.';
+    $warnings[] = 'Some tracks are saved in the playlist but still need audio delivery before playback will work. Check Python/ffmpeg, then save again or use System → Status → Site health.';
 }
 if ($publishWarning !== '') {
     $warnings[] = $publishWarning;

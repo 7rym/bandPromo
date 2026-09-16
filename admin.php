@@ -776,7 +776,7 @@ if ($tab === 'analytics') {
 
             <?php if ($welcomeSetupComplete): ?>
             <?php
-            $catalogHealth = ['needs_attention' => false, 'reasons' => [], 'href' => '?tab=system&stab=deliverables#catalog-repair'];
+            $catalogHealth = ['needs_attention' => false, 'reasons' => [], 'href' => '?tab=system&stab=deliverables#siteHealthCard'];
             if ($tab === 'welcome') {
                 require_once __DIR__ . '/biblioteca/asset-registry.php';
                 $catalogHealth = bandpromo_asset_registry_health_snapshot(__DIR__);
@@ -785,32 +785,24 @@ if ($tab === 'analytics') {
             <?php if (!empty($catalogHealth['needs_attention']) && in_array($currentUserRole, ['developer', 'admin'], true)): ?>
             <?php
             $catalogAttentionKind = (string) ($catalogHealth['attention_kind'] ?? 'repair');
-            $isDeveloper = $currentUserRole === 'developer';
             $catalogCtaLabel = trim((string) ($catalogHealth['cta_label'] ?? ''));
             if ($catalogCtaLabel === '') {
-                $catalogCtaLabel = $catalogAttentionKind === 'delivery'
-                    ? 'Open Refresh site files'
-                    : ($isDeveloper ? 'Open Repair catalogue' : 'Open Site health');
-            }
-            if (!$isDeveloper && $catalogAttentionKind === 'repair') {
                 $catalogCtaLabel = 'Open Site health';
             }
-            $catalogHref = (string) ($catalogHealth['href'] ?? '?tab=system&stab=deliverables');
-            if (!$isDeveloper || $catalogAttentionKind === 'delivery') {
-                $catalogHref = '?tab=system&stab=deliverables#publishActionsCard';
+            $catalogHref = (string) ($catalogHealth['href'] ?? '?tab=system&stab=deliverables#siteHealthCard');
+            if (strpos($catalogHref, '#') === false || strpos($catalogHref, 'siteHealthCard') === false) {
+                $catalogHref = '?tab=system&stab=deliverables#siteHealthCard';
             }
             ?>
             <div class="card welcome-catalog-repair-card" id="welcomeCatalogRepairCard">
                 <h2><?php echo $catalogAttentionKind === 'delivery'
                     ? 'Listener files need a tune-up'
-                    : 'Catalogue needs a developer repair'; ?></h2>
+                    : 'Catalogue needs attention'; ?></h2>
                 <p class="card-note">
                     <?php if ($catalogAttentionKind === 'delivery'): ?>
-                    Some artwork or streaming files are not ready for listeners yet. Use <strong>Refresh site files</strong> under System → Status — we will ask before starting.
-                    <?php elseif ($isDeveloper): ?>
-                    Registry housekeeping that does not run on every page load. Preview (dry-run) then Apply under System → Status → Peek under the hood. This does not publish the public site by itself.
+                    Some artwork or streaming files are not ready for listeners yet. Open <strong>System → Status</strong>, run a health check, then Review and Apply treatment when you are ready.
                     <?php else: ?>
-                    Something in the catalogue needs a developer to run <strong>Repair catalogue</strong> (under System → Status → Peek under the hood). You can still open Site health to Refresh when that is the right next step.
+                    The catalogue needs register-in-place or related treatment. Open <strong>System → Status</strong>, run a health check, Review treatment, then Apply. Details stay in Activity.
                     <?php endif; ?>
                 </p>
                 <?php if (!empty($catalogHealth['reasons']) && is_array($catalogHealth['reasons'])): ?>
@@ -1569,12 +1561,12 @@ if ($tab === 'analytics') {
                     <ul>
                         <li>Playlists took over traditional listening products — albums, singles, EPs, compilations, live sets. Each playlist is an ordered package of campaign-owned tracks; it does not own masters.</li>
                         <li>They can also be a running series: podcasts, DJ mixsets, radio shows. Set package type to Show or Podcast and Player track order to Newest first so new episodes play first while you keep appending at the bottom of this list.</li>
-                        <li>Saving a playlist prepares missing delivery files and refreshes the player — you do not need Refresh site files for a normal add-track loop. Shift/Ctrl-click selects multiple tracks.</li>
+                        <li>Saving a playlist prepares missing delivery files and refreshes the player — you do not need Site health for a normal add-track loop. Shift/Ctrl-click selects multiple tracks.</li>
                     </ul>
                 <?php elseif ($contentTab === 'gallery'): ?>
                     <ul>
                         <li>A gallery is a campaign-owned visual set (photos, stills, video). It reuses Files → Visual assets and does not own those files.</li>
-                        <li>Select a gallery to preview; edit to reorder. Shift/Ctrl-click selects multiple items; name and alt edit inline. Saving does not need Refresh site files.</li>
+                        <li>Select a gallery to preview; edit to reorder. Shift/Ctrl-click selects multiple items; name and alt edit inline. Saving does not need Site health.</li>
                         <li>Galleries appear in the player when a campaign page includes a Gallery block — not as their own player tab. Associate that page on Catalogue → Campaign editor → Pages.</li>
                     </ul>
                 <?php elseif ($contentTab === 'pages'): ?>
@@ -2974,7 +2966,7 @@ if ($tab === 'analytics') {
                 Move one campaign with a <strong>Portable Campaign File (<code>.pcf</code>)</strong> (masters, brand, playlists, galleries, pages), or one brand with a <strong>Portable Brand File (<code>.pbf</code>)</strong> (brand + curated library masters).
                 Or back up this install for recovery (site settings, catalogue &amp; config, media library, support logs).
                 Import collision: <strong>Refuse</strong> keeps local and reports the clash, <strong>Overwrite</strong> replaces the matching id, <strong>Skip</strong> leaves existing ids, <strong>AsNew</strong> allocates a new id.
-                Jobs stay until you download or delete them. After import, open <strong>Status</strong> if you need to refresh listener-ready files.
+                Jobs stay until you download or delete them. After import, open <strong>Status → Site health</strong> if you need to refresh listener-ready files.
             </div>
 
             <div class="card site-backup-card">

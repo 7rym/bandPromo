@@ -13,7 +13,9 @@ def run_followup(previous_mode='treat'):
     log.info('Re-checking site health after treatment...')
     plan = plan_mod.empty_plan()
     plan['mode'] = 'followup'
-    plan = triage.run_triage(plan)
+    # Treat itself rewrites registry / fingerprints — refresh baseline without
+    # flagging that drift as a remaining finding.
+    plan = triage.run_triage(plan, suppress_json_drift=True)
     # Import here to avoid circular import at module load in some runners
     import investigate
     plan = investigate.run_investigate(plan)

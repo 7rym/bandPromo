@@ -1181,7 +1181,7 @@ function bandpromo_maybe_run_auto_audio_upload_tasks(array $reasons, array $uplo
         $deliveryError = trim((string) ($delivery['error'] ?? ''));
         $warnings[] = $deliveryError !== ''
             ? ('Automatic audio delivery preparation failed after upload: ' . $deliveryError)
-            : 'Automatic audio delivery preparation failed after upload. Songs need delivery MP3s before playback — check Python/ffmpeg, then retry from Notifications or System → Deliverables.';
+            : 'Automatic audio delivery preparation failed after upload. Songs need delivery MP3s before playback — check Python/ffmpeg, then retry from Notifications or System → Status → Site health.';
         // Keep audio-delivery in build-required; do not clear on failure.
         $state = bandpromo_set_build_required_last_error(implode(' ', array_filter($warnings)));
     }

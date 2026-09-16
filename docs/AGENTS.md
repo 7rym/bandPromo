@@ -98,9 +98,9 @@ Use `prerelease=false` for closed-beta tester packages so hosts that cannot call
 
 ## Build/Test Commands
 
-- Preferred build path: Admin panel -> System -> Status → Refresh site files.
-- Successful rebuilds end with a scoped summary (media / playlists / share images / manifest) and elapsed time — not a legacy path dump.
-- CLI build: `python scripts/build.py`
+- Preferred build path: Admin panel → System → Status → Site health (Quick/Full check, then Review → Apply treatment).
+- Successful treatment ends with a follow-up re-check; Activity holds the verbose evidence.
+- Legacy CLI build (reference during port): `python scripts/build.py`
 - PHP syntax check: `php -l <file>`
 - Before committing, validate touched PHP and JSON/template files.
 

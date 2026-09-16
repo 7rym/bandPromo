@@ -3,10 +3,6 @@
 
 from __future__ import print_function
 
-import os
-import subprocess
-import sys
-
 import log
 import registry as reg
 
@@ -16,50 +12,13 @@ except Exception:
     def stop_requested():
         return False
 
-SCRIPTS_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-ROOT_DIR = os.path.dirname(SCRIPTS_DIR)
-if SCRIPTS_DIR not in sys.path:
-    sys.path.insert(0, SCRIPTS_DIR)
-
 
 def _rebuild_audio_index():
-    try:
-        import files_index
-        log.info('Rebuilding Files → Audio index...')
-        count = files_index.rebuild_audio()
-        log.info('INDEX_REBUILT:audio ({0} rows)'.format(count))
-        return
-    except Exception as exc:
-        log.info('Python Files index rebuild failed ({0}); trying PHP CLI.'.format(exc))
-
-    try:
-        from php_cli import resolve_php_cli
-    except Exception as exc:
-        log.info('Audio index rebuild skipped: {0}'.format(exc))
-        return
-    php = resolve_php_cli()
-    cli = os.path.join(ROOT_DIR, 'biblioteca', 'site-health-rebuild-index-cli.php')
-    if not php or not os.path.isfile(cli):
-        log.info('Skipped Files index rebuild (PHP CLI or script missing).')
-        return
-    log.info('Rebuilding Files → Audio index via PHP...')
-    try:
-        proc = subprocess.Popen(
-            [php, cli, 'audio'],
-            cwd=ROOT_DIR,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT,
-            universal_newlines=True,
-        )
-        out, _unused = proc.communicate()
-        if out:
-            for line in str(out).splitlines():
-                if line.strip():
-                    log.info(line.strip())
-        if proc.returncode != 0:
-            log.info('Audio index rebuild exited {0}'.format(proc.returncode))
-    except Exception as exc:
-        log.info('Audio index rebuild skipped: {0}'.format(exc))
+    import files_index
+    log.info('Rebuilding Files → Audio index...')
+    count = files_index.rebuild_audio()
+    log.info('INDEX_REBUILT:audio ({0} rows)'.format(count))
+    return count
 
 
 def treat_audio_register_in_place():
@@ -116,5 +75,9 @@ def treat_audio_register_in_place():
     log.info('Registered {0} audio master(s); {1} failed.'.format(fixed, failed))
     log.treat_result('audio_register_in_place', 'ok' if failed == 0 else 'partial', fixed)
     if fixed > 0:
-        _rebuild_audio_index()
+        try:
+            _rebuild_audio_index()
+        except Exception as exc:
+            log.info('Files → Audio index rebuild failed: {0}'.format(exc))
+            failed += 1
     return fixed, failed

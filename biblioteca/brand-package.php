@@ -653,7 +653,7 @@ function bandpromo_brand_import_from_directory(string $root, string $packageDir,
         ]);
         $deliverablesStarted = !empty($queued['started']);
         if (!$deliverablesStarted && $deliverablesWarning === '') {
-            $deliverablesWarning = trim((string) ($queued['error'] ?? 'Deliverables rebuild did not start automatically.'));
+            $deliverablesWarning = trim((string) ($queued['error'] ?? 'Site health Check did not start automatically.'));
         }
     } catch (Throwable $throwable) {
         if ($deliverablesWarning === '') {

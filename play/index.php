@@ -407,8 +407,8 @@ if ($supportUrl !== '') {
     <div id="mediaplayer">
         <div id="operatorDeliveryNotice" class="operator-delivery-notice" hidden>
             <strong>Publish build required.</strong>
-            <span id="operatorDeliveryNoticeText">Some tracks are waiting for streaming MP3 delivery. Open System → Deliverables.</span>
-            <a href="/admin.php?tab=system&amp;stab=deliverables">Open Deliverables</a>
+            <span id="operatorDeliveryNoticeText">Some tracks are waiting for streaming MP3 delivery. Open System → Status → Site health.</span>
+            <a href="/admin.php?tab=system&amp;stab=deliverables#siteHealthCard">Open Site health</a>
         </div>
 
         <div class="scene">

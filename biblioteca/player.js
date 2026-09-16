@@ -2566,7 +2566,7 @@ function playerLoadErrorCopy(rawMessage) {
             title: 'Nothing to play yet',
             detail: 'This playlist isn\'t available right now. Please try again later.',
             operator: isOperator
-                ? 'Operator: check Content → Playlists and System → Deliverables.'
+                ? 'Operator: check Content → Playlists and System → Status → Site health.'
                 : '',
         };
     }
@@ -2584,7 +2584,7 @@ function playerLoadErrorCopy(rawMessage) {
         detail: 'This playlist can\'t be played right now. Please try again later.',
         operator: isOperator && detail
             ? `Operator detail: ${detail}`
-            : (isOperator ? 'Operator: check System → Deliverables and the build log.' : ''),
+            : (isOperator ? 'Operator: check System → Status → Site health and Activity.' : ''),
     };
 }
 
@@ -2645,7 +2645,7 @@ function updateOperatorDeliveryNotice(summary) {
     }
 
     if (noticeText) {
-        noticeText.textContent = `${pendingCount} track${pendingCount === 1 ? '' : 's'} in this playlist need streaming MP3 delivery. Open System → Deliverables before listeners stream on mobile data.`;
+        noticeText.textContent = `${pendingCount} track${pendingCount === 1 ? '' : 's'} in this playlist need streaming MP3 delivery. Open System → Status → Site health before listeners stream on mobile data.`;
     }
     notice.hidden = false;
 }

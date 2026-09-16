@@ -426,13 +426,13 @@ function bandpromo_campaign_import_from_directory(string $root, string $packageD
         ? 'Imported release package as ' . $targetReleaseId . '.'
         : 'Imported release package ' . $targetReleaseId . '.';
     if ($imageDeliveryOk && $deliverablesStarted) {
-        $message .= ' Gallery images refreshed; deliverables rebuild started — watch System → Deliverables.';
+        $message .= ' Gallery images refreshed; Site health Check started — watch System → Status.';
     } elseif ($imageDeliveryOk) {
-        $message .= ' Gallery images refreshed. Open System → Deliverables to rebuild audio/streams when ready.';
+        $message .= ' Gallery images refreshed. Open System → Status to treat audio/streams when ready.';
     } elseif ($deliverablesStarted) {
-        $message .= ' Deliverables rebuild started — watch System → Deliverables.';
+        $message .= ' Site health Check started — watch System → Status.';
     } else {
-        $message .= ' Rebuild deliverables to refresh thumbs, streams, and playlist files.';
+        $message .= ' Open System → Status → Site health to refresh thumbs, streams, and playlist files.';
         if ($deliverablesWarning !== '') {
             $message .= ' (' . $deliverablesWarning . ')';
         }

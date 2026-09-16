@@ -1472,11 +1472,11 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
             }
 
             function buildBuildTabUrl() {
-                return `${buildAdminUrl({ tab: 'system', stab: 'deliverables' })}#build-log-card`;
+                return `${buildAdminUrl({ tab: 'system', stab: 'deliverables' })}#siteHealthCard`;
             }
 
             function buildRecommendedRunUrl() {
-                return `${buildAdminUrl({ tab: 'system', stab: 'deliverables', run_recommended: '1' })}#build-log-card`;
+                return `${buildAdminUrl({ tab: 'system', stab: 'deliverables' })}#siteHealthCard`;
             }
 
             function formatBuildTaskLabel(task) {
@@ -1524,7 +1524,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     }
                     return `Some preparation could not finish automatically (${tasks.join(', ')}). Check Notifications.`;
                 }
-                const action = 'Check site health';
+                const action = 'Quick health check';
                 if (!tasks.length) {
                     return `Next: run ${action}.`;
                 }
@@ -1537,7 +1537,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
             }
 
             function getBuildActionLabel() {
-                return 'Check site health';
+                return 'Quick health check';
             }
 
             function formatBuildHintMessage(state) {
@@ -1549,7 +1549,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 if (tasks.length > 1) {
                     return `⚠ ${tasks.length} steps are waiting. Use ${actionLabel} when you are ready.`;
                 }
-                return '⚠ Your latest changes may need attention. Use Check site health when you are ready.';
+                return '⚠ Your latest changes may need attention. Use Quick health check when you are ready.';
             }
 
             function closeOperatorNotifications() {
@@ -1614,14 +1614,14 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
 
                 if (runResult === 'started' || runResult === 'already-running') {
                     showAdminToast(
-                        versionPrefix + 'Refresh is running — safe to leave this page.',
+                        versionPrefix + 'Site health is running — safe to leave this page.',
                         'success'
                     );
                     return;
                 }
 
                 showAdminToast(
-                    versionPrefix + 'When you are ready, open Site health and run Check site health.',
+                    versionPrefix + 'When you are ready, open Site health and run a Quick or Full health check.',
                     'success'
                 );
             }
@@ -1652,7 +1652,8 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
             }
 
             function openBuildLogCard() {
-                const logCard = document.getElementById('build-log-card');
+                const logCard = document.getElementById('site-health-log-card')
+                    || document.getElementById('build-log-card');
                 if (!logCard) {
                     return;
                 }
@@ -1684,7 +1685,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                         file: '',
                         checkedAt: String(buildState.updated_at || '').trim(),
                         details: [
-                            { text: 'Your content and settings were preserved. Open Site health and run Check site health so listeners stay current after the update.' },
+                            { text: 'Your content and settings were preserved. Open Site health and run a Quick health check so listeners stay current after the update.' },
                             ...(taskDetails.length ? [{ text: `Pending: ${taskDetails.join('; ')}.` }] : []),
                         ],
                         actions: [
@@ -1701,8 +1702,8 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     const lastError = String(buildState.last_error || '').trim();
                     const details = [
                         { text: lastError !== ''
-                            ? 'Automatic preparation after upload did not finish. Open Site health and run Check site health.'
-                            : 'Your edits are saved. Open Site health and run Check site health when you want a full exam of listener readiness.' },
+                            ? 'Automatic preparation after upload did not finish. Open Site health and run a Quick health check.'
+                            : 'Your edits are saved. Open Site health and run a Quick or Full health check when you want an exam of listener readiness.' },
                         { text: taskIntro },
                     ];
                     if (lastError !== '') {
@@ -2143,10 +2144,14 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     closeOperatorNotifications();
                     const publishViewActive = isDeliverablesViewActive();
                     if (!publishViewActive) {
-                        window.location.href = buildRecommendedRunUrl();
+                        window.location.href = buildBuildTabUrl();
                         return;
                     }
-                    runRecommendedAction();
+                    const checkBtn = document.getElementById('siteHealthCheckBtn');
+                    if (checkBtn && !checkBtn.disabled) {
+                        checkBtn.click();
+                        return;
+                    }
                     return;
                 }
 
@@ -3570,12 +3575,15 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
 
                     if (isDeliverablesViewActive()) {
                         event.preventDefault();
-                        const logCard = document.getElementById('build-log-card');
-                        if (logCard) {
-                            if (logCard.tagName === 'DETAILS') {
+                        const healthCard = document.getElementById('siteHealthCard');
+                        const logCard = document.getElementById('site-health-log-card')
+                            || document.getElementById('build-log-card');
+                        const target = healthCard || logCard;
+                        if (target) {
+                            if (logCard && logCard.tagName === 'DETAILS') {
                                 logCard.open = true;
                             }
-                            logCard.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                            target.scrollIntoView({ behavior: 'smooth', block: 'start' });
                         }
                         return;
                     }
@@ -12005,7 +12013,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     showPostPackageUpdateToast(postUpdateVersion, 'prompt');
                 } else if (typeof showAdminToast === 'function') {
                     showAdminToast(
-                        'When you are ready, use Refresh site files (we will ask before starting).',
+                        'When you are ready, open Site health and run a Quick or Full health check.',
                         'success'
                     );
                 }
@@ -12020,13 +12028,9 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
 
             function refreshBuildActionCopy() {
                 if (buildBtn) {
-                    buildBtn.textContent = 'Refresh site files';
+                    buildBtn.textContent = 'Quick health check';
                 }
-                // Keep help calm — do not rewrite it into an urgency banner.
-                if (buildHelpBox && currentBuildRequired === false) {
-                    buildHelpBox.innerHTML = 'This page is the health of your catalogue: campaigns, playlists, tracks, and whether those tracks can stream.<br><br>'
-                        + 'Uploads and saves usually prepare streaming files automatically. Use <strong>Refresh site files</strong> if something is missing or after a Site update.';
-                }
+                // Status help is owned by admin.php (#help-build). Do not overwrite it.
             }
 
             function refreshBuildHint() {
@@ -12154,9 +12158,9 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                         <div class="publish-next-step publish-next-step--${bandpromoAdminEscapeHtml(nextSeverity)}">
                             <strong>${bandpromoAdminEscapeHtml(nextStep.title || 'Next step')}</strong>
                             <p>${bandpromoAdminEscapeHtml(nextStep.body || '')}</p>
-                            ${cta === 'refresh' ? '<p class="publish-next-step-hint">When you are ready, use <strong>Refresh site files</strong> below — we will ask before starting.</p>' : ''}
-                            ${cta === 'repair' ? '<p class="publish-next-step-hint">Open <strong>Peek under the hood → Repair catalogue</strong>, Preview, then <strong>Apply</strong>. Confirm Files → Audio before Refreshing.</p>' : ''}
-                            ${cta === 'ask_developer' ? '<p class="publish-next-step-hint">Ask a developer to open <strong>Peek under the hood → Repair catalogue</strong>.</p>' : ''}
+                            ${cta === 'site_health' || cta === 'refresh' ? '<p class="publish-next-step-hint">When you are ready, run a <strong>Quick</strong> or <strong>Full health check</strong>, then Review and Apply treatment.</p>' : ''}
+                            ${cta === 'repair' ? '<p class="publish-next-step-hint">Open <strong>Site health</strong>, run a check, then Review and Apply treatment to register masters in place.</p>' : ''}
+                            ${cta === 'ask_developer' ? '<p class="publish-next-step-hint">Ask a developer to open <strong>System → Status → Site health</strong>.</p>' : ''}
                         </div>
                     `;
                 } else if (!repairStatus || repairStatus === 'ok' || repairStatus === '') {
@@ -12362,8 +12366,8 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                         const repairHint = /DRY-RUN FOUND ISSUES|REPAIR NEEDED|Register disk masters via Repair/i.test(logText);
                         setPublishJobStatus(
                             repairHint
-                                ? 'Dry-run found registry gaps — use Repair catalogue Apply before Refresh.'
-                                : 'Finished with warnings — some listener files need attention. Peek under the hood for asset ids, then fix and refresh again.',
+                                ? 'Dry-run found registry gaps — use Site health → Review → Apply before Force.'
+                                : 'Finished with warnings — some listener files need attention. Check Activity for asset ids, then treat again.',
                             { color: '#f0b429' }
                         );
                         if (buildStatus) {
@@ -13304,7 +13308,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                         const followUpBuild = shouldRunRecommendedBuildAfterPackageUpdate(data.post_update);
                         setStatusMessage(
                             followUpBuild
-                                ? (data.message || 'Update installed successfully.') + ' Opening Deliverables…'
+                                ? (data.message || 'Update installed successfully.') + ' Opening Status…'
                                 : (data.message || 'Update installed successfully.')
                         );
                         applyBtn.hidden = true;
@@ -14911,15 +14915,15 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                                 });
                                 const buildData = await buildResp.json().catch(() => ({}));
                                 if (buildResp.ok && buildData && buildData.ok === true) {
-                                    message = `${message} Deliverables rebuild started — watch System → Deliverables.`;
+                                    message = `${message} Site health Check started — watch System → Status.`;
                                 } else {
                                     const buildError = String(buildData.error || '').trim();
                                     message = buildError
-                                        ? `${message} Deliverables did not start (${buildError}). Open System → Deliverables and rebuild when ready.`
-                                        : `${message} Open System → Deliverables and rebuild when ready.`;
+                                        ? `${message} Site health did not start (${buildError}). Open System → Status and run a Quick health check when ready.`
+                                        : `${message} Open System → Status and run a Quick health check when ready.`;
                                 }
                             } catch (_buildError) {
-                                message = `${message} Open System → Deliverables and rebuild when ready.`;
+                                message = `${message} Open System → Status and run a Quick health check when ready.`;
                             }
                         }
                         if (campaignPackageImportStatus) {
@@ -15179,15 +15183,15 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                                 });
                                 const buildData = await buildResp.json().catch(() => ({}));
                                 if (buildResp.ok && buildData && buildData.ok === true) {
-                                    message = `${message} Deliverables rebuild started — watch System → Deliverables.`;
+                                    message = `${message} Site health Check started — watch System → Status.`;
                                 } else {
                                     const buildError = String(buildData.error || '').trim();
                                     message = buildError
-                                        ? `${message} Deliverables did not start (${buildError}). Open System → Deliverables and rebuild when ready.`
-                                        : `${message} Open System → Deliverables and rebuild when ready.`;
+                                        ? `${message} Site health did not start (${buildError}). Open System → Status and run a Quick health check when ready.`
+                                        : `${message} Open System → Status and run a Quick health check when ready.`;
                                 }
                             } catch (_buildError) {
-                                message = `${message} Open System → Deliverables and rebuild when ready.`;
+                                message = `${message} Open System → Status and run a Quick health check when ready.`;
                             }
                         }
                         if (typeof data.build_required === 'boolean' && typeof setBuildRequiredNudge === 'function') {

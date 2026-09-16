@@ -2,6 +2,10 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-09-16 14:15 - Site health plan completion: add `treat_sfx.py` + `treat_links.py`; Treat order audio → visual → sfx → links → playlists → chrome; drop PHP Files-index CLI fallbacks from Treat; UTF-8 stage_exec so Windows locales do not crash delivery; follow-up suppresses Treat-caused JSON fingerprint drift. Local Treat + follow-up proven healthy. Fleet acceptance next after publish.
+
+2026-09-16 14:00 - Site health cutover (plan items 6–7): Status remains Check/Treat/Force only; Welcome, Dashboard notifications, Site update follow-up, PCF/PBF toasts, and player operator notices retarget Site health (`#siteHealthCard`). Folded Refresh / Repair / Deliverables operator labels into Quick/Full check → Review → Apply. Site update refuses while `site-health.lock` is active. HITZ Treat still held for fleet acceptance.
+
 2026-09-16 13:40 - Site health **Quick** vs **Full** check: Quick is the routine cache-aware exam; Full is read-only but busts fingerprint cache, always probes delivery/Files-index undercount/non-ast_* masters, and always runs investigate. Force remains the mutating rebuild. UI: Quick health check + Full health check buttons.
 
 2026-09-16 13:32 - Site health Treat preview: after findings, **Review treatment** shows a brief proposed-treatment list (read-only); **Apply treatment** is the only mutating step. UI stays brief; file details remain in Activity.

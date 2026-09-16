@@ -3,10 +3,6 @@
 
 from __future__ import print_function
 
-import os
-import subprocess
-import sys
-
 import log
 import registry as reg
 
@@ -16,51 +12,14 @@ except Exception:
     def stop_requested():
         return False
 
-SCRIPTS_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-ROOT_DIR = os.path.dirname(SCRIPTS_DIR)
-if SCRIPTS_DIR not in sys.path:
-    sys.path.insert(0, SCRIPTS_DIR)
-
 
 def _rebuild_visual_indexes():
-    try:
-        import files_index
-        log.info('Rebuilding Files → Visual indexes...')
-        results = files_index.rebuild_visual()
-        for target, count in results.items():
-            log.info('INDEX_REBUILT:{0} ({1} rows)'.format(target, count))
-        return
-    except Exception as exc:
-        log.info('Python visual Files index rebuild failed ({0}); trying PHP CLI.'.format(exc))
-
-    try:
-        from php_cli import resolve_php_cli
-    except Exception as exc:
-        log.info('Visual index rebuild skipped: {0}'.format(exc))
-        return
-    php = resolve_php_cli()
-    cli = os.path.join(ROOT_DIR, 'biblioteca', 'site-health-rebuild-index-cli.php')
-    if not php or not os.path.isfile(cli):
-        log.info('Skipped Files visual index rebuild (PHP CLI or script missing).')
-        return
-    log.info('Rebuilding Files → Visual indexes via PHP...')
-    try:
-        proc = subprocess.Popen(
-            [php, cli, 'illustrations', 'photos', 'video'],
-            cwd=ROOT_DIR,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT,
-            universal_newlines=True,
-        )
-        out, _unused = proc.communicate()
-        if out:
-            for line in str(out).splitlines():
-                if line.strip():
-                    log.info(line.strip())
-        if proc.returncode != 0:
-            log.info('Visual index rebuild exited {0}'.format(proc.returncode))
-    except Exception as exc:
-        log.info('Visual index rebuild skipped: {0}'.format(exc))
+    import files_index
+    log.info('Rebuilding Files → Visual indexes...')
+    results = files_index.rebuild_visual()
+    for target, count in results.items():
+        log.info('INDEX_REBUILT:{0} ({1} rows)'.format(target, count))
+    return results
 
 
 def treat_visual_register_in_place():
@@ -119,5 +78,9 @@ def treat_visual_register_in_place():
     log.info('Registered {0} visual master(s); {1} failed.'.format(fixed, failed))
     log.treat_result('visual_register_in_place', 'ok' if failed == 0 else 'partial', fixed)
     if fixed > 0:
-        _rebuild_visual_indexes()
+        try:
+            _rebuild_visual_indexes()
+        except Exception as exc:
+            log.info('Files → Visual index rebuild failed: {0}'.format(exc))
+            failed += 1
     return fixed, failed

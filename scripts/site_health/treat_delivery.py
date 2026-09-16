@@ -1,5 +1,11 @@
 # -*- coding: utf-8 -*-
-"""Delivery treatments — reuse optimizeMedia / optimizeVideo / SFX stages."""
+"""
+Listener delivery treatments (audio stills + video).
+
+Algorithms live in optimizeMedia.py / optimizeVideo.py; Status Treat owns the
+phase order and HEALTH_* logging via stage_exec (cutover bridge — not long PHP).
+SFX lives in treat_sfx.py.
+"""
 
 from __future__ import print_function
 
@@ -19,7 +25,7 @@ def treat_audio_visual_delivery(force=False):
         log.info('Force delivery rebuild (audio + still images).')
     else:
         log.info('Delivery rebuild (stale/missing audio + still images only).')
-    ok, code = run_stage_script(
+    ok, _code = run_stage_script(
         'optimizeMedia.py',
         env_extra=env,
         label='Audio and still-image delivery',
@@ -28,32 +34,28 @@ def treat_audio_visual_delivery(force=False):
     return ok
 
 
-def treat_video_delivery():
+def treat_video_delivery(force=False):
     log.phase('treat:video')
-    log.info('Video delivery rebuild.')
-    ok, code = run_stage_script(
+    env = {}
+    if force:
+        env['BANDPROMO_FORCE_VIDEO_DELIVERY'] = '1'
+        log.info('Force video delivery rebuild.')
+    else:
+        log.info('Video delivery rebuild.')
+    ok, _code = run_stage_script(
         'optimizeVideo.py',
-        env_extra={},
+        env_extra=env,
         label='Video delivery',
     )
     log.treat_result('video_delivery', 'ok' if ok else 'failed', 0 if ok else 1)
     return ok
 
 
-def treat_sfx_delivery():
-    log.phase('treat:sfx')
-    log.info('SFX delivery rebuild.')
-    ok, code = run_stage_script(
-        'buildSfxDelivery.py',
-        env_extra={},
-        label='SFX delivery',
-    )
-    log.treat_result('sfx_delivery', 'ok' if ok else 'failed', 0 if ok else 1)
-    return ok
-
-
 def treat_all_listener_delivery(force=False):
-    """Full listener media delivery chain used by Force and delivery Treat."""
+    """
+    Full listener media delivery chain used by Force and delivery Treat.
+    Order: audio/stills → video → sfx (sfx module owns its phase).
+    """
     try:
         from stopflag import stop_requested
     except Exception:
@@ -63,8 +65,9 @@ def treat_all_listener_delivery(force=False):
     ok = treat_audio_visual_delivery(force=force)
     if not ok or stop_requested():
         return False
-    ok = treat_video_delivery()
+    ok = treat_video_delivery(force=force)
     if not ok or stop_requested():
         return False
-    ok = treat_sfx_delivery()
+    import treat_sfx
+    ok = treat_sfx.treat_sfx(force=force)
     return ok

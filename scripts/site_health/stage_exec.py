@@ -49,21 +49,38 @@ def run_stage_script(script_name, env_extra=None, label=''):
             env[str(key)] = str(value)
 
     try:
-        proc = subprocess.Popen(
-            [sys.executable, '-u', script_path],
-            cwd=ROOT_DIR,
-            env=env,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT,
-            universal_newlines=True,
-        )
+        # Force UTF-8: legacy stages print emoji; Windows charmap locales must not crash Treat.
+        popen_kwargs = {
+            'cwd': ROOT_DIR,
+            'env': env,
+            'stdout': subprocess.PIPE,
+            'stderr': subprocess.STDOUT,
+            'universal_newlines': True,
+        }
+        # encoding= is available on CPython 3.6+; keep a bytes fallback for safety.
+        try:
+            proc = subprocess.Popen(
+                [sys.executable, '-u', script_path],
+                encoding='utf-8',
+                errors='replace',
+                **popen_kwargs
+            )
+        except TypeError:
+            popen_kwargs.pop('universal_newlines', None)
+            proc = subprocess.Popen(
+                [sys.executable, '-u', script_path],
+                **popen_kwargs
+            )
     except Exception as exc:
         log.info('FAILED Could not start {0}: {1}'.format(script_name, exc))
         return False, 1
 
     assert proc.stdout is not None
-    for line in iter(proc.stdout.readline, ''):
-        text = line.rstrip('\n')
+    for line in iter(proc.stdout.readline, '' if getattr(proc, 'encoding', None) else b''):
+        if isinstance(line, bytes):
+            text = line.decode('utf-8', errors='replace').rstrip('\n')
+        else:
+            text = line.rstrip('\n')
         if text:
             # Stage scripts print plain lines; site_health log.py stamps them.
             log.info(text)

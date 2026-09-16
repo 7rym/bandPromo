@@ -98,7 +98,7 @@ def json_fingerprints():
     return result
 
 
-def run_triage(plan, deep=False):
+def run_triage(plan, deep=False, suppress_json_drift=False):
     log.phase('triage')
     deep = bool(deep)
     app_version = plan_mod.read_app_version()
@@ -307,6 +307,15 @@ def run_triage(plan, deep=False):
         log.info('JSON fingerprints recomputed ({0} keys) — baseline rebuilt.'.format(
             len(current_fps)
         ))
+    elif suppress_json_drift:
+        if changed:
+            log.info(
+                'JSON changed during Treat (expected) — refreshing baseline: {0}'.format(
+                    ', '.join(changed)
+                )
+            )
+        else:
+            log.info('JSON fingerprints unchanged.')
     elif changed and previous:
         plan_mod.add_finding(
             plan, 'json_changed', 'attention',
