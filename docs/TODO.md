@@ -117,7 +117,7 @@ Source of truth: [BUILD-PIPELINE-PLAN.md](BUILD-PIPELINE-PLAN.md). Doctor Status
 - [x] Logging contract + Python runner (`scripts/site_health/`, `HEALTH_*` Activity).
 - [x] Triage / investigate / plan + Quick/Full Check.
 - [x] Status UI: findings + Review → Apply + Force + Stop; Refresh/Repair folded.
-- [x] Audio/visual register-in-place (identity) + Files index rebuild in Python.
+- [x] Audio/visual/SFX register-in-place (identity) + Files index rebuild in Python.
 - [x] Follow-up verify after Treat.
 - [x] Status launcher cut over off `build.py` (still may subprocess legacy stage scripts).
 
@@ -128,7 +128,7 @@ Source of truth: [BUILD-PIPELINE-PLAN.md](BUILD-PIPELINE-PLAN.md). Doctor Status
 - [x] **Retire `stage_exec` bridge** from Status Treat/Force — deleted `stage_exec.py` (2026-09-16).
 - [x] **Duplicate masters (Quick + Full)** — Quick: size + file XXH3; Full: PCM/RGB content fingerprint; Review → Apply keeps campaign-linked, removes safe clones; conflict clusters warn only (2026-09-16).
 - [ ] **Cover extract** as part of treat_audio (plan: tags/covers) — C chip / embedded artwork → visual cover ref where safe.
-- [ ] **Fleet acceptance** — HITZ Full check after publish (full audio demux-hash, no duration gate) should surface Cleaning House dual-tag / Remastered clones when streams match; re-smoke Force on Vanilla/Spandexual after Status UX publish.
+- [ ] **Fleet acceptance** — HITZ Quick check + Apply should register uncatalogued `sfx/master` into Files → Sound effects; Full check still for dual-tag audio content clones; re-smoke Force on Vanilla/Spandexual after Status UX publish.
 
 ## v0.8 management slice (Brand + Visual pool + content AI)
 

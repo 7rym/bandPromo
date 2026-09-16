@@ -23,6 +23,9 @@ AUDIO_ORIGINAL_DIR = os.path.join(ROOT_DIR, 'media', 'audio', 'original')
 AUDIO_OPTIMAL_DIR = os.path.join(ROOT_DIR, 'media', 'audio', 'optimal')
 VISUAL_MASTER_DIR = os.path.join(ROOT_DIR, 'media', 'visual', 'master')
 VISUAL_DELIVERY_DIR = os.path.join(ROOT_DIR, 'media', 'visual', 'delivery')
+SFX_MASTER_DIR = os.path.join(ROOT_DIR, 'media', 'sfx', 'master')
+SFX_ORIGINAL_DIR = os.path.join(ROOT_DIR, 'media', 'sfx', 'original')
+SFX_OPTIMAL_DIR = os.path.join(ROOT_DIR, 'media', 'sfx', 'optimal')
 
 # Scratch workspace for Site health probes (gitignored contents; deny HTTP).
 TEMP_DIR = os.path.join(ROOT_DIR, 'temp')

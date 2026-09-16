@@ -2,18 +2,16 @@
 
 ## Resume point
 
-**Full audio dedupe (ID3+APE / dual-artwork clones):** Full check now demux-copies and XXH3-hashes the **entire** audio elementary stream for every candidate — no duration pre-bucket. Same compressed audio with different tags/artwork/file sizes matches; true remasters with different bitstreams do not. Video still uses duration buckets + min-prefix demux.
+**SFX missing on HITZ (and any host with disk masters + empty registry):** Site health now probes `media/sfx/master`, flags `uncatalogued_sfx_masters`, and Treat runs `sfx_register_in_place` + Files SFX index rebuild + delivery. Publish, then on HITZ: Site update → Quick check → Review → Apply.
 
-Publish next build before HITZ re-test. On HITZ: Site update → **Full check** (not Quick) to catch Cleaning House vs Remastered when streams match.
+### HITZ recovery checklist
 
-### HITZ recovery (post build 515 Apply fallout)
-
-1. Site update to latest build (include remap-collapse + visual index strip + this Full audio fix).
-2. Status → Quick check (file-hash clean) then **Full check** for tag-skewed audio clones.
-3. Hard-refresh Files → Visual — index should match registry after rebuild.
-4. SFX: still need register-in-place for `sfx/master` (not a dedupe delete).
-5. Playlist/player smoke: if track covers or audio 404, restore from backup/PCF.
+1. Site update to latest build (SFX register-in-place + prior Full audio dedupe / remap / index fixes).
+2. Status → Quick check — expect Sound effects finding if registry still 0 sfx with masters on disk.
+3. Review → Apply (registers SFX; rebuilds Files → Sound effects).
+4. Hard-refresh Files → Sound effects; login Welcome/Logged-in smoke.
+5. Full check still available for dual-tag audio content clones if needed.
 
 ### Local workspace
 
-Checkout is **`C:\dev\bandpromo`**. Never wipe `data/` / `media/` / `log/` / `backups/` here.
+Checkout is **`C:\dev\bandpromo`**. Never wipe `data/` / `media/` / `log/` / `backups/` here. Local already has 4 registered SFX; HITZ was the empty-registry case.

@@ -21,6 +21,9 @@ from paths import (
     AUDIO_ORIGINAL_DIR,
     MEDIA_LIBRARY_LOCK_PATH,
     MEDIA_LIBRARY_STATE_PATH,
+    SFX_MASTER_DIR,
+    SFX_OPTIMAL_DIR,
+    SFX_ORIGINAL_DIR,
     VISUAL_DELIVERY_DIR,
     VISUAL_EXTS,
     VISUAL_MASTER_DIR,
@@ -39,7 +42,8 @@ except Exception:
 
 AUDIO_TARGETS = ('audio',)
 VISUAL_TARGETS = ('illustrations', 'photos', 'video')
-ALL_TREAT_TARGETS = AUDIO_TARGETS + VISUAL_TARGETS
+SFX_TARGETS = ('sfx',)
+ALL_TREAT_TARGETS = AUDIO_TARGETS + VISUAL_TARGETS + SFX_TARGETS
 
 
 class IndexLock(object):
@@ -196,6 +200,13 @@ def _audio_pool_ready(listing_name):
     return os.path.isfile(os.path.join(AUDIO_OPTIMAL_DIR, stem + '.mp3'))
 
 
+def _sfx_pool_ready(asset_id):
+    asset_id = str(asset_id or '').strip()
+    if not reg.is_asset_id(asset_id):
+        return False
+    return os.path.isfile(os.path.join(SFX_OPTIMAL_DIR, asset_id + '.mp3'))
+
+
 def _visual_pool_ready(asset_id, media_type, target):
     # illustrations always true in PHP sync_file; photos/video check delivery.
     if target == 'illustrations':
@@ -282,6 +293,37 @@ def _resolve_visual_source(asset):
     return None
 
 
+def _resolve_sfx_source(asset):
+    master = os.path.basename(str(asset.get('master_filename') or '').strip())
+    original = os.path.basename(str(asset.get('original_filename') or '').strip())
+    asset_id = str(asset.get('id') or '').strip()
+    if master:
+        path = os.path.join(SFX_MASTER_DIR, master)
+        if os.path.isfile(path):
+            return {
+                'path': path,
+                'name': master,
+                'original_filename': original,
+            }
+    if original:
+        path = os.path.join(SFX_ORIGINAL_DIR, original)
+        if os.path.isfile(path):
+            return {
+                'path': path,
+                'name': original,
+                'original_filename': original,
+            }
+    if reg.is_asset_id(asset_id):
+        delivery = os.path.join(SFX_OPTIMAL_DIR, asset_id + '.mp3')
+        if os.path.isfile(delivery):
+            return {
+                'path': delivery,
+                'name': asset_id + '.mp3',
+                'original_filename': original,
+            }
+    return None
+
+
 def _build_audio_entry(asset, origin_snapshot):
     source = _resolve_audio_source(asset)
     if source is None:
@@ -359,6 +401,35 @@ def _build_visual_entry(asset, target, origin_snapshot):
     return entry
 
 
+def _build_sfx_entry(asset, origin_snapshot):
+    source = _resolve_sfx_source(asset)
+    if source is None:
+        return None
+    listing = source['name']
+    path = source['path']
+    try:
+        size = int(os.path.getsize(path))
+        modified = int(os.path.getmtime(path))
+    except Exception:
+        return None
+    original_label = source.get('original_filename') or ''
+    extension = os.path.splitext(original_label or listing)[1].lower().lstrip('.')
+    asset_id = str(asset.get('id') or '').strip()
+    key = _index_key('sfx', listing)
+    existing = origin_snapshot.get(key) if isinstance(origin_snapshot.get(key), dict) else None
+    return {
+        'target': 'sfx',
+        'name': listing,
+        'size': size,
+        'modified': modified,
+        'origin': _origin_for(original_label or listing, existing),
+        'original_format': extension,
+        'original_filename': original_label,
+        'pool_ready': _sfx_pool_ready(asset_id),
+        'indexed_at': _utc_now_iso(),
+    }
+
+
 def rebuild_target(target, registry=None):
     """
     Strip and rebuild one Files target from the asset registry.
@@ -394,6 +465,10 @@ def rebuild_target(target, registry=None):
                 if str(asset.get('kind') or '') != 'audio':
                     continue
                 entry = _build_audio_entry(asset, origin_snapshot)
+            elif target == 'sfx':
+                if str(asset.get('kind') or '') != 'sfx':
+                    continue
+                entry = _build_sfx_entry(asset, origin_snapshot)
             else:
                 if str(asset.get('kind') or '') != 'visual':
                     continue
@@ -445,3 +520,7 @@ def count_target_rows(target):
 
 def rebuild_visual():
     return rebuild_targets(['illustrations', 'photos', 'video'])
+
+
+def rebuild_sfx():
+    return rebuild_target('sfx')

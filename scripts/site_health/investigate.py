@@ -18,21 +18,30 @@ def _deep_probe_clean(registry, status):
         return
     pending_audio = reg.uncatalogued_audio_masters(registry)
     pending_visual = reg.uncatalogued_visual_masters(registry)
+    pending_sfx = reg.uncatalogued_sfx_masters(registry)
     missing_audio = reg.missing_audio_deliverables(registry)
     missing_visual = reg.missing_visual_deliveries(registry)
+    missing_sfx = reg.missing_sfx_deliverables(registry)
     disk = reg.list_audio_masters_on_disk()
     non_ast = [n for n in disk if not reg.is_asset_id(os.path.splitext(n)[0])]
     if pending_audio:
         log.items('Deep probe uncatalogued audio', pending_audio)
     if pending_visual:
         log.items('Deep probe uncatalogued visual', pending_visual)
+    if pending_sfx:
+        log.items('Deep probe uncatalogued sound effects', pending_sfx)
     if missing_audio:
         log.items('Deep probe missing audio delivery', missing_audio)
     if missing_visual:
         log.items('Deep probe missing visual delivery', missing_visual)
+    if missing_sfx:
+        log.items('Deep probe missing sound-effect delivery', missing_sfx)
     if non_ast:
         log.items('Deep probe non-ast_* audio masters', non_ast)
-    if not (pending_audio or pending_visual or missing_audio or missing_visual or non_ast):
+    if not (
+        pending_audio or pending_visual or pending_sfx
+        or missing_audio or missing_visual or missing_sfx or non_ast
+    ):
         log.info('Deep probe clean — registry, disk, and delivery existence agree.')
 
 
@@ -190,11 +199,21 @@ def run_investigate(plan, deep=False):
                 finding['items_sample'] = [p['master_filename'] for p in pending[:12]]
                 finding['count'] = len(pending)
                 log.items('Investigate visual masters (uncatalogued)', pending)
+            elif fid == 'uncatalogued_sfx_masters':
+                pending = reg.uncatalogued_sfx_masters(registry) if status == 'ok' else []
+                finding['items_sample'] = [p['master_filename'] for p in pending[:12]]
+                finding['count'] = len(pending)
+                log.items('Investigate sound-effect masters (uncatalogued)', pending)
             elif fid == 'empty_audio_registry_with_disk_masters':
                 disk = reg.list_audio_masters_on_disk()
                 finding['items_sample'] = disk[:12]
                 finding['count'] = len(disk)
                 log.items('Investigate empty audio registry — disk masters', disk)
+            elif fid == 'empty_sfx_registry_with_disk_masters':
+                disk = reg.list_sfx_masters_on_disk()
+                finding['items_sample'] = disk[:12]
+                finding['count'] = len(disk)
+                log.items('Investigate empty SFX registry — disk masters', disk)
             elif fid == 'non_ast_audio_masters':
                 sample = finding.get('items_sample') or []
                 log.items('Investigate non-ast_* audio masters', sample)

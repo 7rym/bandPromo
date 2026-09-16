@@ -2,6 +2,8 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-09-16 20:00 - Site health SFX register-in-place: Check flags uncatalogued `media/sfx/master/ast_*` (HITZ had 0 registry SFX with masters on disk); Treat registers them, rebuilds Files → Sound effects index, then delivery. Force blocked while SFX catalogue findings remain.
+
 2026-09-16 19:45 - Site health Activity: first line includes app VERSION (`running bandPromo vX.Y.Z build N`).
 
 2026-09-16 19:35 - Site health Full audio dedupe: hash the full demux-copied audio stream (no duration pre-bucket) so dual ID3/APE artwork clones with different file sizes/tag durations still match; video keeps duration buckets.

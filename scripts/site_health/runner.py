@@ -211,6 +211,17 @@ def run_treat():
         touch_heartbeat(ROOT_DIR, stage='idle', message='Treat stopped', name=META_NAME)
         return 0
 
+    if 'sfx_register_in_place' in ids:
+        import treat_sfx
+        treat_sfx.treat_sfx_register_in_place()
+        did_register = True
+
+    if stop_requested():
+        log.info('Stop requested after sfx register treat.')
+        followup.run_followup('treat')
+        touch_heartbeat(ROOT_DIR, stage='idle', message='Treat stopped', name=META_NAME)
+        return 0
+
     if 'dedupe_retarget_and_remove' in ids:
         treat_ok = treat_dedupe_mod.treat_dedupe(
             include_file=dedupe_file_scope,
@@ -291,7 +302,9 @@ def run_force():
         if str(f.get('id') or '') in (
             'uncatalogued_audio_masters',
             'uncatalogued_visual_masters',
+            'uncatalogued_sfx_masters',
             'empty_audio_registry_with_disk_masters',
+            'empty_sfx_registry_with_disk_masters',
             'registry_missing',
             'registry_unreadable',
         )

@@ -191,10 +191,17 @@ def run_triage(plan, deep=False, suppress_json_drift=False):
         ]
         disk_originals = reg.list_audio_originals_on_disk()
         disk_visual = reg.list_visual_masters_on_disk()
+        disk_sfx = reg.list_sfx_masters_on_disk()
+        disk_sfx_ast = [
+            n for n in disk_sfx if reg.is_asset_id(os.path.splitext(n)[0])
+        ]
         log.info('Disk audio masters: {0} (ast_* {1}), originals: {2}'.format(
             len(disk_audio), len(disk_audio_ast), len(disk_originals)
         ))
         log.info('Disk visual masters: {0}'.format(len(disk_visual)))
+        log.info('Disk sound-effect masters: {0} (ast_* {1})'.format(
+            len(disk_sfx), len(disk_sfx_ast)
+        ))
         if deep and disk_audio_other:
             log.info('Non-ast_* audio masters on disk: {0}'.format(len(disk_audio_other)))
             plan_mod.add_finding(
@@ -210,6 +217,7 @@ def run_triage(plan, deep=False, suppress_json_drift=False):
 
         pending_audio = reg.uncatalogued_audio_masters(registry)
         pending_visual = reg.uncatalogued_visual_masters(registry)
+        pending_sfx = reg.uncatalogued_sfx_masters(registry)
 
         # Hard safety net: never call an empty Files catalogue "healthy" when
         # masters exist on disk (covers id-format drift and non-ast_* names).
@@ -268,6 +276,30 @@ def run_triage(plan, deep=False, suppress_json_drift=False):
                 body='Register existing visual masters in place (no copy).',
             )
 
+        if len(sfx) == 0 and len(disk_sfx) > 0 and not pending_sfx:
+            plan_mod.add_finding(
+                plan, 'empty_sfx_registry_with_disk_masters', 'attention',
+                'Sound effects on disk are not in Files yet', len(disk_sfx),
+                'sfx_register_in_place',
+                sample=disk_sfx[:12],
+                body=(
+                    'Registry has 0 sound-effect assets but {0} master file(s) exist under '
+                    'media/sfx/master. Files → Sound effects will look empty.'
+                ).format(len(disk_sfx)),
+            )
+
+        if pending_sfx:
+            plan_mod.add_finding(
+                plan, 'uncatalogued_sfx_masters', 'attention',
+                'Sound effects on disk are not in Files yet', len(pending_sfx),
+                'sfx_register_in_place',
+                sample=[p['master_filename'] for p in pending_sfx],
+                body=(
+                    '{0} sound-effect master(s) on disk are missing from the registry. '
+                    'Files → Sound effects will look empty until they are registered in place.'
+                ).format(len(pending_sfx)),
+            )
+
         # Cheap delivery existence checks (no checksums).
         # Always probe registered assets — independent of register-pending findings.
         # (Orphan delivery folders after wipe/re-register must still be scored.)
@@ -293,6 +325,17 @@ def run_triage(plan, deep=False, suppress_json_drift=False):
                     '{0} registered visual asset(s) lack required files under '
                     'media/visual/delivery (folder alone is not enough).'
                 ).format(len(missing_visual)),
+            )
+        missing_sfx = reg.missing_sfx_deliverables(registry)
+        if missing_sfx:
+            plan_mod.add_finding(
+                plan, 'missing_sfx_delivery', 'attention',
+                'Some sound effects are not play-ready yet', len(missing_sfx),
+                'sfx_delivery',
+                sample=[m.get('asset_id') or m.get('master_filename') for m in missing_sfx],
+                body=(
+                    '{0} registered sound-effect asset(s) lack an optimal MP3 under media/sfx/optimal.'
+                ).format(len(missing_sfx)),
             )
 
         # Quick duplicate masters: same size → whole-file XXH3.
