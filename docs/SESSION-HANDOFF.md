@@ -2,32 +2,33 @@
 
 ## Resume point
 
-**Site health Status — implementation started (v0.8 critical).**
+**Site health Status — delivery/Force wired (v0.8 critical).**
 
-Plan: [BUILD-PIPELINE-PLAN.md](BUILD-PIPELINE-PLAN.md).
+Plan: [BUILD-PIPELINE-PLAN.md](BUILD-PIPELINE-PLAN.md). Local was **v0.8.62 build 503**; session is **v0.8.63 build 503**. Delivery/Force slice is uncommitted until next checkpoint.
 
-### Shipped this slice
+### Shipped
 
-- New Python engine room: `scripts/site_health/` + entries `siteHealthCheck|Treat|Force.py`
-- Check triage/investigate → `data/site-health-plan.json` + `HEALTH_*` log
-- Treat: `audio_register_in_place` + thin PHP Files audio index rebuild
-- Force: blocked when critical catalogue findings remain (delivery port next)
-- System → Status **page replaced** with Check / Treat / Force + Activity (`site-health-admin.js`)
-
-### HITZ ops (until Treat proven on fleet)
-
-1. Site update when this build is published
-2. **Check site health** — should report empty Files vs disk masters
-3. **Treat recommended** — register in place
-4. Confirm Files → Audio, then Force/delivery when that slice lands
+- Python engine `scripts/site_health/` + Status page Check / Treat / Force + Activity
+- Treat: **audio** + **visual** register-in-place + Files index rebuild (thin PHP CLI)
+- Treat: **listener delivery** (optimizeMedia / optimizeVideo / buildSfxDelivery) + playlists + site chrome
+- Treat chains delivery (+ playlists/chrome) after register-in-place so one “Treat recommended” heals HITZ-style gaps
+- **Force**: full delivery rebuild when catalogue clear; blocked on critical catalogue findings
+- Triage: missing optimal MP3 / empty visual delivery → `listener_delivery`
+- Cooperative **Stop** (`site-health.stop` / request-job-stop) between stages
+- Operator nudges retargeted to **Check site health**
 
 ### Next slices
 
-- Port visual register + delivery/playlist/chrome treat modules
 - Files index rebuild in Python (retire thin PHP verb)
-- Stop button + job-stop for site-health
-- Cut over remaining Dashboard nudges from “Refresh site files”
-- Publish tester build when Status Check/Treat feels solid locally
+- Optional: deeper investigate (stale delivery checksums) before Force
+- Publish tester build when ready for HITZ
+
+### HITZ ops (after publish)
+
+1. Site update  
+2. Check site health  
+3. Treat recommended  
+4. Confirm Files → Audio  
 
 ### Local workspace
 

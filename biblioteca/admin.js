@@ -1524,7 +1524,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     }
                     return `Some preparation could not finish automatically (${tasks.join(', ')}). Check Notifications.`;
                 }
-                const action = 'Refresh site files';
+                const action = 'Check site health';
                 if (!tasks.length) {
                     return `Next: run ${action}.`;
                 }
@@ -1537,7 +1537,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
             }
 
             function getBuildActionLabel() {
-                return 'Refresh site files';
+                return 'Check site health';
             }
 
             function formatBuildHintMessage(state) {
@@ -1549,7 +1549,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 if (tasks.length > 1) {
                     return `⚠ ${tasks.length} steps are waiting. Use ${actionLabel} when you are ready.`;
                 }
-                return '⚠ Your latest changes may need refreshed delivery files. Refresh site files when you are ready.';
+                return '⚠ Your latest changes may need attention. Use Check site health when you are ready.';
             }
 
             function closeOperatorNotifications() {
@@ -1621,7 +1621,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 }
 
                 showAdminToast(
-                    versionPrefix + 'When you are ready, use Refresh site files on Site health (we will ask before starting).',
+                    versionPrefix + 'When you are ready, open Site health and run Check site health.',
                     'success'
                 );
             }
@@ -1684,7 +1684,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                         file: '',
                         checkedAt: String(buildState.updated_at || '').trim(),
                         details: [
-                            { text: 'Your content and settings were preserved. Refresh site files so listeners get the new version and the install stays ready for the next update.' },
+                            { text: 'Your content and settings were preserved. Open Site health and run Check site health so listeners stay current after the update.' },
                             ...(taskDetails.length ? [{ text: `Pending: ${taskDetails.join('; ')}.` }] : []),
                         ],
                         actions: [
@@ -1701,8 +1701,8 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     const lastError = String(buildState.last_error || '').trim();
                     const details = [
                         { text: lastError !== ''
-                            ? 'Automatic preparation after upload did not finish. Check Site health, then try Refresh if needed.'
-                            : 'Your edits are saved. Refresh site files when you are ready for visitors to hear the latest.' },
+                            ? 'Automatic preparation after upload did not finish. Open Site health and run Check site health.'
+                            : 'Your edits are saved. Open Site health and run Check site health when you want a full exam of listener readiness.' },
                         { text: taskIntro },
                     ];
                     if (lastError !== '') {

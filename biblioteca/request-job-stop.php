@@ -37,7 +37,7 @@ if (!validate_csrf_token($csrfToken)) {
 }
 
 $job = strtolower(trim((string) ($payload['job'] ?? '')));
-$allowed = ['catalog_repair', 'repair', 'build', 'full', 'optimize'];
+$allowed = ['catalog_repair', 'repair', 'build', 'full', 'optimize', 'site_health', 'site-health', 'health'];
 if (!in_array($job, $allowed, true)) {
     http_response_code(400);
     echo json_encode(['ok' => false, 'error' => 'Unknown job.'], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);

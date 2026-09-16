@@ -84,11 +84,11 @@ Demo PCF ensure stays on Site update / setup. Dedupe/prune stays later operator-
 
 ## Implementation order (v0.8, incremental)
 
-1. Logging contract + runner shell  
-2. Planner spine (triage/investigate → plan; healthy early exit)  
-3. Status health UI v1 (findings + Check / Treat + Activity)  
-4. New treat modules (audio first for HITZ; then visual/sfx/links/playlists/chrome)  
-5. Follow-up verify  
+1. Logging contract + runner shell — **done**  
+2. Planner spine (triage/investigate → plan; healthy early exit) — **done**  
+3. Status health UI v1 (findings + Check / Treat + Activity) — **done**  
+4. Treat modules: audio/visual register-in-place; listener delivery + playlists + chrome; Force rebuild — **done** (stages still subprocess legacy scripts)  
+5. Follow-up verify — **done**  
 6. Cut over Status off `build.py` stage manifest; retire legacy stage entrypoints  
 7. Fold Refresh/Repair labels into Status  
 8. Fleet acceptance (HITZ / Vanilla / Spandexual)

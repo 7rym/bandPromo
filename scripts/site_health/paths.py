@@ -22,6 +22,7 @@ AUDIO_MASTER_DIR = os.path.join(ROOT_DIR, 'media', 'audio', 'master')
 AUDIO_ORIGINAL_DIR = os.path.join(ROOT_DIR, 'media', 'audio', 'original')
 AUDIO_OPTIMAL_DIR = os.path.join(ROOT_DIR, 'media', 'audio', 'optimal')
 VISUAL_MASTER_DIR = os.path.join(ROOT_DIR, 'media', 'visual', 'master')
+VISUAL_DELIVERY_DIR = os.path.join(ROOT_DIR, 'media', 'visual', 'delivery')
 
 AUDIO_EXTS = ('.flac', '.mp3', '.wav')
 VISUAL_EXTS = ('.jpg', '.jpeg', '.png', '.webp', '.gif', '.mkv', '.mp4', '.webm')

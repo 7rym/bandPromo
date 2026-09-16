@@ -11,6 +11,7 @@ require_once __DIR__ . '/admin-audit.php';
 require_once __DIR__ . '/csrf.php';
 require_once __DIR__ . '/build-launcher.php';
 require_once __DIR__ . '/light-build-tasks.php';
+require_once __DIR__ . '/job-stop.php';
 
 header('Content-Type: application/json; charset=utf-8');
 
@@ -98,6 +99,7 @@ $runId = function_exists('random_bytes') ? bin2hex(random_bytes(8)) : uniqid('he
 ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
 
 @file_put_contents($lockFile, 'running');
+bandpromo_job_stop_clear($root, 'site_health');
 $launch = bandpromo_build_launch_background($python, $script, $logFile, $lockFile, $runId, $isWindows, null);
 
 if (empty($launch['started'])) {

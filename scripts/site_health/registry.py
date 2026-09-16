@@ -11,9 +11,11 @@ from datetime import datetime
 from paths import (
     AUDIO_EXTS,
     AUDIO_MASTER_DIR,
+    AUDIO_OPTIMAL_DIR,
     AUDIO_ORIGINAL_DIR,
     REGISTRY_PATH,
     ROOT_DIR,
+    VISUAL_DELIVERY_DIR,
     VISUAL_EXTS,
     VISUAL_MASTER_DIR,
 )
@@ -193,6 +195,7 @@ def uncatalogued_visual_masters(registry):
             'master_filename': name,
             'asset_id': stem,
             'master_format': ext,
+            'media_type': 'video' if ext in ('mkv', 'mp4', 'webm') else 'image',
         })
     return pending
 
@@ -228,5 +231,99 @@ def register_audio_master(registry, master_filename, master_format, asset_id, or
     return entry
 
 
+def register_visual_master(registry, master_filename, master_format, asset_id, media_type='image'):
+    master_filename = os.path.basename(str(master_filename or '').strip())
+    asset_id = str(asset_id or '').strip()
+    master_format = str(master_format or '').strip().lower() or 'jpg'
+    media_type = str(media_type or 'image').strip().lower()
+    if media_type not in ('image', 'video'):
+        media_type = 'video' if master_format in ('mkv', 'mp4', 'webm') else 'image'
+    if master_filename == '' or not is_asset_id(asset_id):
+        raise ValueError('Invalid master or asset id')
+
+    by_master = registry.setdefault('by_master_filename', {})
+    existing = str(by_master.get(master_filename) or '').strip()
+    if existing and existing in registry.get('assets', {}):
+        return registry['assets'][existing]
+
+    intake = 'video' if media_type == 'video' else 'img'
+    entry = {
+        'id': asset_id,
+        'kind': 'visual',
+        'media_type': media_type,
+        'intake_bucket': intake,
+        'brand_id': '',
+        'role': 'unassigned',
+        'has_alpha': False,
+        'original_filename': '',
+        'master_filename': master_filename,
+        'master_format': master_format,
+        'release_id': '',
+        'slug': '',
+        'display': {
+            'title': 'Untitled video' if media_type == 'video' else 'Untitled image',
+        },
+        'tags': ['unassigned'],
+        'delivery': [],
+        'content_sha256': '',
+        'created_at': datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ'),
+    }
+    registry.setdefault('assets', {})[asset_id] = entry
+    by_master[master_filename] = asset_id
+    return entry
+
+
 def root_dir():
     return ROOT_DIR
+
+
+def missing_audio_deliverables(registry):
+    """Registered audio assets whose optimal MP3 is missing (list-check only)."""
+    audio, _visual, _sfx, _other = assets_by_kind(registry)
+    missing = []
+    for asset in audio:
+        master = os.path.basename(str(asset.get('master_filename') or '').strip())
+        asset_id = str(asset.get('id') or asset.get('asset_id') or '').strip()
+        stem = ''
+        if master:
+            stem = os.path.splitext(master)[0]
+        elif is_asset_id(asset_id):
+            stem = asset_id
+        if stem == '':
+            continue
+        optimal = os.path.join(AUDIO_OPTIMAL_DIR, stem + '.mp3')
+        if not os.path.isfile(optimal):
+            missing.append({
+                'asset_id': asset_id or stem,
+                'master_filename': master,
+                'optimal': optimal,
+            })
+    return missing
+
+
+def missing_visual_deliveries(registry):
+    """Registered visual assets with no delivery folder (list-check only)."""
+    _audio, visual, _sfx, _other = assets_by_kind(registry)
+    missing = []
+    for asset in visual:
+        asset_id = str(asset.get('id') or asset.get('asset_id') or '').strip()
+        if not is_asset_id(asset_id):
+            continue
+        folder = os.path.join(VISUAL_DELIVERY_DIR, asset_id)
+        if not os.path.isdir(folder):
+            missing.append({
+                'asset_id': asset_id,
+                'master_filename': os.path.basename(str(asset.get('master_filename') or '')),
+            })
+            continue
+        # Empty folder counts as missing.
+        try:
+            names = [n for n in os.listdir(folder) if n not in ('.', '..')]
+        except Exception:
+            names = []
+        if not names:
+            missing.append({
+                'asset_id': asset_id,
+                'master_filename': os.path.basename(str(asset.get('master_filename') or '')),
+            })
+    return missing

@@ -2,6 +2,10 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-09-16 12:50 - Site health delivery Treat + real Force: `treat_delivery` / `treat_playlists` / `treat_chrome` via stage subprocesses (`optimizeMedia`, `optimizeVideo`, `buildSfxDelivery`, `makePlaylists`, `makeSocial`, `makePWA`); triage flags missing optimal/delivery; Treat chains delivery after register-in-place; Force rebuilds all listener deliverables when catalogue is clear (blocked on critical catalogue findings); cooperative Stop between stages.
+
+2026-09-16 12:45 - Site health Status continue: visual register-in-place Treat; Stop wiring (`site-health.stop`); Dashboard/Site update nudges point to Check site health; shared index rebuild CLI for audio/visual targets.
+
 2026-09-16 12:15 - Site health Status **implementation started**: new Python `scripts/site_health/` engine (Check triage/diagnose, Treat audio register-in-place, Force gated); System → Status page replaced with Check / Treat / Force + Activity; unified `HEALTH_*` logging. Delivery/playlist treat modules and full Force rebuild still follow-on.
 
 2026-09-16 11:40 - Site health reframed as doctor-office flow on a **new System → Status page** (triage → investigate → diagnose → treat → follow-up). Not a Refresh rename; operator trust is the product goal. Plan updated in `docs/BUILD-PIPELINE-PLAN.md`.

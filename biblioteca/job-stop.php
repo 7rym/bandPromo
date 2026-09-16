@@ -16,6 +16,9 @@ function bandpromo_job_stop_path(string $root, string $job): string
         'build' => 'build.stop',
         'full' => 'build.stop',
         'optimize' => 'optimize.stop',
+        'site_health' => 'site-health.stop',
+        'site-health' => 'site-health.stop',
+        'health' => 'site-health.stop',
     ];
     $file = $map[$job] ?? '';
     if ($file === '') {

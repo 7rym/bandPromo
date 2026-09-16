@@ -246,6 +246,31 @@
         startMode('force');
     });
 
+    if (stopBtn) {
+        stopBtn.addEventListener('click', async () => {
+            let csrfToken = '';
+            if (typeof refreshAdminCsrfToken === 'function') {
+                csrfToken = await refreshAdminCsrfToken();
+            }
+            try {
+                const resp = await fetch('/biblioteca/request-job-stop.php', {
+                    method: 'POST',
+                    credentials: 'same-origin',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ job: 'site_health', csrf_token: csrfToken }),
+                });
+                const data = await resp.json();
+                if (!resp.ok || !data || data.ok !== true) {
+                    setJobStatus((data && data.error) ? data.error : 'Could not request stop.', { color: '#f55' });
+                    return;
+                }
+                setJobStatus('Stop requested — finishing the current step, then exiting.');
+            } catch (err) {
+                setJobStatus('Could not request stop.', { color: '#f55' });
+            }
+        });
+    }
+
     if (copyBtn && logEl) {
         copyBtn.addEventListener('click', async () => {
             try {

@@ -203,6 +203,32 @@ def run_triage(plan):
                 body='Register existing visual masters in place (no copy).',
             )
 
+        # Cheap delivery existence checks (no checksums).
+        if not pending_audio:
+            missing_audio = reg.missing_audio_deliverables(registry)
+            if missing_audio:
+                plan_mod.add_finding(
+                    plan, 'missing_audio_delivery', 'attention',
+                    'Some tracks are not stream-ready yet', len(missing_audio),
+                    'listener_delivery',
+                    sample=[m.get('asset_id') or m.get('master_filename') for m in missing_audio],
+                    body=(
+                        '{0} registered audio asset(s) lack an optimal MP3 under media/audio/optimal.'
+                    ).format(len(missing_audio)),
+                )
+        if not pending_visual:
+            missing_visual = reg.missing_visual_deliveries(registry)
+            if missing_visual:
+                plan_mod.add_finding(
+                    plan, 'missing_visual_delivery', 'attention',
+                    'Some visuals are missing delivery files', len(missing_visual),
+                    'listener_delivery',
+                    sample=[m.get('asset_id') for m in missing_visual],
+                    body=(
+                        '{0} registered visual asset(s) have no files under media/visual/delivery.'
+                    ).format(len(missing_visual)),
+                )
+
     current_fps = json_fingerprints()
     previous = cache.get('json_fingerprints') if isinstance(cache.get('json_fingerprints'), dict) else {}
     changed = []

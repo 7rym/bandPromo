@@ -31,7 +31,8 @@ import plan as plan_mod  # noqa: E402
 import triage  # noqa: E402
 import investigate  # noqa: E402
 import followup  # noqa: E402
-from paths import META_NAME, ROOT_DIR, STOP_FLAG  # noqa: E402
+from paths import META_NAME, ROOT_DIR  # noqa: E402
+from stopflag import clear_stop, stop_requested  # noqa: E402
 
 try:
     from job_heartbeat import touch_heartbeat, write_job_meta
@@ -43,14 +44,6 @@ except Exception:
         return {}
 
 
-def _clear_stop():
-    try:
-        if os.path.isfile(STOP_FLAG):
-            os.remove(STOP_FLAG)
-    except Exception:
-        pass
-
-
 def run_check():
     log.phase('check')
     log.info('Site health Check (read-only)')
@@ -58,6 +51,11 @@ def run_check():
     plan = plan_mod.empty_plan()
     plan['mode'] = 'check'
     plan = triage.run_triage(plan)
+    if stop_requested():
+        log.info('Stop requested during Check.')
+        log.result('needs_treatment')
+        touch_heartbeat(ROOT_DIR, stage='idle', message='Check stopped', name=META_NAME)
+        return 0
     plan = investigate.run_investigate(plan)
     plan_mod.overall_from_findings(plan)
     plan.pop('_registry_status', None)
@@ -84,7 +82,7 @@ def run_check():
                 log.info('  {0}'.format(body))
         log.result('needs_treatment')
     touch_heartbeat(ROOT_DIR, stage='idle', message='Check finished', name=META_NAME)
-    return 0 if plan.get('overall') != 'critical' else 0
+    return 0
 
 
 def run_treat():
@@ -100,32 +98,91 @@ def run_treat():
 
     # Always refresh plan with a check first so we treat current truth
     run_check()
+    if stop_requested():
+        log.info('Stop requested before treatments.')
+        touch_heartbeat(ROOT_DIR, stage='idle', message='Treat stopped', name=META_NAME)
+        return 0
     plan = plan_mod.load_plan()
     treatments = plan.get('treatments') if isinstance(plan.get('treatments'), list) else []
     ids = [str(t.get('id') or '') for t in treatments]
+    did_register = False
 
     if 'audio_register_in_place' in ids:
         import treat_audio
         treat_audio.treat_audio_register_in_place()
+        did_register = True
+
+    if stop_requested():
+        log.info('Stop requested after audio treat.')
+        followup.run_followup('treat')
+        touch_heartbeat(ROOT_DIR, stage='idle', message='Treat stopped', name=META_NAME)
+        return 0
 
     if 'visual_register_in_place' in ids:
-        log.info('Visual register-in-place: not ported yet (next slice).')
+        import treat_visual
+        treat_visual.treat_visual_register_in_place()
+        did_register = True
+
+    if stop_requested():
+        log.info('Stop requested after visual treat.')
+        followup.run_followup('treat')
+        touch_heartbeat(ROOT_DIR, stage='idle', message='Treat stopped', name=META_NAME)
+        return 0
+
+    need_delivery = any(
+        tid in ids
+        for tid in ('listener_delivery', 'audio_delivery', 'visual_delivery')
+    )
+    # After register-in-place, always rebuild missing/stale deliverables in the
+    # same Treat so one "Treat recommended" heals HITZ-style gaps.
+    delivery_ok = True
+    if need_delivery or did_register:
+        import treat_delivery
+        delivery_ok = treat_delivery.treat_all_listener_delivery(force=False)
+        need_delivery = True
+
+    if stop_requested():
+        log.info('Stop requested after delivery treat.')
+        followup.run_followup('treat')
+        touch_heartbeat(ROOT_DIR, stage='idle', message='Treat stopped', name=META_NAME)
+        return 0
+
+    need_playlists = any(tid in ids for tid in ('playlists', 'container_links'))
+    if delivery_ok and (need_playlists or need_delivery):
+        import treat_playlists
+        treat_playlists.treat_playlists()
+
+    if stop_requested():
+        log.info('Stop requested after playlists.')
+        followup.run_followup('treat')
+        touch_heartbeat(ROOT_DIR, stage='idle', message='Treat stopped', name=META_NAME)
+        return 0
+
+    need_chrome = any(tid in ids for tid in ('site_chrome', 'container_links'))
+    if delivery_ok and (need_chrome or need_delivery):
+        import treat_chrome
+        treat_chrome.treat_chrome()
 
     followup.run_followup('treat')
     touch_heartbeat(ROOT_DIR, stage='idle', message='Treat finished', name=META_NAME)
-    return 0
+    return 0 if delivery_ok else 1
 
 
 def run_force():
     log.phase('force')
     log.info('Force full rebuild requested')
     run_check()
+    if stop_requested():
+        log.info('Stop requested before Force rebuild.')
+        touch_heartbeat(ROOT_DIR, stage='idle', message='Force stopped', name=META_NAME)
+        return 0
     plan = plan_mod.load_plan()
     findings = plan.get('findings') or []
     critical_catalog = [
         f for f in findings
         if str(f.get('id') or '') in (
             'uncatalogued_audio_masters',
+            'uncatalogued_visual_masters',
             'registry_missing',
             'registry_unreadable',
         )
@@ -138,10 +195,27 @@ def run_force():
         touch_heartbeat(ROOT_DIR, stage='idle', message='Force blocked', name=META_NAME)
         return 0
 
-    log.info('Force delivery rebuild: not ported yet (next slice). Catalogue is clear.')
-    log.result('healthy')
-    touch_heartbeat(ROOT_DIR, stage='idle', message='Force placeholder finished', name=META_NAME)
-    return 0
+    import treat_delivery
+    import treat_playlists
+    import treat_chrome
+
+    ok = treat_delivery.treat_all_listener_delivery(force=True)
+    if stop_requested():
+        followup.run_followup('force')
+        touch_heartbeat(ROOT_DIR, stage='idle', message='Force stopped', name=META_NAME)
+        return 0
+    if ok:
+        treat_playlists.treat_playlists()
+    if stop_requested():
+        followup.run_followup('force')
+        touch_heartbeat(ROOT_DIR, stage='idle', message='Force stopped', name=META_NAME)
+        return 0
+    if ok:
+        treat_chrome.treat_chrome()
+
+    followup.run_followup('force')
+    touch_heartbeat(ROOT_DIR, stage='idle', message='Force finished', name=META_NAME)
+    return 0 if ok else 1
 
 
 def main(argv=None):
@@ -154,7 +228,7 @@ def main(argv=None):
     )
     args = parser.parse_args(argv)
 
-    _clear_stop()
+    clear_stop()
     write_job_meta(ROOT_DIR, {
         'status': 'running',
         'mode': args.mode,

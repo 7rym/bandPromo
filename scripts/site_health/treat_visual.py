@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""Audio treatments: register disk masters in place (no mint / no copy)."""
+"""Visual treatments: register disk masters in place (no mint / no copy)."""
 
 from __future__ import print_function
 
@@ -22,21 +22,21 @@ if SCRIPTS_DIR not in sys.path:
     sys.path.insert(0, SCRIPTS_DIR)
 
 
-def _rebuild_audio_index():
+def _rebuild_visual_indexes():
     try:
         from php_cli import resolve_php_cli
     except Exception as exc:
-        log.info('Audio index rebuild skipped: {0}'.format(exc))
+        log.info('Visual index rebuild skipped: {0}'.format(exc))
         return
     php = resolve_php_cli()
     cli = os.path.join(ROOT_DIR, 'biblioteca', 'site-health-rebuild-index-cli.php')
     if not php or not os.path.isfile(cli):
-        log.info('Skipped Files index rebuild (PHP CLI or script missing).')
+        log.info('Skipped Files visual index rebuild (PHP CLI or script missing).')
         return
-    log.info('Rebuilding Files → Audio index...')
+    log.info('Rebuilding Files → Visual indexes...')
     try:
         proc = subprocess.Popen(
-            [php, cli, 'audio'],
+            [php, cli, 'illustrations', 'photos', 'video'],
             cwd=ROOT_DIR,
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
@@ -48,50 +48,52 @@ def _rebuild_audio_index():
                 if line.strip():
                     log.info(line.strip())
         if proc.returncode != 0:
-            log.info('Audio index rebuild exited {0}'.format(proc.returncode))
+            log.info('Visual index rebuild exited {0}'.format(proc.returncode))
     except Exception as exc:
-        log.info('Audio index rebuild skipped: {0}'.format(exc))
+        log.info('Visual index rebuild skipped: {0}'.format(exc))
 
 
-def treat_audio_register_in_place():
-    """Register uncatalogued ast_* audio masters into the registry."""
-    log.phase('treat:audio')
+def treat_visual_register_in_place():
+    """Register uncatalogued ast_* visual masters into the registry."""
+    log.phase('treat:visual')
     registry, status = reg.load_registry()
     if status not in ('ok', 'missing'):
-        log.info('Cannot register audio masters: registry {0}'.format(status))
-        log.treat_result('audio_register_in_place', 'failed', 0)
+        log.info('Cannot register visual masters: registry {0}'.format(status))
+        log.treat_result('visual_register_in_place', 'failed', 0)
         return 0, 1
 
     if status == 'missing':
         registry = reg.empty_registry()
 
-    pending = reg.uncatalogued_audio_masters(registry)
+    pending = reg.uncatalogued_visual_masters(registry)
     total = len(pending)
     if total == 0:
-        log.info('No uncatalogued audio masters to register.')
-        log.treat_result('audio_register_in_place', 'ok', 0)
+        log.info('No uncatalogued visual masters to register.')
+        log.treat_result('visual_register_in_place', 'ok', 0)
         return 0, 0
 
-    log.info('Registering {0} audio master(s) in place...'.format(total))
+    log.info('Registering {0} visual master(s) in place...'.format(total))
     fixed = 0
     failed = 0
     for index, item in enumerate(pending, 1):
         if stop_requested():
-            log.info('Stop requested — finishing after current audio registrations written.')
+            log.info('Stop requested — finishing after current visual registrations written.')
             break
         name = item.get('master_filename') or ''
         asset_id = item.get('asset_id') or ''
-        fmt = item.get('master_format') or 'mp3'
-        log.progress('audio_register_in_place', index, total, name)
+        fmt = item.get('master_format') or 'jpg'
+        media_type = item.get('media_type') or 'image'
+        log.progress('visual_register_in_place', index, total, name)
         try:
             existing = registry.get('assets', {}).get(asset_id)
-            if isinstance(existing, dict) and str(existing.get('kind') or '') in ('', 'audio'):
+            if isinstance(existing, dict) and str(existing.get('kind') or '') == 'visual':
                 existing['master_filename'] = name
                 existing['master_format'] = fmt
+                existing['media_type'] = media_type
                 registry['assets'][asset_id] = existing
                 registry.setdefault('by_master_filename', {})[name] = asset_id
             else:
-                reg.register_audio_master(registry, name, fmt, asset_id, '')
+                reg.register_visual_master(registry, name, fmt, asset_id, media_type)
             fixed += 1
         except Exception as exc:
             failed += 1
@@ -101,11 +103,11 @@ def treat_audio_register_in_place():
         reg.write_registry(registry)
     except Exception as exc:
         log.info('Could not write registry: {0}'.format(exc))
-        log.treat_result('audio_register_in_place', 'failed', fixed)
+        log.treat_result('visual_register_in_place', 'failed', fixed)
         return fixed, failed + 1
 
-    log.info('Registered {0} audio master(s); {1} failed.'.format(fixed, failed))
-    log.treat_result('audio_register_in_place', 'ok' if failed == 0 else 'partial', fixed)
+    log.info('Registered {0} visual master(s); {1} failed.'.format(fixed, failed))
+    log.treat_result('visual_register_in_place', 'ok' if failed == 0 else 'partial', fixed)
     if fixed > 0:
-        _rebuild_audio_index()
+        _rebuild_visual_indexes()
     return fixed, failed

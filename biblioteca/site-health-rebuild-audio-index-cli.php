@@ -2,8 +2,7 @@
 declare(strict_types=1);
 
 /**
- * Thin CLI: rebuild Files → Audio index from registry after site-health Treat.
- * Not a long heal loop — index rebuild only.
+ * Thin CLI: rebuild Files → Audio index after site-health Treat.
  */
 
 if (PHP_SAPI !== 'cli') {
