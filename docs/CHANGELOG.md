@@ -2,6 +2,8 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-09-16 19:15 - Site health dedupe Apply: only remove the probe class on the Review plan (file-hash after Quick; content demux only if Full put it on the plan). No silent Full fingerprint during Treat after a Quick Review; Activity suggests optional Full check afterward.
+
 2026-09-16 19:00 - Site health Quick/Full dedupe: live Activity progress while hashing/fingerprinting (every 25 files + heartbeat), plus a “buckets ready” line before the long compare loop.
 
 2026-09-16 18:55 - Site health dedupe: bootstrap `scripts/vendor` before importing xxhash (HITZ Full/Quick were false-clean in ~1s with no hashes). Log file-hash / content-scan work counts; raise `dedupe_unavailable` when xxhash is missing.

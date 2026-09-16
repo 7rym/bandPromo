@@ -2,9 +2,9 @@
 
 ## Resume point
 
-**Build 513** shipped dedupe but HITZ Quick/Full finished in ~1s with false “healthy” — `dedupe.py` never bootstrapped `scripts/vendor`, so **xxhash was None** and both probes no-op’d. Fix: vendor bootstrap in runner + dedupe; Activity now logs work counts; `dedupe_unavailable` finding if xxhash still missing.
+**Dedupe Apply scope fix (uncommitted until publish):** Treat must not run Full content fingerprint when the operator only Review’d Quick file-hash finds. Apply follows plan finding ids (`duplicate_masters_file` vs `duplicate_masters_content`); Quick-only Apply ends with a suggestion to run Full later.
 
-Next: publish this fix, Site update HITZ, re-run Full check — expect multi-second/minute content scan + real clone findings (or honest work counts).
+HITZ: Site update after publish, Apply the visual file-hash clusters, then optional Full for audio retags.
 
 ### Still open
 

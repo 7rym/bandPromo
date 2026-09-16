@@ -4,11 +4,17 @@ Apply duplicate-master treatment: retarget refs to keeper, then remove clones.
 
 Only safe clusters (single campaign/playlist-linked keeper, unreferenced losers).
 Conflict clusters are never deleted here.
+
+Scope follows the Review plan:
+- duplicate_masters_file → file-hash remaps only (Quick)
+- duplicate_masters_content → content demux remaps (Full)
+Never run a Full content pass on Apply when the operator only reviewed Quick finds.
 """
 
 from __future__ import print_function
 
 import log
+import plan as plan_mod
 import registry as reg
 
 try:
@@ -18,42 +24,102 @@ except Exception:
         return False
 
 
-def _collect_safe_removes(registry):
-    """Recompute file + content safe clusters; merge unique remove→keeper maps."""
+def _plan_dedupe_scopes(plan):
+    """
+    Return (include_file, include_content) from findings on the current plan.
+
+    Defaults to file-only when the treatment is listed but finding ids are absent
+    (safer than inventing a Full content pass).
+    """
+    findings = plan.get('findings') if isinstance(plan.get('findings'), list) else []
+    ids = set(str(f.get('id') or '').strip() for f in findings if isinstance(f, dict))
+    include_file = 'duplicate_masters_file' in ids
+    include_content = 'duplicate_masters_content' in ids
+    if not include_file and not include_content:
+        include_file = True
+        include_content = False
+    return include_file, include_content
+
+
+def _collect_safe_removes(registry, include_file=True, include_content=False):
+    """Recompute safe clusters for the authorised scopes only."""
     import dedupe
 
     ref_index = dedupe.build_reference_index(registry)
     remaps = {}  # loser_id → keeper_id
 
-    file_clusters = dedupe.find_file_hash_clusters(registry)
-    safe_file, _conflict = dedupe.annotate_clusters(file_clusters, ref_index)
-    for cluster in safe_file:
-        keeper = cluster.get('keeper_id') or ''
-        for loser in cluster.get('remove_ids') or []:
-            if loser and keeper and loser != keeper:
-                remaps[loser] = keeper
+    if include_file:
+        log.info('Apply scope: file-hash duplicate clusters (Quick)...')
 
-    # Content clusters may find more (different tags/sizes).
-    log.info('Content fingerprint pass for Apply (may take a while)...')
+        def _file_progress(current, total):
+            log.progress(
+                'dedupe_apply_file_hash',
+                current,
+                total,
+                'hashing same-size masters',
+            )
+            if current == 1 or current % 25 == 0 or current == total:
+                log.info(
+                    'Apply file-hash: {0}/{1}'.format(current, total)
+                )
 
-    def _progress(current, total):
-        log.progress('dedupe_apply_fingerprint', current, total, 'fingerprinting')
+        file_clusters = dedupe.find_file_hash_clusters(
+            registry, progress_cb=_file_progress
+        )
+        safe_file, _conflict = dedupe.annotate_clusters(file_clusters, ref_index)
+        for cluster in safe_file:
+            keeper = cluster.get('keeper_id') or ''
+            for loser in cluster.get('remove_ids') or []:
+                if loser and keeper and loser != keeper:
+                    remaps[loser] = keeper
+        log.info(
+            'File-hash Apply: {0} safe cluster(s), {1} remap(s) so far.'.format(
+                len(safe_file), len(remaps)
+            )
+        )
+    else:
+        log.info('Apply scope: skipping file-hash (not on the Review plan).')
 
-    content_clusters = dedupe.find_content_hash_clusters(
-        registry, progress_cb=_progress
-    )
-    safe_content, _c2 = dedupe.annotate_clusters(content_clusters, ref_index)
-    for cluster in safe_content:
-        keeper = cluster.get('keeper_id') or ''
-        for loser in cluster.get('remove_ids') or []:
-            if loser and keeper and loser != keeper:
-                # Prefer existing remap if already from file-hash.
-                remaps.setdefault(loser, keeper)
+    if include_content:
+        log.info(
+            'Apply scope: content fingerprint clusters (Full) — may take a while...'
+        )
+
+        def _progress(current, total):
+            log.progress(
+                'dedupe_apply_fingerprint', current, total, 'fingerprinting'
+            )
+            log.info(
+                'Apply content fingerprint: {0}/{1}'.format(current, total)
+            )
+
+        content_clusters = dedupe.find_content_hash_clusters(
+            registry, progress_cb=_progress
+        )
+        safe_content, _c2 = dedupe.annotate_clusters(content_clusters, ref_index)
+        added = 0
+        for cluster in safe_content:
+            keeper = cluster.get('keeper_id') or ''
+            for loser in cluster.get('remove_ids') or []:
+                if loser and keeper and loser != keeper:
+                    if loser not in remaps:
+                        added += 1
+                    remaps.setdefault(loser, keeper)
+        log.info(
+            'Content Apply: {0} safe cluster(s), {1} new remap(s).'.format(
+                len(safe_content), added
+            )
+        )
+    else:
+        log.info(
+            'Apply scope: skipping content fingerprint '
+            '(run Full health check first if you want tag-independent clones).'
+        )
 
     return remaps
 
 
-def treat_dedupe():
+def treat_dedupe(include_file=None, include_content=None):
     log.phase('treat:dedupe')
     log.info('Retargeting duplicate masters and removing unreferenced clones.')
 
@@ -74,7 +140,27 @@ def treat_dedupe():
         log.treat_result('dedupe_retarget_and_remove', 'stopped', 0)
         return False
 
-    remaps = _collect_safe_removes(registry)
+    if include_file is None or include_content is None:
+        plan = plan_mod.load_plan()
+        plan_file, plan_content = _plan_dedupe_scopes(plan)
+        if include_file is None:
+            include_file = plan_file
+        if include_content is None:
+            include_content = plan_content
+    include_file = bool(include_file)
+    include_content = bool(include_content)
+    log.info(
+        'Dedupe Apply authorised scopes: file-hash={0}, content={1}.'.format(
+            'yes' if include_file else 'no',
+            'yes' if include_content else 'no',
+        )
+    )
+
+    remaps = _collect_safe_removes(
+        registry,
+        include_file=include_file,
+        include_content=include_content,
+    )
     if not remaps:
         log.info('No safe duplicate clusters to remove.')
         log.treat_result('dedupe_retarget_and_remove', 'ok', 0)
@@ -92,7 +178,6 @@ def treat_dedupe():
             log.treat_result('dedupe_retarget_and_remove', 'stopped', removed)
             return False
 
-        # Retarget containers then registry covers, then delete loser.
         files_changed = dedupe.retarget_containers(loser, keeper)
         cover_changed = dedupe.retarget_registry_covers(registry, loser, keeper)
         if files_changed or cover_changed:
@@ -118,5 +203,11 @@ def treat_dedupe():
         log.info('Files index rebuild after dedupe failed: {0}'.format(exc))
 
     log.info('Dedupe Apply finished: removed {0} clone(s).'.format(removed))
+    if include_file and not include_content:
+        log.info(
+            'Suggestion: run Full health check when convenient to find retagged '
+            'or different-size clones (especially audio). That pass is optional '
+            'and is not applied until you Review it.'
+        )
     log.treat_result('dedupe_retarget_and_remove', 'ok', removed)
     return True

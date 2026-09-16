@@ -152,8 +152,15 @@ def run_treat():
         log.result('healthy')
         return 0
 
-    # Always refresh plan with a check first so we treat current truth
-    run_check()
+    # Capture Review-authorised dedupe scopes before the refresh Check rewrites the plan.
+    # Quick refresh must not unlock a silent Full content delete, and must not drop a
+    # Full-authorised content scope the operator already Review'd.
+    import treat_dedupe as treat_dedupe_mod
+    dedupe_file_scope, dedupe_content_scope = treat_dedupe_mod._plan_dedupe_scopes(plan)
+
+    # Always Quick-refresh for current register/delivery truth. Dedupe Apply uses the
+    # captured Review scopes (file and/or content) — never invent a Full pass here.
+    run_check(deep=False)
     if stop_requested():
         log.info('Stop requested before treatments.')
         touch_heartbeat(ROOT_DIR, stage='idle', message='Treat stopped', name=META_NAME)
@@ -161,6 +168,13 @@ def run_treat():
     plan = plan_mod.load_plan()
     treatments = plan.get('treatments') if isinstance(plan.get('treatments'), list) else []
     ids = [str(t.get('id') or '') for t in treatments]
+    # Keep dedupe on the treat list when Review authorised it, even if Quick refresh
+    # cleared file-hash findings (content-only Full plans).
+    if (
+        (dedupe_file_scope or dedupe_content_scope)
+        and 'dedupe_retarget_and_remove' not in ids
+    ):
+        ids.append('dedupe_retarget_and_remove')
     did_register = False
     treat_ok = True
 
@@ -192,8 +206,10 @@ def run_treat():
         return 0
 
     if 'dedupe_retarget_and_remove' in ids:
-        import treat_dedupe
-        treat_ok = treat_dedupe.treat_dedupe() and treat_ok
+        treat_ok = treat_dedupe_mod.treat_dedupe(
+            include_file=dedupe_file_scope,
+            include_content=dedupe_content_scope,
+        ) and treat_ok
 
     if stop_requested():
         log.info('Stop requested after dedupe treat.')
