@@ -2,9 +2,7 @@
 
 ## Resume point
 
-**Session ended at build pending publish:** Site update → auto Quick health check restored; Welcome content-hash nag removed; dead Repair Status JS removed; deliverable Activity copy is **built / kept / failed**.
-
-Next session: fleet smoke on HITZ after Site update (auto Quick check, SFX Apply if needed, confirm Dashboard no longer nags content hashes).
+**Published v0.8.69 build 521.** Next: HITZ Site update — expect auto Quick health check; Dashboard should not nag missing content hashes; SFX Apply if still empty; Activity deliverable lines say **built / kept / failed**.
 
 ### Local workspace
 
