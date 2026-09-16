@@ -2,6 +2,8 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-09-16 13:05 - Hotfix site health false-healthy on HITZ: asset-id matcher used `{26}` instead of bandPromo's `{20}` Crockford body, so every real `ast_*` master was ignored (`ast_* 0` with hundreds on disk) and Check reported healthy with an empty audio registry. Also add a critical safety finding when registry audio is 0 but disk masters exist.
+
 2026-09-16 13:00 - Site health Treat rebuilds Files indexes in Python (`scripts/site_health/files_index.py`): audio strip+registry rebuild and visual upsert under `media-library-state.lock`; PHP `site-health-rebuild-index-cli.php` kept as fallback only.
 
 2026-09-16 12:50 - Site health delivery Treat + real Force: `treat_delivery` / `treat_playlists` / `treat_chrome` via stage subprocesses (`optimizeMedia`, `optimizeVideo`, `buildSfxDelivery`, `makePlaylists`, `makeSocial`, `makePWA`); triage flags missing optimal/delivery; Treat chains delivery after register-in-place; Force rebuilds all listener deliverables when catalogue is clear (blocked on critical catalogue findings); cooperative Stop between stages.

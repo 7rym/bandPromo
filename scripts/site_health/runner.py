@@ -183,6 +183,7 @@ def run_force():
         if str(f.get('id') or '') in (
             'uncatalogued_audio_masters',
             'uncatalogued_visual_masters',
+            'empty_audio_registry_with_disk_masters',
             'registry_missing',
             'registry_unreadable',
         )

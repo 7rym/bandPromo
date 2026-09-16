@@ -20,7 +20,9 @@ from paths import (
     VISUAL_MASTER_DIR,
 )
 
-_ASSET_ID_RE = re.compile(r'^ast_[0-9A-HJKMNP-TV-Z]{26}$', re.IGNORECASE)
+# bandPromo asset ids are ast_ + 20 Crockford chars (see bandpromo_asset_is_asset_id).
+# Not a full 26-char ULID — matching {26} silently ignores every real master on disk.
+_ASSET_ID_RE = re.compile(r'^ast_[0-9A-HJKMNP-TV-Z]{20}$', re.IGNORECASE)
 
 
 def is_asset_id(value):

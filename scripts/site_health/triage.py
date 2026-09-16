@@ -182,6 +182,21 @@ def run_triage(plan):
 
         pending_audio = reg.uncatalogued_audio_masters(registry)
         pending_visual = reg.uncatalogued_visual_masters(registry)
+
+        # Hard safety net: never call an empty Files catalogue "healthy" when
+        # masters exist on disk (covers id-format drift and non-ast_* names).
+        if len(audio) == 0 and len(disk_audio) > 0 and not pending_audio:
+            plan_mod.add_finding(
+                plan, 'empty_audio_registry_with_disk_masters', 'critical',
+                'Songs on disk are not in Files yet', len(disk_audio),
+                'audio_register_in_place',
+                sample=disk_audio[:12],
+                body=(
+                    'Registry has 0 audio assets but {0} master file(s) exist under '
+                    'media/audio/master. Files → Audio will look empty.'
+                ).format(len(disk_audio)),
+            )
+
         if pending_audio:
             severity = 'critical' if len(audio) == 0 else 'attention'
             plan_mod.add_finding(

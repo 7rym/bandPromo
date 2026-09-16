@@ -2,22 +2,16 @@
 
 ## Resume point
 
-**Site health Status — publishing Files index in Python.**
+**HITZ false-healthy hotfix — publish ASAP.**
 
-Previous tester package: **v0.8.63 build 504**. This checkpoint ships Python Files index rebuild.
+Root cause: site_health `is_asset_id` used `{26}` instead of bandPromo `{20}` Crockford body, so every real master was ignored (`ast_* 0`) and Check reported healthy with registry 0 audio / 185 disk masters.
 
-### HITZ ops (after this publish)
+### HITZ ops (after publish)
 
 1. Site update  
-2. Check site health  
+2. Check site health — must show critical uncatalogued audio  
 3. Treat recommended  
 4. Confirm Files → Audio  
-
-### Next slices
-
-- Optional: deeper investigate (stale delivery checksums) before Force  
-- Fleet acceptance (HITZ / Vanilla / Spandexual)  
-- Cut over Status off `build.py` stage manifest  
 
 ### Local workspace
 
