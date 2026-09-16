@@ -37,6 +37,12 @@ from paths import (
 if SCRIPTS_DIR not in sys.path:
     sys.path.insert(0, SCRIPTS_DIR)
 
+try:
+    import bandpromo_python_path
+    bandpromo_python_path.ensure_vendor_on_sys_path()
+except Exception:
+    pass
+
 import registry as reg
 
 try:
@@ -599,6 +605,10 @@ def _cluster_by_digest(assets, digest_fn, progress_cb=None):
     return clusters
 
 
+def xxhash_available():
+    return xxhash is not None
+
+
 def find_file_hash_clusters(registry, progress_cb=None):
     """
     Quick path: group by file size, hash only within multi-member size buckets.
@@ -620,9 +630,19 @@ def find_file_hash_clusters(registry, progress_cb=None):
         by_size[size].append(asset)
 
     to_hash = []
+    multi_buckets = 0
     for size, group in by_size.items():
         if len(group) >= 2:
+            multi_buckets += 1
             to_hash.extend(group)
+
+    # Stash scan stats for callers / Activity (attribute on function).
+    find_file_hash_clusters.last_stats = {
+        'candidates': len(assets),
+        'size_buckets': len(by_size),
+        'multi_size_buckets': multi_buckets,
+        'hashed': len(to_hash),
+    }
 
     def digest_fn(asset):
         return _file_xxh3(_master_path(asset))
@@ -639,9 +659,23 @@ def find_content_hash_clusters(registry, progress_cb=None):
     Stills: same pixel width×height → RGB hash.
     Singletons never touch ffmpeg/Pillow.
     """
+    stats = {
+        'candidates': 0,
+        'audio_skipped_no_duration': 0,
+        'video_skipped_no_duration': 0,
+        'audio_multi_duration_groups': 0,
+        'video_multi_duration_groups': 0,
+        'still_multi_dim_groups': 0,
+        'demuxed': 0,
+        'stills_hashed': 0,
+        'xxhash': xxhash is not None,
+    }
+    find_content_hash_clusters.last_stats = stats
+
     if xxhash is None:
         return []
     assets = _candidate_assets(registry)
+    stats['candidates'] = len(assets)
     audio_by_duration = defaultdict(list)
     video_by_duration = defaultdict(list)
     still_by_dims = defaultdict(list)
@@ -651,12 +685,14 @@ def find_content_hash_clusters(registry, progress_cb=None):
         if kind == 'audio':
             duration = _asset_duration_sec(asset)
             if duration <= 0:
+                stats['audio_skipped_no_duration'] += 1
                 continue
             audio_by_duration[duration].append(asset)
             continue
         if kind == 'visual' and media_type == 'video':
             duration = _asset_duration_sec(asset)
             if duration <= 0:
+                stats['video_skipped_no_duration'] += 1
                 continue
             video_by_duration[duration].append(asset)
             continue
@@ -677,12 +713,17 @@ def find_content_hash_clusters(registry, progress_cb=None):
     audio_groups = [g for g in audio_by_duration.values() if len(g) >= 2]
     video_groups = [g for g in video_by_duration.values() if len(g) >= 2]
     still_groups = [g for g in still_by_dims.values() if len(g) >= 2]
+    stats['audio_multi_duration_groups'] = len(audio_groups)
+    stats['video_multi_duration_groups'] = len(video_groups)
+    stats['still_multi_dim_groups'] = len(still_groups)
 
     demux_total = sum(len(g) for g in audio_groups) + sum(len(g) for g in video_groups)
-    progress_state = {'current': 0, 'total': max(1, demux_total + sum(len(g) for g in still_groups))}
+    still_total = sum(len(g) for g in still_groups)
+    progress_state = {'current': 0, 'total': max(1, demux_total + still_total)}
 
     clusters = []
     for group in audio_groups:
+        before = progress_state['current']
         clusters.extend(
             _cluster_demux_group(
                 group, '0:a:0', 'audio',
@@ -690,7 +731,9 @@ def find_content_hash_clusters(registry, progress_cb=None):
                 progress_state=progress_state,
             )
         )
+        stats['demuxed'] += max(0, progress_state['current'] - before)
     for group in video_groups:
+        before = progress_state['current']
         clusters.extend(
             _cluster_demux_group(
                 group, '0:v:0', 'video',
@@ -698,10 +741,12 @@ def find_content_hash_clusters(registry, progress_cb=None):
                 progress_state=progress_state,
             )
         )
+        stats['demuxed'] += max(0, progress_state['current'] - before)
 
     still_to_hash = []
     for group in still_groups:
         still_to_hash.extend(group)
+    stats['stills_hashed'] = len(still_to_hash)
     if still_to_hash:
         def _still_digest(asset):
             if progress_cb and progress_state is not None:

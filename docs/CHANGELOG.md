@@ -2,6 +2,8 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-09-16 18:55 - Site health dedupe: bootstrap `scripts/vendor` before importing xxhash (HITZ Full/Quick were false-clean in ~1s with no hashes). Log file-hash / content-scan work counts; raise `dedupe_unavailable` when xxhash is missing.
+
 2026-09-16 18:45 - Site health Full dedupe: demux-copy audio (`0:a:0`) / video (`0:v:0`) into `temp/site-health-dedupe/`, truncate to the shortest demux dump in the duration bucket, then XXH3 — no `-t 7` time cut. Wire `temp/` (gitignore contents, deny-all stub). Stills still RGB by dimensions.
 
 2026-09-16 18:30 - Site health Full dedupe: audio content fingerprint is ffmpeg stream-copy demux (first 7s, any codec) within same duration-second buckets — not PCM decode; stills still RGB within matching pixel dimensions.

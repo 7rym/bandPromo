@@ -37,11 +37,33 @@ def _deep_probe_clean(registry, status):
 
 
 def _add_content_dedupe_findings(plan, registry):
-    """Full check: content fingerprints (PCM / RGB) ignoring tags."""
+    """Full check: content fingerprints (demux / RGB) ignoring tags."""
     try:
         import dedupe
     except Exception as exc:
         log.info('Content dedupe module unavailable: {0}'.format(exc))
+        return
+
+    if not dedupe.xxhash_available():
+        log.info(
+            'Content fingerprint probe skipped: xxhash not importable '
+            '(scripts/vendor bootstrap missing?).'
+        )
+        existing = set(
+            str(f.get('id') or '')
+            for f in (plan.get('findings') or [])
+            if isinstance(f, dict)
+        )
+        if 'dedupe_unavailable' not in existing:
+            plan_mod.add_finding(
+                plan, 'dedupe_unavailable', 'attention',
+                'Duplicate master check could not run', 1,
+                '',
+                body=(
+                    'xxhash is not available to Site health, so Full cannot '
+                    'fingerprint masters. Repair scripts/vendor or re-run dependency bootstrap.'
+                ),
+            )
         return
 
     log.info(
@@ -58,6 +80,21 @@ def _add_content_dedupe_findings(plan, registry):
         )
 
     clusters = dedupe.find_content_hash_clusters(registry, progress_cb=_progress)
+    stats = getattr(dedupe.find_content_hash_clusters, 'last_stats', {}) or {}
+    log.info(
+        'Content scan: {0} candidates; audio duration-groups={1} '
+        '(skipped no-duration {2}); video groups={3} (skipped {4}); '
+        'still dim-groups={5}; demux attempts={6}; stills hashed={7}.'.format(
+            stats.get('candidates', 0),
+            stats.get('audio_multi_duration_groups', 0),
+            stats.get('audio_skipped_no_duration', 0),
+            stats.get('video_multi_duration_groups', 0),
+            stats.get('video_skipped_no_duration', 0),
+            stats.get('still_multi_dim_groups', 0),
+            stats.get('demuxed', 0),
+            stats.get('stills_hashed', 0),
+        )
+    )
     ref_index = dedupe.build_reference_index(registry)
     safe, conflict = dedupe.annotate_clusters(clusters, ref_index)
     remove_count = sum(len(c.get('remove_ids') or []) for c in safe)

@@ -298,44 +298,77 @@ def run_triage(plan, deep=False, suppress_json_drift=False):
         # Quick duplicate masters: same size → whole-file XXH3.
         try:
             import dedupe
-            log.info('Scanning for duplicate masters (same size + file hash)...')
-            file_clusters = dedupe.find_file_hash_clusters(registry)
-            ref_index = dedupe.build_reference_index(registry)
-            safe_file, conflict_file = dedupe.annotate_clusters(file_clusters, ref_index)
-            remove_count = sum(len(c.get('remove_ids') or []) for c in safe_file)
-            if safe_file:
-                plan_mod.add_finding(
-                    plan, 'duplicate_masters_file', 'attention',
-                    'Duplicate masters with identical file bytes', remove_count,
-                    'dedupe_retarget_and_remove',
-                    sample=dedupe.cluster_sample_lines(safe_file),
-                    body=(
-                        '{0} cluster(s) share the same file hash within a size bucket. '
-                        'Treat keeps the campaign/playlist-linked asset and removes '
-                        '{1} unreferenced clone(s).'
-                    ).format(len(safe_file), remove_count),
+            if not dedupe.xxhash_available():
+                log.info(
+                    'Duplicate master probe unavailable: xxhash not importable '
+                    '(scripts/vendor bootstrap missing?).'
                 )
-                log.items(
-                    'Duplicate file-hash clusters (safe to remove)',
-                    dedupe.cluster_sample_lines(safe_file, limit=20),
-                )
-            if conflict_file:
                 plan_mod.add_finding(
-                    plan, 'duplicate_masters_conflict', 'attention',
-                    'Duplicate masters both linked to campaigns', len(conflict_file),
+                    plan, 'dedupe_unavailable', 'attention',
+                    'Duplicate master check could not run', 1,
                     '',
-                    sample=dedupe.cluster_sample_lines(conflict_file),
                     body=(
-                        '{0} cluster(s) look identical on disk but more than one member '
-                        'is linked to a campaign or playlist — not auto-removed.'
-                    ).format(len(conflict_file)),
+                        'xxhash is not available to Site health, so Quick/Full cannot '
+                        'fingerprint masters. Delivery may still work if other stages '
+                        'bootstrapped vendor separately — repair scripts/vendor or re-run '
+                        'dependency bootstrap.'
+                    ),
                 )
-                log.items(
-                    'Duplicate file-hash conflicts (manual)',
-                    dedupe.cluster_sample_lines(conflict_file, limit=20),
+            else:
+                log.info('Scanning for duplicate masters (same size + file hash)...')
+                file_clusters = dedupe.find_file_hash_clusters(registry)
+                stats = getattr(dedupe.find_file_hash_clusters, 'last_stats', {}) or {}
+                log.info(
+                    'File-hash scan: {0} candidates, {1} size bucket(s), '
+                    '{2} multi-member bucket(s), hashed {3} file(s).'.format(
+                        stats.get('candidates', 0),
+                        stats.get('size_buckets', 0),
+                        stats.get('multi_size_buckets', 0),
+                        stats.get('hashed', 0),
+                    )
                 )
-            if not safe_file and not conflict_file:
-                log.info('No same-size duplicate master files found.')
+                ref_index = dedupe.build_reference_index(registry)
+                safe_file, conflict_file = dedupe.annotate_clusters(file_clusters, ref_index)
+                remove_count = sum(len(c.get('remove_ids') or []) for c in safe_file)
+                if safe_file:
+                    plan_mod.add_finding(
+                        plan, 'duplicate_masters_file', 'attention',
+                        'Duplicate masters with identical file bytes', remove_count,
+                        'dedupe_retarget_and_remove',
+                        sample=dedupe.cluster_sample_lines(safe_file),
+                        body=(
+                            '{0} cluster(s) share the same file hash within a size bucket. '
+                            'Treat keeps the campaign/playlist-linked asset and removes '
+                            '{1} unreferenced clone(s).'
+                        ).format(len(safe_file), remove_count),
+                    )
+                    log.items(
+                        'Duplicate file-hash clusters (safe to remove)',
+                        dedupe.cluster_sample_lines(safe_file, limit=20),
+                    )
+                if conflict_file:
+                    plan_mod.add_finding(
+                        plan, 'duplicate_masters_conflict', 'attention',
+                        'Duplicate masters both linked to campaigns', len(conflict_file),
+                        '',
+                        sample=dedupe.cluster_sample_lines(conflict_file),
+                        body=(
+                            '{0} cluster(s) look identical on disk but more than one member '
+                            'is linked to a campaign or playlist — not auto-removed.'
+                        ).format(len(conflict_file)),
+                    )
+                    log.items(
+                        'Duplicate file-hash conflicts (manual)',
+                        dedupe.cluster_sample_lines(conflict_file, limit=20),
+                    )
+                if not safe_file and not conflict_file:
+                    if int(stats.get('multi_size_buckets') or 0) == 0:
+                        log.info('No same-size duplicate master files found.')
+                    else:
+                        log.info(
+                            'Hashed {0} same-size candidate(s); no identical file hashes.'
+                            .format(stats.get('hashed', 0))
+                        )
         except Exception as exc:
             log.info('Duplicate file-hash probe skipped: {0}'.format(exc))
 
