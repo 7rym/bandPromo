@@ -101,10 +101,11 @@ def _collect_safe_removes(registry, include_file=True, include_content=False):
         for cluster in safe_content:
             keeper = cluster.get('keeper_id') or ''
             for loser in cluster.get('remove_ids') or []:
-                if loser and keeper and loser != keeper:
-                    if loser not in remaps:
-                        added += 1
-                    remaps.setdefault(loser, keeper)
+        # Prefer content keeper when both scopes map the same loser (override setdefault).
+                    if loser and keeper and loser != keeper:
+                        if loser not in remaps:
+                            added += 1
+                        remaps[loser] = keeper
         log.info(
             'Content Apply: {0} safe cluster(s), {1} new remap(s).'.format(
                 len(safe_content), added
@@ -116,6 +117,15 @@ def _collect_safe_removes(registry, include_file=True, include_content=False):
             '(run Full health check first if you want tag-independent clones).'
         )
 
+    import dedupe
+    before = len(remaps)
+    remaps = dedupe.collapse_remaps(remaps)
+    if before != len(remaps):
+        log.info(
+            'Collapsed remap chains: {0} → {1} loser→keeper edge(s).'.format(
+                before, len(remaps)
+            )
+        )
     return remaps
 
 
@@ -170,14 +180,13 @@ def treat_dedupe(include_file=None, include_content=None):
     for loser, keeper in sorted(remaps.items()):
         log.info('  remove {0} → keep {1}'.format(loser, keeper))
 
-    removed = 0
+    # Phase 1: retarget every loser to its final keeper (no deletes yet).
     for loser, keeper in sorted(remaps.items()):
         if stop_requested():
-            log.info('Stop requested during dedupe Apply.')
+            log.info('Stop requested during dedupe retarget.')
             reg.write_registry(registry)
-            log.treat_result('dedupe_retarget_and_remove', 'stopped', removed)
+            log.treat_result('dedupe_retarget_and_remove', 'stopped', 0)
             return False
-
         files_changed = dedupe.retarget_containers(loser, keeper)
         cover_changed = dedupe.retarget_registry_covers(registry, loser, keeper)
         if files_changed or cover_changed:
@@ -186,9 +195,18 @@ def treat_dedupe(include_file=None, include_content=None):
                     loser, keeper, files_changed, cover_changed
                 )
             )
+
+    # Phase 2: delete losers only after all refs point at final keepers.
+    removed = 0
+    for loser, keeper in sorted(remaps.items()):
+        if stop_requested():
+            log.info('Stop requested during dedupe remove.')
+            reg.write_registry(registry)
+            log.treat_result('dedupe_retarget_and_remove', 'stopped', removed)
+            return False
         if dedupe.unregister_and_delete_master(registry, loser):
             removed += 1
-            log.info('  removed master {0}'.format(loser))
+            log.info('  removed master {0} (kept {1})'.format(loser, keeper))
         else:
             log.info('  could not unregister {0} (already gone?)'.format(loser))
 

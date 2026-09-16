@@ -378,13 +378,12 @@ def rebuild_target(target, registry=None):
         state = _load_state()
         origin_snapshot = dict(state.get('files') or {})
         files = dict(origin_snapshot)
-        # Audio has no orphan walk in PHP — full strip + registry rebuild.
-        # Visual Treat rebuild upserts registry rows and keeps any orphan keys.
-        if target == 'audio':
-            prefix = target + '/'
-            for key in list(files.keys()):
-                if str(key).startswith(prefix):
-                    del files[key]
+        # Always strip this target then rebuild from registry so deleted masters
+        # (e.g. after dedupe) do not leave broken Unused / broken-thumb rows.
+        prefix = target + '/'
+        for key in list(files.keys()):
+            if str(key).startswith(prefix):
+                del files[key]
 
         count = 0
         assets = registry.get('assets') if isinstance(registry.get('assets'), dict) else {}

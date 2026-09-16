@@ -533,6 +533,47 @@ def score_keep(asset, refs_for_id):
     return score, created, str(asset.get('id') or '')
 
 
+def collapse_remaps(remaps):
+    """
+    Flatten loser→keeper chains and drop cycles / self-maps.
+
+    Example: A→B and B→C becomes A→C, B→C. Never leave a loser whose
+    keeper is itself scheduled for deletion without following the chain.
+    """
+    if not isinstance(remaps, dict) or not remaps:
+        return {}
+
+    def resolve(start):
+        seen = []
+        cur = str(start or '').strip()
+        while cur and cur in remaps:
+            if cur in seen:
+                cycle = seen[seen.index(cur):]
+                return min(cycle) if cycle else cur
+            seen.append(cur)
+            nxt = str(remaps.get(cur) or '').strip()
+            if not nxt or nxt == cur:
+                break
+            cur = nxt
+        return cur
+
+    collapsed = {}
+    for loser in remaps.keys():
+        loser_id = str(loser or '').strip()
+        if not loser_id:
+            continue
+        keeper_id = resolve(loser_id)
+        if keeper_id and keeper_id != loser_id:
+            collapsed[loser_id] = keeper_id
+
+    # A final keeper must never appear as a loser.
+    final_keepers = set(collapsed.values())
+    for loser_id in list(collapsed.keys()):
+        if loser_id in final_keepers:
+            del collapsed[loser_id]
+    return collapsed
+
+
 def choose_keeper(members, ref_index):
     """Return (keeper_asset, remove_list, conflict:bool)."""
     if not members:

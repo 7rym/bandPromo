@@ -2,15 +2,17 @@
 
 ## Resume point
 
-**Dedupe Apply scope fix (uncommitted until publish):** Treat must not run Full content fingerprint when the operator only Review’d Quick file-hash finds. Apply follows plan finding ids (`duplicate_masters_file` vs `duplicate_masters_content`); Quick-only Apply ends with a suggestion to run Full later.
+**HITZ dedupe fallout (build 515 Apply):** silent Full content pass deleted 652 clones; remap chains deleted file-hash keepers (e.g. `023DFK…` removed while still a target). Visual Files index kept stale rows → ~671 broken Unused thumbs vs 100 registry visuals. SFX empty is separate: registry still `0 sfx` (4 disk masters never registered).
 
-HITZ: Site update after publish, Apply the visual file-hash clusters, then optional Full for audio retags.
+**Fixes in flight:** collapse remaps + retarget-then-delete; visual index strip on rebuild; Apply scope already in 516.
 
-### Still open
+### HITZ recovery after publish
 
-1. **Cover extract** into `treat_audio`.
-2. Keep-newest + registry↔tags sync on survivor after Apply.
-3. Visual Brand-asset titles still Untitled (IPTC fill later).
+1. Site update to latest build.
+2. Status → Quick check (should be clean on file-hash) or Force delivery if D chips stay amber.
+3. Hard-refresh Files → Visual — index should match ~100 registry rows after rebuild (Force/Treat or Status after this fix).
+4. SFX: still need register-in-place for `sfx/master` (not a dedupe delete).
+5. Playlist/player smoke: if track covers or audio 404, restore from backup/PCF — chain deletes may have left bad refs.
 
 ### Local workspace
 
