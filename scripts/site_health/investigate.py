@@ -78,6 +78,20 @@ def _add_content_dedupe_findings(plan, registry):
             total,
             'fingerprinting masters',
         )
+        log.info(
+            'Content fingerprinting: {0}/{1}'.format(current, total)
+        )
+        try:
+            from job_heartbeat import touch_heartbeat
+            from paths import META_NAME, ROOT_DIR
+            touch_heartbeat(
+                ROOT_DIR,
+                stage='check',
+                message='Content fingerprint {0}/{1}'.format(current, total),
+                name=META_NAME,
+            )
+        except Exception:
+            pass
 
     clusters = dedupe.find_content_hash_clusters(registry, progress_cb=_progress)
     stats = getattr(dedupe.find_content_hash_clusters, 'last_stats', {}) or {}

@@ -316,7 +316,32 @@ def run_triage(plan, deep=False, suppress_json_drift=False):
                 )
             else:
                 log.info('Scanning for duplicate masters (same size + file hash)...')
-                file_clusters = dedupe.find_file_hash_clusters(registry)
+
+                def _file_hash_progress(current, total):
+                    log.progress(
+                        'dedupe_file_hash',
+                        current,
+                        total,
+                        'hashing same-size masters',
+                    )
+                    log.info(
+                        'Hashing same-size masters: {0}/{1}'.format(current, total)
+                    )
+                    try:
+                        from job_heartbeat import touch_heartbeat
+                        from paths import META_NAME, ROOT_DIR
+                        touch_heartbeat(
+                            ROOT_DIR,
+                            stage='check',
+                            message='Hashing masters {0}/{1}'.format(current, total),
+                            name=META_NAME,
+                        )
+                    except Exception:
+                        pass
+
+                file_clusters = dedupe.find_file_hash_clusters(
+                    registry, progress_cb=_file_hash_progress
+                )
                 stats = getattr(dedupe.find_file_hash_clusters, 'last_stats', {}) or {}
                 log.info(
                     'File-hash scan: {0} candidates, {1} size bucket(s), '

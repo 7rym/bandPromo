@@ -333,7 +333,7 @@ def _cluster_demux_group(members, stream_map, kind_label, progress_cb=None, prog
                 progress_state['current'] = progress_state.get('current', 0) + 1
                 current = progress_state['current']
                 total = progress_state.get('total') or current
-                if current % 5 == 0 or current == total:
+                if current == 1 or current % 5 == 0 or current == total:
                     progress_cb(current, total)
             path = _master_path(asset)
             aid = str(asset.get('id') or '').strip() or 'unknown'
@@ -564,16 +564,17 @@ def choose_keeper(members, ref_index):
     return keeper, safe_remove, False
 
 
-def _cluster_by_digest(assets, digest_fn, progress_cb=None):
+def _cluster_by_digest(assets, digest_fn, progress_cb=None, progress_every=25):
     """
     digest_fn(asset) -> hex string.
     Returns list of {digest, members, kind}.
     """
     buckets = defaultdict(list)
     total = len(assets)
+    every = max(1, int(progress_every or 25))
     for index, asset in enumerate(assets, start=1):
         digest = digest_fn(asset)
-        if progress_cb and (index % 25 == 0 or index == total):
+        if progress_cb and (index == 1 or index % every == 0 or index == total):
             progress_cb(index, total)
         if not digest:
             continue
@@ -644,10 +645,26 @@ def find_file_hash_clusters(registry, progress_cb=None):
         'hashed': len(to_hash),
     }
 
+    if not to_hash:
+        return []
+
+    try:
+        import log as health_log
+        health_log.info(
+            'Same-size buckets ready: {0} multi-member bucket(s), '
+            'hashing {1} of {2} candidate(s)...'.format(
+                multi_buckets, len(to_hash), len(assets)
+            )
+        )
+    except Exception:
+        pass
+
     def digest_fn(asset):
         return _file_xxh3(_master_path(asset))
 
-    return _cluster_by_digest(to_hash, digest_fn, progress_cb=progress_cb)
+    return _cluster_by_digest(
+        to_hash, digest_fn, progress_cb=progress_cb, progress_every=25
+    )
 
 
 def find_content_hash_clusters(registry, progress_cb=None):
@@ -720,6 +737,20 @@ def find_content_hash_clusters(registry, progress_cb=None):
     demux_total = sum(len(g) for g in audio_groups) + sum(len(g) for g in video_groups)
     still_total = sum(len(g) for g in still_groups)
     progress_state = {'current': 0, 'total': max(1, demux_total + still_total)}
+
+    try:
+        import log as health_log
+        health_log.info(
+            'Content buckets ready: {0} audio duration-group(s), {1} video group(s), '
+            '{2} still dim-group(s); fingerprinting up to {3} master(s)...'.format(
+                len(audio_groups),
+                len(video_groups),
+                len(still_groups),
+                demux_total + still_total,
+            )
+        )
+    except Exception:
+        pass
 
     clusters = []
     for group in audio_groups:
