@@ -42,7 +42,7 @@ Welcome to the bandPromo codebase! This file provides essential guidance for AI 
 
 House style is **UK English** for every repository-authored string: admin and player copy, docs, comments, logs, notifications, and system messages. Prefer **catalogue**, **colour**, **organise**, **favourite**, **-ise** / **-our** spellings over US **catalog**, **color**, **organize**, **favorite**.
 
-Do not rename existing code identifiers, CSS properties, JSON keys, file names, or APIs to match UK spelling (`catalog_id`, `demo-catalog-state.php`, `buildCatalog.py`, CSS `color`, HTML/JS ids). New identifiers may keep the established `catalog` / `color` technical names so they stay consistent with those APIs. Operator-facing labels next to those identifiers still use UK English (Content → **Catalogue**, **Repair catalogue**).
+Do not rename existing code identifiers, CSS properties, JSON keys, file names, or APIs to match UK spelling (`catalog_id`, `demo-catalog-state.php`, `buildCatalog.py`, CSS `color`, HTML/JS ids). New identifiers may keep the established `catalog` / `color` technical names so they stay consistent with those APIs. Operator-facing labels next to those identifiers still use UK English (Content → **Catalogue**, System → Status **Site health**).
 
 **Portable Campaign File (PCF):** operator-facing name is always **PCF** or **`.pcf`**. Never tell operators it is a ZIP, that they may rename it to `.zip`, or mention ZipArchive for campaign files. Full site backup remains a ZIP; the application package remains `bandPromo.zip`. Import still accepts legacy `.prp` without advertising it. Internally the file is zip-backed (`ZipArchive`). Prefer `.pcf` on export and on the durable `demo-content` tag; fall back to `.prp` when that is what GitHub still serves.
 
@@ -98,8 +98,8 @@ Use `prerelease=false` for closed-beta tester packages so hosts that cannot call
 
 ## Build/Test Commands
 
-- Preferred build path: Admin panel → System → Status → Site health (Quick/Full check, then Review → Apply treatment).
-- Successful treatment ends with a follow-up re-check; Activity holds the verbose evidence.
+- Preferred build path: Admin panel → System → Status → Site health (Quick/Full check, then Review → Apply treatment; Force when the catalogue is clear).
+- Successful treatment ends with a follow-up re-check; Activity holds the verbose evidence (**built / kept / failed** for deliverables). After **Site update**, Status auto-starts Quick health check.
 - Legacy CLI build (reference during port): `python scripts/build.py`
 - PHP syntax check: `php -l <file>`
 - Before committing, validate touched PHP and JSON/template files.

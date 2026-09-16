@@ -1,6 +1,6 @@
 # Build pipeline audit (v0.8)
 
-Status: **partially superseded for direction** — live redesign target is [BUILD-PIPELINE-PLAN.md](BUILD-PIPELINE-PLAN.md) (**v0.8 critical**, plan-driven diagnose → worklist → gated apply). This audit keeps terminology, history, and the older stage narrative.
+Status: **historical** — operator Status is now **Site health** ([BUILD-PIPELINE-PLAN.md](BUILD-PIPELINE-PLAN.md)). This audit keeps terminology, history, and the older Publish/Repair stage narrative; do not treat “Refresh site files” / “Repair catalogue” as current operator CTAs.
 
 Companion policy: [PLATFORM-MODEL.md](PLATFORM-MODEL.md), [MEDIA-HANDLING.md](MEDIA-HANDLING.md).
 

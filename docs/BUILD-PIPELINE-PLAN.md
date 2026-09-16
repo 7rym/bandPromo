@@ -1,6 +1,6 @@
 # Site health plan (v0.8 — critical)
 
-**Status:** **partially built** (2026-09-16). Doctor Status UI + Check/Treat/Force spine are live. **Legacy stage port (rule 6) is done** — Treat/Force owns delivery/chrome/sfx/playlists under `scripts/site_health/` (no `stage_exec`). **Still open:** audio register must capture master **content** (tags), cover extract, and HITZ Treat after publish.
+**Status:** **mostly built** (2026-09-16). Doctor Status UI + Check/Treat/Force spine are live. Legacy stage port, SFX register-in-place, Quick/Full duplicate-master dedupe (audio full demux-hash), Site update → auto Quick check, and deliverable **built / kept / failed** Activity copy are shipped. **Still open:** cover extract; fleet re-smoke after latest publish; finish proving audio register tag-fill on HITZ.
 
 v0.8 is the **management machine**. Operators must trust that bandPromo **knows the host’s condition** before we ask them to change anything. A pipeline that burns disk, empties Files, or claims “ready” while the catalogue is broken is a product-ending defect at scale.
 
@@ -89,7 +89,7 @@ Triage → Investigate (if needed) → Diagnose
   → Follow-up re-triage
 ```
 
-Demo PCF ensure stays on Site update / setup. Dedupe/prune of duplicate masters is gated through Site health Review → Apply (Quick file-hash + Full content fingerprint) — never silent auto-prune.
+Demo PCF ensure stays on Site update / setup. After a successful Site update, Status **auto-starts Quick health check** (no redundant Notifications “tune-up” nag). Dedupe/prune of duplicate masters is gated through Site health Review → Apply (Quick file-hash + Full demux/RGB content fingerprint) — never silent auto-prune.
 
 ## Implementation order (v0.8, incremental)
 
@@ -99,11 +99,14 @@ Demo PCF ensure stays on Site update / setup. Dedupe/prune of duplicate masters 
 4. Treat modules: audio/visual register-in-place; `treat_sfx` / `treat_links`; listener delivery + playlists + chrome; Force rebuild — **done** (Status path native / php_stage / in-process delivery)
 5. Follow-up verify — **done**
 5b. Files index rebuild in Python (Treat) — **done**
-5c. Audio register fills display from master tags + heal bare Untitled rows — **in progress** (bad-import fix; code present, HITZ Treat after publish)
+5c. Audio register fills display from master tags + heal bare Untitled rows — **code present**; fleet prove on HITZ after publish
+5d. Duplicate masters Quick/Full + SFX register-in-place — **done** (2026-09-16)
+5e. Site update → auto Quick health check; drop redundant `package_update` Notifications nag — **done** (2026-09-16)
+5f. Operator deliverable counts **built / kept / failed** (internal BUILD_STATS key still `fresh`) — **done** (2026-09-16)
 6. **Port** delivery / playlists / chrome / sfx into `site_health`; retire `stage_exec` from Status Treat/Force — **done** (2026-09-16; `stage_exec.py` removed)
 7. Fold Refresh/Repair labels into Status — **done** (operator copy uses Check / Review / Apply / Force)
 8. Cut over Status off `build.py` stage manifest (launcher only) — **done**
-9. Fleet acceptance (HITZ / Vanilla / Spandexual) — **partial** (local delivery/chrome smoke after port; HITZ Treat after publish)
+9. Fleet acceptance (HITZ / Vanilla / Spandexual) — **partial** (local + Vanilla + Spandexual Force passed build 509; re-smoke after 525+ for auto Quick check / SFX / Full demux)
 
 ## Explicit non-goals
 
@@ -120,7 +123,7 @@ Demo PCF ensure stays on Site update / setup. Dedupe/prune of duplicate masters 
 | Local operator checkout | Quick + Full Check + Force + player — **passed** (2026-09-16, build 509) |
 | bandpromo.site | Healthy Check + Full + Force + player — **passed** (2026-09-16, build 509) |
 | spandexualtension.com | Force full rebuild on healthy catalogue + follow-up healthy — **passed** (2026-09-16, build 509; Python 3.6.9) |
-| hitz.no | Diagnose names empty Files vs disk masters; Treat registers **with tag fill**; Follow-up honest; one log voice — **tester** (after publish of tag-fill + wipe fixes) |
+| hitz.no | Diagnose names empty Files vs disk masters; Treat registers SFX + audio **with tag fill**; Full check catches dual-tag audio clones; Follow-up honest; one log voice — **re-smoke after latest Site update** |
 
 ---
 

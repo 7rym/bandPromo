@@ -2,6 +2,8 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-09-16 23:10 - Docs audit: align INSTALL-UPDATE, ROADMAP, TODO, FEATURES, AGENTS, ADMIN-UI, OPERATOR-MESSAGING, PLATFORM-MODEL, MEDIA-HANDLING, BUILD-PIPELINE-PLAN/AUDIT with Site health Status + Site update → auto Quick check (no Notifications tune-up nag), Full audio demux-hash dedupe, SFX register-in-place, and deliverable **built / kept / failed** counts.
+
 2026-09-16 23:00 - Site update: stop marking `package_update` as build-required (redundant Notifications “tune-up / Quick health check” while auto Quick check runs). Clear leftover `package_update` when Site health starts; close the notifications modal on auto-start.
 
 2026-09-16 22:50 - Site update auto Quick check: start from sessionStorage flash too (pre-update admin.js often redirected without `run_recommended=1`). Retry start until Site health UI is ready; site-health-admin.js also auto-starts after Status load.

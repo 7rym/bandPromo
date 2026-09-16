@@ -97,7 +97,7 @@ Operator → bandPromo team reporting (install diagnostics, logs bundle). Respon
 
 ## Developer-only admin surfaces (v0.8)
 
-**Locked (2026-08-31; Status CTAs updated 2026-09-16):** System → **Audit** and System → **Environment** (formerly Security) are **developer role only**. Operators (`admin` role) keep Status (Site health Check / Treat / Force), Backup export/import. Legacy Refresh / Repair catalogue Status buttons are folded into Site health.
+**Locked (2026-08-31; Status CTAs updated 2026-09-16):** System → **Audit** and System → **Environment** (formerly Security) are **developer role only**. Operators (`admin` role) keep Status (Site health Check / Treat / Force), Backup export/import. Legacy Refresh / Repair catalogue Status buttons are folded into Site health. After Site update, Status auto-starts Quick health check — do **not** also leave a Notifications “tune-up recommended” card for that same check.
 
 Rationale: separates operator workflow from host diagnostics; pairs with OMP so system messages stay in inbox, not scattered dev tools.
 

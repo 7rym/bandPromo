@@ -23,7 +23,7 @@ Rules for this file:
 
 **Active gate (2026-08-18):** lock and ship **PCF** (`.pcf`) as the only campaign data handoff — setup imports `bandPromo-demo.pcf` (legacy `.prp` still accepted); round-trips on Spandexual Tension / HITZ (Twisted Chronicles deferred to v0.9). See [PORTABILITY.md](PORTABILITY.md) §3 and TODO → Portable Campaign Files.
 
-**Active gate (2026-09-16):** **System → Status site health** — doctor model is **partially built**. Legacy stage port + duplicate-masters Check/Treat are **done**. Still open: cover extract; fleet Full check on HITZ for content clones after publish. See [Site health (Status)](#site-health-status--v0-8-critical) and [BUILD-PIPELINE-PLAN.md](BUILD-PIPELINE-PLAN.md).
+**Active gate (2026-09-16):** **System → Status site health** — doctor model is **mostly built**. Legacy stage port, SFX register-in-place, Full audio demux-hash dedupe, Site update → auto Quick check, and deliverable **built / kept / failed** Activity copy are shipped. Still open: cover extract; fleet smoke after latest publish. See [Site health (Status)](#site-health-status--v0-8-critical) and [BUILD-PIPELINE-PLAN.md](BUILD-PIPELINE-PLAN.md).
 
 **Policy (2026-08-08):** no special-case demo content handling beyond setup PCF import, lock / localhost unlock + export, hide, and duplicate. Collapse remaining heal/force/`bandPromo_*`→demo ownership forks onto normal release ownership. See [PLATFORM-MODEL.md](PLATFORM-MODEL.md) / [PORTABILITY.md](PORTABILITY.md).
 
@@ -55,7 +55,7 @@ Reference: see `ROADMAP.md` for milestone structure and beta-tester expectations
 Policy and operator messaging — **lock before implementation**:
 
 - [x] Close legacy `data/bio.html` / `data/faq.html` import scope: all betatesters on current JSON pages; recovery is manual copy only if old files exist on host backups.
-- [x] Lock **operator update contract**: Site update preserves `web-config.json`, `.env`, `data/`, `media/`, `log/`; one follow-up **Update the live site** (Publish) is normal after every package update — not a failure state.
+- [x] Lock **operator update contract**: Site update preserves `web-config.json`, `.env`, `data/`, `media/`, `log/`; after install, Status **auto-starts Quick health check** (Apply/Force only when needed) — not a failure state.
 - [x] Lock **invisible maintenance** contract: config structure auto-repair and content-model preparation run automatically before Publish; no separate operator-facing “content model upgrade” card in normal workflow.
 - [x] Lock **container presentation fields** for shareable containers: `description`, `poster_asset_id` on playlists and pages; extended **release EPK** fields on releases (see [PLATFORM-MODEL.md](PLATFORM-MODEL.md)). *(Release + playlist fields shipped in editor + storage; page fields + OG runtime wiring still open.)*
 - [x] Lock **v0.8 playlist kind rule**: operator-created playlists are **`system`** until user/VIP playlists ship in v0.9+; fix current bug that creates `kind: "user"` (invisible to player).
@@ -66,7 +66,7 @@ Trust and operator calm:
 
 - [x] **Config auto-repair** — silently deep-merge missing `web-config.json` sections from template on admin load (same as Settings → Repair today); audit-log only; remove scary “Incomplete config” banner for operators.
 - [x] **Publish preflight** — before build tasks, run content-model preparation (`content-autofix` pipeline); apply when needed; plain-language Publish status only; hide Dashboard **Content model upgrade** card once integrated.
-- [x] **Post-update notification copy** — after Site update, nudge **Update the live site** once with success-first wording (not “Publish prep did not finish automatically”).
+- [x] **Post-update follow-up** — after Site update, open Status and auto-start **Quick health check**; toast confirms the run. Do **not** leave a Notifications “tune-up recommended” card asking for that same check.
 - [x] **Backup/export MVP** — Admin → System → Backup & export: queue export archives in `backups/`, poll until ready, download/delete; import ZIP with restore/migrate modes and component picker (2026-07-13). Setup-time import wizard remains open per [PORTABILITY.md](PORTABILITY.md).
 
 Platform fixes:
@@ -110,25 +110,23 @@ Implementation order:
 
 ## Site health (Status) — v0.8 critical
 
-Source of truth: [BUILD-PIPELINE-PLAN.md](BUILD-PIPELINE-PLAN.md). Doctor Status UI is live; **do not mark this gate complete** while legacy stages are still wrapped or register drops tag content.
+Source of truth: [BUILD-PIPELINE-PLAN.md](BUILD-PIPELINE-PLAN.md). Doctor Status UI is live; **do not mark this gate complete** while cover extract and fleet re-smoke remain open.
 
-**Shipped (partial):**
+**Shipped:**
 
 - [x] Logging contract + Python runner (`scripts/site_health/`, `HEALTH_*` Activity).
 - [x] Triage / investigate / plan + Quick/Full Check.
 - [x] Status UI: findings + Review → Apply + Force + Stop; Refresh/Repair folded.
 - [x] Audio/visual/SFX register-in-place (identity) + Files index rebuild in Python.
 - [x] Follow-up verify after Treat.
-- [x] Status launcher cut over off `build.py` (still may subprocess legacy stage scripts).
+- [x] Status launcher cut over off `build.py`; Treat/Force in-process delivery/chrome (no `stage_exec`).
+- [x] Duplicate masters Quick/Full + Site update → auto Quick check + **built / kept / failed** Activity counts.
 
-**Open (reopened 2026-09-16):**
+**Open:**
 
 - [ ] **Bad import / tag fill** — register-in-place must populate registry `display` from master embedded tags (**registry ← master only**). Bare `Untitled` rows are incomplete Treat; heal existing empties; never write empty registry display onto masters. (Code present; HITZ Treat after publish.)
-- [x] **Port legacy stage algorithms** into `site_health` (`treat_delivery` / playlists / chrome / sfx) — in-process `delivery_*` + `chrome_*` + `php_stage`; no `stage_exec` on Status Treat/Force (2026-09-16).
-- [x] **Retire `stage_exec` bridge** from Status Treat/Force — deleted `stage_exec.py` (2026-09-16).
-- [x] **Duplicate masters (Quick + Full)** — Quick: size + file XXH3; Full: PCM/RGB content fingerprint; Review → Apply keeps campaign-linked, removes safe clones; conflict clusters warn only (2026-09-16).
 - [ ] **Cover extract** as part of treat_audio (plan: tags/covers) — C chip / embedded artwork → visual cover ref where safe.
-- [ ] **Fleet acceptance** — HITZ Quick check + Apply should register uncatalogued `sfx/master` into Files → Sound effects; Full check still for dual-tag audio content clones; re-smoke Force on Vanilla/Spandexual after Status UX publish.
+- [ ] **Fleet acceptance** — re-smoke HITZ/Vanilla/Spandexual after latest Site update (auto Quick check, SFX Apply if needed, Force when healthy).
 
 ## v0.8 management slice (Brand + Visual pool + content AI)
 
@@ -256,7 +254,7 @@ Implementation order:
 
 - [x] **M1 — `asset_id` resolution everywhere** — page/gallery/cover/living-cover dual-read; brand shell `asset_ids` map + theme-editor writes; makeSocial resolves poster via `asset_id`; autofix backfills brand/gallery/page/cover/living refs.
 - [x] **M2 — on-disk visual masters** — `media/visual/original/` + `media/visual/master/ast_*`; register/backfill/autofix materialize; optimizeMedia/optimizeVideo/makeSocial read master-first (legacy intake fallback until M4).
-- [x] **M3 — XXH3 skip-if-fresh + Publish log** — audio + visual image delivery skip on `delivery.source_xxh3`; `xxhash` in requirements; PHP `content_xxh3` dual-read with legacy `content_sha256`; force via `BANDPROMO_FORCE_*_DELIVERY=1`.
+- [x] **M3 — XXH3 skip-if-current + Publish log** — audio + visual image delivery keep existing files when `delivery.source_xxh3` matches (operator Activity: **built / kept / failed**); `xxhash` in requirements; PHP `content_xxh3` dual-read with legacy `content_sha256`; force via `BANDPROMO_FORCE_*_DELIVERY=1`.
 - [x] **M4 — quit legacy conversion** — stop stem optimal/thumb dual-write; register-or-fail for unregistered intake; drop stem optimal dual-read in resolver; shell heal fills `asset_ids`; Brand-assets `media/special/` intake remains as dual-write source until physical folder retirement.
 - [x] **M5 — Files Visual operator titles** — `operator_title` / `display_title` = role + linked context on list-media visual rows.
 - [x] **M6 — release export + import merge** — `bandpromo_release_campaign_export_to_zip()` ships masters + campaign docs + `data/assets/registry.json` subset; import merges asset registry (no wipe); `data/assets/` allowed in package paths.
@@ -353,10 +351,10 @@ Implementation:
 
 ### Delivery smoothness leftovers (deferred 2026-08-04)
 
-P0 tag-save `/play` calm + P1a shared-cover exact-hash link shipped 2026-08-03. Skip-if-fresh largely landed under M3. Remaining housekeeping (not urgent):
+P0 tag-save `/play` calm + P1a shared-cover exact-hash link shipped 2026-08-03. Skip-if-current largely landed under M3; operator Activity uses **built / kept / failed**. Remaining housekeeping (not urgent):
 
 - [x] **Orphan visual delivery GC** — prune stale `media/visual/delivery/{asset_id}/` trees when the asset is gone or remapped.
-- [ ] **Deliverables skip/reuse summary** — operator-facing Publish/Deliverables counts for skipped-fresh variants and reused covers (beyond build-log lines).
+- [x] **Deliverables built / kept / failed** — Site health Activity + build summaries use those labels (kept = fingerprint matched); internal BUILD_STATS key remains `fresh`.
 - [x] **Visual pool honesty polish** — first-class “used by N” / Unused vs Orphan chips (partial `reference_count` / orphan plumbing already exists). Catalogue Orphans now follow live track-cover ids after re-register (former `ast_*` filename alias) and page `src`/`poster` delivery URLs; chip copy is still the leftover.
 
 Related open items (absorbed into M1 unless noted):

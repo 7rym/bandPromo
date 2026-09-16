@@ -207,20 +207,21 @@ Package update **preserves** your content. It replaces application PHP/JS only. 
 
 **What to do next (normal workflow):**
 
-1. After **Install update** succeeds, bandPromo opens **System → Status**, starts **Refresh site files**, and shows the build log automatically — even when delivery status already looked clear.
-2. Wait for the rebuild to finish, then smoke-test admin and playback.
+1. After **Install update** succeeds, bandPromo opens **System → Status** and **auto-starts Quick health check** (Activity shows the run). That is normal — not a failure.
+2. Wait for the check to finish. If findings appear, use **Review treatment** → **Apply**. Use **Force full rebuild** only when you need listener deliverables rebuilt after a healthy catalogue.
+3. Smoke-test admin and playback.
 
-If the auto-run cannot start (for example the refresh button is unavailable), the success toast tells you to click **Refresh site files** yourself. Notifications also keep a **Fix first** item while package-update delivery work remains pending.
+If the auto-run cannot start, the success toast tells you to open Status and run **Quick health check** yourself. Site update does **not** leave a Notifications “tune-up recommended” card asking for that check again.
 
 **What Site update does not do:**
 
 - It does **not** wipe or replace your operator pages, playlists, media, or config.
 - It does **not** re-run Demo PCF import on every Admin **Publish** — only after Site update when the published demo package is newer than the install marker (and not when the demo is unlocked on localhost).
 
-**After Site update (v0.8.3+):**
+**After Site update (v0.8.69+):**
 
-1. bandPromo opens **System → Status** and starts **Refresh site files** automatically when the install finishes.
-2. If a newer Demo PCF was published, the locked platform demo catalogue is refreshed before that rebuild so older installs pick up new demo standards/features.
+1. bandPromo opens **System → Status** and starts **Quick health check** automatically when the install finishes (sessionStorage + `run_recommended` so older in-memory JS still lands correctly).
+2. If a newer Demo PCF was published, the locked platform demo catalogue is refreshed before that follow-up so older installs pick up new demo standards/features.
 3. If legacy Visual intake folders still exist, registered originals are relocated into `media/visual/original/` before rebuild.
 4. Config structure updates happen silently in the background when you open admin.
 

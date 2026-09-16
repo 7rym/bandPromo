@@ -534,7 +534,7 @@ Closed-beta fleet personas ([USE-CASES.md](USE-CASES.md)): **Vanilla** (bandprom
 **Updating safely:**
 
 1. **Site update** (Dashboard) replaces application code only. Your `web-config.json`, `.env`, `data/`, `media/`, and `log/` are preserved.
-2. After every successful Site update, run **Quick health check** once (System → Status → Site health). This is **normal**, not a sign that something failed.
+2. After every successful Site update, bandPromo opens **System → Status** and **auto-starts Quick health check**. That is **normal**, not a sign that something failed. Apply treatment only when findings remain; Force rebuilds listener deliverables when the catalogue is clear.
 3. Catalogue and delivery healing is **Site health** (Check → Review → Apply); Force rebuilds listener deliverables when the catalogue is clear.
 4. Before large updates on heavy installs: use Admin → System → **Backup & export**, or download a ZIP of `data/`, `media/`, and `web-config.json` from the host.
 

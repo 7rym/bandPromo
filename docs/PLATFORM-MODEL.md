@@ -335,7 +335,7 @@ Three **operator pools** (Files). Two heavy pipelines (music audio vs visual); S
 
 **Shipped (2026-07-21):** visual registry/delivery + Phase 3 operator wiring; **Sound effects** pool (`media/sfx/original/`, registry `kind=sfx`, single role `sfx`).
 
-**Completion track (policy locked 2026-08-04):** finish three-tier visuals like audio — `asset_id` refs everywhere → on-disk `media/visual/master/ast_*` → XXH3 skip-if-fresh → kill dual-write/`special` → operator titles → release-package export. See [TODO.md](TODO.md) → Visual identity completion (M1–M6) and [MEDIA-HANDLING.md](MEDIA-HANDLING.md).
+**Completion track (policy locked 2026-08-04):** finish three-tier visuals like audio — `asset_id` refs everywhere → on-disk `media/visual/master/ast_*` → XXH3 skip-if-current (**built / kept / failed**) → kill dual-write/`special` → operator titles → release-package export. See [TODO.md](TODO.md) → Visual identity completion (M1–M6) and [MEDIA-HANDLING.md](MEDIA-HANDLING.md).
 
 **Music audio stays separate from SFX** — FLAC masters, metadata repair, playlist coupling, and delivery MP3s must never mix with short brand UI clips.
 
