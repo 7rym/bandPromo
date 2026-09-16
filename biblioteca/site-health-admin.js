@@ -314,22 +314,36 @@
                 setOverall(data.overall || plan.overall || 'unknown');
                 if (data.exit_code === 0) {
                     const overall = String(data.overall || plan.overall || '');
-                    const planMode = String(plan.mode || '');
+                    const metaMode = String((data.meta && data.meta.mode) || '').trim();
+                    const planMode = String(plan.mode || '').trim();
+                    // Prefer the job that was launched (meta.mode). Follow-up overwrites
+                    // plan.mode to "followup" / check — never call Force a Quick check.
+                    const jobMode = metaMode || planMode;
                     if (overall === 'healthy') {
                         setPreviewMode(false);
-                        setJobStatus(
-                            planMode === 'check_full'
-                                ? 'Full check complete — site looks healthy.'
-                                : 'Quick check complete — site looks healthy.',
-                            { color: 'var(--success, #4ade80)' }
-                        );
+                        let doneMsg = 'Health job complete — site looks healthy.';
+                        if (jobMode === 'check_full') {
+                            doneMsg = 'Full check complete — site looks healthy.';
+                        } else if (jobMode === 'check') {
+                            doneMsg = 'Quick check complete — site looks healthy.';
+                        } else if (jobMode === 'treat') {
+                            doneMsg = 'Treatment complete — site looks healthy.';
+                        } else if (jobMode === 'force') {
+                            doneMsg = 'Force rebuild complete — site looks healthy.';
+                        } else if (jobMode === 'followup') {
+                            doneMsg = 'Follow-up complete — site looks healthy.';
+                        }
+                        setJobStatus(doneMsg, { color: 'var(--success, #4ade80)' });
                     } else if (overall === 'critical' || overall === 'attention') {
-                        setJobStatus(
-                            previewOpen
-                                ? 'Review the proposed treatment, then Apply when you are ready.'
-                                : 'Findings ready — Review treatment when you are ready. Details are in Activity.',
-                            { color: '#f0b429' }
-                        );
+                        let attentionMsg = previewOpen
+                            ? 'Review the proposed treatment, then Apply when you are ready.'
+                            : 'Findings ready — Review treatment when you are ready. Details are in Activity.';
+                        if (jobMode === 'force') {
+                            attentionMsg = 'Force rebuild finished with remaining findings — see Activity.';
+                        } else if (jobMode === 'treat') {
+                            attentionMsg = 'Treatment finished with remaining findings — see Activity.';
+                        }
+                        setJobStatus(attentionMsg, { color: '#f0b429' });
                     } else {
                         setJobStatus('');
                     }

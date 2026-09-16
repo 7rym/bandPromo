@@ -65,7 +65,8 @@ function Test-AllowedRepositoryPath {
         'biblioteca/',
         '.github/',
         '.cursor/',
-        'play/'
+        'play/',
+        'temp/'
     )
 
     foreach ($prefix in $allowedPrefixes) {
@@ -81,7 +82,8 @@ function Test-AllowedRepositoryPath {
         'VERSION',
         'README.md',
         'LICENSE',
-        '.gitattributes'
+        '.gitattributes',
+        '.gitignore'
     )
 
     return $allowedFiles -contains $normalized

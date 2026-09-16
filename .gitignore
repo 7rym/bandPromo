@@ -104,3 +104,8 @@ play/playlist-validation.json
 
 # Accidental Windows env-var expansion dump (never track)
 /%SystemDrive%/
+
+# Scratch workspace (Site health demux probes, etc.) — keep folder + deny stub only
+/temp/*
+!/temp/.gitkeep
+!/temp/.htaccess

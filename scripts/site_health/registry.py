@@ -328,29 +328,70 @@ def missing_audio_deliverables(registry):
     return missing
 
 
+def _delivery_has_variant(lower_names, variant, exts):
+    variant = str(variant or '').strip().lower()
+    if not variant:
+        return False
+    for name in lower_names:
+        stem, ext = os.path.splitext(name)
+        if stem == variant and ext in exts:
+            return True
+    return False
+
+
 def missing_visual_deliveries(registry):
-    """Registered visual assets with no delivery folder (list-check only)."""
+    """
+    Registered visual assets missing required delivery files (list-check only).
+
+    A non-empty delivery folder is not enough: an earlier encode can leave orphan
+    folders after a registry wipe/re-register, so Check must require the role's
+    expected variants (images) or a stream file (video).
+    """
     _audio, visual, _sfx, _other = assets_by_kind(registry)
+    image_exts = ('.png', '.jpg', '.jpeg', '.webp')
     missing = []
     for asset in visual:
         asset_id = str(asset.get('id') or asset.get('asset_id') or '').strip()
         if not is_asset_id(asset_id):
             continue
         folder = os.path.join(VISUAL_DELIVERY_DIR, asset_id)
+        master_name = os.path.basename(str(asset.get('master_filename') or ''))
+        media_type = str(asset.get('media_type') or '').strip().lower()
+        if media_type not in ('image', 'video'):
+            fmt = str(asset.get('master_format') or '').strip().lower()
+            media_type = 'video' if fmt in ('mkv', 'mp4', 'webm') else 'image'
+
+        row = {
+            'asset_id': asset_id,
+            'master_filename': master_name,
+        }
         if not os.path.isdir(folder):
-            missing.append({
-                'asset_id': asset_id,
-                'master_filename': os.path.basename(str(asset.get('master_filename') or '')),
-            })
+            missing.append(row)
             continue
-        # Empty folder counts as missing.
+
         try:
-            names = [n for n in os.listdir(folder) if n not in ('.', '..')]
+            lower_names = [
+                n.lower()
+                for n in os.listdir(folder)
+                if n not in ('.', '..') and os.path.isfile(os.path.join(folder, n))
+            ]
         except Exception:
-            names = []
-        if not names:
-            missing.append({
-                'asset_id': asset_id,
-                'master_filename': os.path.basename(str(asset.get('master_filename') or '')),
-            })
+            lower_names = []
+        if not lower_names:
+            missing.append(row)
+            continue
+
+        if media_type == 'video':
+            has_stream = any(
+                n.startswith('standard-stream.') and n.endswith(('.mp4', '.webm'))
+                for n in lower_names
+            )
+            if not has_stream:
+                missing.append(row)
+            continue
+
+        role = str(asset.get('role') or 'unassigned').strip().lower() or 'unassigned'
+        required = ('logo', 'thumb') if role == 'brand-logo' else ('thumb', 'card')
+        if any(not _delivery_has_variant(lower_names, variant, image_exts) for variant in required):
+            missing.append(row)
     return missing

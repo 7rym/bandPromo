@@ -2,14 +2,17 @@
 
 ## Resume point
 
-**HITZ Treat failed mid visual delivery** with `FAILED I/O operation on closed file` after registering 612 visuals + filling 118 tags. Root cause: Py 3.6 double-wrap of stdout (`audioMasterMetadata` etc.) + `convert_image_delivery_variant` always printing on each variant. Fix in this checkout — publish next, then re-Apply on HITZ.
+**Duplicate masters Check/Treat** uses Quick file-hash + Full demux-copy (audio/video) into `temp/site-health-dedupe/`, hashing the shared prefix (shortest dump in the duration bucket). Stills: RGB by dimensions. Conflict clusters warn only.
 
-### Still open after publish
+Next: publish (Status UX + orphan delivery probe + dedupe), Site update, Full check on HITZ for Cleaning House / Remixes clones.
 
-1. **HITZ Treat** — re-run Apply so visual still delivery finishes for the newly registered masters.
-2. **Cover extract** into `treat_audio`.
-3. Re-smoke Force on Vanilla / Spandexual after they pick up this build.
+### Still open
+
+1. **Cover extract** into `treat_audio`.
+2. Keep-newest + registry↔tags sync on survivor after Apply.
+3. Visual Brand-asset titles still Untitled (IPTC fill later).
+4. Re-smoke Force on Vanilla / Spandexual when convenient.
 
 ### Local workspace
 
-Checkout is **`C:\dev\bandpromo`**. Never wipe `data/` / `media/` / `log/` / `backups/` here.
+Checkout is **`C:\dev\bandpromo`**. Never wipe `data/` / `media/` / `log/` / `backups/` here. `temp/` is scratch only (gitignored contents).

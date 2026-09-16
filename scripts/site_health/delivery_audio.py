@@ -85,7 +85,7 @@ def run_audio_delivery(force=False):
             converted += 1
         else:
             failed += 1
-        if index % 10 == 0 or index == total:
+        if index % 5 == 0 or index == total:
             log.progress(
                 'audio_delivery',
                 index,

@@ -104,15 +104,13 @@ def run_visual_still_delivery(force=False):
         else:
             failed += 1
             log.info('Skipped or failed visual: {0}'.format(label))
-        if index % 25 == 0 or index == total:
+        if index % 5 == 0 or index == total:
             log.progress(
                 'visual_delivery',
                 index,
                 total,
                 '{0} built, {1} fresh, {2} failed'.format(built, skipped, failed),
             )
-            _heartbeat('Visual delivery {0}/{1}'.format(index, total))
-        elif index % 10 == 0:
             _heartbeat('Visual delivery {0}/{1}'.format(index, total))
 
     log.info(

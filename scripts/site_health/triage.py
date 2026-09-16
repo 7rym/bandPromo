@@ -269,33 +269,75 @@ def run_triage(plan, deep=False, suppress_json_drift=False):
             )
 
         # Cheap delivery existence checks (no checksums).
-        # Quick skips delivery when register is pending; Full always probes.
-        check_audio_delivery = deep or not pending_audio
-        check_visual_delivery = deep or not pending_visual
-        if check_audio_delivery:
-            missing_audio = reg.missing_audio_deliverables(registry)
-            if missing_audio:
+        # Always probe registered assets — independent of register-pending findings.
+        # (Orphan delivery folders after wipe/re-register must still be scored.)
+        missing_audio = reg.missing_audio_deliverables(registry)
+        if missing_audio:
+            plan_mod.add_finding(
+                plan, 'missing_audio_delivery', 'attention',
+                'Some tracks are not stream-ready yet', len(missing_audio),
+                'listener_delivery',
+                sample=[m.get('asset_id') or m.get('master_filename') for m in missing_audio],
+                body=(
+                    '{0} registered audio asset(s) lack an optimal MP3 under media/audio/optimal.'
+                ).format(len(missing_audio)),
+            )
+        missing_visual = reg.missing_visual_deliveries(registry)
+        if missing_visual:
+            plan_mod.add_finding(
+                plan, 'missing_visual_delivery', 'attention',
+                'Some visuals are missing delivery files', len(missing_visual),
+                'listener_delivery',
+                sample=[m.get('asset_id') for m in missing_visual],
+                body=(
+                    '{0} registered visual asset(s) lack required files under '
+                    'media/visual/delivery (folder alone is not enough).'
+                ).format(len(missing_visual)),
+            )
+
+        # Quick duplicate masters: same size → whole-file XXH3.
+        try:
+            import dedupe
+            log.info('Scanning for duplicate masters (same size + file hash)...')
+            file_clusters = dedupe.find_file_hash_clusters(registry)
+            ref_index = dedupe.build_reference_index(registry)
+            safe_file, conflict_file = dedupe.annotate_clusters(file_clusters, ref_index)
+            remove_count = sum(len(c.get('remove_ids') or []) for c in safe_file)
+            if safe_file:
                 plan_mod.add_finding(
-                    plan, 'missing_audio_delivery', 'attention',
-                    'Some tracks are not stream-ready yet', len(missing_audio),
-                    'listener_delivery',
-                    sample=[m.get('asset_id') or m.get('master_filename') for m in missing_audio],
+                    plan, 'duplicate_masters_file', 'attention',
+                    'Duplicate masters with identical file bytes', remove_count,
+                    'dedupe_retarget_and_remove',
+                    sample=dedupe.cluster_sample_lines(safe_file),
                     body=(
-                        '{0} registered audio asset(s) lack an optimal MP3 under media/audio/optimal.'
-                    ).format(len(missing_audio)),
+                        '{0} cluster(s) share the same file hash within a size bucket. '
+                        'Treat keeps the campaign/playlist-linked asset and removes '
+                        '{1} unreferenced clone(s).'
+                    ).format(len(safe_file), remove_count),
                 )
-        if check_visual_delivery:
-            missing_visual = reg.missing_visual_deliveries(registry)
-            if missing_visual:
+                log.items(
+                    'Duplicate file-hash clusters (safe to remove)',
+                    dedupe.cluster_sample_lines(safe_file, limit=20),
+                )
+            if conflict_file:
                 plan_mod.add_finding(
-                    plan, 'missing_visual_delivery', 'attention',
-                    'Some visuals are missing delivery files', len(missing_visual),
-                    'listener_delivery',
-                    sample=[m.get('asset_id') for m in missing_visual],
+                    plan, 'duplicate_masters_conflict', 'attention',
+                    'Duplicate masters both linked to campaigns', len(conflict_file),
+                    '',
+                    sample=dedupe.cluster_sample_lines(conflict_file),
                     body=(
-                        '{0} registered visual asset(s) have no files under media/visual/delivery.'
-                    ).format(len(missing_visual)),
+                        '{0} cluster(s) look identical on disk but more than one member '
+                        'is linked to a campaign or playlist — not auto-removed.'
+                    ).format(len(conflict_file)),
                 )
+                log.items(
+                    'Duplicate file-hash conflicts (manual)',
+                    dedupe.cluster_sample_lines(conflict_file, limit=20),
+                )
+            if not safe_file and not conflict_file:
+                log.info('No same-size duplicate master files found.')
+        except Exception as exc:
+            log.info('Duplicate file-hash probe skipped: {0}'.format(exc))
 
         if deep and len(audio) > 0:
             try:

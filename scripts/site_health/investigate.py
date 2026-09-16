@@ -6,6 +6,7 @@ from __future__ import print_function
 import os
 
 import log
+import plan as plan_mod
 import registry as reg
 
 
@@ -35,6 +36,74 @@ def _deep_probe_clean(registry, status):
         log.info('Deep probe clean — registry, disk, and delivery existence agree.')
 
 
+def _add_content_dedupe_findings(plan, registry):
+    """Full check: content fingerprints (PCM / RGB) ignoring tags."""
+    try:
+        import dedupe
+    except Exception as exc:
+        log.info('Content dedupe module unavailable: {0}'.format(exc))
+        return
+
+    log.info(
+        'Deep probe: content fingerprints for duplicate masters '
+        '(audio/video demux-copy in temp/ by duration; still RGB by dimensions)...'
+    )
+
+    def _progress(current, total):
+        log.progress(
+            'dedupe_content',
+            current,
+            total,
+            'fingerprinting masters',
+        )
+
+    clusters = dedupe.find_content_hash_clusters(registry, progress_cb=_progress)
+    ref_index = dedupe.build_reference_index(registry)
+    safe, conflict = dedupe.annotate_clusters(clusters, ref_index)
+    remove_count = sum(len(c.get('remove_ids') or []) for c in safe)
+
+    # Avoid stacking identical conflict findings already raised by Quick file-hash.
+    existing_ids = set(
+        str(f.get('id') or '')
+        for f in (plan.get('findings') or [])
+        if isinstance(f, dict)
+    )
+
+    if safe:
+        plan_mod.add_finding(
+            plan, 'duplicate_masters_content', 'attention',
+            'Duplicate masters with identical audio/image content', remove_count,
+            'dedupe_retarget_and_remove',
+            sample=dedupe.cluster_sample_lines(safe),
+            body=(
+                '{0} cluster(s) share the same demuxed audio/video stream prefix '
+                'or decoded still image (tags ignored). Treat keeps the '
+                'campaign/playlist-linked asset and removes {1} unreferenced clone(s).'
+            ).format(len(safe), remove_count),
+        )
+        log.items(
+            'Duplicate content clusters (safe to remove)',
+            dedupe.cluster_sample_lines(safe, limit=20),
+        )
+    if conflict and 'duplicate_masters_conflict' not in existing_ids:
+        plan_mod.add_finding(
+            plan, 'duplicate_masters_conflict', 'attention',
+            'Duplicate masters both linked to campaigns', len(conflict),
+            '',
+            sample=dedupe.cluster_sample_lines(conflict),
+            body=(
+                '{0} content-identical cluster(s) have more than one campaign/playlist '
+                'link — not auto-removed.'
+            ).format(len(conflict)),
+        )
+        log.items(
+            'Duplicate content conflicts (manual)',
+            dedupe.cluster_sample_lines(conflict, limit=20),
+        )
+    if not safe and not conflict:
+        log.info('Deep probe: no content-identical duplicate masters found.')
+
+
 def run_investigate(plan, deep=False):
     findings = plan.get('findings') if isinstance(plan.get('findings'), list) else []
     deep = bool(deep)
@@ -50,54 +119,64 @@ def run_investigate(plan, deep=False):
             _deep_probe_clean(registry, status)
         else:
             log.info('Nothing flagged in triage — skipping deeper investigation.')
-        return plan
-
-    for finding in findings:
-        fid = str(finding.get('id') or '')
-        if fid == 'uncatalogued_audio_masters':
-            if status == 'missing':
-                pending = [{
-                    'master_filename': name,
-                    'asset_id': name.rsplit('.', 1)[0],
-                } for name in reg.list_audio_masters_on_disk()
-                    if reg.is_asset_id(name.rsplit('.', 1)[0])]
-            else:
-                pending = reg.uncatalogued_audio_masters(registry)
-            finding['items_sample'] = [p['master_filename'] for p in pending[:12]]
-            finding['count'] = len(pending)
-            log.items('Investigate audio masters (uncatalogued)', pending)
-        elif fid == 'uncatalogued_visual_masters':
-            pending = reg.uncatalogued_visual_masters(registry) if status == 'ok' else []
-            finding['items_sample'] = [p['master_filename'] for p in pending[:12]]
-            finding['count'] = len(pending)
-            log.items('Investigate visual masters (uncatalogued)', pending)
-        elif fid == 'empty_audio_registry_with_disk_masters':
-            disk = reg.list_audio_masters_on_disk()
-            finding['items_sample'] = disk[:12]
-            finding['count'] = len(disk)
-            log.items('Investigate empty audio registry — disk masters', disk)
-        elif fid == 'non_ast_audio_masters':
-            sample = finding.get('items_sample') or []
-            log.items('Investigate non-ast_* audio masters', sample)
-        elif fid == 'files_index_audio_undercount':
-            log.info(
-                'Investigate Files index undercount: {0} missing row(s) vs registry'.format(
-                    finding.get('count') or 0
+    else:
+        for finding in findings:
+            fid = str(finding.get('id') or '')
+            if fid == 'uncatalogued_audio_masters':
+                if status == 'missing':
+                    pending = [{
+                        'master_filename': name,
+                        'asset_id': name.rsplit('.', 1)[0],
+                    } for name in reg.list_audio_masters_on_disk()
+                        if reg.is_asset_id(name.rsplit('.', 1)[0])]
+                else:
+                    pending = reg.uncatalogued_audio_masters(registry)
+                finding['items_sample'] = [p['master_filename'] for p in pending[:12]]
+                finding['count'] = len(pending)
+                log.items('Investigate audio masters (uncatalogued)', pending)
+            elif fid == 'uncatalogued_visual_masters':
+                pending = reg.uncatalogued_visual_masters(registry) if status == 'ok' else []
+                finding['items_sample'] = [p['master_filename'] for p in pending[:12]]
+                finding['count'] = len(pending)
+                log.items('Investigate visual masters (uncatalogued)', pending)
+            elif fid == 'empty_audio_registry_with_disk_masters':
+                disk = reg.list_audio_masters_on_disk()
+                finding['items_sample'] = disk[:12]
+                finding['count'] = len(disk)
+                log.items('Investigate empty audio registry — disk masters', disk)
+            elif fid == 'non_ast_audio_masters':
+                sample = finding.get('items_sample') or []
+                log.items('Investigate non-ast_* audio masters', sample)
+            elif fid == 'files_index_audio_undercount':
+                log.info(
+                    'Investigate Files index undercount: {0} missing row(s) vs registry'.format(
+                        finding.get('count') or 0
+                    )
                 )
-            )
-        else:
-            sample = finding.get('items_sample') or []
-            if sample:
+            elif fid in (
+                'duplicate_masters_file',
+                'duplicate_masters_content',
+                'duplicate_masters_conflict',
+            ):
+                sample = finding.get('items_sample') or []
                 log.items('Investigate {0}'.format(fid), sample)
+            else:
+                sample = finding.get('items_sample') or []
+                if sample:
+                    log.items('Investigate {0}'.format(fid), sample)
 
-    if deep:
-        # Always re-list delivery gaps even when other findings dominate.
-        if status == 'ok':
-            missing_audio = reg.missing_audio_deliverables(registry)
-            missing_visual = reg.missing_visual_deliveries(registry)
-            if missing_audio:
-                log.items('Deep probe missing audio delivery', missing_audio)
-            if missing_visual:
-                log.items('Deep probe missing visual delivery', missing_visual)
+        if deep:
+            # Always re-list delivery gaps even when other findings dominate.
+            if status == 'ok':
+                missing_audio = reg.missing_audio_deliverables(registry)
+                missing_visual = reg.missing_visual_deliveries(registry)
+                if missing_audio:
+                    log.items('Deep probe missing audio delivery', missing_audio)
+                if missing_visual:
+                    log.items('Deep probe missing visual delivery', missing_visual)
+
+    # Full check always runs content fingerprinting (expensive).
+    if deep and status == 'ok':
+        _add_content_dedupe_findings(plan, registry)
 
     return plan

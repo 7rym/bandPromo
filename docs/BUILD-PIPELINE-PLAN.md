@@ -85,11 +85,11 @@ Legacy stage scripts and long PHP CLIs are **reference during port**, then retir
 
 ```
 Triage → Investigate (if needed) → Diagnose
-  → Treat (gated): audio → visual → sfx → links → playlists → chrome
+  → Treat (gated): audio → visual → dedupe → sfx → links → playlists → chrome
   → Follow-up re-triage
 ```
 
-Demo PCF ensure stays on Site update / setup. Dedupe/prune stays later operator-confirm.
+Demo PCF ensure stays on Site update / setup. Dedupe/prune of duplicate masters is gated through Site health Review → Apply (Quick file-hash + Full content fingerprint) — never silent auto-prune.
 
 ## Implementation order (v0.8, incremental)
 

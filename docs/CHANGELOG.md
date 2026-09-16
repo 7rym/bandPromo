@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-09-16 18:45 - Site health Full dedupe: demux-copy audio (`0:a:0`) / video (`0:v:0`) into `temp/site-health-dedupe/`, truncate to the shortest demux dump in the duration bucket, then XXH3 — no `-t 7` time cut. Wire `temp/` (gitignore contents, deny-all stub). Stills still RGB by dimensions.
+
+2026-09-16 18:30 - Site health Full dedupe: audio content fingerprint is ffmpeg stream-copy demux (first 7s, any codec) within same duration-second buckets — not PCM decode; stills still RGB within matching pixel dimensions.
+
+2026-09-16 18:15 - Site health duplicate masters: Quick check clusters same-size masters by whole-file XXH3; Full check fingerprints tag-independent content (audio PCM via ffmpeg, still RGB via Pillow). Review → Apply (`dedupe_retarget_and_remove`) keeps campaign/playlist-linked assets, retargets refs, deletes safe clones; conflict clusters warn only.
+
+2026-09-16 17:35 - Site health Status UX: after Force/Treat, live status says Force/Treatment complete (not Quick check); delivery progress logs every 5th audio and visual asset. Check also requires real visual variants (not orphan folders) and always probes delivery on Quick.
+
+2026-09-16 17:10 - Site health Check: treat orphan visual delivery folders as incomplete — require thumb+card (or video stream), not merely a non-empty `media/visual/delivery/{id}/` folder; always probe delivery on Quick (not only Full / when register is clear).
+
 2026-09-16 17:00 - Site health HITZ Treat crash fix: stop double-wrapping stdout (audioMasterMetadata / visualMasterMetadata / optimizeVideo / makeSocial / makePWA use stdio_utf8); silence per-variant optimizeMedia prints unless verbose; repair closed stdio; first Activity line is "Site health running on {site}".
 
 2026-09-16 16:45 - Site health rule 6: port legacy stages into `site_health` — in-process `delivery_audio` / `delivery_visual` / `delivery_video`, `chrome_social` + `chrome_pwa`, SFX/playlists via `php_stage`; delete `stage_exec` from Treat/Force. `BANDPROMO_FORCE_VIDEO_DELIVERY` honoured. Local smoke: delivery + chrome + SFX + playlists OK.

@@ -24,6 +24,10 @@ AUDIO_OPTIMAL_DIR = os.path.join(ROOT_DIR, 'media', 'audio', 'optimal')
 VISUAL_MASTER_DIR = os.path.join(ROOT_DIR, 'media', 'visual', 'master')
 VISUAL_DELIVERY_DIR = os.path.join(ROOT_DIR, 'media', 'visual', 'delivery')
 
+# Scratch workspace for Site health probes (gitignored contents; deny HTTP).
+TEMP_DIR = os.path.join(ROOT_DIR, 'temp')
+SITE_HEALTH_TEMP_DIR = os.path.join(TEMP_DIR, 'site-health-dedupe')
+
 MEDIA_LIBRARY_STATE_PATH = os.path.join(ROOT_DIR, 'data', 'media-library-state.json')
 MEDIA_LIBRARY_LOCK_PATH = os.path.join(ROOT_DIR, 'data', 'media-library-state.lock')
 

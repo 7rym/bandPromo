@@ -185,6 +185,16 @@ def run_treat():
         touch_heartbeat(ROOT_DIR, stage='idle', message='Treat stopped', name=META_NAME)
         return 0
 
+    if 'dedupe_retarget_and_remove' in ids:
+        import treat_dedupe
+        treat_ok = treat_dedupe.treat_dedupe() and treat_ok
+
+    if stop_requested():
+        log.info('Stop requested after dedupe treat.')
+        followup.run_followup('treat')
+        touch_heartbeat(ROOT_DIR, stage='idle', message='Treat stopped', name=META_NAME)
+        return 0
+
     need_sfx = 'sfx_delivery' in ids
     need_delivery = any(
         tid in ids
