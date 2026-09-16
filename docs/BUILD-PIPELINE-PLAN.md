@@ -89,6 +89,7 @@ Demo PCF ensure stays on Site update / setup. Dedupe/prune stays later operator-
 3. Status health UI v1 (findings + Check / Treat + Activity) — **done**  
 4. Treat modules: audio/visual register-in-place; listener delivery + playlists + chrome; Force rebuild — **done** (stages still subprocess legacy scripts)  
 5. Follow-up verify — **done**  
+5b. Files index rebuild in Python (Treat) — **done** (PHP CLI fallback)  
 6. Cut over Status off `build.py` stage manifest; retire legacy stage entrypoints  
 7. Fold Refresh/Repair labels into Status  
 8. Fleet acceptance (HITZ / Vanilla / Spandexual)

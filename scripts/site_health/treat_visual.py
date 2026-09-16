@@ -24,6 +24,16 @@ if SCRIPTS_DIR not in sys.path:
 
 def _rebuild_visual_indexes():
     try:
+        import files_index
+        log.info('Rebuilding Files → Visual indexes...')
+        results = files_index.rebuild_visual()
+        for target, count in results.items():
+            log.info('INDEX_REBUILT:{0} ({1} rows)'.format(target, count))
+        return
+    except Exception as exc:
+        log.info('Python visual Files index rebuild failed ({0}); trying PHP CLI.'.format(exc))
+
+    try:
         from php_cli import resolve_php_cli
     except Exception as exc:
         log.info('Visual index rebuild skipped: {0}'.format(exc))
@@ -33,7 +43,7 @@ def _rebuild_visual_indexes():
     if not php or not os.path.isfile(cli):
         log.info('Skipped Files visual index rebuild (PHP CLI or script missing).')
         return
-    log.info('Rebuilding Files → Visual indexes...')
+    log.info('Rebuilding Files → Visual indexes via PHP...')
     try:
         proc = subprocess.Popen(
             [php, cli, 'illustrations', 'photos', 'video'],

@@ -24,6 +24,15 @@ if SCRIPTS_DIR not in sys.path:
 
 def _rebuild_audio_index():
     try:
+        import files_index
+        log.info('Rebuilding Files → Audio index...')
+        count = files_index.rebuild_audio()
+        log.info('INDEX_REBUILT:audio ({0} rows)'.format(count))
+        return
+    except Exception as exc:
+        log.info('Python Files index rebuild failed ({0}); trying PHP CLI.'.format(exc))
+
+    try:
         from php_cli import resolve_php_cli
     except Exception as exc:
         log.info('Audio index rebuild skipped: {0}'.format(exc))
@@ -33,7 +42,7 @@ def _rebuild_audio_index():
     if not php or not os.path.isfile(cli):
         log.info('Skipped Files index rebuild (PHP CLI or script missing).')
         return
-    log.info('Rebuilding Files → Audio index...')
+    log.info('Rebuilding Files → Audio index via PHP...')
     try:
         proc = subprocess.Popen(
             [php, cli, 'audio'],

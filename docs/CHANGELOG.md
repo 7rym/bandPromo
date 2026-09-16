@@ -2,6 +2,8 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-09-16 13:00 - Site health Treat rebuilds Files indexes in Python (`scripts/site_health/files_index.py`): audio strip+registry rebuild and visual upsert under `media-library-state.lock`; PHP `site-health-rebuild-index-cli.php` kept as fallback only.
+
 2026-09-16 12:50 - Site health delivery Treat + real Force: `treat_delivery` / `treat_playlists` / `treat_chrome` via stage subprocesses (`optimizeMedia`, `optimizeVideo`, `buildSfxDelivery`, `makePlaylists`, `makeSocial`, `makePWA`); triage flags missing optimal/delivery; Treat chains delivery after register-in-place; Force rebuilds all listener deliverables when catalogue is clear (blocked on critical catalogue findings); cooperative Stop between stages.
 
 2026-09-16 12:45 - Site health Status continue: visual register-in-place Treat; Stop wiring (`site-health.stop`); Dashboard/Site update nudges point to Check site health; shared index rebuild CLI for audio/visual targets.

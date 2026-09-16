@@ -24,6 +24,9 @@ AUDIO_OPTIMAL_DIR = os.path.join(ROOT_DIR, 'media', 'audio', 'optimal')
 VISUAL_MASTER_DIR = os.path.join(ROOT_DIR, 'media', 'visual', 'master')
 VISUAL_DELIVERY_DIR = os.path.join(ROOT_DIR, 'media', 'visual', 'delivery')
 
+MEDIA_LIBRARY_STATE_PATH = os.path.join(ROOT_DIR, 'data', 'media-library-state.json')
+MEDIA_LIBRARY_LOCK_PATH = os.path.join(ROOT_DIR, 'data', 'media-library-state.lock')
+
 AUDIO_EXTS = ('.flac', '.mp3', '.wav')
 VISUAL_EXTS = ('.jpg', '.jpeg', '.png', '.webp', '.gif', '.mkv', '.mp4', '.webm')
 
