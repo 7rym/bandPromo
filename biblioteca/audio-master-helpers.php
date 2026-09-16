@@ -106,9 +106,58 @@ function bandpromo_prepare_audio_master(string $root_dir, string $ext, string $s
         return ['attempted' => false, 'prepared' => false, 'warning' => ''];
     }
 
+    $safe_name = basename(trim($safe_name));
     $master_dir = $root_dir . '/media/audio/master';
     if (!is_dir($master_dir) && !mkdir($master_dir, 0755, true) && !is_dir($master_dir)) {
         return ['attempted' => true, 'prepared' => false, 'warning' => 'Could not create audio master directory'];
+    }
+
+    // Replace-in-place when this original is already registered — never mint a second ast_*.
+    $existing = bandpromo_asset_lookup_by_original_filename($root_dir, $safe_name);
+    if (is_array($existing) && ($existing['kind'] ?? '') === 'audio') {
+        $asset_id = trim((string) ($existing['id'] ?? ''));
+        $master_filename = basename(trim((string) ($existing['master_filename'] ?? '')));
+        $master_format = strtolower(trim((string) ($existing['master_format'] ?? pathinfo($master_filename, PATHINFO_EXTENSION))));
+        if ($asset_id !== '' && $master_filename !== '') {
+            if ($master_format === '') {
+                $master_format = $ext === 'wav' ? 'flac' : $ext;
+            }
+            $master_path = $master_dir . '/' . $master_filename;
+            if ($ext === 'wav' && $master_format === 'flac') {
+                $conversion = bandpromo_convert_wav_to_flac($root_dir, $source_path, $master_path, 'Could not prepare WAV master');
+                if (!$conversion['ok']) {
+                    return [
+                        'attempted' => true,
+                        'prepared' => false,
+                        'warning' => $conversion['warning'],
+                        'master_filename' => $master_filename,
+                        'master_format' => $master_format,
+                        'asset_id' => $asset_id,
+                        'replaced_existing' => true,
+                    ];
+                }
+            } elseif (!copy($source_path, $master_path)) {
+                return [
+                    'attempted' => true,
+                    'prepared' => false,
+                    'warning' => 'Could not replace audio master copy',
+                    'master_filename' => $master_filename,
+                    'master_format' => $master_format,
+                    'asset_id' => $asset_id,
+                    'replaced_existing' => true,
+                ];
+            }
+
+            return [
+                'attempted' => true,
+                'prepared' => true,
+                'warning' => '',
+                'master_filename' => $master_filename,
+                'master_format' => $master_format,
+                'asset_id' => $asset_id,
+                'replaced_existing' => true,
+            ];
+        }
     }
 
     $asset_id = bandpromo_generate_asset_id();
@@ -233,7 +282,7 @@ function bandpromo_find_audio_master(string $root_dir, string $filename): array 
     ];
 }
 
-function bandpromo_materialize_audio_master_from_original(string $root_dir, string $filename): array {
+function bandpromo_materialize_audio_master_from_original(string $root_dir, string $filename, bool $allow_mint = true): array {
     $safe_name = basename(trim($filename));
     $ext = strtolower((string) pathinfo($safe_name, PATHINFO_EXTENSION));
     if (!in_array($ext, ['flac', 'mp3', 'wav'], true)) {
@@ -362,6 +411,31 @@ function bandpromo_materialize_audio_master_from_original(string $root_dir, stri
                 'skipped_duplicate_size' => true,
             ];
         }
+    }
+
+    // Repair Apply must never mint — only link/register existing disk masters.
+    if (!$allow_mint) {
+        $linked = bandpromo_asset_link_original_to_unique_empty_master($root_dir, $safe_name);
+        if (is_array($linked)) {
+            $masterFilename = basename(trim((string) ($linked['master_filename'] ?? '')));
+            $masterFormat = strtolower((string) ($linked['master_format'] ?? pathinfo($masterFilename, PATHINFO_EXTENSION)));
+            return [
+                'attempted' => true,
+                'prepared' => true,
+                'warning' => '',
+                'master_filename' => $masterFilename,
+                'master_format' => $masterFormat,
+                'asset_id' => (string) ($linked['id'] ?? ''),
+                'linked_existing' => true,
+            ];
+        }
+
+        return [
+            'attempted' => false,
+            'prepared' => false,
+            'warning' => '',
+            'skipped_no_mint' => true,
+        ];
     }
 
     return bandpromo_prepare_audio_master($root_dir, $ext, $safe_name, $source_path);

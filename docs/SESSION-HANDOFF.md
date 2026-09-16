@@ -2,20 +2,26 @@
 
 ## Resume point
 
-Published dry-run safety pass for HITZ. On **hitz.no**: Site update to the new build, then click **Refresh site files** once — the first run defaults to a **read-only dry-run** (no prep heal, no media rebuild). Read the duplicate report in Peek under the hood. Do **not** run a full Refresh until you have reviewed that report.
+HITZ optimisation plan ready to ship as this checkpoint. On **hitz.no** after **Site update**:
+
+1. Do **not** Refresh yet while Files → Audio is empty.
+2. System → Status → Peek under the hood → **Repair catalogue** → Preview → **Apply**.
+   - This registers existing `media/audio/master/ast_*` into the registry **in place** (no copy, no 40‑minute rebuild).
+3. Confirm **Files → Audio** lists tracks.
+4. Only then run **Refresh site files** to build listener deliverables.
 
 ### Fixed this session
 
-- Log window: auto-refresh no longer steals scroll while reading older lines
-- Next Refresh defaults to one-time `dry-run` profile (localStorage flag)
-- `dry-run` skips publish prep + mutating stages; runs `buildDryRunDiagnostics.py` only
-- Dry-run preflight is read-only (no mkdir/seed/pip install/ffmpeg download)
+- Dry-run reports disk vs registry mismatch loudly; banner no longer claims “site ready”
+- Refresh prep + catalog are **inventory-only** (mutations belong to Repair Apply)
+- Upload no longer mints a new `ast_*` when the same original is already registered (replace-in-place)
+- Repair Apply / catalogue register never mint from originals (link/register only)
+- Audio upload path prefers `materialize` over bare `prepare`
 
 ### Still follow-on
 
-- Stop audio/visual master duplication at upload (content-hash / replace-in-place)
-- Safe prune of orphan masters (operator confirm)
-- Prep stripped to inventory + worklist (mutations only via Repair/Apply)
+- Safe prune of duplicate masters (operator confirm) after register
+- Content-hash dedupe for audio (visual already has content sha)
 - Full Status page redesign
 - Native Python catalogue / Repair Apply bodies
 

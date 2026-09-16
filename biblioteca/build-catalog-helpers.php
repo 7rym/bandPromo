@@ -5,6 +5,13 @@ require_once __DIR__ . '/asset-registry.php';
 require_once __DIR__ . '/audio-master-helpers.php';
 require_once __DIR__ . '/content-autofix-helpers.php';
 
+function bandpromo_build_catalog_inventory_only(): bool
+{
+    $flag = strtolower(trim((string) getenv('BANDPROMO_CATALOG_INVENTORY_ONLY')));
+
+    return $flag === '1' || $flag === 'true' || $flag === 'yes';
+}
+
 function bandpromo_build_catalog_register_uncatalogued(string $root): array
 {
     $result = [
@@ -13,6 +20,35 @@ function bandpromo_build_catalog_register_uncatalogued(string $root): array
         'errors' => [],
         'items' => [],
     ];
+
+    if (bandpromo_build_catalog_inventory_only()) {
+        $pendingMasters = bandpromo_list_uncatalogued_audio_masters($root);
+        $pendingOriginals = bandpromo_list_uncatalogued_audio_originals($root);
+        foreach ($pendingMasters as $item) {
+            if (!is_array($item)) {
+                continue;
+            }
+            $name = trim((string) ($item['master_filename'] ?? ''));
+            if ($name === '') {
+                continue;
+            }
+            $result['skipped']++;
+            $result['items'][] = $name;
+        }
+        foreach ($pendingOriginals as $item) {
+            if (!is_array($item)) {
+                continue;
+            }
+            $name = basename(trim((string) ($item['filename'] ?? '')));
+            if ($name === '') {
+                continue;
+            }
+            $result['skipped']++;
+            $result['items'][] = $name;
+        }
+
+        return $result;
+    }
 
     $masterReconcile = bandpromo_reconcile_uncatalogued_audio_masters($root);
     foreach (($masterReconcile['fixed'] ?? []) as $fixedName) {
@@ -41,7 +77,7 @@ function bandpromo_build_catalog_register_uncatalogued(string $root): array
             continue;
         }
 
-        $prepared = bandpromo_materialize_audio_master_from_original($root, $filename);
+        $prepared = bandpromo_materialize_audio_master_from_original($root, $filename, false);
         if (!empty($prepared['prepared'])) {
             $result['changed']++;
             $result['items'][] = $filename;
@@ -63,6 +99,7 @@ function bandpromo_build_catalog_run(string $root, ?callable $onProgress = null)
 {
     $steps = [];
     $errors = [];
+    $inventoryOnly = bandpromo_build_catalog_inventory_only();
     $progress = static function (string $message) use ($onProgress): void {
         if ($onProgress === null) {
             return;
@@ -71,8 +108,8 @@ function bandpromo_build_catalog_run(string $root, ?callable $onProgress = null)
     };
 
     try {
-        $progress('Ensuring asset registry...');
-        bandpromo_asset_registry_ensure_migrated($root);
+        $progress($inventoryOnly ? 'Reading asset registry (inventory-only)...' : 'Ensuring asset registry...');
+        bandpromo_asset_registry_ensure_migrated($root, false);
     } catch (Throwable $throwable) {
         return [
             'ok' => false,
@@ -81,12 +118,28 @@ function bandpromo_build_catalog_run(string $root, ?callable $onProgress = null)
         ];
     }
 
-    $progress('Registering uncatalogued audio masters and uploads...');
+    $progress($inventoryOnly
+        ? 'Listing uncatalogued audio masters and uploads (no writes)...'
+        : 'Registering uncatalogued audio masters and uploads...');
     $register = bandpromo_build_catalog_register_uncatalogued($root);
     $steps[] = array_merge([
         'id' => 'register_uncatalogued',
-        'label' => 'Register uncatalogued audio masters and uploads',
+        'label' => $inventoryOnly
+            ? 'Inventory uncatalogued audio masters and uploads'
+            : 'Register uncatalogued audio masters and uploads',
     ], $register);
+
+    if ($inventoryOnly) {
+        if (($register['skipped'] ?? 0) > 0) {
+            $progress('Inventory found ' . (int) $register['skipped'] . ' item(s) needing Repair Apply.');
+        }
+        return [
+            'ok' => true,
+            'steps' => $steps,
+            'errors' => [],
+            'inventory_only' => true,
+        ];
+    }
 
     $progress('Materialising audio masters...');
     $materialize = bandpromo_content_autofix_materialize_audio_masters($root, false);

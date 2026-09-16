@@ -40,6 +40,9 @@ if (!in_array($mode, ['full', 'optimize'], true)) {
 }
 $ensureDemo = !empty($meta['ensure_demo']);
 $jobKey = $mode === 'optimize' ? 'optimize' : 'build';
+$inventoryOnly = getenv('BANDPROMO_PREP_INVENTORY_ONLY') === '1'
+    || getenv('BANDPROMO_PREP_INVENTORY_ONLY') === 'true'
+    || !empty($meta['inventory_only']);
 
 $logLine = static function (string $line): void {
     fwrite(STDOUT, rtrim($line) . "\n");
@@ -63,8 +66,10 @@ if (bandpromo_job_stop_requested($root, $jobKey)) {
     exit(0);
 }
 
-$touchMeta('prep', 'Preparing your site for publish...');
-$logLine('[prep] Preparing your site for publish...');
+$touchMeta('prep', $inventoryOnly ? 'Inventory check (no writes)...' : 'Preparing your site for publish...');
+$logLine($inventoryOnly
+    ? '[prep] Inventory-only mode — reporting worklist; no heal/register writes.'
+    : '[prep] Preparing your site for publish...');
 
 if ($mode === 'full') {
     bandpromo_run_publish_preflight($root, static function (string $line) use ($logLine): void {
@@ -72,9 +77,9 @@ if ($mode === 'full') {
     });
 }
 
-$logLine('[prep] Starting publish preparation...');
+$logLine($inventoryOnly ? '[prep] Starting inventory…' : '[prep] Starting publish preparation...');
 
-if ($ensureDemo) {
+if ($ensureDemo && !$inventoryOnly) {
     try {
         $logLine('[prep] Preparing Demo PCF download/import (progress appears below)...');
         $touchMeta('prep', 'Preparing Demo campaign package...');
@@ -112,6 +117,8 @@ if ($ensureDemo) {
         fwrite(STDERR, 'Demo PCF prep failed: ' . $throwable->getMessage() . "\n");
         exit(1);
     }
+} elseif ($inventoryOnly) {
+    $logLine('[prep] Skipping Demo PCF ensure (inventory-only).');
 } else {
     require_once __DIR__ . '/demo-catalog-state.php';
     bandpromo_demo_campaign_ensure_preferences($root);
@@ -121,6 +128,44 @@ if ($ensureDemo) {
 if (bandpromo_job_stop_requested($root, $jobKey)) {
     $logLine('[prep] Stop requested - exiting after Demo step.');
     fwrite(STDOUT, "PREP_STOPPED\n");
+    exit(0);
+}
+
+if ($inventoryOnly) {
+    require_once __DIR__ . '/asset-registry.php';
+    $touchMeta('prep', 'Counting uncatalogued masters...');
+    $pendingAudioMasters = bandpromo_list_uncatalogued_audio_masters($root);
+    $pendingAudioOriginals = bandpromo_list_uncatalogued_audio_originals($root);
+    $pendingVisualMasters = bandpromo_list_uncatalogued_visual_masters($root);
+    $logLine('[inventory] Uncatalogued audio masters: ' . count($pendingAudioMasters));
+    $logLine('[inventory] Waiting audio uploads: ' . count($pendingAudioOriginals));
+    $logLine('[inventory] Uncatalogued visual masters: ' . count($pendingVisualMasters));
+    if ($pendingAudioMasters !== []) {
+        $logLine('[inventory] Audio masters need Repair Apply (register in place) — sample:');
+        $shown = 0;
+        foreach ($pendingAudioMasters as $item) {
+            if (!is_array($item)) {
+                continue;
+            }
+            $name = trim((string) ($item['master_filename'] ?? ''));
+            if ($name === '') {
+                continue;
+            }
+            $logLine('[inventory] + ' . $name);
+            $shown++;
+            if ($shown >= 12) {
+                $remaining = count($pendingAudioMasters) - $shown;
+                if ($remaining > 0) {
+                    $logLine('[inventory] + ... ' . $remaining . ' more');
+                }
+                break;
+            }
+        }
+        $logLine('[inventory] Do not Refresh to heal these — use Repair catalogue Apply.');
+    }
+    $logLine('[prep] Inventory finished (no writes).');
+    $logLine('[prep] Ready for publish stages.');
+    fwrite(STDOUT, "PREP_OK\n");
     exit(0);
 }
 

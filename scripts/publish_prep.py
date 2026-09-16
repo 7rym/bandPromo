@@ -80,7 +80,9 @@ def run_publish_prep(meta_name='build.meta.json'):
         env['LANG'] = env.get('LANG') or 'C.UTF-8'
         env['LC_ALL'] = env.get('LC_ALL') or 'C.UTF-8'
     env['BANDPROMO_PUBLISH_PREP_CLI'] = '1'
+    env['BANDPROMO_PREP_INVENTORY_ONLY'] = '1'
     env['BANDPROMO_BUILD_META'] = os.path.join(ROOT_DIR, 'log', meta_name)
+    log('[prep] Inventory-only (mutations belong to Repair Apply).')
 
     popen_kwargs = {
         'cwd': ROOT_DIR,

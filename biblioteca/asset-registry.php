@@ -2885,7 +2885,7 @@ function bandpromo_reconcile_uncatalogued_audio_originals(string $root): array
             continue;
         }
 
-        $materialized = bandpromo_materialize_audio_master_from_original($root, $filename);
+        $materialized = bandpromo_materialize_audio_master_from_original($root, $filename, false);
         if (!empty($materialized['prepared'])) {
             $result['fixed'][] = $filename;
             $result['changed']++;

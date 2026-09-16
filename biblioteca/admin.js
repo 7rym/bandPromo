@@ -12355,16 +12355,27 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     }
                 } else if (success === true && !incomplete) {
                     const logText = String(buildLog ? buildLog.textContent : '');
-                    const withWarnings = /PUBLISH FINISHED WITH WARNINGS|Cover conversion skipped|Need attention/i.test(logText);
+                    const withWarnings = /PUBLISH FINISHED WITH WARNINGS|DRY-RUN FOUND ISSUES|REPAIR NEEDED|Cover conversion skipped|Need attention/i.test(logText);
                     if (withWarnings) {
                         setPublishRefreshChip('warning');
+                        const repairHint = /DRY-RUN FOUND ISSUES|REPAIR NEEDED|Register disk masters via Repair/i.test(logText);
                         setPublishJobStatus(
-                            'Finished with warnings — some listener files need attention. Peek under the hood for asset ids, then fix and refresh again.',
+                            repairHint
+                                ? 'Dry-run found registry gaps — use Repair catalogue Apply before Refresh.'
+                                : 'Finished with warnings — some listener files need attention. Peek under the hood for asset ids, then fix and refresh again.',
                             { color: '#f0b429' }
                         );
                         if (buildStatus) {
-                            buildStatus.textContent = 'Finished with warnings';
+                            buildStatus.textContent = repairHint ? 'Repair needed' : 'Finished with warnings';
                             buildStatus.style.color = '#f0b429';
+                            buildStatus.removeAttribute('data-mode');
+                        }
+                    } else if (/DRY-RUN COMPLETE|profile: dry-run/i.test(logText)) {
+                        setPublishRefreshChip('success', 'Dry-run done');
+                        setPublishJobStatus('Diagnostics only — no listener files were rebuilt.');
+                        if (buildStatus) {
+                            buildStatus.textContent = 'Dry-run complete';
+                            buildStatus.style.color = '';
                             buildStatus.removeAttribute('data-mode');
                         }
                     } else {

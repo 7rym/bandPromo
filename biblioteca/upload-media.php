@@ -477,11 +477,17 @@ if (isset($_POST['chunk_index']) && isset($_POST['filename'])) {
         $savedExt = (string) ($finalized['saved_ext'] ?? $ext);
         bandpromo_record_cover_upload_if_needed($root_dir, $savedPath, $savedName);
         $reason = build_reason_for_upload((string) $target_hint, $savedExt, $savedName);
-        $master = in_array((string) $target_hint, ['special', 'sfx'], true)
-            ? ['attempted' => false, 'prepared' => false, 'warning' => '']
-            : bandpromo_prepare_audio_master($root_dir, $savedExt, $savedName, $savedPath);
         if ($target_hint === 'audio' && in_array($savedExt, ['flac', 'mp3', 'wav'], true)) {
+            // Prefer materialize (reuse/link existing master) over prepare (mint only when needed).
+            $master = bandpromo_materialize_audio_master_from_original($root_dir, $savedName);
             bandpromo_build_catalog_finalize_audio_upload($root_dir, $savedName);
+            if (empty($master['prepared']) && empty($master['attempted'])) {
+                $master = bandpromo_prepare_audio_master($root_dir, $savedExt, $savedName, $savedPath);
+            }
+        } elseif (in_array((string) $target_hint, ['special', 'sfx'], true)) {
+            $master = ['attempted' => false, 'prepared' => false, 'warning' => ''];
+        } else {
+            $master = bandpromo_prepare_audio_master($root_dir, $savedExt, $savedName, $savedPath);
         }
         $displayRefresh = bandpromo_upload_refresh_audio_display($root_dir, $master, $savedName);
         $videoPoster = bandpromo_is_video_extension($savedExt)
@@ -681,11 +687,16 @@ foreach ($files as $file) {
         $saved_path = (string) ($finalized['saved_path'] ?? $dest);
         $saved_ext = (string) ($finalized['saved_ext'] ?? $ext);
         bandpromo_record_cover_upload_if_needed($root_dir, $saved_path, $saved_name);
-        $master = in_array((string) $target_hint, ['special', 'sfx'], true)
-            ? ['attempted' => false, 'prepared' => false, 'warning' => '']
-            : bandpromo_prepare_audio_master($root_dir, $saved_ext, $saved_name, $saved_path);
         if ($target_hint === 'audio' && in_array($saved_ext, ['flac', 'mp3', 'wav'], true)) {
+            $master = bandpromo_materialize_audio_master_from_original($root_dir, $saved_name);
             bandpromo_build_catalog_finalize_audio_upload($root_dir, $saved_name);
+            if (empty($master['prepared']) && empty($master['attempted'])) {
+                $master = bandpromo_prepare_audio_master($root_dir, $saved_ext, $saved_name, $saved_path);
+            }
+        } elseif (in_array((string) $target_hint, ['special', 'sfx'], true)) {
+            $master = ['attempted' => false, 'prepared' => false, 'warning' => ''];
+        } else {
+            $master = bandpromo_prepare_audio_master($root_dir, $saved_ext, $saved_name, $saved_path);
         }
         $displayRefresh = bandpromo_upload_refresh_audio_display($root_dir, $master, $saved_name);
         $videoPoster = bandpromo_is_video_extension($saved_ext)

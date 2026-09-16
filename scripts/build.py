@@ -689,7 +689,7 @@ def print_stage_banner(script_name, stage_index=None, stage_total=None, stage_la
 def run_script(script_path, env_extras=None, stage_index=None, stage_total=None, stage_label='', error_collector=None):
     """Run a build sub-script, streaming its output line by line.
 
-    Returns (ok, stats_dict). Machine BUILD_STATS lines are consumed for the
+    Returns (ok, stats_dict, flags_dict). Machine BUILD_STATS lines are consumed for the
     final summary and not shown in the operator log.
     """
     script_path = Path(script_path)
@@ -713,6 +713,7 @@ def run_script(script_path, env_extras=None, stage_index=None, stage_total=None,
     )
 
     stage_stats = empty_build_stats()
+    flags = {}
     try:
         proc = subprocess.Popen(
             [sys.executable, '-u', str(script_path)],
@@ -727,6 +728,11 @@ def run_script(script_path, env_extras=None, stage_index=None, stage_total=None,
             if parsed is not None:
                 merge_build_stats(stage_stats, parsed)
                 continue
+            if line.startswith('DRY_RUN_RESULT:'):
+                result = line.split(':', 1)[1].strip().lower()
+                if result == 'needs_repair':
+                    flags['dry_run_needs_repair'] = True
+                continue
             maybe_collect_error(line, error_collector)
             print(line)
             sys.stdout.flush()
@@ -737,14 +743,14 @@ def run_script(script_path, env_extras=None, stage_index=None, stage_total=None,
             maybe_collect_error(fail, error_collector)
             print(fail)
             sys.stdout.flush()
-            return False, stage_stats
-        return True, stage_stats
+            return False, stage_stats, flags
+        return True, stage_stats, flags
     except FileNotFoundError:
         fail = 'FAILED Script not found: ' + str(script_path)
         maybe_collect_error(fail, error_collector)
         print(fail)
         sys.stdout.flush()
-        return False, stage_stats
+        return False, stage_stats, flags
 
 
 def playlist_stage_marker_path():
@@ -875,7 +881,7 @@ def run_publish_stage(stage, ffmpeg_path, index, total, stats_total=None, timing
         log_stage_boundary(stage_id or 'unknown', 1, 0)
         if timing_recorder is not None:
             timing_recorder.record(stage_id or 'unknown', label, 0, False)
-        return False
+        return False, {}
 
     if stage_id == 'visual-delivery-catchup' and should_skip_visual_catchup():
         log_stage_boundary(stage_id)
@@ -886,7 +892,7 @@ def run_publish_stage(stage, ffmpeg_path, index, total, stats_total=None, timing
         log_stage_boundary(stage_id, 0, 0)
         if timing_recorder is not None:
             timing_recorder.record(stage_id, label, 0, True)
-        return True
+        return True, {}
 
     log_stage_boundary(stage_id)
     group = str(stage.get('group') or '').strip()
@@ -900,9 +906,11 @@ def run_publish_stage(stage, ffmpeg_path, index, total, stats_total=None, timing
         env_extras.update({str(k): str(v) for k, v in stage_env.items()})
     if stage.get('requires_ffmpeg'):
         env_extras['FFMPEG_PATH'] = ffmpeg_path
+    # Refresh must not heal/register — mutations belong to Repair Apply.
+    env_extras['BANDPROMO_CATALOG_INVENTORY_ONLY'] = '1'
 
     started = monotonic_now()
-    ok, stage_stats = run_script(
+    ok, stage_stats, flags = run_script(
         SCRIPT_DIR / script_name,
         env_extras,
         stage_index=index,
@@ -921,7 +929,7 @@ def run_publish_stage(stage, ffmpeg_path, index, total, stats_total=None, timing
         maybe_collect_error(fail, error_collector)
         print('\n❌ ' + fail)
         sys.stdout.flush()
-    return ok
+    return ok, flags
 
 
 def has_publishable_audio_sources():
@@ -1069,13 +1077,18 @@ def run_preflight(read_only=False):
             return None
     else:
         orig_count = sum(1 for tier, _name in supported_audio if tier == 'original')
-        master_count = sum(1 for tier, _name in supported_audio if tier in ('master', 'registry-master'))
+        disk_master_count = sum(1 for tier, _name in supported_audio if tier == 'master')
+        registry_master_count = sum(1 for tier, _name in supported_audio if tier == 'registry-master')
+        # Unique by counting disk masters separately from registry pointers.
         print(
-            "  ✅ Publishable audio ready ({0} original, {1} master/registry).".format(
+            "  ✅ Publishable audio on disk ({0} original, {1} master file(s); registry audio rows pointing at masters: {2}).".format(
                 orig_count,
-                master_count,
+                disk_master_count,
+                registry_master_count,
             )
         )
+        if read_only and disk_master_count > 0 and registry_master_count == 0:
+            print('  ⚠ Registry has no audio rows — Files → Audio will look empty until Repair Apply registers masters.')
 
     if unsupported_audio:
         print("⚠️  Unsupported source audio will be skipped: " + ', '.join(sorted(unsupported_audio)))
@@ -1085,7 +1098,7 @@ def run_preflight(read_only=False):
     return ffmpeg_path
 
 
-def print_build_success_banner(elapsed, profile, stage_count, stats, timing_recorder=None, error_lines=None):
+def print_build_success_banner(elapsed, profile, stage_count, stats, timing_recorder=None, error_lines=None, dry_run_needs_repair=False):
     """Closing banner — reassurance after the long stage log."""
     width = 70
     rule = '=' * width
@@ -1094,6 +1107,7 @@ def print_build_success_banner(elapsed, profile, stage_count, stats, timing_reco
     playlist = scope_totals(stats, 'playlist')
     social = scope_totals(stats, 'social')
     manifest = scope_totals(stats, 'manifest')
+    is_dry_run = str(profile or '').strip() == 'dry-run'
 
     # Catalog prep is media-adjacent work; fold into media "checked".
     media_handled = int(media['handled']) + int(catalog['handled'])
@@ -1112,13 +1126,24 @@ def print_build_success_banner(elapsed, profile, stage_count, stats, timing_reco
 
     print('')
     print(rule)
-    if failed > 0 or error_lines:
+    if is_dry_run and dry_run_needs_repair:
+        print('  ⚠  DRY-RUN FOUND ISSUES — REPAIR NEEDED')
+    elif is_dry_run:
+        print('  ✅  DRY-RUN COMPLETE (NO FILES CHANGED)')
+    elif failed > 0 or error_lines:
         print('  ⚠  PUBLISH FINISHED WITH WARNINGS')
     else:
         print('  ✅  YOUR SITE IS READY')
     print(rule)
     print('')
-    if failed > 0 or error_lines:
+    if is_dry_run:
+        print('  Diagnostics finished in {0} (profile: dry-run).'.format(elapsed))
+        print('  No prep healing, media rebuild, or playlist publish ran.')
+        if dry_run_needs_repair:
+            print('  Register disk masters via Repair catalogue Apply before Refresh.')
+        else:
+            print('  Review the inventory above, then Repair or Refresh when ready.')
+    elif failed > 0 or error_lines:
         print('  Finished in {0} ({1}, profile: {2}).'.format(elapsed, stage_label, profile))
     else:
         print('  Publish finished in {0}.'.format(elapsed))
@@ -1172,7 +1197,11 @@ def print_build_success_banner(elapsed, profile, stage_count, stats, timing_reco
 
     print_repeated_errors(error_lines)
 
-    if failed == 0 and not error_lines:
+    if is_dry_run and dry_run_needs_repair:
+        print('  Next: Repair catalogue Apply (register in place), then Refresh.')
+    elif is_dry_run:
+        print('  Dry-run only — listener files were not updated.')
+    elif failed == 0 and not error_lines:
         print('  You\'re done — open the site and enjoy the result.')
     else:
         print('  Fix the items listed above, then rebuild when ready.')
@@ -1336,6 +1365,10 @@ def main():
 
     clear_stop_flag()
 
+    dry_run_needs_repair = False
+    os.environ['BANDPROMO_PREP_INVENTORY_ONLY'] = '1'
+    os.environ['BANDPROMO_CATALOG_INVENTORY_ONLY'] = '1'
+
     for index, stage_id in enumerate(stage_ids, start=1):
         if stop_requested():
             clear_stop_flag()
@@ -1375,7 +1408,7 @@ def main():
             )
         except Exception:
             pass
-        if not run_publish_stage(
+        ok, stage_stats, stage_flags = run_publish_stage(
             stage,
             ffmpeg_path,
             index,
@@ -1383,7 +1416,10 @@ def main():
             stats_total,
             timing_recorder=timing_recorder,
             error_collector=error_collector,
-        ):
+        )
+        if stage_flags.get('dry_run_needs_repair'):
+            dry_run_needs_repair = True
+        if not ok:
             print_build_failure_banner(
                 format_build_duration(monotonic_now() - started_mono),
                 stage_id,
@@ -1400,6 +1436,7 @@ def main():
         stats_total,
         timing_recorder=timing_recorder,
         error_lines=error_collector,
+        dry_run_needs_repair=dry_run_needs_repair,
     )
     return 0
 
