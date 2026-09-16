@@ -29,8 +29,8 @@ bandPromo may provide technical controls, access rules, and operator-facing mode
 ## Version principles
 
 - **v0.7 is complete** — exit gates passed 2026-06-15. Repository version line is **`v<major>.<minor>.<session> build <number>`** (continuous build numbering from v0.7).
-- **v0.8 beta is active — the management machine** — catalogue, media, brands, containers, delivery pipeline, and **content AI wizards** that help operators fill missing pieces from release + brand canon.
-- **v0.9 — access and engagement foundation** — implements access tiers defined in v0.8, login/anonymous entry, user roles, and user-facing services on stable deliverables.
+- **v0.8 beta is active — the management machine** — catalogue, media, brands, containers, delivery pipeline, and **content AI wizards** that help operators fill missing pieces from release + brand canon. **System → Status site health (doctor model) is a v0.8 hard gate** — see [BUILD-PIPELINE-PLAN.md](BUILD-PIPELINE-PLAN.md); do not defer broken publish behaviour into v0.9.
+- **v0.9 — access and engagement foundation** — implements access tiers defined in v0.8, login/anonymous entry, user roles, and user-facing services on **stable** deliverables.
 - **v1.0** is public-ready, stable, and trustworthy.
 - **v1.x** expands fan and artist utility without overloading the core.
 - **v2+ — the marketing machine** — campaign automation, scheduled social pushes, and semi-autonomous promotion **based on content that already exists** (not the same as v0.8 content-creation wizards).

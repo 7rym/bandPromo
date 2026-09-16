@@ -2,29 +2,32 @@
 
 ## Resume point
 
-Hotfix **v0.8.62 build 502** (or next) for HITZ after 501 Refresh crash.
+**Site health Status — implementation started (v0.8 critical).**
 
-On **hitz.no** after Site update:
+Plan: [BUILD-PIPELINE-PLAN.md](BUILD-PIPELINE-PLAN.md).
 
-1. Do **not** Refresh while Files → Audio is empty / Status says Repair.
-2. System → Status → Peek under the hood → **Repair catalogue** → Preview → **Apply**.
-3. Confirm **Files → Audio** lists tracks.
-4. Only then **Refresh site files**.
+### Shipped this slice
 
-### Fixed this session
+- New Python engine room: `scripts/site_health/` + entries `siteHealthCheck|Treat|Force.py`
+- Check triage/investigate → `data/site-health-plan.json` + `HEALTH_*` log
+- Treat: `audio_register_in_place` + thin PHP Files audio index rebuild
+- Force: blocked when critical catalogue findings remain (delivery port next)
+- System → Status **page replaced** with Check / Treat / Force + Activity (`site-health-admin.js`)
 
-- Dry-run / inventory honesty; Refresh inventory-only; register-in-place Repair
-- Upload replace-in-place; Repair never mints from originals
-- **501 bug:** `run_publish_stage` returned 2 values, main expected 3 — fixed
-- Status CTA for uncatalogued audio → Repair Apply (not Refresh)
-- Refresh stops early when catalogue inventory finds Repair work
+### HITZ ops (until Treat proven on fleet)
 
-### Still follow-on
+1. Site update when this build is published
+2. **Check site health** — should report empty Files vs disk masters
+3. **Treat recommended** — register in place
+4. Confirm Files → Audio, then Force/delivery when that slice lands
 
-- Safe prune of duplicate masters after register
-- Content-hash dedupe for audio
-- Full Status page redesign
-- Cursor `state.vscdb` GC (operator: Developer → GC Agent KV Blobs)
+### Next slices
+
+- Port visual register + delivery/playlist/chrome treat modules
+- Files index rebuild in Python (retire thin PHP verb)
+- Stop button + job-stop for site-health
+- Cut over remaining Dashboard nudges from “Refresh site files”
+- Publish tester build when Status Check/Treat feels solid locally
 
 ### Local workspace
 

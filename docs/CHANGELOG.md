@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-09-16 12:15 - Site health Status **implementation started**: new Python `scripts/site_health/` engine (Check triage/diagnose, Treat audio register-in-place, Force gated); System → Status page replaced with Check / Treat / Force + Activity; unified `HEALTH_*` logging. Delivery/playlist treat modules and full Force rebuild still follow-on.
+
+2026-09-16 11:40 - Site health reframed as doctor-office flow on a **new System → Status page** (triage → investigate → diagnose → treat → follow-up). Not a Refresh rename; operator trust is the product goal. Plan updated in `docs/BUILD-PIPELINE-PLAN.md`.
+
+2026-09-16 11:30 - Locked **v0.8 critical** plan-driven build pipeline (not deferred to v0.9): diagnose → worklist → early exit → gated audio/visual/playlist/site apply. See `docs/BUILD-PIPELINE-PLAN.md`. Refresh must not silently heal; Repair Apply owns catalogue mutations.
+
 2026-09-16 10:35 - Hotfix Refresh crash after inventory-only catalogue (`ValueError` unpack in `build.py`); Status now steers uncatalogued audio to Repair Apply (not Refresh); Refresh stops early when inventory finds masters needing Repair.
 
 2026-09-16 09:15 - HITZ optimisation plan (stop burning disk on empty catalogue): dry-run now reports disk vs registry mismatch and refuses to claim “site ready”; Refresh prep/catalog are inventory-only (heal/register only via Repair Apply); audio upload reuses/replaces the existing master for the same original instead of minting another `ast_*`; Repair Apply / catalogue register never mint new masters from originals (link/register in place only). On HITZ: Site update → Repair Apply first to re-register disk masters into Files → Audio, then Refresh.

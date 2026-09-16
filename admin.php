@@ -2849,73 +2849,37 @@ if ($tab === 'analytics') {
 
             <?php if ($systemTab === 'deliverables'): ?>
             <div class="admin-help-box collapsed" id="help-build">
-                This page is the health of your catalogue: campaigns, playlists, tracks, and whether those tracks can stream.<br><br>
-                Counts match <strong>Content → Catalogue</strong> (the invisible upload bucket and login FAQ are not campaigns).<br><br>
-                Uploads and saves usually prepare streaming files automatically. Use <strong>Refresh site files</strong> if something is missing or after a Site update — we will ask before starting.
+                This page is your site’s health exam: cheap checks first, deeper checks only when something sticks out, then a clear diagnosis and optional treatment.<br><br>
+                <strong>Check</strong> never changes files. <strong>Treat</strong> applies the recommended fixes (for example registering songs already on disk into Files). <strong>Force full rebuild</strong> rebuilds listener deliverables even when Check looks healthy — blocked while critical catalogue findings remain.
             </div>
 
-            <div id="publishStatusCard" class="card publish-status-card">
+            <div id="siteHealthCard" class="card publish-status-card">
                 <div class="build-validation-head">
                     <h3>Site health</h3>
-                    <span id="publishStatusOverall" class="badge audit-status-badge status-neutral">Checking…</span>
+                    <span id="siteHealthOverall" class="badge audit-status-badge status-neutral">Not checked yet</span>
                 </div>
-                <div id="publishStatusSummary" class="publish-status-summary"></div>
-            </div>
-
-            <div id="publishActionsCard" class="card publish-actions-card">
-                <div class="build-validation-head">
-                    <h3>Refresh site files</h3>
-                    <span id="publishRefreshChip" class="badge audit-status-badge status-neutral">Ready</span>
+                <p id="siteHealthMeta" class="card-note" style="margin-top:0.35rem">Run <strong>Check site health</strong> for a read-only exam. Nothing is changed until you Treat.</p>
+                <div id="siteHealthFindings" class="publish-status-summary">
+                    <p class="publish-status-empty">No check yet — start with Check site health.</p>
                 </div>
-                <p class="card-note">
-                    Lets the bandPromo machine grease the wheels — preparing streaming files, covers, and playlists from what you already saved. Not required after a normal upload or playlist save. Safe to leave this page while it runs.
-                </p>
-                <p id="publishJobStatus" class="build-log-status publish-action-status" hidden></p>
-                <div class="publish-actions-toolbar">
-                    <button type="button" id="buildBtn" class="btn">Refresh site files</button>
-                    <button type="button" id="buildStopBtn" class="btn" hidden>Stop refresh</button>
-                    <button type="button" id="recommendedBuildBtn" class="btn" style="display:none" hidden></button>
+                <p id="siteHealthJobStatus" class="build-log-status publish-action-status" hidden></p>
+                <div class="publish-actions-toolbar" style="margin-top:0.75rem">
+                    <button type="button" id="siteHealthCheckBtn" class="btn btn-primary">Check site health</button>
+                    <button type="button" id="siteHealthTreatBtn" class="btn" hidden>Treat recommended</button>
+                    <button type="button" id="siteHealthForceBtn" class="btn">Force full rebuild</button>
+                    <button type="button" id="siteHealthStopBtn" class="btn" hidden>Stop</button>
                 </div>
             </div>
 
-            <details id="build-log-card" class="card deliverables-log-card">
+            <details id="site-health-log-card" class="card deliverables-log-card" open>
                 <summary class="deliverables-log-summary">
-                    <span>Peek under the hood</span>
+                    <span>Activity</span>
                     <span class="build-log-meta">
-                        <button type="button" id="buildLogCopyBtn" class="btn">Copy log</button>
-                        <span id="buildSpinner" class="build-log-spinner" style="display:none">Working…</span>
-                        <span id="buildStatus" class="build-log-status"></span>
+                        <button type="button" id="siteHealthLogCopyBtn" class="btn">Copy log</button>
+                        <span id="siteHealthSpinner" class="build-log-spinner" style="display:none">Working…</span>
                     </span>
                 </summary>
-                <p class="card-note" style="margin:0.75rem 0 0.5rem">Inside the bandPromo machine — optional detail for curious operators and developers.</p>
-                <pre id="buildLog" class="build-log">No build output yet.</pre>
-                <?php if ($currentUserRole === 'developer'): ?>
-                <div id="catalog-repair" class="catalog-repair-card" style="margin-top:1rem;padding-top:1rem;border-top:1px solid rgba(255,255,255,0.08)">
-                    <div class="build-validation-head">
-                        <h3 style="font-size:1rem;margin:0">Repair catalogue</h3>
-                        <span class="role-badge role-developer">developer</span>
-                    </div>
-                    <p class="card-note">
-                        Recovers catalogue links when Refresh is not enough. Preview is a safe dry-run. Apply runs in the background until finished — you can leave this page. Press Stop to finish after the current step.
-                    </p>
-                    <div class="publish-actions-toolbar">
-                        <button type="button" id="contentAutofixPreviewBtn" class="btn">Preview repairs</button>
-                        <button type="button" id="contentAutofixApplyBtn" class="btn btn-primary" hidden>Apply repairs</button>
-                        <button type="button" id="contentAutofixStopBtn" class="btn" hidden>Stop repair</button>
-                    </div>
-                    <p id="contentAutofixStatus" class="build-log-status publish-action-status" hidden></p>
-                    <ul id="contentAutofixReport" class="welcome-list" hidden></ul>
-                    <details id="catalog-repair-log-card" class="deliverables-log-card" style="margin-top:0.75rem">
-                        <summary class="deliverables-log-summary">
-                            <span>Repair log</span>
-                            <span class="build-log-meta">
-                                <button type="button" id="contentAutofixLogCopyBtn" class="btn">Copy log</button>
-                            </span>
-                        </summary>
-                        <pre id="contentAutofixLog" class="build-log">No repair log yet.</pre>
-                    </details>
-                </div>
-                <?php endif; ?>
+                <pre id="siteHealthLog" class="build-log">No health activity yet.</pre>
             </details>
             <?php elseif ($systemTab === 'audit'): ?>
             <div class="admin-help-box collapsed" id="help-audit">
@@ -3833,6 +3797,7 @@ if ($tab === 'analytics') {
     <script src="biblioteca/editor-sort.js?v=<?php echo filemtime(__DIR__ . '/biblioteca/editor-sort.js'); ?>"></script>
     <?php endif; ?>
     <script src="biblioteca/admin.js?v=<?php echo filemtime(__DIR__ . '/biblioteca/admin.js'); ?>"></script>
+    <script src="biblioteca/site-health-admin.js?v=<?php echo filemtime(__DIR__ . '/biblioteca/site-health-admin.js'); ?>"></script>
 
     <!-- Admin media preview lightbox -->
     <div id="adminPreviewLightbox">

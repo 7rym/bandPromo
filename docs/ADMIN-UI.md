@@ -37,12 +37,12 @@ Do not invent a second under-nav title pattern for new Content editors unless th
 
 | Sub-tab | `admin` role | `developer` role |
 |---------|--------------|------------------|
-| Status (Deliverables) | Yes | Yes |
+| Status (site health) | Yes | Yes |
 | Backup, export & import | Yes | Yes |
 | Audit | No | Yes |
 | Environment | No | Yes |
 
-Repair catalogue on Status is **developer-only**. Direct `?stab=audit` or `?stab=environment` (legacy `?stab=security`) redirects operators to Status.
+**Status** is being rebuilt as the operator **site health** page (triage → diagnose → treat → follow-up) — see [BUILD-PIPELINE-PLAN.md](BUILD-PIPELINE-PLAN.md). It is not merely “Refresh site files UI.” Legacy Refresh / Repair catalogue actions fold into that flow; until the new page ships, Repair catalogue on Status remains **developer-only**. Direct `?stab=audit` or `?stab=environment` (legacy `?stab=security`) redirects operators to Status.
 
 Operator feedback uses toasts today; unified toast → inbox is planned for v0.9 — [OPERATOR-MESSAGING.md](OPERATOR-MESSAGING.md).
 

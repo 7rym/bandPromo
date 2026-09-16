@@ -1,6 +1,6 @@
 # Build pipeline audit (v0.8)
 
-Status: **implemented** — stages/profiles shipped; master-tier media contract complete (see [MASTER-TIER-AUDIT.md](MASTER-TIER-AUDIT.md)). Opening narrative below retains the original problem statement; current stage order is in “Python `build.py` today”.
+Status: **partially superseded for direction** — live redesign target is [BUILD-PIPELINE-PLAN.md](BUILD-PIPELINE-PLAN.md) (**v0.8 critical**, plan-driven diagnose → worklist → gated apply). This audit keeps terminology, history, and the older stage narrative.
 
 Companion policy: [PLATFORM-MODEL.md](PLATFORM-MODEL.md), [MEDIA-HANDLING.md](MEDIA-HANDLING.md).
 
