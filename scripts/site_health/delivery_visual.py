@@ -78,7 +78,25 @@ def run_visual_still_delivery(force=False):
             log.info('Stop requested — visual delivery interrupted.')
             return False
         label = asset.get('original_filename') or asset.get('id') or ''
-        result = om.process_visual_image_asset(asset, quiet_skip=True)
+        result = None
+        try:
+            result = om.process_visual_image_asset(asset, quiet_skip=True)
+        except ValueError as exc:
+            # HITZ Py 3.6: closed stdout after a legacy TextIOWrapper double-wrap.
+            if 'closed file' in str(exc).lower():
+                try:
+                    import stdio_utf8
+                    stdio_utf8.repair()
+                    result = om.process_visual_image_asset(asset, quiet_skip=True)
+                except Exception as retry_exc:
+                    log.info('Visual delivery I/O error on {0}: {1}'.format(label, retry_exc))
+                    result = False
+            else:
+                log.info('Visual delivery error on {0}: {1}'.format(label, exc))
+                result = False
+        except Exception as exc:
+            log.info('Visual delivery error on {0}: {1}'.format(label, exc))
+            result = False
         if result == 'skipped':
             skipped += 1
         elif result:

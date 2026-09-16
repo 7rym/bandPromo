@@ -44,6 +44,38 @@ except Exception:
         return {}
 
 
+def _site_banner():
+    """First Activity line: which install this job is running on."""
+    import json
+    config_path = os.path.join(ROOT_DIR, 'web-config.json')
+    name = ''
+    url = ''
+    try:
+        with open(config_path, 'r', encoding='utf-8') as handle:
+            payload = json.load(handle)
+        site = payload.get('site') if isinstance(payload, dict) else None
+        if isinstance(site, dict):
+            name = str(site.get('name') or '').strip()
+            url = str(site.get('url') or '').strip()
+    except Exception:
+        pass
+    host = ''
+    if url:
+        text = url
+        for prefix in ('https://', 'http://'):
+            if text.lower().startswith(prefix):
+                text = text[len(prefix):]
+                break
+        host = text.split('/')[0].strip()
+    if name and host:
+        return 'Site health running on {0} ({1})'.format(name, host)
+    if name:
+        return 'Site health running on {0}'.format(name)
+    if host:
+        return 'Site health running on {0}'.format(host)
+    return 'Site health running on this install'
+
+
 def run_check(deep=False):
     deep = bool(deep)
     mode_name = 'check_full' if deep else 'check'
@@ -276,6 +308,7 @@ def main(argv=None):
 
     clear_stop()
     log.begin_run(LOG_PATH)
+    log.info(_site_banner())
     write_job_meta(ROOT_DIR, {
         'status': 'running',
         'mode': args.mode,
@@ -293,6 +326,13 @@ def main(argv=None):
         else:
             exit_code = run_force()
     except Exception as exc:
+        # Closed stdout after double-wrap must not end Treat as a bare opaque failure.
+        if 'closed file' in str(exc).lower():
+            try:
+                import stdio_utf8
+                stdio_utf8.repair()
+            except Exception:
+                pass
         log.info('FAILED {0}'.format(exc))
         log.result('failed')
         exit_code = 1

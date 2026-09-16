@@ -2,6 +2,8 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-09-16 17:00 - Site health HITZ Treat crash fix: stop double-wrapping stdout (audioMasterMetadata / visualMasterMetadata / optimizeVideo / makeSocial / makePWA use stdio_utf8); silence per-variant optimizeMedia prints unless verbose; repair closed stdio; first Activity line is "Site health running on {site}".
+
 2026-09-16 16:45 - Site health rule 6: port legacy stages into `site_health` — in-process `delivery_audio` / `delivery_visual` / `delivery_video`, `chrome_social` + `chrome_pwa`, SFX/playlists via `php_stage`; delete `stage_exec` from Treat/Force. `BANDPROMO_FORCE_VIDEO_DELIVERY` honoured. Local smoke: delivery + chrome + SFX + playlists OK.
 
 2026-09-16 16:15 - Site health Treat liveness on HITZ-scale visual rebuilds: optimizeMedia heartbeats `site-health.meta.json` when Treat owns the lock (Status was stuck on stale "Working..."); stage_exec refreshes that heartbeat from streamed progress; summary-mode delivery logs milestones only; Status Activity poll returns the live log tail (~200KB) so a multi-thousand-line rebuild cannot freeze the pane.

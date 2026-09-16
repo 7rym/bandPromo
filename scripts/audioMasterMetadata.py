@@ -18,11 +18,11 @@ from mutagen.apev2 import APEv2, APENoHeaderError
 from mutagen.flac import FLAC, Picture
 from mutagen.id3 import APIC, COMM, ID3, ID3NoHeaderError, TALB, TBPM, TCON, TDRC, TIT2, TKEY, TPE1, TRCK, TXXX, USLT
 
-
-if hasattr(sys.stdout, 'reconfigure'):
-    sys.stdout.reconfigure(encoding='utf-8', errors='replace', line_buffering=True)
-else:
-    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace', line_buffering=True)
+try:
+    import stdio_utf8
+    stdio_utf8.configure()
+except Exception:
+    pass
 
 
 ROOT_DIR = SCRIPT_DIR.parent

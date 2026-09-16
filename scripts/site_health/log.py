@@ -74,7 +74,13 @@ def emit(line):
         sys.stdout.write(stamped + '\n')
         sys.stdout.flush()
     except Exception:
-        pass
+        try:
+            import stdio_utf8
+            stdio_utf8.repair()
+            sys.stdout.write(stamped + '\n')
+            sys.stdout.flush()
+        except Exception:
+            pass
     if _log_fp is not None:
         try:
             _log_fp.write(stamped + '\n')

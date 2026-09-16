@@ -399,9 +399,15 @@ def convert_image_delivery_variant(source_path, dest_path, max_width, max_height
             source_path, str(dest_path), reason, asset_id=asset_id
         )
 
-    print("    ✓ Variant {}: {} (max {}x{}px, {})".format(
-        dest_path.stem, dest_path.name, max_width, max_height, 'PNG alpha' if use_png else 'JPEG'
-    ))
+    # Per-variant chatter only in verbose CLI mode — Treat/Force must not flood
+    # Activity or die on a closed stdout wrapper (HITZ Py 3.6 double-wrap).
+    if OPTIMIZE_VERBOSE:
+        try:
+            print("    ✓ Variant {}: {} (max {}x{}px, {})".format(
+                dest_path.stem, dest_path.name, max_width, max_height, 'PNG alpha' if use_png else 'JPEG'
+            ))
+        except Exception:
+            pass
     return str(dest_path)
 
 

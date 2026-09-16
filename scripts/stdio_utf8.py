@@ -89,6 +89,46 @@ def configure():
     return report()
 
 
+def repair():
+    """
+    Recover after ValueError: I/O operation on closed file from a double-wrap.
+
+    Restores sys.stdout/stderr from __stdout__/__stderr__ when the live
+    wrappers are dead, then re-runs configure().
+    """
+    sys._bandpromo_utf8_stdio = False
+    for stream_name in ('stdout', 'stderr'):
+        stream = getattr(sys, stream_name, None)
+        broken = False
+        if stream is None:
+            broken = True
+        else:
+            try:
+                stream.write('')
+                stream.flush()
+            except Exception:
+                broken = True
+        if broken:
+            original = getattr(sys, '__{0}__'.format(stream_name), None)
+            if original is not None:
+                setattr(sys, stream_name, original)
+    return configure()
+
+
+def safe_print(*args, **kwargs):
+    """print() that repairs closed stdio once, then swallows further I/O errors."""
+    try:
+        print(*args, **kwargs)
+        return
+    except Exception:
+        pass
+    try:
+        repair()
+        print(*args, **kwargs)
+    except Exception:
+        pass
+
+
 def report():
     """
     Snapshot of process text encoding health.
