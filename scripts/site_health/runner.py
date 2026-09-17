@@ -184,15 +184,31 @@ def run_treat():
     did_register = False
     treat_ok = True
 
-    # Plan order: audio → visual → sfx → links → playlists → chrome
+    # Plan order: audio (register/tags/covers) → visual → sfx → links → playlists → chrome
     need_audio = any(
         tid in ids
-        for tid in ('audio_register_in_place', 'audio_fill_display_from_tags')
+        for tid in (
+            'audio_register_in_place',
+            'audio_fill_display_from_tags',
+            'audio_extract_covers',
+        )
     )
     if need_audio:
         import treat_audio
-        treat_audio.treat_audio_register_in_place()
-        did_register = True
+        # Register + tag fill when either of those treatments is planned, or when
+        # cover extract is alone but masters still need a registry row first.
+        if any(
+            tid in ids
+            for tid in ('audio_register_in_place', 'audio_fill_display_from_tags')
+        ):
+            treat_audio.treat_audio_register_in_place()
+            did_register = True
+        if 'audio_extract_covers' in ids:
+            cover_fixed, cover_failed = treat_audio.treat_audio_extract_covers()
+            if cover_fixed > 0:
+                did_register = True
+            if cover_failed > 0:
+                treat_ok = False
 
     if stop_requested():
         log.info('Stop requested after audio treat.')

@@ -2,17 +2,18 @@
 
 ## Resume point
 
-Local smoke passed for this session’s Catalogue/Files work. Checkpoint + publish next, then fleet re-smoke.
+Cover extract Treat passed local smoke. Checkpoint + publish next, then fleet re-smoke of the new build.
 
-### Shipped (local)
+### Done this arc
 
-1. Campaign editor: re-open while on Tracks no longer bleeds the previous campaign’s associated list.
-2. Files → Audio Add Audio: optional Campaign selector (Orphan kept; defaults from Files campaign filter).
+1. Catalogue Tracks stale-state fix + Audio upload Campaign selector → published **v0.8.71 build 527**.
+2. Fleet 527: Vanilla + Spandexual Quick healthy; HITZ Apply (container links) + Full demux healthy; Files `Untitled` = 0 (tag-fill proved).
+3. Site health **cover extract**: Check `audio_embedded_cover_unextracted` → Treat `audio_extract_covers` (12 local tracks linked; follow-up healthy).
 
 ### Next
 
-1. After this publish lands: **fleet re-smoke** — HITZ (auto Quick check, SFX Apply if needed, Full check for dual-tag clones), Vanilla, Spandexual Tension.
-2. Remaining Site health opens: **cover extract**; prove audio **tag-fill** on HITZ if still bare Untitled rows.
+1. Checkpoint + publish (cover extract).
+2. Fleet re-smoke of the new build (HITZ/Vanilla/Spandexual Quick; Apply cover findings if any).
 3. Do not reopen folded Refresh / Repair / Deliverables operator CTAs.
 
 ### Local workspace

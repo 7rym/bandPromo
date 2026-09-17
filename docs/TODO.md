@@ -23,7 +23,7 @@ Rules for this file:
 
 **Active gate (2026-08-18):** lock and ship **PCF** (`.pcf`) as the only campaign data handoff — setup imports `bandPromo-demo.pcf` (legacy `.prp` still accepted); round-trips on Spandexual Tension / HITZ (Twisted Chronicles deferred to v0.9). See [PORTABILITY.md](PORTABILITY.md) §3 and TODO → Portable Campaign Files.
 
-**Active gate (2026-09-16):** **System → Status site health** — doctor model is **mostly built**. Legacy stage port, SFX register-in-place, Full audio demux-hash dedupe, Site update → auto Quick check, and deliverable **built / kept / failed** Activity copy are shipped. Still open: cover extract; fleet smoke after latest publish. See [Site health (Status)](#site-health-status--v0-8-critical) and [BUILD-PIPELINE-PLAN.md](BUILD-PIPELINE-PLAN.md).
+**Active gate (2026-09-17):** **System → Status site health** — doctor model is **mostly built**. Fleet re-smoke on build 527 passed (HITZ/Vanilla/Spandexual); audio tag-fill proved on HITZ. Still open: finish **cover extract** Treat local smoke → publish → fleet re-smoke. See [Site health (Status)](#site-health-status--v0-8-critical) and [BUILD-PIPELINE-PLAN.md](BUILD-PIPELINE-PLAN.md).
 
 **Policy (2026-08-08):** no special-case demo content handling beyond setup PCF import, lock / localhost unlock + export, hide, and duplicate. Collapse remaining heal/force/`bandPromo_*`→demo ownership forks onto normal release ownership. See [PLATFORM-MODEL.md](PLATFORM-MODEL.md) / [PORTABILITY.md](PORTABILITY.md).
 
@@ -110,7 +110,7 @@ Implementation order:
 
 ## Site health (Status) — v0.8 critical
 
-Source of truth: [BUILD-PIPELINE-PLAN.md](BUILD-PIPELINE-PLAN.md). Doctor Status UI is live; **do not mark this gate complete** while cover extract and fleet re-smoke remain open.
+Source of truth: [BUILD-PIPELINE-PLAN.md](BUILD-PIPELINE-PLAN.md). Doctor Status UI is live; **do not mark this gate complete** while cover extract publish + fleet re-smoke remain open.
 
 **Shipped:**
 
@@ -121,12 +121,12 @@ Source of truth: [BUILD-PIPELINE-PLAN.md](BUILD-PIPELINE-PLAN.md). Doctor Status
 - [x] Follow-up verify after Treat.
 - [x] Status launcher cut over off `build.py`; Treat/Force in-process delivery/chrome (no `stage_exec`).
 - [x] Duplicate masters Quick/Full + Site update → auto Quick check + **built / kept / failed** Activity counts.
+- [x] **Bad import / tag fill** — registry ← master; HITZ Files `Untitled` filter empty on build 527.
+- [x] **Fleet acceptance (527)** — HITZ/Vanilla/Spandexual Quick healthy; HITZ Apply + Full demux healthy.
 
 **Open:**
 
-- [ ] **Bad import / tag fill** — register-in-place must populate registry `display` from master embedded tags (**registry ← master only**). Bare `Untitled` rows are incomplete Treat; heal existing empties; never write empty registry display onto masters. (Code present; HITZ Treat after publish.)
-- [ ] **Cover extract** as part of treat_audio (plan: tags/covers) — C chip / embedded artwork → visual cover ref where safe.
-- [ ] **Fleet acceptance** — re-smoke HITZ/Vanilla/Spandexual after latest Site update (auto Quick check, SFX Apply if needed, Force when healthy).
+- [x] **Cover extract** as part of treat_audio — Check `audio_embedded_cover_unextracted` → Treat `audio_extract_covers` (local smoke: 12/12 linked, follow-up healthy). **Publish + fleet re-smoke still required.**
 
 ## v0.8 management slice (Brand + Visual pool + content AI)
 

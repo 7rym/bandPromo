@@ -267,6 +267,28 @@ def run_triage(plan, deep=False, suppress_json_drift=False):
                     ).format(len(bare)),
                 )
 
+        # Embedded artwork present but display.cover empty — extract to Visual.
+        if len(audio) > 0:
+            try:
+                import audio_covers
+                cover_pending = audio_covers.pending_cover_extract(registry)
+            except Exception as exc:
+                log.info('Audio cover extract probe skipped: {0}'.format(exc))
+                cover_pending = []
+            if cover_pending:
+                plan_mod.add_finding(
+                    plan, 'audio_embedded_cover_unextracted', 'attention',
+                    'Some tracks have embedded art but no cover in Files',
+                    len(cover_pending),
+                    'audio_extract_covers',
+                    sample=[p.get('master_filename') for p in cover_pending],
+                    body=(
+                        '{0} track(s) carry embedded cover art on the master but '
+                        'Files has no cover link yet. Treat extracts into Visual '
+                        '(hash-match reuse when possible) and links display.cover.'
+                    ).format(len(cover_pending)),
+                )
+
         if pending_visual:
             plan_mod.add_finding(
                 plan, 'uncatalogued_visual_masters', 'attention',

@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""Audio treatments: register disk masters in place + fill display from tags."""
+"""Audio treatments: register in place, tag fill, embedded cover extract."""
 
 from __future__ import print_function
 
@@ -101,3 +101,9 @@ def treat_audio_register_in_place():
 def treat_audio_fill_display_from_tags():
     """Standalone treatment id for incomplete display without new registers."""
     return treat_audio_register_in_place()
+
+
+def treat_audio_extract_covers():
+    """Extract embedded artwork into Visual + link display.cover."""
+    import audio_covers
+    return audio_covers.treat_audio_extract_covers()

@@ -209,6 +209,24 @@ def run_investigate(plan, deep=False):
                 finding['items_sample'] = disk[:12]
                 finding['count'] = len(disk)
                 log.items('Investigate empty audio registry — disk masters', disk)
+            elif fid == 'audio_display_missing_tags':
+                try:
+                    import audio_display
+                    pending = audio_display.incomplete_audio_masters(registry) if status == 'ok' else []
+                except Exception:
+                    pending = []
+                finding['items_sample'] = [p.get('master_filename') for p in pending[:12]]
+                finding['count'] = len(pending)
+                log.items('Investigate audio display (missing tags)', pending)
+            elif fid == 'audio_embedded_cover_unextracted':
+                try:
+                    import audio_covers
+                    pending = audio_covers.pending_cover_extract(registry) if status == 'ok' else []
+                except Exception:
+                    pending = []
+                finding['items_sample'] = [p.get('master_filename') for p in pending[:12]]
+                finding['count'] = len(pending)
+                log.items('Investigate audio covers (embedded, unlinked)', pending)
             elif fid == 'empty_sfx_registry_with_disk_masters':
                 disk = reg.list_sfx_masters_on_disk()
                 finding['items_sample'] = disk[:12]
