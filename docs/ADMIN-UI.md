@@ -14,6 +14,7 @@ For admin surfaces that sit under the main tab / Content sub-nav (especially Con
 |------|--------|
 | Pool / list | `{emoji} {Section} > Pool` |
 | Editor | `{emoji} {Section} > Editor` |
+| System Status | `📊 Status > Site health` (Activity card: `📊 Status > Activity`) |
 
 ### Breadcrumb line layout
 
@@ -21,15 +22,17 @@ One row under the Content sub-nav (`.content-editor-card-head`, min-height match
 
 | Slot | Placement | Use |
 |------|-----------|-----|
-| Crumb | Left | Section root (underlined link → Pool, same leave/unsaved path as ← Back) + `> Pool\|Editor` |
-| `trailing` | Immediately after the crumb | Optional editor section chips (Catalogue: Base info \| Extended info \| …; Pages: Base info \| Page builder; Branding: Common \| Player \| Content) |
-| `actions` | Right edge (`.content-editor-card-head-actions`) | ← Back + Save\|Saved (and ★ Set as default / ★ Set as base when that editor has them). Hidden while not `.is-editing` |
+| Crumb | Left | Section root as an **underlined navigation control** (button or link — even when it lands on the same page) + `> Pool\|Editor\|Site health\|…` |
+| `trailing` | Immediately after the crumb | Optional editor section chips (Catalogue: Base info \| …) or muted meta (Status: last check · mode · version via `.content-editor-breadcrumb-meta`, same 12px muted voice as `docs-content-path`) |
+| `actions` | Right edge (`.content-editor-card-head-actions`) | ← Back + Save\|Saved (and ★ Set as default / ★ Set as base when that editor has them). Hidden while not `.is-editing`. Status puts the overall health badge here. |
 
 - Markup: `bandpromo_admin_render_content_breadcrumb()` in `biblioteca/admin-helpers.php`.
-- Behaviour: `bandpromoContentEditorBreadcrumb.attach()` — `setView('pool'|'edit')` on lifecycle show hooks.
+- Options: `current` (default `Pool`), `root_navigable` (default true), `root_href` (optional — render an `<a>` instead of the Pool button; use for page-level crumbs such as Status).
+- **Preference:** breadcrumb roots are always visually links (underlined). Do not render a plain muted span for the section root unless there is truly no destination.
+- Behaviour: `bandpromoContentEditorBreadcrumb.attach()` — `setView('pool'|'edit')` on lifecycle show hooks (Content editors). Status roots use `root_href` to System → Status.
 - Entity name stays in the left edit header under the breadcrumb row; preview headers are titles only (no Save strip).
 
-Shipped on Catalogue, Playlists, Galleries, Pages, and Branding.
+Shipped on Catalogue, Playlists, Galleries, Pages, Branding, and System → Status (Site health + Activity).
 
 Do not invent a second under-nav title pattern for new Content editors unless the surface is not a pool→editor flow. Do not leave ← Back / Save only in the split-editor headers when the breadcrumb row is present.
 
@@ -44,6 +47,14 @@ Do not invent a second under-nav title pattern for new Content editors unless th
 
 **Status** is the operator **site health** page (triage → diagnose → treat → follow-up) — see [BUILD-PIPELINE-PLAN.md](BUILD-PIPELINE-PLAN.md). Primary actions: **Quick health check** / **Full health check**, **Review treatment** → **Apply treatment**, **Force full rebuild**. After **Site update**, Status auto-starts Quick health check. Legacy Refresh / Repair catalogue / Peek under the hood are folded into Check / Treat / Force; Status no longer surfaces those as primary actions.
 
+Check results use a three-panel summary:
+
+| Panel | Colour | Contents |
+|-------|--------|----------|
+| **The good** | Green | Registered masters present on disk (`ok/total`) plus Campaigns / Playlists / Galleries / Pages / Brands whose registry entry has a document on disk. Container checks are presence/parse — not a full content audit. |
+| **The bad** | Amber (critical → red cards) | Unregistered masters, missing delivery/tags/covers, duplicates, JSON drift, and other treatment findings. |
+| **The ugly** | Grey | Janitor leftovers (orphan delivery, empty dirs, non-media junk). |
+
 **Role policy (Status):** `admin` and `developer` may run Quick/Full check, Review → Apply treatment (including register-in-place), and Force full rebuild. Destructive future treatments (e.g. prune duplicates) stay developer-only when added. Direct `?stab=audit` or `?stab=environment` (legacy `?stab=security`) redirects operators to Status.
 
 Operator feedback uses toasts today; unified toast → inbox is planned for v0.9 — [OPERATOR-MESSAGING.md](OPERATOR-MESSAGING.md).
@@ -54,14 +65,24 @@ Defined on `:root` in `biblioteca/admin.css`:
 
 | Token | Role |
 |-------|------|
-| `--accent` / `--primary` | Affirmative coral (submit, primary CTA) |
-| `--success` | Positive completion (saved) |
-| `--warn` | Attention / dirty / preview caution |
-| `--error` | Hard destructive / validation failure |
+| `--accent` / `--primary` | Affirmative coral (create / confirm safe forms) |
+| `--success` | Positive completion and the **recommended next step** |
+| `--warn` | Attention / dirty / important information |
+| `--error` | Hard destructive / validation failure / critical findings |
 | `--muted` | Secondary text and quiet controls |
 | `--intent-good-*` | Green constructive icon actions |
 | `--intent-warn-*` | Amber caution / preview icon actions |
 | `--intent-quiet-*` | Grey quiet dismiss/delete (not alarm red) |
+
+### Operator colour roles (toolbar / Status)
+
+| Colour | Use | Rule of thumb |
+|--------|-----|----------------|
+| **Green** | Suggested next step / constructive apply / saved | **At most one** green text button visible on a toolbar |
+| **Amber** | Needs attention (findings, dirty save, caution) | Catch the eye; not the click path |
+| **Red** | Errors and irreversible confirms | Critical findings, delete confirms |
+| **Grey** (`.btn`) | Optional alternate paths | Full check, Force, Not now, Copy log |
+| **Coral** (`.btn-primary`) | Affirmative form submit outside the doctor/Status ladder | Create user, confirm safe settings |
 
 ## Text buttons
 
@@ -69,9 +90,10 @@ Prefer **one class ladder**. Unstyled `button` elements without a `class` keep t
 
 | Class | Meaning | When to use |
 |-------|---------|-------------|
-| `.btn` | Neutral secondary | Cancel, alternate actions |
+| `.btn` | Neutral secondary | Cancel, alternate / optional actions |
 | `.btn.btn-secondary` | Alias of `.btn` | Legacy markup |
-| `.btn.btn-primary` | Affirmative | Create, confirm safe actions |
+| `.btn.btn-primary` | Affirmative coral | Create, confirm safe form actions |
+| `.btn.btn-good` | Recommended next step | Exactly one on Site health (and similar toolbars) |
 | `.btn.btn-amber` | Dirty / needs attention | Save controls while unsaved (`content-save-ui.js`) |
 | `.btn.btn-saved` | Saved / idle success | Save controls after successful save |
 | `.btn.btn-danger` | Destructive confirm | Delete / irreversible confirms |
@@ -79,6 +101,16 @@ Prefer **one class ladder**. Unstyled `button` elements without a `class` keep t
 | `.btn-sm` | Compact size | Dense toolbars |
 
 Legacy standalone `.btn-primary` (without `.btn`) remains for older markup; new code should use `.btn.btn-primary`.
+
+### Site health action ladder
+
+On **System → Status**:
+
+1. Idle / healthy → **Quick health check** is the single green recommended step; Full check and Force stay grey.  
+2. Findings → **Review treatment** becomes the single green step; Quick/Full/Force stay grey.  
+3. Review open → panel under the toolbar scrolls into view; findings are **ticked by default** (Apply only those selected); **Apply treatment** (green) + **Not now** + **Back up first…** sit under the panel.  
+4. Checks older than **1 hour** are stale: Review is hidden, Quick check is the recommended step, and Apply is refused until a fresh check runs.
+4. Attention findings use amber cards; critical findings use red cards. Job status line uses success / attention / error tones.
 
 ### Save-state machine
 

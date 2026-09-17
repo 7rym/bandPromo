@@ -227,6 +227,15 @@ def run_investigate(plan, deep=False):
                 finding['items_sample'] = [p.get('master_filename') for p in pending[:12]]
                 finding['count'] = len(pending)
                 log.items('Investigate audio covers (embedded, unlinked)', pending)
+            elif fid == 'media_janitor_orphans':
+                try:
+                    import janitor
+                    targets = janitor.probe_janitor_targets(registry) if status in ('ok', 'missing') else []
+                except Exception:
+                    targets = []
+                finding['items_sample'] = [t.get('path') for t in targets[:12]]
+                finding['count'] = len(targets)
+                log.items('Investigate media janitor targets', [t.get('path') for t in targets])
             elif fid == 'empty_sfx_registry_with_disk_masters':
                 disk = reg.list_sfx_masters_on_disk()
                 finding['items_sample'] = disk[:12]

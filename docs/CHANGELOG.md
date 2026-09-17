@@ -2,6 +2,36 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-09-17 21:00 - Status breadcrumbs: section root is an underlined nav link (even self-link to Status); preference locked in ADMIN-UI + admin-breadcrumb rule. Helper supports `root_href`.
+
+2026-09-17 20:55 - Status: remove the Site health job-status line under the buttons (badge + summary + Activity are enough; hard errors still alert).
+
+2026-09-17 20:55 - Media janitor: clear Windows read-only attributes before removing empty leftover folders (fixes Access is denied loops on empty legacy dirs like video/poster).
+
+2026-09-17 20:50 - Status summary: empty The bad / The ugly panels stay neutral (no amber); attention colour only when those panels have findings.
+
+2026-09-17 20:45 - Status: health checks older than 1 hour are stale — hide Review, prefer a fresh Quick check, and refuse Apply until re-checked.
+
+2026-09-17 18:50 - Proposed treatment: findings are selectable (on by default); Apply only runs ticked treatments. Operator copy stays plain-language; item names remain optional detail for tech-savvy operators.
+
+2026-09-17 18:40 - Proposed treatment finding panels: **Found this:** (description + paths) then **Suggested treatment:**; janitor copy speaks of leftover files/folders, not only “media”.
+
+2026-09-17 18:35 - Status Proposed treatment: panel sits under the action row and scrolls into view; assuring copy when Apply can fix everything; expandable finding details; Apply / Not now / Back up first… live under the panel.
+
+2026-09-17 18:30 - Status toolbar: Review / Apply / Not now sit leftmost (recommended path first); Quick / Full / Force follow.
+
+2026-09-17 18:25 - Status: drop the amber “Findings ready / Review treatment…” job-status nudge — The bad / The ugly already carry that.
+
+2026-09-17 18:20 - Status breadcrumb meta: show check mode (Quick / Full / Treatment / …) instead of host fingerprint.
+
+2026-09-17 18:15 - Site health Status summary: **The good** (registry masters on disk as ok/total + Campaigns/Playlists/Galleries/Pages/Brands docs present), **The bad** (treatment findings), **The ugly** (janitor junk). Activity logs the same split. Registry log no longer prints a mysterious `other` count (unknown kind only if non-zero). Fingerprint path fixed to `data/campaigns/registry.json`.
+
+2026-09-17 18:05 - Status breadcrumb: move last-check / version / host meta onto the crumb row after Site health (muted 12px, same voice as docs path chrome).
+
+2026-09-17 18:00 - System → Status polish: Content-style breadcrumbs (`Status > Site health` / `Status > Activity`); colour ladder matches ADMIN-UI — one green `.btn-good` recommended step (Quick → Review → Apply), amber attention findings, red critical, grey optional paths; fix Needs attention badge class.
+
+2026-09-17 17:45 - Site health media janitor: Check finds `media_janitor_orphans` (orphan delivery, unreferenced legacy leftovers, empty dirs, non-media junk); Treat `media_janitor_prune` after listener delivery on Review → Apply. Ignores `original/` and `icons/`; never deletes masters (register-in-place remains separate).
+
 2026-09-17 17:15 - Files → Audio upload: embedded cover extract is a Files-owned step for the uploaded masters (`scripts/extract_upload_covers.py`), not playlist-scan / whole-site `image-delivery`. Successful cover ingest no longer marks sticky artwork Notifications or pushes Site health. Toast can note linked covers; cover failures stay separate from audio-delivery warnings.
 
 2026-09-17 15:05 - SESSION-HANDOFF: build 528 published with cover extract; fleet Site update next.

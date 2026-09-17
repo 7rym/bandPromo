@@ -51,6 +51,83 @@ if (!in_array($mode, ['check', 'check_full', 'treat', 'force'], true)) {
     $mode = 'check';
 }
 
+// Optional Apply filter: only run these treatment ids (from Review checkboxes).
+$treatSelectionPath = $root . '/data/site-health-treat-selection.json';
+if ($mode === 'treat') {
+    $rawIds = $request['treatment_ids'] ?? null;
+    $rawFindings = $request['finding_ids'] ?? null;
+    $treatmentIds = [];
+    $findingIds = [];
+    if (is_array($rawIds)) {
+        foreach ($rawIds as $tid) {
+            $tid = trim((string) $tid);
+            if ($tid !== '' && !in_array($tid, $treatmentIds, true)) {
+                $treatmentIds[] = $tid;
+            }
+        }
+    }
+    if (is_array($rawFindings)) {
+        foreach ($rawFindings as $fid) {
+            $fid = trim((string) $fid);
+            if ($fid !== '') {
+                $findingIds[] = $fid;
+            }
+        }
+    }
+    if ($rawIds === null && $rawFindings === null) {
+        // No selection payload — leave any prior file alone (CLI / legacy).
+    } else {
+        $dataDir = $root . '/data';
+        if (!is_dir($dataDir) && !@mkdir($dataDir, 0755, true) && !is_dir($dataDir)) {
+            http_response_code(500);
+            echo json_encode(['ok' => false, 'error' => 'Could not create data directory']);
+            exit;
+        }
+        $payload = [
+            'treatment_ids' => $treatmentIds,
+            'finding_ids' => $findingIds,
+        ];
+        $tmp = $treatSelectionPath . '.tmp';
+        $json = json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT);
+        if ($json === false || @file_put_contents($tmp, $json . "\n") === false) {
+            http_response_code(500);
+            echo json_encode(['ok' => false, 'error' => 'Could not store treatment selection']);
+            exit;
+        }
+        if (is_file($treatSelectionPath)) {
+            @unlink($treatSelectionPath);
+        }
+        if (!@rename($tmp, $treatSelectionPath)) {
+            @file_put_contents($treatSelectionPath, $json . "\n");
+            @unlink($tmp);
+        }
+        if ($treatmentIds === []) {
+            http_response_code(400);
+            echo json_encode(['ok' => false, 'error' => 'Select at least one finding to apply.']);
+            exit;
+        }
+    }
+
+    // Refuse Apply on a plan older than one hour — ask for a fresh check.
+    $planFile = $root . '/data/site-health-plan.json';
+    if (is_file($planFile)) {
+        $planRaw = @file_get_contents($planFile);
+        $planData = is_string($planRaw) ? json_decode($planRaw, true) : null;
+        $checkedAt = is_array($planData) ? trim((string) ($planData['checked_at'] ?? '')) : '';
+        if ($checkedAt !== '') {
+            $checkedTs = strtotime($checkedAt . (preg_match('/[zZ]|[+-]\d{2}:?\d{2}$/', $checkedAt) ? '' : ' UTC'));
+            if ($checkedTs !== false && (time() - $checkedTs) > 3600) {
+                http_response_code(409);
+                echo json_encode([
+                    'ok' => false,
+                    'error' => 'This health check is over an hour old. Run a fresh Quick health check before applying treatment.',
+                ]);
+                exit;
+            }
+        }
+    }
+}
+
 $scriptMap = [
     'check' => $root . '/scripts/siteHealthCheck.py',
     'check_full' => $root . '/scripts/siteHealthCheckFull.py',

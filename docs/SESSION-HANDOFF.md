@@ -2,18 +2,18 @@
 
 ## Resume point
 
-Upload-time cover extract UX checkpointed locally. Publish + fleet re-smoke next when ready.
+**Published:** Site health Status polish + media janitor (this checkpoint).
 
 ### Done
 
-1. Files-owned upload cover ingest (`scripts/extract_upload_covers.py`); no sticky `image-delivery` Notification on success.
-2. Site health Treat cover extract remains catch-up (published in **528**).
+1. Media janitor (orphan delivery / empty / junk; Windows readonly clear).
+2. Status: Good/Bad/Ugly summary; selectable Proposed treatment; stale checks; breadcrumb nav links; job-status line removed.
+3. Docs/rules: ADMIN-UI breadcrumb preference (underlined roots, including self-links).
 
 ### Next
 
-1. Tester checkpoint: `-Push -Publish` when ready for fleet.
-2. Fleet Site update + Quick check (cover findings Apply if any).
-3. Do not reopen folded Refresh / Repair / Deliverables operator CTAs.
+1. **Campaign media ownership** (plan): catalogue home as SoT for visual care/export/demo; Site health orphan-in-container heal; Files Assign/Remove; simplify demo hide. Do not start until operator confirms after this publish.
+2. Fleet Site update on test hosts when the new build appears.
 
 ### Local workspace
 

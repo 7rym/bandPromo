@@ -112,6 +112,8 @@ def run_check(deep=False):
         return 0
     plan = investigate.run_investigate(plan, deep=deep)
     plan_mod.overall_from_findings(plan)
+    import summary as summary_mod
+    summary_mod.build_summary(plan)
     plan.pop('_registry_status', None)
     plan_mod.save_plan(plan)
 
@@ -149,7 +151,7 @@ def run_check(deep=False):
 
 def run_treat():
     log.phase('treat')
-    log.info('Site health Treat (apply recommended treatments)')
+    log.info('Site health Treat (apply selected treatments)')
     touch_heartbeat(ROOT_DIR, stage='treat', message='Applying treatments...', name=META_NAME)
     plan = plan_mod.load_plan()
     treatments = plan.get('treatments') if isinstance(plan.get('treatments'), list) else []
@@ -158,11 +160,17 @@ def run_treat():
         log.result('healthy')
         return 0
 
+    import treat_selection
+    selected_ids = treat_selection.load_selection()
+
     # Capture Review-authorised dedupe scopes before the refresh Check rewrites the plan.
     # Quick refresh must not unlock a silent Full content delete, and must not drop a
     # Full-authorised content scope the operator already Review'd.
     import treat_dedupe as treat_dedupe_mod
     dedupe_file_scope, dedupe_content_scope = treat_dedupe_mod._plan_dedupe_scopes(plan)
+    if selected_ids is not None and 'dedupe_retarget_and_remove' not in selected_ids:
+        dedupe_file_scope = False
+        dedupe_content_scope = False
 
     # Always Quick-refresh for current register/delivery truth. Dedupe Apply uses the
     # captured Review scopes (file and/or content) — never invent a Full pass here.
@@ -173,7 +181,22 @@ def run_treat():
         return 0
     plan = plan_mod.load_plan()
     treatments = plan.get('treatments') if isinstance(plan.get('treatments'), list) else []
-    ids = [str(t.get('id') or '') for t in treatments]
+    ids = [str(t.get('id') or '') for t in treatments if str(t.get('id') or '')]
+    if selected_ids is not None:
+        ids = [tid for tid in ids if tid in selected_ids]
+        log.info(
+            'Applying {0} selected treatment(s): {1}'.format(
+                len(ids),
+                ', '.join(ids) if ids else '(none)',
+            )
+        )
+        if not ids and not (dedupe_file_scope or dedupe_content_scope):
+            log.info('Nothing selected to apply.')
+            treat_selection.clear_selection()
+            log.result('healthy')
+            followup.run_followup('treat')
+            touch_heartbeat(ROOT_DIR, stage='idle', message='Treat finished', name=META_NAME)
+            return 0
     # Keep dedupe on the treat list when Review authorised it, even if Quick refresh
     # cleared file-hash findings (content-only Full plans).
     if (
@@ -184,7 +207,7 @@ def run_treat():
     did_register = False
     treat_ok = True
 
-    # Plan order: audio (register/tags/covers) → visual → sfx → links → playlists → chrome
+    # Plan order: audio → visual → sfx → dedupe → delivery → janitor → links → playlists → chrome
     need_audio = any(
         tid in ids
         for tid in (
@@ -271,6 +294,18 @@ def run_treat():
         touch_heartbeat(ROOT_DIR, stage='idle', message='Treat stopped', name=META_NAME)
         return 0
 
+    if 'media_janitor_prune' in ids:
+        import treat_janitor
+        _removed, janitor_failed = treat_janitor.treat_media_janitor_prune()
+        if janitor_failed > 0:
+            treat_ok = False
+
+    if stop_requested():
+        log.info('Stop requested after media janitor.')
+        followup.run_followup('treat')
+        touch_heartbeat(ROOT_DIR, stage='idle', message='Treat stopped', name=META_NAME)
+        return 0
+
     need_links = any(tid in ids for tid in ('container_links', 'files_index_rebuild'))
     if treat_ok and (need_links or did_register):
         import treat_links
@@ -299,6 +334,11 @@ def run_treat():
         treat_ok = treat_chrome.treat_chrome() and treat_ok
 
     followup.run_followup('treat')
+    try:
+        import treat_selection
+        treat_selection.clear_selection()
+    except Exception:
+        pass
     touch_heartbeat(ROOT_DIR, stage='idle', message='Treat finished', name=META_NAME)
     return 0 if treat_ok else 1
 

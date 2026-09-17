@@ -127,6 +127,14 @@ function bandpromo_admin_render_content_breadcrumb(array $options): void
     if ($poolTitle === '') {
         $poolTitle = 'Back to ' . $label . ' pool';
     }
+    $currentLabel = trim((string) ($options['current'] ?? 'Pool'));
+    if ($currentLabel === '') {
+        $currentLabel = 'Pool';
+    }
+    $rootNavigable = array_key_exists('root_navigable', $options)
+        ? (bool) $options['root_navigable']
+        : true;
+    $rootHref = trim((string) ($options['root_href'] ?? ''));
     $rootText = trim($emoji . ' ' . $label);
     $breadcrumbId = $idPrefix . 'Breadcrumb';
     $poolLinkId = $idPrefix . 'BreadcrumbPool';
@@ -146,9 +154,15 @@ function bandpromo_admin_render_content_breadcrumb(array $options): void
     ?>
     <div class="content-editor-card-head">
         <h2 class="content-editor-breadcrumb" id="<?php echo htmlspecialchars($breadcrumbId); ?>" aria-label="<?php echo htmlspecialchars($ariaLabel); ?>">
+            <?php if ($rootNavigable && $rootHref !== ''): ?>
+            <a class="content-editor-breadcrumb-root content-editor-breadcrumb-link" id="<?php echo htmlspecialchars($poolLinkId); ?>" href="<?php echo htmlspecialchars($rootHref); ?>" title="<?php echo htmlspecialchars($poolTitle); ?>"><?php echo htmlspecialchars($rootText); ?></a>
+            <?php elseif ($rootNavigable): ?>
             <button type="button" class="content-editor-breadcrumb-root content-editor-breadcrumb-link" id="<?php echo htmlspecialchars($poolLinkId); ?>" title="<?php echo htmlspecialchars($poolTitle); ?>"><?php echo htmlspecialchars($rootText); ?></button>
+            <?php else: ?>
+            <span class="content-editor-breadcrumb-root" id="<?php echo htmlspecialchars($poolLinkId); ?>"><?php echo htmlspecialchars($rootText); ?></span>
+            <?php endif; ?>
             <span class="content-editor-breadcrumb-sep" aria-hidden="true"> &gt; </span>
-            <span class="content-editor-breadcrumb-current" id="<?php echo htmlspecialchars($currentId); ?>">Pool</span>
+            <span class="content-editor-breadcrumb-current" id="<?php echo htmlspecialchars($currentId); ?>"><?php echo htmlspecialchars($currentLabel); ?></span>
         </h2>
         <?php $renderSlot($trailing); ?>
         <?php if ($actions !== null && $actions !== ''): ?>

@@ -178,9 +178,16 @@ def run_triage(plan, deep=False, suppress_json_drift=False):
         log.info('Registry: {0}'.format(status))
     else:
         audio, visual, sfx, other = reg.assets_by_kind(registry)
-        log.info('Registry: {0} audio, {1} visual, {2} sfx, {3} other'.format(
-            len(audio), len(visual), len(sfx), len(other)
+        log.info('Registry: {0} audio, {1} visual, {2} sfx'.format(
+            len(audio), len(visual), len(sfx)
         ))
+        if other:
+            # Unknown kind — not audio/visual/sfx (empty kind counts as audio).
+            log.info(
+                'Registry: {0} asset(s) with unknown kind (not audio/visual/sfx)'.format(
+                    len(other)
+                )
+            )
 
         disk_audio = reg.list_audio_masters_on_disk()
         disk_audio_ast = [
@@ -295,7 +302,9 @@ def run_triage(plan, deep=False, suppress_json_drift=False):
                 'Visual masters on disk are not registered', len(pending_visual),
                 'visual_register_in_place',
                 sample=[p['master_filename'] for p in pending_visual],
-                body='Register existing visual masters in place (no copy).',
+                body=(
+                    '{0} picture or video file(s) are on the server but not listed in Files yet.'
+                ).format(len(pending_visual)),
             )
 
         if len(sfx) == 0 and len(disk_sfx) > 0 and not pending_sfx:
@@ -358,6 +367,25 @@ def run_triage(plan, deep=False, suppress_json_drift=False):
                 body=(
                     '{0} registered sound-effect asset(s) lack an optimal MP3 under media/sfx/optimal.'
                 ).format(len(missing_sfx)),
+            )
+
+        # Homeless derived/legacy/junk under media/ (not original/ or icons/).
+        try:
+            import janitor
+            janitor_targets = janitor.probe_janitor_targets(registry)
+        except Exception as exc:
+            log.info('Media janitor probe skipped: {0}'.format(exc))
+            janitor_targets = []
+        if janitor_targets:
+            plan_mod.add_finding(
+                plan, 'media_janitor_orphans', 'attention',
+                'Unused files and folders can be cleaned up', len(janitor_targets),
+                'media_janitor_prune',
+                sample=[t.get('path') for t in janitor_targets],
+                body=(
+                    '{0} leftover file(s) or empty folder(s) that are safe to clear. '
+                    'Your original uploads and icons stay put. Master files are never deleted here.'
+                ).format(len(janitor_targets)),
             )
 
         # Quick duplicate masters: same size → whole-file XXH3.

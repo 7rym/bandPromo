@@ -20,6 +20,8 @@ def run_followup(previous_mode='treat'):
     import investigate
     plan = investigate.run_investigate(plan)
     plan_mod.overall_from_findings(plan)
+    import summary as summary_mod
+    summary_mod.build_summary(plan)
     # Drop internal keys
     plan.pop('_registry_status', None)
     plan_mod.save_plan(plan)

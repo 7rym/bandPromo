@@ -11,6 +11,7 @@ ROOT_DIR = os.path.dirname(SCRIPTS_DIR)
 
 PLAN_PATH = os.path.join(ROOT_DIR, 'data', 'site-health-plan.json')
 FINGERPRINT_CACHE_PATH = os.path.join(ROOT_DIR, 'data', 'site-health-fingerprint.json')
+TREAT_SELECTION_PATH = os.path.join(ROOT_DIR, 'data', 'site-health-treat-selection.json')
 LOG_PATH = os.path.join(ROOT_DIR, 'log', 'site-health.log')
 META_NAME = 'site-health.meta.json'
 STOP_FLAG = os.path.join(ROOT_DIR, 'log', 'site-health.stop')
@@ -40,7 +41,7 @@ VISUAL_EXTS = ('.jpg', '.jpeg', '.png', '.webp', '.gif', '.mkv', '.mp4', '.webm'
 JSON_FINGERPRINT_PATHS = (
     ('registry', REGISTRY_PATH),
     ('web_config', os.path.join(ROOT_DIR, 'web-config.json')),
-    ('releases_registry', os.path.join(ROOT_DIR, 'data', 'releases', 'registry.json')),
+    ('campaigns_registry', os.path.join(ROOT_DIR, 'data', 'campaigns', 'registry.json')),
     ('playlists_registry', os.path.join(ROOT_DIR, 'data', 'playlists', 'registry.json')),
     ('brands_registry', os.path.join(ROOT_DIR, 'data', 'brands', 'registry.json')),
     ('pages_registry', os.path.join(ROOT_DIR, 'data', 'pages', 'registry.json')),
