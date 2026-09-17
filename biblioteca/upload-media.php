@@ -553,6 +553,36 @@ if (isset($_POST['chunk_index']) && isset($_POST['filename'])) {
             }
         }
 
+        if ($target_hint === 'audio') {
+            $audioAssetId = trim((string) ($response['asset_id'] ?? ''));
+            if ($audioAssetId === '') {
+                $audioAssetId = trim((string) ($master['asset_id'] ?? ''));
+            }
+            if ($audioAssetId === '') {
+                $lookup = bandpromo_asset_lookup_by_original_filename($root_dir, $savedName);
+                if (is_array($lookup)) {
+                    $audioAssetId = trim((string) ($lookup['id'] ?? ''));
+                }
+            }
+            if ($audioAssetId !== '') {
+                if (empty($response['asset_id'])) {
+                    $response['asset_id'] = $audioAssetId;
+                }
+                $requestedCampaignId = trim((string) ($_POST['campaign_id'] ?? $_POST['release_id'] ?? ''));
+                $assign = bandpromo_campaign_assign_audio_on_upload(
+                    $root_dir,
+                    $audioAssetId,
+                    $requestedCampaignId
+                );
+                if ($assign['campaign_id'] !== '') {
+                    $response['campaign_id'] = $assign['campaign_id'];
+                }
+                if ($assign['warning'] !== '') {
+                    $response['campaign_warning'] = $assign['warning'];
+                }
+            }
+        }
+
         if (!empty($videoPoster['attempted'])) {
             $response['video_poster_generated'] = !empty($videoPoster['generated']);
             if (!empty($videoPoster['poster'])) {
@@ -760,6 +790,36 @@ foreach ($files as $file) {
                 if (empty($result['master_warning'])) {
                     $result['master_warning'] = $displayRefresh['warning'];
                     $masterWarnings[] = $saved_name . ': ' . $displayRefresh['warning'];
+                }
+            }
+        }
+        if ($target_hint === 'audio') {
+            $audioAssetId = trim((string) ($result['asset_id'] ?? ''));
+            if ($audioAssetId === '') {
+                $audioAssetId = trim((string) ($master['asset_id'] ?? ''));
+            }
+            if ($audioAssetId === '') {
+                $lookup = bandpromo_asset_lookup_by_original_filename($root_dir, $saved_name);
+                if (is_array($lookup)) {
+                    $audioAssetId = trim((string) ($lookup['id'] ?? ''));
+                }
+            }
+            if ($audioAssetId !== '') {
+                if (empty($result['asset_id'])) {
+                    $result['asset_id'] = $audioAssetId;
+                }
+                $requestedCampaignId = trim((string) ($_POST['campaign_id'] ?? $_POST['release_id'] ?? ''));
+                $assign = bandpromo_campaign_assign_audio_on_upload(
+                    $root_dir,
+                    $audioAssetId,
+                    $requestedCampaignId
+                );
+                if ($assign['campaign_id'] !== '') {
+                    $result['campaign_id'] = $assign['campaign_id'];
+                }
+                if ($assign['warning'] !== '') {
+                    $result['campaign_warning'] = $assign['warning'];
+                    $masterWarnings[] = $saved_name . ': ' . $assign['warning'];
                 }
             }
         }

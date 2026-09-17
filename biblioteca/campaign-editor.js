@@ -2797,9 +2797,21 @@
                 return;
             }
             selectedCampaignId = campaignId;
+            // Drop previous campaign membership immediately. setCampaignEditorTab only
+            // reloads when the tab *changes*, so re-opening while already on Tracks
+            // (or Playlists/…) used to leave the last campaign’s rows on screen.
             trackEditorLoadedCampaignId = '';
+            activeTracks = [];
+            availableTracks = [];
             resetAssociationPools();
             showEditView(campaignId);
+            if (campaignEditorTab === 'tracks') {
+                renderLists();
+                await loadCampaignPreview();
+            } else if (ASSOCIATION_KINDS.includes(campaignEditorTab)) {
+                renderAssociationLists();
+                await ensureAssociationEditorLoaded(campaignEditorTab);
+            }
         }
 
         async function selectCampaignForPreview(campaignId) {
@@ -3472,10 +3484,22 @@
                 return;
             }
 
+            const requestCampaignId = selectedCampaignId;
             try {
-                const data = await fetchJson(`/biblioteca/get-campaign-preview.php?campaign=${encodeURIComponent(selectedCampaignId)}`);
+                const data = await fetchJson(`/biblioteca/get-campaign-preview.php?campaign=${encodeURIComponent(requestCampaignId)}`);
+                if (!isEditing || selectedCampaignId !== requestCampaignId) {
+                    return;
+                }
+                const responseCampaignId = String(data.campaign_id || data.release_id || '').trim().toLowerCase();
+                const selectedNorm = String(requestCampaignId || '').trim().toLowerCase();
+                if (responseCampaignId !== '' && responseCampaignId !== selectedNorm) {
+                    return;
+                }
                 applyPreviewData(data);
             } catch (error) {
+                if (!isEditing || selectedCampaignId !== requestCampaignId) {
+                    return;
+                }
                 activeEl.innerHTML = '';
                 availableEl.innerHTML = `<li class="editor-empty text-error">Could not load campaign preview: ${escapeHtml(error.message)}</li>`;
             }

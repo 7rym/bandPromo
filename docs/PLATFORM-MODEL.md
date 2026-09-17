@@ -413,7 +413,7 @@ It is **not** merely one CD tracklist. Album order vs Personal Jesus single pack
 
 ### Rules
 
-- Every audio track **should** belong to exactly one release (exclusive catalogue home). Orphans (`release_id` empty) are allowed until associated. Playlists only reference tracks; they never own masters.
+- Every audio track **should** belong to exactly one release (exclusive catalogue home). Orphans (`release_id` empty) are allowed until associated. Files → Audio Add Audio may assign a campaign at upload time or leave **Orphan**. Playlists only reference tracks; they never own masters.
 - Release track membership is an **unordered pool**. Listening order exists only in playlists.
 - **Identity** (colours, typography, mood, logo, share/still/living shell, Welcome/Logged-in SFX) is **owned by the release** via its linked brand document (`brand_id`). Brand is not a competing peer campaign.
 - Release owns campaign **galleries** and **pages** (e.g. Bio) via `campaign_id` on those containers (and optional reverse indexes on the release document).

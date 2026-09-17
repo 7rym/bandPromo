@@ -1441,6 +1441,12 @@ if ($tab === 'analytics') {
                         Drop files here, or <strong>click to choose</strong>
                         <input type="file" id="modalFileInput" multiple style="display:none">
                     </div>
+                    <div id="mediaUploadCampaignField" class="media-upload-campaign-field" hidden>
+                        <label for="mediaUploadCampaignSelect">Campaign:</label>
+                        <select id="mediaUploadCampaignSelect">
+                            <option value="">Orphan (unassigned)</option>
+                        </select>
+                    </div>
                     <div id="modalFileList" class="modal-file-list"></div>
                     <div class="modal-actions">
                         <button id="modalUploadBtn" class="btn btn-primary" disabled>⬆️ Upload</button>

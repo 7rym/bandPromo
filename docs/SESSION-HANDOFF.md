@@ -2,11 +2,16 @@
 
 ## Resume point
 
-Docs audit complete for Site health / Site update contract (auto Quick check, no `package_update` tune-up nag, **built / kept / failed**, Full audio demux-hash, SFX register-in-place). Checkpoint this session to publish.
+Local smoke passed for this session’s Catalogue/Files work. Checkpoint + publish next, then fleet re-smoke.
 
-### Next session
+### Shipped (local)
 
-1. **Fleet re-smoke** after the published build: HITZ (auto Quick check, SFX Apply if needed, Full check for dual-tag clones), Vanilla, Spandexual Tension.
+1. Campaign editor: re-open while on Tracks no longer bleeds the previous campaign’s associated list.
+2. Files → Audio Add Audio: optional Campaign selector (Orphan kept; defaults from Files campaign filter).
+
+### Next
+
+1. After this publish lands: **fleet re-smoke** — HITZ (auto Quick check, SFX Apply if needed, Full check for dual-tag clones), Vanilla, Spandexual Tension.
 2. Remaining Site health opens: **cover extract**; prove audio **tag-fill** on HITZ if still bare Untitled rows.
 3. Do not reopen folded Refresh / Repair / Deliverables operator CTAs.
 

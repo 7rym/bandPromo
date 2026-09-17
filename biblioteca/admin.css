@@ -4933,6 +4933,24 @@ canvas { max-width: 100%; height: auto; }
 }
 
 /* ===== Modal helpers ===== */
+.media-upload-campaign-field {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin: 12px 0 4px;
+}
+
+.media-upload-campaign-field label {
+    flex: 0 0 auto;
+    white-space: nowrap;
+    color: var(--text-muted, #8a8f98);
+}
+
+.media-upload-campaign-field select {
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
 .modal-actions {
     display: flex;
     align-items: center;

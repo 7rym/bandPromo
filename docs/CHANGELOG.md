@@ -2,6 +2,10 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-09-17 13:40 - Files → Audio Add Audio: optional Campaign selector (default from the Files campaign filter when a real campaign is selected; otherwise Orphan). Upload still registers + auto-delivers; choosing a campaign stamps registry membership and appends the campaign track pool. Locked / missing campaigns keep the upload as orphan with a warning.
+
+2026-09-17 13:25 - Catalogue campaign editor: re-opening a campaign while already on Tracks (or Playlists/Galleries/Pages) no longer keeps the previous campaign’s membership list. Clear stale rows on open, reload the active membership tab, and ignore late preview responses after a campaign switch.
+
 2026-09-16 23:10 - Docs audit: align INSTALL-UPDATE, ROADMAP, TODO, FEATURES, AGENTS, ADMIN-UI, OPERATOR-MESSAGING, PLATFORM-MODEL, MEDIA-HANDLING, BUILD-PIPELINE-PLAN/AUDIT with Site health Status + Site update → auto Quick check (no Notifications tune-up nag), Full audio demux-hash dedupe, SFX register-in-place, and deliverable **built / kept / failed** counts.
 
 2026-09-16 23:00 - Site update: stop marking `package_update` as build-required (redundant Notifications “tune-up / Quick health check” while auto Quick check runs). Clear leftover `package_update` when Site health starts; close the notifications modal on auto-start.

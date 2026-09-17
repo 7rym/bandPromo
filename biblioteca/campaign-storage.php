@@ -3022,6 +3022,83 @@ function bandpromo_campaign_append_track_to_document(string $root, string $relea
     bandpromo_campaign_write_document($root, $document);
 }
 
+/**
+ * Optional Files → Audio upload assignment: stamp registry release_id and append
+ * to the campaign track pool. Empty / orphans / primary leave the asset orphan.
+ *
+ * @return array{ok:bool, campaign_id:string, warning:string}
+ */
+function bandpromo_campaign_assign_audio_on_upload(string $root, string $assetId, string $requestedCampaignId): array
+{
+    $assetId = trim($assetId);
+    $campaignId = bandpromo_campaign_normalize_id($requestedCampaignId);
+    if ($campaignId === 'orphans' || $campaignId === 'all') {
+        $campaignId = '';
+    }
+
+    if ($assetId === '' || bandpromo_campaign_id_is_unowned($campaignId)) {
+        return [
+            'ok' => true,
+            'campaign_id' => '',
+            'warning' => '',
+        ];
+    }
+
+    try {
+        $document = bandpromo_campaign_load_document($root, $campaignId);
+    } catch (Throwable $throwable) {
+        return [
+            'ok' => false,
+            'campaign_id' => '',
+            'warning' => 'Campaign not found — upload kept as orphan.',
+        ];
+    }
+
+    if (!empty($document['locked'])) {
+        return [
+            'ok' => false,
+            'campaign_id' => '',
+            'warning' => 'Campaign is locked — upload kept as orphan.',
+        ];
+    }
+
+    $asset = bandpromo_asset_lookup_by_id($root, $assetId);
+    if ($asset === null || (string) ($asset['kind'] ?? '') !== 'audio') {
+        return [
+            'ok' => false,
+            'campaign_id' => '',
+            'warning' => 'Audio asset missing after upload — could not assign campaign.',
+        ];
+    }
+
+    $currentReleaseId = bandpromo_campaign_normalize_id((string) ($asset['release_id'] ?? ''));
+    if ($currentReleaseId !== ''
+        && $currentReleaseId !== $campaignId
+        && !bandpromo_campaign_id_is_unowned($currentReleaseId)
+    ) {
+        bandpromo_campaign_remove_asset_from_document($root, $currentReleaseId, $assetId);
+    }
+
+    bandpromo_campaign_append_track_to_document($root, $campaignId, $assetId);
+    try {
+        bandpromo_asset_update_entry($root, $assetId, [
+            'release_id' => $campaignId,
+        ]);
+    } catch (Throwable $throwable) {
+        return [
+            'ok' => false,
+            'campaign_id' => '',
+            'warning' => 'Assigned to campaign pool but registry stamp failed: ' . $throwable->getMessage(),
+        ];
+    }
+
+    return [
+        'ok' => true,
+        'campaign_id' => $campaignId,
+        'warning' => '',
+    ];
+}
+
 function bandpromo_campaign_remove_asset_from_document(string $root, string $releaseId, string $assetId): void
 {
     if ($assetId === '') {

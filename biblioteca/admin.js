@@ -5609,6 +5609,8 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
             const modalList   = document.getElementById('modalFileList');
             const modalBtn    = document.getElementById('modalUploadBtn');
             const modalStatus = document.getElementById('modalUploadStatus');
+            const mediaUploadCampaignField = document.getElementById('mediaUploadCampaignField');
+            const mediaUploadCampaignSelect = document.getElementById('mediaUploadCampaignSelect');
             const mediaPickerModal = document.getElementById('mediaPickerModal');
             const mediaPickerTitle = document.getElementById('mediaPickerTitle');
             const mediaPickerTabs = document.getElementById('mediaPickerTabs');
@@ -5624,7 +5626,60 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 document.body.appendChild(mediaPickerModal);
             }
 
-            window.openUploadModal = function(type) {
+            function uploadCampaignOptionsHtml() {
+                const options = [
+                    '<option value="">Orphan (unassigned)</option>',
+                ];
+                const campaigns = window.bandpromoEditorSort.sortItemsByTitle(
+                    Array.isArray(campaignsCatalog) ? campaignsCatalog.slice() : [],
+                    'title'
+                );
+                campaigns.forEach((entry) => {
+                    const id = String(entry?.id || '').trim();
+                    if (!id || id === 'primary') {
+                        return;
+                    }
+                    const title = String(entry?.title || id).trim() || id;
+                    const date = String(entry?.release_date || '').trim();
+                    const label = date !== '' ? `${date} · ${title}` : title;
+                    options.push(`<option value="${bandpromoAdminEscapeHtml(id)}">${bandpromoAdminEscapeHtml(label)}</option>`);
+                });
+                return options.join('');
+            }
+
+            function defaultUploadCampaignId() {
+                const filter = normalizePoolCampaignFilter(poolCampaignFilter);
+                if (filter === 'all' || filter === 'orphans') {
+                    return '';
+                }
+                const known = campaignsCatalog.some((entry) => String(entry?.id || '') === filter);
+                return known ? filter : '';
+            }
+
+            async function syncUploadCampaignField(type) {
+                if (!mediaUploadCampaignField || !mediaUploadCampaignSelect) {
+                    return;
+                }
+                const show = type === 'audio';
+                mediaUploadCampaignField.hidden = !show;
+                if (!show) {
+                    mediaUploadCampaignSelect.value = '';
+                    return;
+                }
+                try {
+                    await loadCampaignsCatalog();
+                } catch (error) {
+                    // Catalogue may be empty; orphan option still works.
+                }
+                mediaUploadCampaignSelect.innerHTML = uploadCampaignOptionsHtml();
+                const preferred = defaultUploadCampaignId();
+                mediaUploadCampaignSelect.value = preferred;
+                if (mediaUploadCampaignSelect.value !== preferred) {
+                    mediaUploadCampaignSelect.value = '';
+                }
+            }
+
+            window.openUploadModal = async function(type) {
                 if (type === 'special' && ['all', 'orphans'].includes(normalizePoolBrandFilter(poolBrandFilter))) {
                     showAdminToast('Select one Brand before uploading Brand assets.', 'error');
                     return;
@@ -5645,6 +5700,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 if (modalList)   { modalList.innerHTML = ''; }
                 if (modalBtn)    { modalBtn.disabled = true; }
                 if (modalStatus) { modalStatus.textContent = ''; }
+                await syncUploadCampaignField(type);
                 if (modal) modal.style.display = 'flex';
             };
 
@@ -5652,6 +5708,12 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 if (modal) modal.style.display = 'none';
                 modalTarget = null;
                 modalFiles  = [];
+                if (mediaUploadCampaignField) {
+                    mediaUploadCampaignField.hidden = true;
+                }
+                if (mediaUploadCampaignSelect) {
+                    mediaUploadCampaignSelect.value = '';
+                }
             };
 
             function renderMediaPickerTabs() {
@@ -8007,11 +8069,18 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 const csrfToken = typeof refreshAdminCsrfToken === 'function'
                     ? await refreshAdminCsrfToken()
                     : (typeof adminCsrfToken === 'string' ? adminCsrfToken : '');
+                const fields = { target };
+                if (target === 'audio' && mediaUploadCampaignSelect) {
+                    const campaignId = String(mediaUploadCampaignSelect.value || '').trim();
+                    if (campaignId !== '') {
+                        fields.campaign_id = campaignId;
+                    }
+                }
                 return bandpromoUploadChunked({
                     url: '/biblioteca/upload-media.php',
                     file,
                     csrfToken,
-                    fields: { target },
+                    fields,
                     onProgress,
                 });
             }
@@ -8062,6 +8131,9 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                             }
                             if (uploadData && uploadData.display_warning) {
                                 masterWarnings.push(`${file.name}: ${uploadData.display_warning}`);
+                            }
+                            if (uploadData && uploadData.campaign_warning) {
+                                masterWarnings.push(`${file.name}: ${uploadData.campaign_warning}`);
                             }
                             if (uploadData && typeof uploadData.warning === 'string' && uploadData.warning.trim() !== '') {
                                 uploadWarnings.push(uploadData.warning.trim());
