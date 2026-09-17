@@ -2,6 +2,8 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-09-17 17:15 - Files → Audio upload: embedded cover extract is a Files-owned step for the uploaded masters (`scripts/extract_upload_covers.py`), not playlist-scan / whole-site `image-delivery`. Successful cover ingest no longer marks sticky artwork Notifications or pushes Site health. Toast can note linked covers; cover failures stay separate from audio-delivery warnings.
+
 2026-09-17 15:05 - SESSION-HANDOFF: build 528 published with cover extract; fleet Site update next.
 
 2026-09-17 14:55 - Site health cover extract: Check flags tracks with embedded art but empty `display.cover` (`audio_embedded_cover_unextracted`); Treat `audio_extract_covers` reuses makePlaylists hash-match extract → Visual track-cover + link. Local smoke: 12 covers linked, follow-up healthy. Fleet re-smoke of build 527 complete (HITZ/Vanilla/Spandexual); HITZ tag-fill proved (Files `Untitled` = 0).

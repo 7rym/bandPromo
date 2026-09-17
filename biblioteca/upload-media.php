@@ -611,6 +611,12 @@ if (isset($_POST['chunk_index']) && isset($_POST['filename'])) {
             if (!empty($auto['background_tasks'])) {
                 $response['background_tasks'] = $auto['background_tasks'];
             }
+            if (!empty($auto['cover_extract']) && is_array($auto['cover_extract'])) {
+                $response['cover_extract'] = $auto['cover_extract'];
+            }
+            if (!empty($auto['cover_warning'])) {
+                $response['cover_warning'] = (string) $auto['cover_warning'];
+            }
             if ($auto['warning'] !== '') {
                 $response['warning'] = $auto['warning'];
                 $response['task_output'] = $auto['task_output'];
@@ -881,6 +887,12 @@ if ($uploaded > 0 && !empty($upload_reasons)) {
     }
     if (!empty($auto['background_tasks'])) {
         $response['background_tasks'] = $auto['background_tasks'];
+    }
+    if (!empty($auto['cover_extract']) && is_array($auto['cover_extract'])) {
+        $response['cover_extract'] = $auto['cover_extract'];
+    }
+    if (!empty($auto['cover_warning'])) {
+        $response['cover_warning'] = (string) $auto['cover_warning'];
     }
     if ($auto['warning'] !== '') {
         $response['warning'] = $auto['warning'];

@@ -1186,35 +1186,166 @@ function bandpromo_maybe_run_auto_audio_upload_tasks(array $reasons, array $uplo
         $state = bandpromo_set_build_required_last_error(implode(' ', array_filter($warnings)));
     }
 
-    // Embedded covers are extracted during scan/delivery but were never registered —
-    // register them as Visual track-covers and build thumb/card so pickers can use them.
-    require_once __DIR__ . '/cover-art-helpers.php';
+    // Files-owned cover ingest for these masters only (not playlist-scan, not
+    // whole-site image-delivery / Site health Notifications).
     require_once __DIR__ . '/build-required.php';
-    $coverRegister = bandpromo_register_extracted_covers_for_audio_files($root, $deliveryFilenames);
-    if ((int) ($coverRegister['count'] ?? 0) > 0) {
-            $state = bandpromo_mark_build_required('media_cover_upload');
-            $image = bandpromo_maybe_run_auto_image_delivery(['media_cover_upload'], $state);
-        $state = $image['state'] ?? $state;
-        $autoTasks = array_merge($autoTasks, $image['auto_tasks'] ?? []);
-        if (!empty($image['warning'])) {
-            $warnings[] = (string) $image['warning'];
+    require_once __DIR__ . '/media-library-state.php';
+    $coverExtract = bandpromo_run_upload_cover_extract($deliveryFilenames);
+    $linkedCount = count($coverExtract['linked'] ?? []);
+    $failedCovers = is_array($coverExtract['failed'] ?? null) ? $coverExtract['failed'] : [];
+    $coverWarning = '';
+    if ($linkedCount > 0) {
+        $autoTasks[] = 'cover-extract';
+        // Clear sticky artwork chores left by older upload paths; ingest already
+        // built per-cover Visual delivery inline.
+        $state = bandpromo_clear_build_required_tasks(['image-delivery']);
+        $state = bandpromo_clear_build_required_reasons(['media_cover_upload']);
+        try {
+            bandpromo_media_files_index_rebuild_target($root, 'audio');
+            bandpromo_media_files_index_rebuild_target($root, 'illustrations');
+        } catch (Throwable $throwable) {
+            // Index rebuild is best-effort; registry display.cover is already set.
         }
-        if (!empty($image['task_output'])) {
-            $outputs[] = (string) $image['task_output'];
+    }
+    if ($failedCovers !== []) {
+        $failedNames = [];
+        foreach ($failedCovers as $row) {
+            if (!is_array($row)) {
+                continue;
+            }
+            $name = basename(trim((string) ($row['file'] ?? '')));
+            if ($name !== '') {
+                $failedNames[] = $name;
+            }
         }
+        $failedNames = array_values(array_unique($failedNames));
+        if ($failedNames !== []) {
+            $coverWarning = 'Could not extract embedded cover art for: '
+                . implode(', ', array_slice($failedNames, 0, 8))
+                . (count($failedNames) > 8 ? '…' : '')
+                . '.';
+        }
+        $outputs[] = trim((string) ($coverExtract['task_output'] ?? ''));
     }
 
     if (!$scan['ok'] && ($delivery['ok'] ?? false)) {
         $state = bandpromo_set_build_required_last_error(implode(' ', array_filter($warnings)));
+    } elseif ($warnings === [] && ($delivery['ok'] ?? false) && empty($state['required'])) {
+        $state = bandpromo_set_build_required_last_error('');
     }
 
     return [
         'state' => $state,
         'auto_tasks' => $autoTasks,
         'warning' => implode(' ', array_filter($warnings)),
+        'cover_warning' => $coverWarning ?? '',
         'task_output' => implode("\n", array_filter($outputs)),
         'delivery' => $delivery,
-        'cover_register' => $coverRegister,
+        'cover_extract' => $coverExtract,
+    ];
+}
+
+/**
+ * Extract embedded covers for named audio masters after upload.
+ *
+ * @param list<string> $filenames Master basenames (ast_* preferred)
+ * @return array{
+ *   ok: bool,
+ *   extracted: list<string>,
+ *   linked: list<string>,
+ *   already_linked: list<string>,
+ *   skipped_no_art: list<string>,
+ *   failed: list<array{file?: string, error?: string}>,
+ *   error: string,
+ *   task_output: string
+ * }
+ */
+function bandpromo_run_upload_cover_extract(array $filenames): array
+{
+    $empty = [
+        'ok' => true,
+        'extracted' => [],
+        'linked' => [],
+        'already_linked' => [],
+        'skipped_no_art' => [],
+        'failed' => [],
+        'error' => '',
+        'task_output' => '',
+    ];
+
+    $requested = [];
+    foreach ($filenames as $filename) {
+        $filename = basename(trim((string) $filename));
+        if ($filename === '' || in_array($filename, $requested, true)) {
+            continue;
+        }
+        $requested[] = $filename;
+    }
+    if ($requested === []) {
+        return $empty;
+    }
+
+    require_once __DIR__ . '/light-build-tasks.php';
+    $result = bandpromo_run_light_json_task('scripts/extract_upload_covers.py', [
+        'filenames' => $requested,
+    ]);
+    $data = is_array($result['data'] ?? null) ? $result['data'] : null;
+    $output = trim((string) ($result['output'] ?? ''));
+
+    if (!$result['ok'] || !is_array($data)) {
+        $error = is_array($data) ? trim((string) ($data['error'] ?? '')) : '';
+        $failed = [];
+        foreach ($requested as $name) {
+            $failed[] = [
+                'file' => $name,
+                'error' => 'cover_extract_task_failed',
+            ];
+        }
+
+        return [
+            'ok' => false,
+            'extracted' => [],
+            'linked' => [],
+            'already_linked' => [],
+            'skipped_no_art' => [],
+            'failed' => $failed,
+            'error' => $error !== '' ? $error : ($output !== '' ? $output : 'Could not extract embedded covers'),
+            'task_output' => $output,
+        ];
+    }
+
+    $listOrEmpty = static function ($value): array {
+        if (!is_array($value)) {
+            return [];
+        }
+        $out = [];
+        foreach ($value as $item) {
+            if (is_string($item) && $item !== '') {
+                $out[] = $item;
+            }
+        }
+
+        return array_values(array_unique($out));
+    };
+
+    $failedRows = [];
+    if (is_array($data['failed'] ?? null)) {
+        foreach ($data['failed'] as $row) {
+            if (is_array($row)) {
+                $failedRows[] = $row;
+            }
+        }
+    }
+
+    return [
+        'ok' => !empty($data['ok']) && $failedRows === [],
+        'extracted' => $listOrEmpty($data['extracted'] ?? []),
+        'linked' => $listOrEmpty($data['linked'] ?? []),
+        'already_linked' => $listOrEmpty($data['already_linked'] ?? []),
+        'skipped_no_art' => $listOrEmpty($data['skipped_no_art'] ?? []),
+        'failed' => $failedRows,
+        'error' => trim((string) ($data['error'] ?? '')),
+        'task_output' => $output,
     ];
 }
 
@@ -1300,6 +1431,7 @@ function bandpromo_run_auto_upload_tasks(array $reasons, array $uploadedFilename
     if ($audio['warning'] !== '') {
         $warnings[] = $audio['warning'];
     }
+    $coverWarning = trim((string) ($audio['cover_warning'] ?? ''));
     if ($audio['task_output'] !== '') {
         $taskOutput[] = $audio['task_output'];
     }
@@ -1307,6 +1439,7 @@ function bandpromo_run_auto_upload_tasks(array $reasons, array $uploadedFilename
         $deliveryPrepared = array_merge($deliveryPrepared, $audio['delivery']['prepared'] ?? []);
         $deliveryMissing = array_merge($deliveryMissing, $audio['delivery']['still_missing'] ?? []);
     }
+    $coverExtract = is_array($audio['cover_extract'] ?? null) ? $audio['cover_extract'] : null;
 
     $video = bandpromo_maybe_run_auto_video_upload_tasks($reasons, $uploadedFilenames, $state);
     $state = $video['state'];
@@ -1326,9 +1459,11 @@ function bandpromo_run_auto_upload_tasks(array $reasons, array $uploadedFilename
         'state' => $state,
         'auto_tasks' => array_values(array_unique($autoTasks)),
         'warning' => implode(' ', array_filter($warnings)),
+        'cover_warning' => $coverWarning,
         'task_output' => implode("\n", array_filter($taskOutput)),
         'delivery_prepared' => array_values(array_unique($deliveryPrepared)),
         'delivery_missing' => array_values(array_unique($deliveryMissing)),
         'background_tasks' => array_values($backgroundTasks),
+        'cover_extract' => $coverExtract,
     ];
 }

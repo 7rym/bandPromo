@@ -23,7 +23,7 @@ Rules for this file:
 
 **Active gate (2026-08-18):** lock and ship **PCF** (`.pcf`) as the only campaign data handoff — setup imports `bandPromo-demo.pcf` (legacy `.prp` still accepted); round-trips on Spandexual Tension / HITZ (Twisted Chronicles deferred to v0.9). See [PORTABILITY.md](PORTABILITY.md) §3 and TODO → Portable Campaign Files.
 
-**Active gate (2026-09-17):** **System → Status site health** — doctor model is **mostly built**. Fleet re-smoke on build 527 passed (HITZ/Vanilla/Spandexual); audio tag-fill proved on HITZ. Still open: finish **cover extract** Treat local smoke → publish → fleet re-smoke. See [Site health (Status)](#site-health-status--v0-8-critical) and [BUILD-PIPELINE-PLAN.md](BUILD-PIPELINE-PLAN.md).
+**Active gate (2026-09-17):** **System → Status site health** — doctor model is **mostly built**. Fleet re-smoke on build 527 passed; Site health Treat cover extract published in **528**. Upload-time cover ingest (Files-owned, no sticky image-delivery Notification) implemented locally — publish + fleet next. See [Site health (Status)](#site-health-status--v0-8-critical) and [BUILD-PIPELINE-PLAN.md](BUILD-PIPELINE-PLAN.md).
 
 **Policy (2026-08-08):** no special-case demo content handling beyond setup PCF import, lock / localhost unlock + export, hide, and duplicate. Collapse remaining heal/force/`bandPromo_*`→demo ownership forks onto normal release ownership. See [PLATFORM-MODEL.md](PLATFORM-MODEL.md) / [PORTABILITY.md](PORTABILITY.md).
 
@@ -126,7 +126,8 @@ Source of truth: [BUILD-PIPELINE-PLAN.md](BUILD-PIPELINE-PLAN.md). Doctor Status
 
 **Open:**
 
-- [x] **Cover extract** as part of treat_audio — Check `audio_embedded_cover_unextracted` → Treat `audio_extract_covers` (local smoke: 12/12 linked, follow-up healthy). **Publish + fleet re-smoke still required.**
+- [x] **Cover extract** as part of treat_audio — Check `audio_embedded_cover_unextracted` → Treat `audio_extract_covers` (528).
+- [x] **Upload-time cover ingest** — Files-owned `extract_upload_covers.py` for uploaded masters; no sticky `image-delivery` Notification on success (local; publish next).
 
 ## v0.8 management slice (Brand + Visual pool + content AI)
 

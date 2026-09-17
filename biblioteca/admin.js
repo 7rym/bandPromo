@@ -8094,6 +8094,8 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     let masterPreparedCount = 0;
                     let autoDeliveryRan = false;
                     let autoDeliveryFailed = false;
+                    let coverLinkedCount = 0;
+                    let coverWarnings = [];
                     let uploadWarnings = [];
                     let backgroundVideoStarted = false;
                     let replacedCount = 0;
@@ -8139,6 +8141,12 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                                 uploadWarnings.push(uploadData.warning.trim());
                                 autoDeliveryFailed = true;
                             }
+                            if (uploadData && typeof uploadData.cover_warning === 'string' && uploadData.cover_warning.trim() !== '') {
+                                coverWarnings.push(uploadData.cover_warning.trim());
+                            }
+                            if (uploadData && uploadData.cover_extract && Array.isArray(uploadData.cover_extract.linked)) {
+                                coverLinkedCount += uploadData.cover_extract.linked.length;
+                            }
                             if (Array.isArray(uploadData?.auto_tasks) && uploadData.auto_tasks.includes('audio-delivery')) {
                                 autoDeliveryRan = true;
                             }
@@ -8170,6 +8178,9 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                         const replacedNote = replacedCount > 0
                             ? ` Replaced ${replacedCount} existing file${replacedCount === 1 ? '' : 's'} with the same name (not a second pool entry).`
                             : '';
+                        const coverNote = coverLinkedCount > 0
+                            ? ` Linked cover art for ${coverLinkedCount} track${coverLinkedCount === 1 ? '' : 's'}.`
+                            : '';
                         const deliveryNote = backgroundVideoStarted
                             ? ' Video delivery started in the background.'
                             : (autoDeliveryRan
@@ -8178,16 +8189,17 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                                     ? ' Automatic delivery did not finish — check Notifications.'
                                     : ''));
                         const uniqueUploadWarnings = [...new Set(uploadWarnings)];
+                        const uniqueCoverWarnings = [...new Set(coverWarnings)];
                         if (latestBuildState && latestBuildState.required) {
                             const next = formatBuildNextStep(latestBuildState);
-                            const toastKind = autoDeliveryFailed || masterWarnings.length ? 'warning' : 'success';
-                            showAdminToast(`Upload complete.${masterNote}${replacedNote}${deliveryNote} ${next}`, toastKind);
+                            const toastKind = autoDeliveryFailed || masterWarnings.length || uniqueCoverWarnings.length ? 'warning' : 'success';
+                            showAdminToast(`Upload complete.${masterNote}${replacedNote}${coverNote}${deliveryNote} ${next}`, toastKind);
                         } else {
-                            const toastKind = autoDeliveryFailed || masterWarnings.length ? 'warning' : 'success';
-                            showAdminToast(`Upload complete.${masterNote}${replacedNote}${deliveryNote}`, toastKind);
+                            const toastKind = autoDeliveryFailed || masterWarnings.length || uniqueCoverWarnings.length ? 'warning' : 'success';
+                            showAdminToast(`Upload complete.${masterNote}${replacedNote}${coverNote}${deliveryNote}`, toastKind);
                         }
-                        if (masterWarnings.length || uniqueUploadWarnings.length) {
-                            const combined = [...masterWarnings, ...uniqueUploadWarnings];
+                        if (masterWarnings.length || uniqueUploadWarnings.length || uniqueCoverWarnings.length) {
+                            const combined = [...masterWarnings, ...uniqueUploadWarnings, ...uniqueCoverWarnings];
                             modalStatus.innerHTML += `<br><span class="upload-status-warning">⚠️ ${bandpromoAdminEscapeHtml(combined.join(' | '))}</span>`;
                         }
                     } else {
