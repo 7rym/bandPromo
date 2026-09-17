@@ -2,6 +2,8 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-09-17 15:05 - SESSION-HANDOFF: build 528 published with cover extract; fleet Site update next.
+
 2026-09-17 14:55 - Site health cover extract: Check flags tracks with embedded art but empty `display.cover` (`audio_embedded_cover_unextracted`); Treat `audio_extract_covers` reuses makePlaylists hash-match extract → Visual track-cover + link. Local smoke: 12 covers linked, follow-up healthy. Fleet re-smoke of build 527 complete (HITZ/Vanilla/Spandexual); HITZ tag-fill proved (Files `Untitled` = 0).
 
 2026-09-17 13:40 - Files → Audio Add Audio: optional Campaign selector (default from the Files campaign filter when a real campaign is selected; otherwise Orphan). Upload still registers + auto-delivers; choosing a campaign stamps registry membership and appends the campaign track pool. Locked / missing campaigns keep the upload as orphan with a warning.
