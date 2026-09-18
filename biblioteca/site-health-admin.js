@@ -15,9 +15,24 @@
     const findingsEl = document.getElementById('siteHealthFindings');
     const previewEl = document.getElementById('siteHealthTreatPreview');
     const previewBodyEl = document.getElementById('siteHealthTreatPreviewBody');
+    const resultEl = document.getElementById('siteHealthTreatResult');
+    const resultBodyEl = document.getElementById('siteHealthTreatResultBody');
+    const statusHomeEl = document.getElementById('siteHealthStatusHome');
+    const hubEl = document.getElementById('siteHealthHub');
+    const hubResumeEl = document.getElementById('siteHealthHubResume');
+    const enterHubBtn = document.getElementById('siteHealthEnterHubBtn');
+    const hubSlotQuick = document.getElementById('siteHealthHubSlotQuick');
+    const hubSlotFull = document.getElementById('siteHealthHubSlotFull');
+    const hubSlotForce = document.getElementById('siteHealthHubSlotForce');
+    const checkActionsMount = document.getElementById('siteHealthCheckActionsMount');
+    const actionsEl = document.getElementById('siteHealthActions');
     const metaEl = document.getElementById('siteHealthMeta');
     const logEl = document.getElementById('siteHealthLog');
     const spinnerEl = document.getElementById('siteHealthSpinner');
+    const breadcrumbStepsEl = document.getElementById('siteHealthBreadcrumbSteps');
+    const crumbStatusLink = document.getElementById('siteHealthCrumbStatus');
+    const crumbSepEl = document.getElementById('siteHealthCrumbSep');
+    const crumbHomeBtn = document.getElementById('siteHealthCrumbHome');
     const checkBtn = document.getElementById('siteHealthCheckBtn');
     const checkFullBtn = document.getElementById('siteHealthCheckFullBtn');
     const treatBtn = document.getElementById('siteHealthTreatBtn');
@@ -29,6 +44,19 @@
 
     if (!overallEl || !checkBtn) {
         return;
+    }
+
+    const EXAM_LABEL_KEY = 'bandpromo_site_health_exam_label';
+    /** @type {'status'|'hub'|'exam'|'review'|'result'} */
+    let uiStage = 'status';
+    let examLabel = 'Quick check';
+    try {
+        const storedExam = sessionStorage.getItem(EXAM_LABEL_KEY);
+        if (storedExam) {
+            examLabel = storedExam;
+        }
+    } catch (err) {
+        // Ignore storage failures.
     }
 
     const TREATMENT_COPY = {
@@ -62,6 +90,547 @@
     let lastPlan = null;
     let staleAutoCheckStarted = false;
     let previewOpen = false;
+    /** Last known overall key for the badge (healthy / attention / …). */
+    let lastOverallKey = 'unknown';
+    /** @type {{labels: string[], treats: Array<{id: string, status: string, count: number}>, notes: string[], overall: string}|null} */
+    let lastTreatReport = null;
+
+    function saveExamLabel(label) {
+        const next = String(label || '').trim() || 'Quick check';
+        examLabel = next;
+        try {
+            sessionStorage.setItem(EXAM_LABEL_KEY, next);
+        } catch (err) {
+            // Ignore storage failures.
+        }
+    }
+
+    function examLabelFromMode(modeKey) {
+        return ({
+            check: 'Quick check',
+            check_full: 'Full check',
+            force: 'Force rebuild',
+        })[String(modeKey || '').trim().toLowerCase()] || '';
+    }
+
+    function setUiStage(stage) {
+        const next = String(stage || '').trim();
+        if (next === 'status' || next === 'hub' || next === 'exam' || next === 'review' || next === 'result') {
+            uiStage = next;
+        }
+        syncBreadcrumb();
+        syncStagePanels();
+    }
+
+    function stripLogStamp(line) {
+        return String(line || '').replace(/^\[[^\]]+\]\s*/, '').trim();
+    }
+
+    function treatmentLabel(treatmentId) {
+        const id = String(treatmentId || '').trim();
+        if (!id) {
+            return '';
+        }
+        if (TREATMENT_COPY[id]) {
+            return TREATMENT_COPY[id];
+        }
+        if (id === 'orphan_home_stamp') {
+            return 'Stamp catalogue homes for orphan media used in campaigns.';
+        }
+        return id.replace(/_/g, ' ');
+    }
+
+    function parseTreatReportFromLog(logText) {
+        const lines = String(logText || '').split(/\r?\n/);
+        const treats = [];
+        const notes = [];
+        let sawTreat = false;
+        for (let i = 0; i < lines.length; i += 1) {
+            const raw = lines[i];
+            const line = stripLogStamp(raw);
+            if (/Site health Treat|treat:orphan_homes|^treat\b|Applying \d+ selected treatment/i.test(line)) {
+                sawTreat = true;
+            }
+            const machine = line.match(/^HEALTH_TREAT:([^:]+):([^:]+):(-?\d+)\s*$/);
+            if (machine) {
+                sawTreat = true;
+                treats.push({
+                    id: machine[1],
+                    status: machine[2],
+                    count: Number(machine[3]) || 0,
+                });
+                continue;
+            }
+            if (!sawTreat) {
+                continue;
+            }
+            if (/^followup\b|^Follow-up\b|Starting follow-up|HEALTH_RESULT:/i.test(line)) {
+                // Keep collecting HEALTH_TREAT that may appear just before follow-up.
+                continue;
+            }
+            if (
+                /Wrote catalogue homes|Registered |Stamping catalogue|Cleared |Retarget|No unambiguous orphan|Treatment complete|Apply selected/i.test(line)
+                || /^  - /.test(line)
+            ) {
+                notes.push(line);
+            }
+        }
+        // Prefer the last run of each treatment id.
+        const byId = {};
+        treats.forEach((row) => {
+            byId[row.id] = row;
+        });
+        return {
+            treats: Object.keys(byId).map((id) => byId[id]),
+            notes: notes.slice(-24),
+        };
+    }
+
+    function remainingFindingsListHtml() {
+        const findings = Array.isArray(lastPlan && lastPlan.findings) ? lastPlan.findings : [];
+        if (!findings.length) {
+            return '';
+        }
+        return (
+            '<p class="site-health-treat-detail-label">Still needs attention</p>' +
+            '<ul class="site-health-treat-result-list">' +
+            findings.map((finding) => {
+                const title = String((finding && (finding.title || finding.id)) || 'Finding').trim();
+                const count = Number((finding && finding.count) || 0);
+                const body = String((finding && finding.body) || '').trim();
+                return (
+                    '<li><strong>' + escapeHtml(title) +
+                    (count ? ' (' + count + ')' : '') +
+                    '</strong>' +
+                    (body ? '<br><span class="site-health-treat-result-finding-body">' + escapeHtml(body) + '</span>' : '') +
+                    '</li>'
+                );
+            }).join('') +
+            '</ul>'
+        );
+    }
+
+    function parseHealthOutcomeFromLog(logText) {
+        const lines = String(logText || '').split(/\r?\n/);
+        let outcome = '';
+        for (let i = 0; i < lines.length; i += 1) {
+            const line = stripLogStamp(lines[i]);
+            const match = line.match(/^HEALTH_RESULT:(\S+)/);
+            if (match) {
+                outcome = match[1];
+            }
+        }
+        return outcome;
+    }
+
+    function renderTreatResultPanel(overall) {
+        if (!resultBodyEl) {
+            return;
+        }
+        const logText = logEl ? String(logEl.textContent || '') : '';
+        const parsed = parseTreatReportFromLog(logText);
+        const logOutcome = parseHealthOutcomeFromLog(logText);
+        const labels = (lastTreatReport && Array.isArray(lastTreatReport.labels))
+            ? lastTreatReport.labels
+            : [];
+        const ov = String(overall || (lastTreatReport && lastTreatReport.overall) || '').toLowerCase();
+        lastTreatReport = {
+            labels: labels,
+            treats: parsed.treats,
+            notes: parsed.notes,
+            overall: ov,
+            logOutcome: logOutcome,
+        };
+
+        const requested = labels.length
+            ? ('<p class="site-health-treat-detail-label">Requested</p>' +
+                '<ul class="site-health-treat-result-list">' +
+                labels.map((n) => '<li>' + escapeHtml(n) + '</li>').join('') +
+                '</ul>')
+            : '';
+
+        const statusRows = parsed.treats.map((row) => {
+            const label = treatmentLabel(row.id);
+            const status = String(row.status || '').toLowerCase();
+            let outcome = 'done';
+            if (status === 'failed') {
+                outcome = 'failed';
+            } else if (status === 'partial') {
+                outcome = 'partial';
+            } else if (status === 'ok' && row.count === 0) {
+                outcome = 'nothing to do';
+            } else if (status === 'ok') {
+                outcome = row.count === 1 ? '1 item' : (row.count + ' items');
+            }
+            return '<li><strong>' + escapeHtml(label) + '</strong> — ' + escapeHtml(outcome) + '</li>';
+        });
+
+        const applied = statusRows.length
+            ? ('<p class="site-health-treat-detail-label">Applied</p>' +
+                '<ul class="site-health-treat-result-list">' + statusRows.join('') + '</ul>')
+            : '';
+
+        const noteRows = parsed.notes.length
+            ? ('<p class="site-health-treat-detail-label">From Activity</p>' +
+                '<ul class="site-health-treat-result-list">' +
+                parsed.notes.map((n) => '<li><code>' + escapeHtml(n) + '</code></li>').join('') +
+                '</ul>')
+            : '';
+
+        let bodyLead = '';
+        let summary = '';
+        let continueLabel = 'Continue';
+        let continueAction = 'exam';
+        let panelTone = 'ok';
+
+        if (running) {
+            panelTone = 'running';
+            bodyLead = (
+                '<p class="site-health-treat-assurance">' +
+                'Treatment is still running. Activity below updates as each step finishes.' +
+                '</p>'
+            );
+            summary = '';
+        } else {
+            const findings = Array.isArray(lastPlan && lastPlan.findings) ? lastPlan.findings : [];
+            const failedVerify = /verify_failed|failed/i.test(logOutcome)
+                || ov === 'attention'
+                || ov === 'critical'
+                || findings.length > 0;
+
+            if (failedVerify) {
+                panelTone = 'caution';
+                summary = (
+                    '<p class="site-health-treat-assurance site-health-treat-assurance--caution">' +
+                    '<strong>Summary:</strong> Treatment finished, but follow-up still needs attention.' +
+                    '</p>' +
+                    remainingFindingsListHtml() +
+                    '<p class="site-health-treat-result-note">' +
+                    'Use Continue to open the remaining findings and Apply again if needed.' +
+                    '</p>'
+                );
+                continueLabel = findings.length ? 'Continue to remaining findings' : 'Continue';
+                continueAction = findings.length ? 'review' : 'exam';
+            } else if (ov === 'healthy' || logOutcome === 'healthy' || logOutcome === 'ok') {
+                panelTone = 'ok';
+                summary = (
+                    '<p class="site-health-treat-assurance">' +
+                    '<strong>Summary:</strong> Treatment finished — follow-up check looks healthy.' +
+                    '</p>'
+                );
+                continueLabel = 'Continue';
+                continueAction = 'exam';
+            } else {
+                panelTone = 'ok';
+                summary = (
+                    '<p class="site-health-treat-assurance">' +
+                    '<strong>Summary:</strong> Treatment finished. Check Activity for the full story.' +
+                    '</p>'
+                );
+                continueLabel = 'Continue';
+                continueAction = 'exam';
+            }
+        }
+
+        if (resultEl) {
+            resultEl.classList.toggle('is-running', panelTone === 'running');
+            resultEl.classList.toggle('is-caution', panelTone === 'caution');
+        }
+
+        const continueHtml = running
+            ? ''
+            : (
+                '<div class="site-health-treat-result-actions">' +
+                '<button type="button" class="btn btn-good" id="siteHealthTreatContinueBtn" ' +
+                'data-continue-action="' + escapeHtml(continueAction) + '">' +
+                escapeHtml(continueLabel) +
+                '</button>' +
+                '</div>'
+            );
+
+        resultBodyEl.innerHTML = (
+            '<h3 class="site-health-treat-result-title">Treatment result</h3>' +
+            bodyLead +
+            requested +
+            applied +
+            noteRows +
+            summary +
+            continueHtml
+        );
+
+        const continueBtn = document.getElementById('siteHealthTreatContinueBtn');
+        if (continueBtn) {
+            continueBtn.addEventListener('click', () => {
+                const action = String(continueBtn.getAttribute('data-continue-action') || 'exam');
+                if (action === 'review') {
+                    goBreadcrumb('review');
+                    return;
+                }
+                goBreadcrumb('exam');
+            });
+        }
+    }
+
+    function syncHubResume() {
+        if (!hubResumeEl) {
+            return;
+        }
+        const plan = lastPlan;
+        if (!plan || !plan.checked_at || isPlanStale(plan)) {
+            hubResumeEl.hidden = true;
+            hubResumeEl.innerHTML = '';
+            return;
+        }
+        const overall = String(plan.overall || '').toLowerCase();
+        const findings = Array.isArray(plan.findings) ? plan.findings.length : 0;
+        let label = 'Open last results';
+        let detail = 'Last check: ' + String(plan.checked_at) + ' UTC';
+        if (overall === 'healthy' && findings === 0) {
+            detail += ' — looked healthy.';
+        } else if (findings > 0) {
+            detail += ' — ' + findings + ' finding' + (findings === 1 ? '' : 's') + ' still open.';
+            label = 'Open last results';
+        }
+        hubResumeEl.hidden = false;
+        hubResumeEl.innerHTML = (
+            '<span class="site-health-hub-resume-text">' + escapeHtml(detail) + '</span> ' +
+            '<button type="button" class="btn btn-sm" id="siteHealthOpenLastResultsBtn">' +
+            escapeHtml(label) +
+            '</button>'
+        );
+        const openBtn = document.getElementById('siteHealthOpenLastResultsBtn');
+        if (openBtn) {
+            openBtn.addEventListener('click', () => {
+                goBreadcrumb('exam');
+            });
+        }
+    }
+
+    function placeCheckActionButtons(where) {
+        const target = String(where || '') === 'hub' ? 'hub' : 'toolbar';
+        if (target === 'hub') {
+            if (hubSlotQuick && checkBtn) {
+                hubSlotQuick.appendChild(checkBtn);
+            }
+            if (hubSlotFull && checkFullBtn) {
+                hubSlotFull.appendChild(checkFullBtn);
+            }
+            if (hubSlotForce && forceBtn) {
+                hubSlotForce.appendChild(forceBtn);
+            }
+            return;
+        }
+        if (!checkActionsMount) {
+            return;
+        }
+        if (checkBtn) {
+            checkActionsMount.appendChild(checkBtn);
+        }
+        if (checkFullBtn) {
+            checkActionsMount.appendChild(checkFullBtn);
+        }
+        if (forceBtn) {
+            checkActionsMount.appendChild(forceBtn);
+        }
+    }
+
+    function syncStagePanels() {
+        const showStatus = uiStage === 'status';
+        const showHub = uiStage === 'hub';
+        const showExam = uiStage === 'exam';
+        const showReview = uiStage === 'review';
+        const showResult = uiStage === 'result';
+
+        if (statusHomeEl) {
+            statusHomeEl.hidden = !showStatus;
+        }
+        if (hubEl) {
+            hubEl.hidden = !showHub;
+            if (showHub) {
+                syncHubResume();
+            }
+        }
+
+        if (metaEl) {
+            // Hub / Status speak for themselves; exam keeps last-check meta from renderPlan.
+            metaEl.hidden = showStatus || showHub || showReview || showResult;
+        }
+
+        if (!showExam) {
+            if (summaryEl) {
+                summaryEl.hidden = true;
+            }
+            if (findingsEl) {
+                findingsEl.hidden = true;
+            }
+        } else {
+            if (summaryEl && String(summaryEl.innerHTML || '').trim() !== '') {
+                summaryEl.hidden = false;
+            }
+            if (findingsEl) {
+                const summaryVisible = summaryEl && !summaryEl.hidden
+                    && !!summaryEl.querySelector('.site-health-summary-panel');
+                if (summaryVisible) {
+                    findingsEl.hidden = true;
+                } else if (String(findingsEl.innerHTML || '').trim() !== '') {
+                    findingsEl.hidden = false;
+                }
+            }
+        }
+
+        // Hub hosts the check buttons inside the guide panels; exam uses the toolbar.
+        if (showHub && !running) {
+            placeCheckActionButtons('hub');
+        } else {
+            placeCheckActionButtons('toolbar');
+        }
+
+        const showExamToolbar = (showExam || running) && !showReview && !showResult;
+        const hideCheckButtons = (!showHub && !showExamToolbar) || running;
+        if (checkBtn) {
+            checkBtn.hidden = hideCheckButtons;
+        }
+        if (checkFullBtn) {
+            checkFullBtn.hidden = hideCheckButtons;
+        }
+        if (forceBtn) {
+            forceBtn.hidden = hideCheckButtons;
+        }
+        if (treatBtn) {
+            // Review only on exam results, never on the Site health hub alone.
+            if (!showExam || running) {
+                treatBtn.hidden = true;
+            }
+        }
+        if (actionsEl) {
+            if (running) {
+                actionsEl.hidden = false;
+            } else if (showHub) {
+                // Check actions live in the hub panels; no duplicate toolbar row.
+                actionsEl.hidden = true;
+            } else {
+                actionsEl.hidden = !showExamToolbar;
+            }
+        }
+        if (previewEl) {
+            previewEl.hidden = !showReview;
+        }
+        if (resultEl) {
+            resultEl.hidden = !showResult;
+            if (showResult) {
+                renderTreatResultPanel(lastTreatReport && lastTreatReport.overall);
+            }
+        }
+
+        // After button visibility/placement settles — keeps one green recommended step.
+        if (!running) {
+            syncRecommendedAction();
+        }
+        paintOverallBadge();
+    }
+
+    function crumbSepHtml() {
+        return '<span class="content-editor-breadcrumb-sep" aria-hidden="true"> &gt; </span>';
+    }
+
+    function crumbCurrentHtml(label) {
+        return '<span class="content-editor-breadcrumb-current">' + escapeHtml(label) + '</span>';
+    }
+
+    function crumbButtonHtml(action, label, title) {
+        return (
+            '<button type="button" class="content-editor-breadcrumb-link" ' +
+            'data-site-health-crumb="' + escapeHtml(action) + '" ' +
+            'title="' + escapeHtml(title || label) + '">' +
+            escapeHtml(label) +
+            '</button>'
+        );
+    }
+
+    function syncBreadcrumb() {
+        if (!breadcrumbStepsEl) {
+            return;
+        }
+
+        if (crumbSepEl) {
+            crumbSepEl.hidden = uiStage === 'status';
+        }
+        if (crumbHomeBtn) {
+            crumbHomeBtn.hidden = uiStage === 'status' || uiStage === 'hub';
+        }
+
+        if (uiStage === 'status') {
+            breadcrumbStepsEl.innerHTML = '';
+            return;
+        }
+
+        if (uiStage === 'hub') {
+            breadcrumbStepsEl.innerHTML = crumbCurrentHtml('Site health');
+            return;
+        }
+
+        // exam / review / result — Site health button is visible; steps continue after it.
+        const parts = [crumbSepHtml()];
+        if (uiStage === 'exam') {
+            parts.push(crumbCurrentHtml(examLabel));
+        } else {
+            parts.push(crumbButtonHtml('exam', examLabel, 'Back to ' + examLabel + ' results'));
+            parts.push(crumbSepHtml());
+            if (uiStage === 'review') {
+                parts.push(crumbCurrentHtml('Proposed treatment'));
+            } else {
+                parts.push(crumbButtonHtml('review', 'Proposed treatment', 'Back to proposed treatment'));
+                parts.push(crumbSepHtml());
+                parts.push(crumbCurrentHtml('Treatment result'));
+            }
+        }
+        breadcrumbStepsEl.innerHTML = parts.join('');
+    }
+
+    function goBreadcrumb(action) {
+        if (action === 'status') {
+            setPreviewMode(false);
+            setUiStage('status');
+            setJobStatus('');
+            return;
+        }
+        if (action === 'home' || action === 'hub') {
+            setPreviewMode(false);
+            setUiStage('hub');
+            setJobStatus('');
+            return;
+        }
+        if (action === 'exam') {
+            setPreviewMode(false);
+            setUiStage('exam');
+            if (lastPlan) {
+                renderPlan(lastPlan);
+            }
+            setJobStatus('');
+            return;
+        }
+        if (action === 'review') {
+            if (!lastPlan || !Array.isArray(lastPlan.findings) || !lastPlan.findings.length) {
+                setUiStage('exam');
+                if (lastPlan) {
+                    renderPlan(lastPlan);
+                }
+                return;
+            }
+            if (isPlanStale(lastPlan)) {
+                setPreviewMode(false);
+                setUiStage('exam');
+                if (lastPlan) {
+                    renderPlan(lastPlan);
+                }
+                setJobStatus(staleCheckMessage(), 'attention');
+                syncRecommendedAction();
+                return;
+            }
+            setPreviewMode(true);
+            setJobStatus('');
+        }
+    }
 
     const STALE_CHECK_MS = 60 * 60 * 1000;
 
@@ -141,12 +710,21 @@
     }
 
     function setOverall(overall) {
-        const key = String(overall || 'unknown').toLowerCase();
+        lastOverallKey = String(overall || 'unknown').toLowerCase();
+        paintOverallBadge();
+    }
+
+    function paintOverallBadge() {
+        if (!overallEl) {
+            return;
+        }
+        const key = String(lastOverallKey || 'unknown').toLowerCase();
+        const onChooser = uiStage === 'status' || uiStage === 'hub';
         let label = 'Not checked yet';
         let cls = 'badge audit-status-badge status-neutral';
-        if (key === 'healthy') {
-            label = 'Healthy';
-            cls = 'badge audit-status-badge status-ok';
+        if (key === 'running') {
+            label = 'Working…';
+            cls = 'badge audit-status-badge status-neutral';
         } else if (key === 'outdated' || key === 'stale') {
             label = 'Out of date';
             cls = 'badge audit-status-badge status-warning';
@@ -156,12 +734,22 @@
         } else if (key === 'critical') {
             label = 'Critical';
             cls = 'badge audit-status-badge status-error';
-        } else if (key === 'running') {
-            label = 'Working…';
-            cls = 'badge audit-status-badge status-neutral';
+        } else if (key === 'healthy') {
+            if (onChooser) {
+                // Historical result from the last finished plan — not a live clean bill
+                // of health before the operator runs a check from this desk.
+                label = 'Last check healthy';
+                cls = 'badge audit-status-badge status-neutral';
+            } else {
+                label = 'Healthy';
+                cls = 'badge audit-status-badge status-ok';
+            }
         }
         overallEl.className = cls;
         overallEl.textContent = label;
+        overallEl.title = onChooser && key === 'healthy'
+            ? 'Based on the last finished health check — run Quick or Full to verify again.'
+            : '';
     }
 
     function findingCardHtml(finding) {
@@ -446,23 +1034,11 @@
         syncApplyEnabledFromSelection();
     }
 
-    function scrollPreviewIntoView() {
-        if (!previewEl || previewEl.hidden) {
-            return;
-        }
-        window.requestAnimationFrame(() => {
-            try {
-                previewEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
-            } catch (err) {
-                previewEl.scrollIntoView(true);
-            }
-        });
-    }
-
     function setPreviewMode(open) {
         previewOpen = !!open;
         if (!previewEl) {
             syncRecommendedAction();
+            syncBreadcrumb();
             return;
         }
         if (!previewOpen || !lastPlan) {
@@ -478,6 +1054,13 @@
             }
             if (treatCancelBtn) {
                 treatCancelBtn.disabled = false;
+            }
+            if (uiStage === 'review') {
+                setUiStage(lastPlan && (lastPlan.checked_at || (Array.isArray(lastPlan.findings) && lastPlan.findings.length))
+                    ? 'exam'
+                    : 'status');
+            } else {
+                syncBreadcrumb();
             }
             syncRecommendedAction();
             return;
@@ -512,10 +1095,10 @@
             treatCancelBtn.disabled = false;
             treatCancelBtn.hidden = false;
         }
+        setUiStage('review');
         bindPreviewSelectionHandlers();
         updateApplySummaryLine();
         syncRecommendedAction();
-        scrollPreviewIntoView();
     }
 
     function updateApplySummaryLine() {
@@ -540,27 +1123,24 @@
         const checkedAt = plan && plan.checked_at ? String(plan.checked_at) : '';
         const appVersion = plan && plan.app_version ? String(plan.app_version) : '';
         const modeKey = plan && plan.mode ? String(plan.mode).trim().toLowerCase() : '';
-        const modeLabel = ({
-            check: 'Quick check',
-            check_full: 'Full check',
-            treat: 'Treatment',
-            followup: 'Follow-up',
-            force: 'Force rebuild',
-        })[modeKey] || '';
+        // Do not let a stale finished plan overwrite the label of the job now running.
+        if (!running) {
+            const fromMode = examLabelFromMode(modeKey);
+            if (fromMode) {
+                saveExamLabel(fromMode);
+            }
+        }
 
         if (metaEl) {
             const bits = [];
             if (checkedAt) {
                 bits.push('Last check: ' + checkedAt + ' UTC');
             }
-            if (modeLabel) {
-                bits.push(modeLabel);
-            }
             if (appVersion) {
                 bits.push(appVersion);
             }
-            if (isPlanStale(plan)) {
-                bits.push('out of date — refreshing');
+            if (isPlanStale(plan) && !running) {
+                bits.push('out of date');
             }
             metaEl.innerHTML = bits.length
                 ? escapeHtml(bits.join(' · '))
@@ -577,31 +1157,81 @@
                 summaryEl.innerHTML = '';
             }
             findingsEl.innerHTML = '<p class="publish-status-empty">No check yet — start with Quick health check.</p>';
-            findingsEl.hidden = false;
+            findingsEl.hidden = true;
             if (running) {
+                syncBreadcrumb();
                 return;
             }
             setPreviewMode(false);
+            if (uiStage !== 'status' && uiStage !== 'hub') {
+                setUiStage('status');
+            } else {
+                syncStagePanels();
+            }
             return;
         }
 
         const stale = isPlanStale(plan);
 
+        // While a job is running, never present the stale-plan / auto-Quick story —
+        // the operator (or auto-start) already launched a fresh check.
+        if (running) {
+            if (stale) {
+                if (summaryEl) {
+                    summaryEl.hidden = true;
+                    summaryEl.classList.remove('is-stale');
+                    summaryEl.innerHTML = '';
+                }
+                findingsEl.innerHTML = '';
+                findingsEl.hidden = true;
+            } else {
+                renderSummary(plan);
+                if (summaryEl && !summaryEl.hidden) {
+                    summaryEl.classList.remove('is-stale');
+                }
+                if (plan.summary) {
+                    findingsEl.innerHTML = '';
+                    findingsEl.hidden = true;
+                }
+            }
+            syncBreadcrumb();
+            return;
+        }
+
         if (stale) {
             // Never present hour-old Good/Bad/Ugly as current health.
+            findingsEl.innerHTML = '';
+            findingsEl.hidden = true;
+            // Status landing may auto-start Quick; hub / exam must not claim that.
+            if (uiStage === 'status') {
+                if (summaryEl) {
+                    summaryEl.hidden = true;
+                    summaryEl.innerHTML = '';
+                }
+                syncStagePanels();
+                syncRecommendedAction();
+                return;
+            }
+            if (uiStage === 'hub') {
+                if (summaryEl) {
+                    summaryEl.hidden = true;
+                    summaryEl.innerHTML = '';
+                }
+                syncStagePanels();
+                syncRecommendedAction();
+                return;
+            }
             if (summaryEl) {
                 summaryEl.hidden = false;
                 summaryEl.classList.add('is-stale');
                 summaryEl.innerHTML = (
                     '<p class="publish-status-empty site-health-stale-notice">' +
-                    'Last check is more than an hour old. Starting a fresh Quick health check…' +
+                    'Last check is more than an hour old. Run Quick or Full health check to refresh.' +
                     '</p>'
                 );
             }
-            findingsEl.innerHTML = '';
-            findingsEl.hidden = true;
         } else {
-            // Good / Bad / Ugly is the Status summary; findings detail lives under Bad & Ugly.
+            // Good / Bad / Ugly is the exam summary; findings detail lives under Bad & Ugly.
             renderSummary(plan);
             if (summaryEl && !summaryEl.hidden) {
                 summaryEl.classList.remove('is-stale');
@@ -622,45 +1252,59 @@
             }
         }
 
-        // While a job is running, setRunningUi owns chrome (status + Stop only).
-        // Do not re-enable or unhide Check / Review / Force here.
-        if (running) {
-            return;
-        }
-
         if (stale) {
             setPreviewMode(false);
             if (treatBtn) {
                 treatBtn.hidden = true;
             }
-            if (forceBtn) {
-                forceBtn.hidden = false;
-                forceBtn.disabled = false;
-            }
             syncRecommendedAction();
+            syncStagePanels();
+            return;
+        }
+
+        // Status / Site health hubs keep their stage; only refresh badge data underneath.
+        if (uiStage === 'status' || uiStage === 'hub') {
+            syncRecommendedAction();
+            syncStagePanels();
             return;
         }
 
         if (findings.length === 0) {
             setPreviewMode(false);
+            if (treatBtn) {
+                treatBtn.hidden = true;
+            }
+            if (uiStage !== 'result') {
+                setUiStage('exam');
+            }
             syncRecommendedAction();
             return;
         }
 
         if (previewOpen) {
             setPreviewMode(true);
-        } else if (treatBtn) {
-            treatBtn.hidden = false;
-            treatBtn.disabled = false;
+        } else if (uiStage === 'result') {
+            setUiStage('result');
+            if (treatBtn) {
+                treatBtn.hidden = false;
+                treatBtn.disabled = false;
+            }
+            if (previewEl) {
+                previewEl.hidden = true;
+            }
+            syncRecommendedAction();
+        } else {
+            setUiStage('exam');
+            if (treatBtn) {
+                treatBtn.hidden = false;
+                treatBtn.disabled = false;
+            }
             if (previewEl) {
                 previewEl.hidden = true;
             }
             syncRecommendedAction();
         }
-        if (forceBtn) {
-            forceBtn.hidden = false;
-            forceBtn.disabled = false;
-        }
+        syncStagePanels();
     }
 
     function setRunningUi(isRunning) {
@@ -668,20 +1312,15 @@
         if (spinnerEl) {
             spinnerEl.style.display = running ? '' : 'none';
         }
-        // Busy: hide start / review / force; only Stop stays available.
+        // Busy: disable start / review / force; only Stop stays available.
+        // Visibility of exam actions is owned by syncStagePanels (hidden on review/result).
         checkBtn.disabled = running;
-        checkBtn.hidden = running;
         if (checkFullBtn) {
             checkFullBtn.disabled = running;
-            checkFullBtn.hidden = running;
         }
         forceBtn.disabled = running;
-        forceBtn.hidden = running;
         if (treatBtn) {
             treatBtn.disabled = running;
-            if (running) {
-                treatBtn.hidden = true;
-            }
         }
         if (treatApplyBtn) {
             treatApplyBtn.disabled = running;
@@ -689,9 +1328,10 @@
         if (treatCancelBtn) {
             treatCancelBtn.disabled = running;
         }
-        if (previewEl && running) {
+        if (previewEl && running && uiStage === 'review') {
+            // Keep stage as review in memory but hide the card while the job runs;
+            // treat advances to result explicitly.
             previewEl.hidden = true;
-            previewOpen = false;
         }
         if (stopBtn) {
             stopBtn.hidden = !running;
@@ -702,6 +1342,8 @@
         } else {
             syncRecommendedAction();
         }
+        syncBreadcrumb();
+        syncStagePanels();
     }
 
     async function refreshStatus() {
@@ -719,61 +1361,104 @@
             // Set running before renderPlan so action buttons stay hidden while busy.
             const isRunning = !!data.running;
             running = isRunning;
+            if (isRunning) {
+                const liveMode = String((data.meta && data.meta.mode) || '').trim();
+                const liveLabel = examLabelFromMode(liveMode);
+                if (liveLabel) {
+                    saveExamLabel(liveLabel);
+                }
+            }
             renderPlan(plan);
             setRunningUi(isRunning);
             if (!data.running) {
                 if (isPlanStale(plan)) {
                     setOverall('outdated');
                     syncRecommendedAction();
-                    maybeAutoStartStaleQuickCheck();
+                    // Only from Status landing — do not hijack Site health hub / Full check.
+                    if (uiStage === 'status') {
+                        maybeAutoStartStaleQuickCheck();
+                    }
                 } else {
-                    setOverall(data.overall || plan.overall || 'unknown');
+                    const overall = String(data.overall || plan.overall || '');
+                    setOverall(overall || 'unknown');
                     if (data.exit_code === 0) {
-                        const overall = String(data.overall || plan.overall || '');
                         const metaMode = String((data.meta && data.meta.mode) || '').trim();
                         const planMode = String(plan.mode || '').trim();
                         // Prefer the job that was launched (meta.mode). Follow-up overwrites
                         // plan.mode to "followup" / check — never call Force a Quick check.
                         const jobMode = metaMode || planMode;
+                        // Only keep Treatment result when already on that step.
+                        // Fresh Status loads must show the exam, even if the last
+                        // finished job was treat/followup.
+                        if (uiStage === 'result') {
+                            if (!lastTreatReport) {
+                                lastTreatReport = { labels: [], treats: [], notes: [], overall: '' };
+                            }
+                            lastTreatReport.overall = overall;
+                            setUiStage('result');
+                        }
                         if (overall === 'healthy') {
-                            setPreviewMode(false);
+                            if (uiStage !== 'result') {
+                                setPreviewMode(false);
+                            }
                             let doneMsg = 'Health job complete — site looks healthy.';
                             if (jobMode === 'check_full') {
                                 doneMsg = 'Full check complete — site looks healthy.';
                             } else if (jobMode === 'check') {
                                 doneMsg = 'Quick check complete — site looks healthy.';
-                            } else if (jobMode === 'treat') {
+                            } else if (jobMode === 'treat' || jobMode === 'followup') {
                                 doneMsg = 'Treatment complete — site looks healthy.';
                             } else if (jobMode === 'force') {
                                 doneMsg = 'Force rebuild complete — site looks healthy.';
-                            } else if (jobMode === 'followup') {
-                                doneMsg = 'Follow-up complete — site looks healthy.';
                             }
                             setJobStatus(doneMsg, 'success');
                         } else if (overall === 'critical' || overall === 'attention') {
                             // Findings live in The bad / The ugly — no duplicate status nudge.
-                            if (jobMode === 'force') {
-                                setJobStatus(
-                                    'Force rebuild finished with remaining findings.',
-                                    overall === 'critical' ? 'error' : 'attention'
-                                );
-                            } else if (jobMode === 'treat') {
-                                setJobStatus(
-                                    'Treatment finished with remaining findings.',
-                                    overall === 'critical' ? 'error' : 'attention'
-                                );
-                            } else {
+                            if (uiStage === 'result') {
+                                if (jobMode === 'force') {
+                                    setJobStatus(
+                                        'Force rebuild finished with remaining findings.',
+                                        overall === 'critical' ? 'error' : 'attention'
+                                    );
+                                } else if (jobMode === 'treat' || jobMode === 'followup') {
+                                    setJobStatus(
+                                        'Treatment finished with remaining findings.',
+                                        overall === 'critical' ? 'error' : 'attention'
+                                    );
+                                } else {
+                                    setJobStatus('');
+                                }
+                            } else if (uiStage !== 'review') {
                                 setJobStatus('');
                             }
                         } else {
-                            setJobStatus('');
+                            setJobStatus('Health job finished.', 'success');
                         }
+                    } else if (data.exit_code !== null && data.exit_code !== undefined) {
+                        setJobStatus('Health job exited with code ' + data.exit_code + '.', 'error');
                     }
                     syncRecommendedAction();
                 }
             } else {
                 const message = data.meta && data.meta.message ? String(data.meta.message) : 'Working…';
                 setJobStatus(message);
+                const liveMode = String((data.meta && data.meta.mode) || '').trim().toLowerCase();
+                // Mid-job reload: resume the matching stepped view.
+                if (liveMode === 'treat' || liveMode === 'followup') {
+                    if (uiStage !== 'result') {
+                        setUiStage('result');
+                    } else {
+                        renderTreatResultPanel('');
+                    }
+                } else if (
+                    (liveMode === 'check' || liveMode === 'check_full' || liveMode === 'force')
+                    && uiStage !== 'exam'
+                    && uiStage !== 'result'
+                ) {
+                    setUiStage('exam');
+                } else if (uiStage === 'result') {
+                    renderTreatResultPanel('');
+                }
             }
             return data;
         } catch (err) {
@@ -809,12 +1494,19 @@
         let starting = 'Starting…';
         if (mode === 'check') {
             starting = 'Starting quick health check…';
+            saveExamLabel('Quick check');
+            setUiStage('exam');
         } else if (mode === 'check_full') {
             starting = 'Starting full health check…';
+            saveExamLabel('Full check');
+            setUiStage('exam');
         } else if (mode === 'treat') {
             starting = 'Starting treatment…';
+            setUiStage('result');
         } else if (mode === 'force') {
             starting = 'Starting force rebuild…';
+            saveExamLabel('Force rebuild');
+            setUiStage('exam');
         }
         setJobStatus(starting);
         const body = { mode: mode, csrf_token: csrfToken };
@@ -836,7 +1528,15 @@
                 return;
             }
             if (mode === 'treat') {
-                setPreviewMode(false);
+                previewOpen = false;
+                if (previewEl) {
+                    previewEl.hidden = true;
+                }
+                setUiStage('result');
+                if (!lastTreatReport) {
+                    lastTreatReport = { labels: [], treats: [], notes: [], overall: '' };
+                }
+                renderTreatResultPanel('');
             }
             beginPolling();
             await refreshStatus();
@@ -850,10 +1550,12 @@
         if (running) {
             return 'already-running';
         }
-        if (!checkBtn || checkBtn.disabled || checkBtn.hidden) {
+        if (!checkBtn) {
             return 'unavailable';
         }
-        checkBtn.click();
+        previewOpen = false;
+        setUiStage('exam');
+        startMode('check');
         return 'started';
     };
 
@@ -882,8 +1584,22 @@
         if (!isPlanStale(lastPlan)) {
             return;
         }
+        // Status landing only — hub / exam keep the operator’s choice (Quick vs Full).
+        if (uiStage !== 'status') {
+            return;
+        }
         staleAutoCheckStarted = true;
         setPreviewMode(false);
+        setUiStage('exam');
+        if (summaryEl) {
+            summaryEl.hidden = false;
+            summaryEl.classList.add('is-stale');
+            summaryEl.innerHTML = (
+                '<p class="publish-status-empty site-health-stale-notice">' +
+                'Last check is more than an hour old. Starting a fresh Quick health check…' +
+                '</p>'
+            );
+        }
         await startMode('check');
         // Allow a later retry if start failed (still idle + still out of date).
         if (!running && isPlanStale(lastPlan)) {
@@ -920,13 +1636,15 @@
     }
 
     checkBtn.addEventListener('click', () => {
-        setPreviewMode(false);
+        previewOpen = false;
+        setUiStage('exam');
         startMode('check');
     });
 
     if (checkFullBtn) {
         checkFullBtn.addEventListener('click', () => {
-            setPreviewMode(false);
+            previewOpen = false;
+            setUiStage('exam');
             startMode('check_full');
         });
     }
@@ -939,6 +1657,7 @@
             }
             if (isPlanStale(lastPlan)) {
                 setPreviewMode(false);
+                setUiStage('exam');
                 setJobStatus(staleCheckMessage(), 'attention');
                 syncRecommendedAction();
                 return;
@@ -951,6 +1670,7 @@
     if (treatCancelBtn) {
         treatCancelBtn.addEventListener('click', () => {
             setPreviewMode(false);
+            setUiStage('exam');
             setJobStatus('');
         });
     }
@@ -959,6 +1679,7 @@
         treatApplyBtn.addEventListener('click', () => {
             if (isPlanStale(lastPlan)) {
                 setPreviewMode(false);
+                setUiStage('exam');
                 setJobStatus(staleCheckMessage(), 'attention');
                 syncRecommendedAction();
                 return;
@@ -978,6 +1699,12 @@
             )) {
                 return;
             }
+            lastTreatReport = {
+                labels: selected.labels.slice(),
+                treats: [],
+                notes: [],
+                overall: '',
+            };
             startMode('treat', {
                 treatmentIds: selected.treatmentIds,
                 findingIds: selected.findingIds,
@@ -989,7 +1716,8 @@
         if (!window.confirm('Force a full listener rebuild even if Check looks healthy?\n\nThis is blocked while critical catalogue findings remain. Prefer Check → Review → Apply for missing Files rows.')) {
             return;
         }
-        setPreviewMode(false);
+        previewOpen = false;
+        setUiStage('exam');
         startMode('force');
     });
 
@@ -1030,12 +1758,44 @@
     }
 
     // Status link inside Activity <summary> must not toggle the details open/closed.
-    document.querySelectorAll('#site-health-log-card summary .content-editor-breadcrumb-link').forEach((link) => {
+    document.querySelectorAll('#site-health-log-card summary a').forEach((link) => {
         link.addEventListener('click', (event) => {
             event.stopPropagation();
         });
     });
 
+    if (crumbStatusLink) {
+        crumbStatusLink.addEventListener('click', (event) => {
+            event.preventDefault();
+            goBreadcrumb('status');
+        });
+    }
+    if (enterHubBtn) {
+        enterHubBtn.addEventListener('click', () => {
+            goBreadcrumb('hub');
+        });
+    }
+    if (crumbHomeBtn) {
+        crumbHomeBtn.addEventListener('click', () => {
+            goBreadcrumb('hub');
+        });
+    }
+    if (breadcrumbStepsEl) {
+        breadcrumbStepsEl.addEventListener('click', (event) => {
+            const target = event.target;
+            if (!(target instanceof HTMLElement)) {
+                return;
+            }
+            const button = target.closest('[data-site-health-crumb]');
+            if (!(button instanceof HTMLElement)) {
+                return;
+            }
+            goBreadcrumb(String(button.getAttribute('data-site-health-crumb') || ''));
+        });
+    }
+
+    syncBreadcrumb();
+    syncStagePanels();
     refreshStatus();
     maybeAutoStartAfterUpdate();
 })();

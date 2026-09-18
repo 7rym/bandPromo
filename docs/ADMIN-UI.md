@@ -14,7 +14,7 @@ For admin surfaces that sit under the main tab / Content sub-nav (especially Con
 |------|--------|
 | Pool / list | `{emoji} {Section} > Pool` |
 | Editor | `{emoji} {Section} > Editor` |
-| System Status | `📊 Status > Site health` (Activity card: `📊 Status > Activity`) |
+| System Status | Default: `📊 Status` landing (Site health tool card). Open Site health → hub with Quick / Full / Force explanations + actions. A check advances to `… > Quick check` (or Full / Force rebuild) with Good/Bad/Ugly. **Review** → `… > Proposed treatment`. **Apply** → `… > Treatment result` (live while running; Summary + Continue when done). Post–Site update / stale auto-start opens Quick check directly. Intermediate crumbs step back. Activity stays visible with a plain **Activity** heading. |
 
 ### Breadcrumb line layout
 
@@ -23,8 +23,8 @@ One row under the Content sub-nav (`.content-editor-card-head`, min-height match
 | Slot | Placement | Use |
 |------|-----------|-----|
 | Crumb | Left | Section root as an **underlined navigation control** (button or link — even when it lands on the same page) + `> Pool\|Editor\|Site health\|…` |
-| `trailing` | Immediately after the crumb | Optional editor section chips (Catalogue: Base info \| …) or muted meta (Status: last check · mode · version via `.content-editor-breadcrumb-meta`, same 12px muted voice as `docs-content-path`) |
-| `actions` | Right edge (`.content-editor-card-head-actions`) | ← Back + Save\|Saved (and ★ Set as default / ★ Set as base when that editor has them). Hidden while not `.is-editing`. Status puts the overall health badge here. |
+| `trailing` | Immediately after the crumb | Optional editor section chips (Catalogue: Base info \| …) or muted meta (Status: last check · version via `.content-editor-breadcrumb-meta` — **not** the check mode; mode lives in the crumb). |
+| `actions` | Right edge (`.content-editor-card-head-actions`) | ← Back + Save\|Saved (and ★ Set as default / ★ Set as base when that editor has them). Hidden while not `.is-editing`. Status puts the overall health badge here — on the Status / Site health chooser a prior healthy plan is labelled **Last check healthy** (not a live clean bill); green **Healthy** appears after you open exam results or finish a check. |
 
 - Markup: `bandpromo_admin_render_content_breadcrumb()` in `biblioteca/admin-helpers.php`.
 - Options: `current` (default `Pool`), `root_navigable` (default true), `root_href` (optional — render an `<a>` instead of the Pool button; use for page-level crumbs such as Status).
@@ -32,7 +32,7 @@ One row under the Content sub-nav (`.content-editor-card-head`, min-height match
 - Behaviour: `bandpromoContentEditorBreadcrumb.attach()` — `setView('pool'|'edit')` on lifecycle show hooks (Content editors). Status roots use `root_href` to System → Status.
 - Entity name stays in the left edit header under the breadcrumb row; preview headers are titles only (no Save strip).
 
-Shipped on Catalogue, Playlists, Galleries, Pages, Branding, and System → Status (Site health + Activity).
+Shipped on Catalogue, Playlists, Galleries, Pages, Branding, and System → Status (Site health stepped crumb; Activity is a plain panel title).
 
 Do not invent a second under-nav title pattern for new Content editors unless the surface is not a pool→editor flow. Do not leave ← Back / Save only in the split-editor headers when the breadcrumb row is present.
 
@@ -106,11 +106,13 @@ Legacy standalone `.btn-primary` (without `.btn`) remains for older markup; new 
 
 On **System → Status**:
 
-1. Idle / healthy → **Quick health check** is the single green recommended step; Full check and Force stay grey.  
-2. Findings → **Review treatment** becomes the single green step; Quick/Full/Force stay grey.  
-3. Review open → panel under the toolbar scrolls into view; findings are **ticked by default** (Apply only those selected); **Apply treatment** (green) + **Not now** + **Back up first…** sit under the panel.  
-4. Checks older than **1 hour** are out of date: do not show Healthy or Good/Bad/Ugly from that plan — badge is **Out of date**, summary is replaced with a short notice, and Status **auto-starts Quick health check**. Review/Apply stay refused until the fresh check finishes.
-4. Attention findings use amber cards; critical findings use red cards. Job status line uses success / attention / error tones.
+0. **Status** landing → enter **Site health** (only Status tool for now).  
+1. **Site health** hub → each guide panel is headed by its action button (Quick / Full / Force); **Quick health check** is the single green recommended step; Full and Force stay grey. No duplicate toolbar under the panels.  
+2. After a check with findings → **Review treatment** becomes the single green step; Quick/Full/Force stay grey.  
+3. Review open → findings are **ticked by default** (Apply only those selected); **Apply treatment** (green) + **Not now** + **Back up first…** sit under the panel.  
+4. Checks older than **1 hour** are out of date: do not show Healthy or Good/Bad/Ugly from that plan — badge is **Out of date**, summary is replaced with a short notice, and Status **auto-starts Quick health check** (opens the exam directly). Review/Apply stay refused until the fresh check finishes.  
+5. After **Site update**, Status also auto-starts Quick health check directly (skips the Status / Site health hubs). Stale auto-start runs only from the **Status** landing — not while the operator is on the Site health hub choosing Full/Force, and never as a banner over an already-running job.  
+6. Attention findings use amber cards; critical findings use red cards. Job status line uses success / attention / error tones.
 
 ### Save-state machine
 

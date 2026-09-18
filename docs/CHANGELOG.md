@@ -2,6 +2,28 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-09-18 17:15 - Status badge honesty: on Status / Site health hub, a prior healthy plan shows “Last check healthy” (neutral), not a live green Healthy — strong Healthy only on exam / treatment steps.
+
+2026-09-18 17:10 - Status Site health hub: restore green recommended Quick button after panel placement; drop duplicate titles/meta/long panel copy (help box shortened).
+
+2026-09-18 17:05 - Status Site health hub: Quick / Full / Force buttons sit as each panel’s heading (no duplicate toolbar row on the hub).
+
+2026-09-18 17:00 - Status stale-plan UI: do not claim “Starting a fresh Quick health check” while Full/Force/Treat is already running; only auto-start Quick from the Status landing (not the Site health hub).
+
+2026-09-18 14:40 - Status stepped views: default **Status** landing (Site health tool card); **Site health** hub explains Quick / Full / Force before the actions; checks still open the exam. Post–Site update and stale auto-start still jump straight into Quick check.
+
+2026-09-18 14:30 - Status breadcrumb: clicking Status / Site health no longer re-opens Treatment result after a finished treat (only stay on result while already on that step, or while treat is still running).
+
+2026-09-18 14:25 - Status Treatment result: no premature “finished” while Working; drop grey breadcrumb meta on review/result; summary + remaining findings at the end; green Continue CTA when the job completes.
+
+2026-09-18 14:20 - Status Proposed treatment / Treatment result: hide exam action buttons (Quick / Full / Force); fix flex toolbar ignoring `[hidden]`.
+
+2026-09-18 14:15 - Status Site health: drop forced scrollIntoView on Proposed treatment / Treatment result (panels already replace the exam view in place).
+
+2026-09-18 14:10 - Status Site health views: Proposed treatment hides Good/Bad/Ugly; Treatment result hides the proposal and shows an applied report (Activity stays on every step).
+
+2026-09-18 14:00 - Status Site health breadcrumb is stepped: `Status > Site health > Quick check` (mode in the crumb, not grey meta); Review → `… > Proposed treatment`; Apply → `… > Treatment result`. Activity uses a plain heading.
+
 2026-09-18 13:45 - Site health orphan_home_stamp: Apply was a no-op because treat called `load_registry()` as a dict (it returns `(registry, status)`). Fixed unpack; new Site update migration `orphan-homes-in-containers-b534` re-heals installs that got the empty b533 marker.
 
 2026-09-18 13:35 - Demo/PCF catalogue homes: import merge always receives the package campaign id and stamps empty audio/visual `release_id` homes; post-import + Site update migration heal unambiguous orphans used in playlists/galleries/pages (fixes vanilla “11 orphan media” after Site update).

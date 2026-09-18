@@ -2867,39 +2867,63 @@ if ($tab === 'analytics') {
 
             <?php if ($systemTab === 'deliverables'): ?>
             <div class="admin-help-box collapsed" id="help-build">
-                This page is your site’s health exam: cheap checks first, deeper checks only when something sticks out, then a clear diagnosis and optional treatment.<br><br>
-                Results show <strong>The good</strong> (masters and containers that check out), <strong>The bad</strong> (things that need treatment), and <strong>The ugly</strong> (junk the janitor can clean). <strong>Quick health check</strong> is the routine read-only exam (may trust the last fingerprint baseline). <strong>Full health check</strong> is still read-only but ignores that cache and runs deeper probes. After findings, <strong>Review treatment</strong> opens a proposed plan under the buttons (with optional backup); <strong>Apply treatment</strong> is the only step that mutates. Details stay in Activity. <strong>Force full rebuild</strong> rebuilds listener deliverables — blocked while critical catalogue findings remain.
+                <strong>Status</strong> is the install health desk. Open <strong>Site health</strong> for catalogue checks (Quick or Full), then Review → Apply when something needs fixing. <strong>Force full rebuild</strong> rebuilds listener deliverables and is blocked while critical findings remain. Detail stays in Activity.
             </div>
 
             <div id="siteHealthCard" class="card publish-status-card">
-                <?php bandpromo_admin_render_content_breadcrumb([
-                    'id_prefix' => 'siteHealth',
-                    'emoji' => '📊',
-                    'label' => 'Status',
-                    'current' => 'Site health',
-                    'root_href' => '?tab=system&stab=deliverables',
-                    'pool_title' => 'System → Status',
-                    'aria_label' => 'Status location',
-                    'trailing' => static function (): void {
-                        ?>
-                        <span id="siteHealthMeta" class="content-editor-breadcrumb-meta">Run <strong>Quick health check</strong> for a routine exam, or <strong>Full health check</strong> for a deeper read-only verify. Nothing is changed until you Apply treatment.</span>
-                        <?php
-                    },
-                    'actions' => static function (): void {
-                        ?>
+                <div class="content-editor-card-head">
+                    <h2 class="content-editor-breadcrumb" id="siteHealthBreadcrumb" aria-label="Site health location">
+                        <a class="content-editor-breadcrumb-root content-editor-breadcrumb-link" href="?tab=system&amp;stab=deliverables" id="siteHealthCrumbStatus" title="System → Status">📊 Status</a>
+                        <span class="content-editor-breadcrumb-sep" id="siteHealthCrumbSep" aria-hidden="true"> &gt; </span>
+                        <button type="button" class="content-editor-breadcrumb-link" id="siteHealthCrumbHome" title="Site health">Site health</button>
+                        <span id="siteHealthBreadcrumbSteps"></span>
+                    </h2>
+                    <span id="siteHealthMeta" class="content-editor-breadcrumb-meta"></span>
+                    <div class="content-editor-card-head-actions">
                         <span id="siteHealthOverall" class="badge audit-status-badge status-neutral">Not checked yet</span>
-                        <?php
-                    },
-                ]); ?>
+                    </div>
+                </div>
+
+                <div id="siteHealthStatusHome" class="site-health-status-home">
+                    <div class="site-health-tool-list">
+                        <button type="button" class="site-health-tool-card" id="siteHealthEnterHubBtn">
+                            <span class="site-health-tool-card-title">Site health</span>
+                            <span class="site-health-tool-card-body">Exam masters, containers, and deliverables — then Review and Apply when something needs fixing.</span>
+                        </button>
+                    </div>
+                </div>
+
+                <div id="siteHealthHub" class="site-health-hub" hidden>
+                    <div class="site-health-hub-guide">
+                        <article class="site-health-hub-guide-item">
+                            <div class="site-health-hub-guide-heading" id="siteHealthHubSlotQuick">
+                                <button type="button" id="siteHealthCheckBtn" class="btn btn-good">Quick health check</button>
+                            </div>
+                            <p class="site-health-hub-guide-body">Routine exam; may trust the last fingerprint baseline.</p>
+                        </article>
+                        <article class="site-health-hub-guide-item">
+                            <div class="site-health-hub-guide-heading" id="siteHealthHubSlotFull">
+                                <button type="button" id="siteHealthCheckFullBtn" class="btn">Full health check</button>
+                            </div>
+                            <p class="site-health-hub-guide-body">Ignores the fingerprint cache and runs deeper probes.</p>
+                        </article>
+                        <article class="site-health-hub-guide-item">
+                            <div class="site-health-hub-guide-heading" id="siteHealthHubSlotForce">
+                                <button type="button" id="siteHealthForceBtn" class="btn">Force full rebuild</button>
+                            </div>
+                            <p class="site-health-hub-guide-body">Rebuild listener deliverables. Blocked while critical findings remain.</p>
+                        </article>
+                    </div>
+                    <p id="siteHealthHubResume" class="site-health-hub-resume" hidden></p>
+                </div>
+
                 <div id="siteHealthSummary" class="site-health-summary" hidden></div>
-                <div id="siteHealthFindings" class="publish-status-summary">
+                <div id="siteHealthFindings" class="publish-status-summary" hidden>
                     <p class="publish-status-empty">No check yet — start with Quick health check.</p>
                 </div>
-                <div class="publish-actions-toolbar" style="margin-top:0.75rem">
+                <div id="siteHealthActions" class="publish-actions-toolbar" style="margin-top:0.75rem" hidden>
                     <button type="button" id="siteHealthTreatBtn" class="btn" hidden>Review treatment</button>
-                    <button type="button" id="siteHealthCheckBtn" class="btn btn-good">Quick health check</button>
-                    <button type="button" id="siteHealthCheckFullBtn" class="btn">Full health check</button>
-                    <button type="button" id="siteHealthForceBtn" class="btn">Force full rebuild</button>
+                    <div id="siteHealthCheckActionsMount" class="site-health-check-actions-mount"></div>
                     <button type="button" id="siteHealthStopBtn" class="btn" hidden>Stop</button>
                 </div>
                 <div id="siteHealthTreatPreview" class="site-health-treat-preview" hidden>
@@ -2910,15 +2934,14 @@ if ($tab === 'analytics') {
                         <a class="btn" id="siteHealthTreatBackupLink" href="?tab=system&amp;stab=backup">Back up first…</a>
                     </div>
                 </div>
+                <div id="siteHealthTreatResult" class="site-health-treat-result" hidden>
+                    <div id="siteHealthTreatResultBody" class="site-health-treat-result-body"></div>
+                </div>
             </div>
 
             <details id="site-health-log-card" class="card deliverables-log-card" open>
                 <summary class="deliverables-log-summary">
-                    <span class="content-editor-breadcrumb" aria-label="Activity">
-                        <a class="content-editor-breadcrumb-root content-editor-breadcrumb-link" href="?tab=system&amp;stab=deliverables" title="System → Status">📊 Status</a>
-                        <span class="content-editor-breadcrumb-sep" aria-hidden="true"> &gt; </span>
-                        <span class="content-editor-breadcrumb-current">Activity</span>
-                    </span>
+                    <span class="deliverables-log-title">Activity</span>
                     <span class="build-log-meta">
                         <button type="button" id="siteHealthLogCopyBtn" class="btn">Copy log</button>
                         <span id="siteHealthSpinner" class="build-log-spinner" style="display:none">Working…</span>

@@ -2,20 +2,19 @@
 
 ## Resume point
 
-**orphan_home_stamp Apply was a no-op** — fixed in build 534. Site update vanilla again; or Apply after 534.
+**Status Site health stepped views published** — next session can pick a new Status tool or polish from operator feedback.
 
-### Cause
+### Shipped this session
 
-`treat_orphan_homes()` called `reg.load_registry()` and treated the return value as a dict. That API returns `(registry, status)`, so Treat exited with “registry unavailable” and wrote nothing. Check still found the 11 orphans (it passes a real registry into `probe_orphan_homes`).
-
-### Fix
-
-1. Unpack `(registry, status)` in treat/probe.
-2. Migration id bumped to `orphan-homes-in-containers-b534` so installs that already marked b533 still heal on update.
+1. Status landing → Site health hub (Quick/Full/Force as panel buttons) → exam → Proposed treatment → Treatment result.
+2. Treatment result: honest running vs summary-at-end + Continue; no sticky result on Status crumb.
+3. Stale auto-Quick only from Status landing; no Quick banner over a live Full check.
+4. Badge on chooser: “Last check healthy” (not live green Healthy).
 
 ### Next
 
-Publish 534 → Site update bandpromo.site → Apply should stamp (or migration clears The bad).
+1. Operator feedback on Status / Site health flow.
+2. Optional: further Status tools beside Site health.
 
 ### Local workspace
 
