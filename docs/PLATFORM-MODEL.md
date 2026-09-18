@@ -60,11 +60,11 @@ The **first PCF imported at setup** becomes this install’s protected fallback 
 
 **Lock:** the demo campaign stays locked for operators. **Localhost only** may unlock, edit, and re-export the PCF. Remote HTTP may re-lock if somehow unlocked. No `system_managed` freeze beyond `locked`.
 
-**Hide (unused-only):** operators may hide that demo campaign’s containers (playlists / pages / galleries) and **unused** workspace media. Hide is offered only after the install has **operator catalogue**: an operator-created campaign that contains at least one track **and** a non-demo playlist that exposes that track. Hide is **always allowed** once that gate passes — shared use no longer refuses the preference. Instead:
+**Hide (catalogue home):** operators may hide that demo campaign’s containers (playlists / pages / galleries) and Files media whose **catalogue home** is the demo campaign (`assets[].release_id` == `demo_campaign_id`). Hide is offered only after the install has **operator catalogue**: an operator-created campaign that contains at least one track **and** a non-demo playlist that exposes that track. Hide is **always allowed** once that gate passes.
 
-- Demo Audio/Visual still referenced by a **non-demo** container stay **visible** in Files and pickers (`kept_visible` inventory / soft warning).
-- Unused demo campaign media (including demo Brand library members) are omitted from Files → Audio / Visual and pickers.
-- Demo Brand documents (including locked `bandpromo-default` when it is not Base) leave Branding and PBF export when hidden. Demo Brand shell assets (Brand assets / Sound effects) stay visible while the **Base** brand or another non-demo brand still references them, and hide when that is no longer true. Operator-uploaded brand media is untouched.
+- Demo Audio/Visual with demo catalogue home leave Files → Audio / Visual and pickers when hidden.
+- Demo Brand documents (including locked `bandpromo-default` when it is not Base) leave Branding and PBF export when hidden.
+- **Base shell exception:** Demo Brand shell assets (Brand assets / Sound effects) stay listable while the **Base** brand (or another non-demo brand) still references them, so player chrome does not go blank. Operator-uploaded brand media is untouched.
 - Demo pages (e.g. Band Bio / Gallery) leave Content → Pages; FAQ stays (install-owned).
 - If the operator later deletes that catalogue so the gate no longer passes, **show the demo campaign again** (`demo_release_hidden=false`).
 
@@ -80,7 +80,7 @@ The **first PCF imported at setup** becomes this install’s protected fallback 
 |------|----------|------------|
 | **Orphan / upload bucket** | `primary` | **Invisible** catch-all for media not yet on a real campaign. Operators never manage or “see” this as a campaign — they only see audio/visual pools. **Not** demo; **not** “most important album.” |
 | **Operator catalogue** | Any id they create (or import via PCF) | Real campaigns, playlists, galleries, pages, brands ("Winter Party", "the Retroscopy hour", etc.) |
-| **Platform demo** | `bandpromo-demo` (persisted as `demo_campaign_id`) | Locked campaign from **`bandPromo-demo.pcf`** at setup (normal PCF import, then locked). Operators may hide / duplicate. Hide applies to demo containers + unused demo workspace media; in-use demo media and brand-referenced shell stay visible. **Localhost** may unlock to edit and re-export the PCF. Remote HTTP may re-lock if somehow unlocked. No track sync, template seed, or `system_managed` freeze beyond `locked`. |
+| **Platform demo** | `bandpromo-demo` (persisted as `demo_campaign_id`) | Locked campaign from **`bandPromo-demo.pcf`** at setup (normal PCF import, then locked). Operators may hide / duplicate. Hide applies to demo containers + demo-homed Files media; Base-referenced shell stays visible. **Localhost** may unlock to edit and re-export the PCF. Remote HTTP may re-lock if somehow unlocked. No track sync, template seed, or `system_managed` freeze beyond `locked`. |
 
 ### Asset provenance (orthogonal to actor)
 
@@ -144,7 +144,13 @@ Worked examples: [USE-CASES.md](USE-CASES.md).
 
 **Association exclusivity (shipped):** A playlist, gallery, or page with a non-empty `campaign_id` belongs to that campaign only. Campaign editor Available pools list **unowned** containers; saves refuse stealing from another campaign.
 
-**Content pools (soft policy today):** Prefer that an owned playlist’s tracks and an owned gallery’s visuals come from that release’s catalogue. **Not hard-enforced** in editors or save paths yet. Files → Visual **Catalogue** follows that usage (plus posters, press photos, page pictures, track covers, and Brand visual shell slots those campaigns play, including Base-brand fallback for empty slots). Brand-library membership is not a campaign, but those files are not Orphan either. Catalogue must not infer the campaign from Brand ownership on the asset. **In use / Unused** matches the Visual `ast_*` id after resolving stored refs (titles and stems never match). Stored cover refs that still hold a **former** visual id resolve when the live row’s original/master filename is `{old_id}.ext`. Delivery URLs `/media/visual/delivery/{id}/…` resolve by the path id, not the variant filename (`card.jpg`). Pages are not filtered to release assets/galleries yet. Tracks may still be orphans until associated. Content autofix (Welcome → Content model upgrade / sync releases) rebinds release and playlist membership when `ast_*` IDs went stale after re-register — identity match on artist/title, including common title suffixes (`FINAL`, `NEWER WIP`, etc.).
+**Catalogue home (source of truth):** Every audio and visual master has an exclusive catalogue home on `assets[].release_id` (operator copy: Campaign; empty/`primary` = Orphan). Usage refs (playlist entry, gallery entry, poster, cover, page block) are **consumers only** — they do not invent a second membership. Files → Audio / Visual **Catalogue** and campaign filters follow **home**. **Brand library membership** is brand-scoped (`library_asset_ids` / shell slots), not a campaign; Files → Sound effects **Brand** column and brand filters follow **library membership**, not the registry `brand_id` upload stamp. Catalogue must not infer campaign from Brand ownership on the asset.
+
+**Content pools (enforced on save):** An owned playlist’s tracks and an owned gallery’s / page’s visuals must come from that campaign’s catalogue (same home), or be orphans that Site health can stamp. Editors refuse new foreign-home picks. Legacy foreign refs still pack on PCF export of the referencer (dependency copy); catalogue home stays on the owning campaign until the operator rehomes. **In use / Unused** matches the Visual `ast_*` id after resolving stored refs (titles and stems never match). Stored cover refs that still hold a **former** visual id resolve when the live row’s original/master filename is `{old_id}.ext`. Delivery URLs `/media/visual/delivery/{id}/…` resolve by the path id, not the variant filename (`card.jpg`).
+
+**Orphan in a container:** Site health finding `orphan_assets_in_containers` (Review → Apply) stamps home to the single campaign that owns the referencing playlist/gallery/page. Multi-campaign orphans are reported only; never overwrite a non-empty home. PCF export does not mutate homes.
+
+**PCF membership:** Pack all audio/visual rows whose home is the campaign, plus owned brand library/slots and container-referenced masters (foreign homes travel as dependencies). Site health heals empty homes before relying on home-only collect.
 
 **Base brand vs release brand:**
 
@@ -152,7 +158,7 @@ Worked examples: [USE-CASES.md](USE-CASES.md).
 |-------|------|
 | Install **base** brand (`install.pointers.active_brand_id` / legacy `active_theme_id`) | Login chrome; shell media paths synced into `web-config.json`; fallback when a playlist’s owning release has no valid `brand_id`. Operator UI label: **Base** (storage key unchanged). |
 | Release brand (`release.brand_id`) | Player **CSS tokens** for playlists owned by that release (`playlist.campaign_id` → release brand). Tracks do not carry player brand. |
-| Demo `bandpromo-default` / demo brand | Seeded from **`bandPromo-demo.pcf`** as install **base shell**; locked after import (localhost may edit for PCF authoring). Fresh installs keep this as Base until the operator **duplicates** it in Branding — setup does not auto-create “Your own brand”. Demo shell media under Files → Brand assets / Sound effects stays listable while any Brand references it; unused demo shell hides with **Hide bandPromo demo campaign**. |
+| Demo `bandpromo-default` / demo brand | Seeded from **`bandPromo-demo.pcf`** as install **base shell**; locked after import (localhost may edit for PCF authoring). Fresh installs keep this as Base until the operator **duplicates** it in Branding — setup does not auto-create “Your own brand”. Demo shell media under Files → Brand assets / Sound effects stays listable while Base (or another non-demo brand) references it; otherwise hides with **Hide bandPromo demo campaign**. |
 
 Selecting a **campaign** (and its playlist) applies that campaign’s **CSS tokens and visual shell** (logo, still/living backgrounds). It does **not** rewrite the base brand or `web-config.json` unless the operator changes Base. Welcome/Logged-in SFX stay on the base brand (login).
 
@@ -372,7 +378,7 @@ Registry **`tags`**, **`brand_id`**, and derived facets replace folder location 
 | Facet | Purpose | Examples |
 |-------|---------|----------|
 | `role` | Intended use of the asset (visual pickers; default `unassigned` for bulk Visual uploads). Sound effects use a single role `sfx` — brand **slots** choose where a clip plays. | Visual: `brand-logo`, `track-cover`, … · SFX: `sfx` only |
-| `brand_id` | Which brand identity package this asset belongs to (library filter) | `bandpromo-default`, `brd_01hy8k3m2p9xq4r5s6t7`, … |
+| `brand_id` | Optional registry stamp / provenance (may lag). **Membership SoT for shell media is brand `library_asset_ids` (+ slots).** Files Brand column follows libraries. | `bandpromo-default`, `brd_01hy8k3m2p9xq4r5s6t7`, … |
 | `media_type` | Intake/delivery pipeline branch | `image`, `video`, `audio` |
 | `has_alpha` | Format/delivery policy | `true` for logos, overlays |
 | `origin` | Provenance | `user-upload`, `bundled-placeholder`, `ai-generated`, `generated` |
@@ -413,12 +419,12 @@ It is **not** merely one CD tracklist. Album order vs Personal Jesus single pack
 
 ### Rules
 
-- Every audio track **should** belong to exactly one release (exclusive catalogue home). Orphans (`release_id` empty) are allowed until associated. Files → Audio Add Audio may assign a campaign at upload time or leave **Orphan**. Playlists only reference tracks; they never own masters.
+- Every **audio and visual** master **should** belong to exactly one campaign (exclusive catalogue home on `assets[].release_id`). Orphans (`release_id` empty or invisible `primary`) are allowed until Assign / Site health heal. Files → Audio / Visual may assign a campaign at upload or leave **Orphan**. Playlists and galleries only reference assets; they never own masters.
 - Release track membership is an **unordered pool**. Listening order exists only in playlists.
 - **Identity** (colours, typography, mood, logo, share/still/living shell, Welcome/Logged-in SFX) is **owned by the release** via its linked brand document (`brand_id`). Brand is not a competing peer campaign.
 - Release owns campaign **galleries** and **pages** (e.g. Bio) via `campaign_id` on those containers (and optional reverse indexes on the release document).
 - Release owns **listening products** as playlists with `campaign_id` set to this release; a track may appear in many of those playlists.
-- **Normal operator flow:** playlist entries under a release come from that release’s track pool — prefer, not hard-enforced yet.
+- **Normal operator flow:** playlist / gallery / page entries under a campaign come from that campaign’s catalogue home — **enforced on save** (foreign-home picks refused). Legacy foreign refs still export as dependency copies until rehomed.
 - `release_date` is the primary campaign/street date (often the album date). Individual playlist `publish_date` values carry single/tour package street dates.
 - `poster_asset_id` is the release cover (album art), distinct from brand logo/share slots.
 - **`catalog_id`**: optional operator catalogue reference (for example `CD001`, `EP002`).
@@ -707,8 +713,9 @@ Value is the visual registry id, not a human title and not an original filename.
 
 ### Ownership rules (locked 2026-07-21)
 
-- Each release has **one** identity brand document (`release.brand_id` ↔ `brand.campaign_id`).
-- Do **not** model “many catalogue SKUs → one shared brand era” as peer Releases. Album vs single packages are **playlists** under one Release.
+- Each campaign has **one** linked identity brand (`campaign.brand_id`). **Many campaigns may share the same brand** (reuse the look without duplicating the brand document). Duplicate brand remains for fork-and-change only.
+- `brand.campaign_id` is optional provenance (first claim when empty). Linking another campaign to an existing brand must **not** rewrite `brand.campaign_id`.
+- Do **not** model “many catalogue SKUs → one shared brand era” as peer **campaigns that each need their own duplicated brand**. Album vs single packages are still **playlists** under one campaign when they share catalogue; shared **branding** across campaigns uses one brand id.
 - Install base identity (`install.pointers.active_brand_id`) selects which release’s identity drives login/player shell; preferably the demo/base release’s brand.
 - Setup seeds locked **`bandpromo-default`** identity for the demo release; operators duplicate/customize as part of their own release, not as a free-floating Branding peer forever.
 

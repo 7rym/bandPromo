@@ -821,7 +821,7 @@ if ($tab === 'analytics') {
             <div class="card welcome-demo-catalog-card" id="welcomeDemoCatalogCard">
                 <h2>🎭 bandPromo demo campaign</h2>
                 <p class="card-note">
-                    You have a campaign with a track on a playlist. You can hide the shipped <strong>bandPromo demo</strong> campaign and its unused media from the player, content editors, Files, and pickers. Demo assets still used by your catalogue or by any Brand stay visible. Files remain on disk and continue to build normally. If you later delete that operator catalogue, the demo is shown again automatically.
+                    You have a campaign with a track on a playlist. You can hide the shipped <strong>bandPromo demo</strong> campaign and its catalogue media from the player, content editors, Files, and pickers. Demo Brand shell assets stay visible while Base (or another non-demo brand) still uses them. Files remain on disk and continue to build normally. If you later delete that operator catalogue, the demo is shown again automatically.
                 </p>
                 <div class="card-actions">
                     <button type="button" class="btn btn-primary" id="demoCatalogHideBtn">Hide demo campaign</button>
@@ -908,7 +908,7 @@ if ($tab === 'analytics') {
             <div class="card welcome-demo-catalog-card" id="welcomeDemoCatalogCard">
                 <h2>🎭 bandPromo demo campaign</h2>
                 <p class="card-note">
-                    You have a campaign with a track on a playlist. You can hide the shipped <strong>bandPromo demo</strong> campaign and its unused media from the player, content editors, Files, and pickers. Demo assets still used by your catalogue or by any Brand stay visible. Files remain on disk and continue to build normally. If you later delete that operator catalogue, the demo is shown again automatically.
+                    You have a campaign with a track on a playlist. You can hide the shipped <strong>bandPromo demo</strong> campaign and its catalogue media from the player, content editors, Files, and pickers. Demo Brand shell assets stay visible while Base (or another non-demo brand) still uses them. Files remain on disk and continue to build normally. If you later delete that operator catalogue, the demo is shown again automatically.
                 </p>
                 <div class="card-actions">
                     <button type="button" class="btn btn-primary" id="demoCatalogHideBtn">Hide demo campaign</button>
@@ -1309,6 +1309,8 @@ if ($tab === 'analytics') {
                     </div>
                     <div class="audio-pool-toolbar-actions visual-pool-toolbar-actions media-file-actions">
                         <button type="button" class="icon-btn media-action-btn media-action-good media-group-action-btn media-labeled-action-btn" onclick="openUploadModal('visual')" aria-label="Upload visual files" title="Upload images or videos"><span class="media-labeled-action-icon" aria-hidden="true">＋</span><span>Upload</span></button>
+                        <button type="button" class="icon-btn media-action-btn media-action-good media-group-action-btn media-labeled-action-btn" id="visualAssignCampaignBtn" data-visual-assign-campaign disabled aria-label="Assign selected visuals to a campaign" title="Select one or more files to assign"><span class="media-labeled-action-icon" aria-hidden="true">📁</span><span>Assign</span></button>
+                        <button type="button" class="icon-btn media-action-btn media-group-action-btn media-labeled-action-btn" id="visualRemoveCampaignBtn" data-visual-remove-campaign disabled aria-label="Remove selected visuals from campaign" title="Select files with a catalogue home to remove"><span class="media-labeled-action-icon" aria-hidden="true">⏏</span><span>Remove</span></button>
                         <button type="button" class="icon-btn media-action-btn media-action-good media-group-action-btn media-labeled-action-btn media-bulk-download-btn" data-bulk-download-target="visual" data-download-variant="original" disabled aria-label="Download selected files" title="Download selected files"><span class="media-labeled-action-icon" aria-hidden="true">⬇</span><span>Download</span></button>
                         <button type="button" class="icon-btn media-action-btn media-action-danger media-group-action-btn media-labeled-action-btn media-bulk-delete-btn" data-bulk-delete-target="visual" disabled aria-label="Delete selected files" title="Delete selected files"><span class="media-labeled-action-icon" aria-hidden="true">🗑️</span><span>Delete</span></button>
                     </div>
@@ -1471,6 +1473,24 @@ if ($tab === 'analytics') {
                         <button id="mediaDeleteConfirmBtn" class="btn btn-danger">Delete</button>
                         <button class="btn" onclick="closeDeleteModal()">Cancel</button>
                         <span id="mediaDeleteStatus" class="status-text"></span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Visual catalogue-home assign -->
+            <div id="visualCampaignAssignModal" class="modal-overlay" style="display:none" onclick="if(event.target===this)closeVisualCampaignAssignModal()" aria-hidden="true">
+                <div class="modal-box" role="dialog" aria-modal="true" aria-labelledby="visualCampaignAssignTitle">
+                    <button type="button" class="modal-close" onclick="closeVisualCampaignAssignModal()" aria-label="Close">✕</button>
+                    <h3 id="visualCampaignAssignTitle">Assign catalogue home</h3>
+                    <p id="visualCampaignAssignSummary" class="card-note"></p>
+                    <div class="media-upload-campaign-field visual-assign-campaign-field">
+                        <label for="visualCampaignAssignSelect">Assign to campaign:</label>
+                        <select id="visualCampaignAssignSelect" aria-label="Campaign for catalogue home"></select>
+                    </div>
+                    <p class="card-note text-muted">This sets each file’s exclusive catalogue home (overwrites any previous home). It does not add or remove gallery / poster / cover usage.</p>
+                    <div class="modal-actions">
+                        <button type="button" id="visualCampaignAssignConfirmBtn" class="btn btn-primary">Assign</button>
+                        <button type="button" class="btn" onclick="closeVisualCampaignAssignModal()">Cancel</button>
                     </div>
                 </div>
             </div>
@@ -2549,7 +2569,7 @@ if ($tab === 'analytics') {
             </div>
             <div class="admin-help-box collapsed" id="help-settings">
                 <?php if ($configTab === 'basics'): ?>
-                    Basics is the place for your public site title, URL, description, author, and contact. Contact is suggested from author + site URL until you edit it manually. <strong>Save validates only the basics fields</strong>, then writes them back into the full config. If internal config sections are missing, use the <strong>Repair</strong> link to restore them from the config template. Use <strong>Demo campaign</strong> below to hide unused shipped demo media from your workspace (assets still used by your catalogue or any Brand stay visible).
+                    Basics is the place for your public site title, URL, description, author, and contact. Contact is suggested from author + site URL until you edit it manually. <strong>Save validates only the basics fields</strong>, then writes them back into the full config. If internal config sections are missing, use the <strong>Repair</strong> link to restore them from the config template. Use <strong>Demo campaign</strong> below to hide the shipped demo campaign and its catalogue media from your workspace (Base brand shell assets stay visible while still referenced).
                 <?php elseif ($configTab === 'support'): ?>
                     Support is where you decide whether the public player should show a support call-to-action at all, where it should send visitors, and how visible it should be. Use a simple link button when you want the safest, most portable setup. Use the Ko-fi widget only when you intentionally want Ko-fi's hosted script and overlay behavior on your site. bandPromo does not verify payments or memberships here in v0.7; it only controls presentation.
                 <?php elseif ($configTab === 'sharing'): ?>
@@ -2641,7 +2661,7 @@ if ($tab === 'analytics') {
             <div class="card">
                 <h3>🎭 Demo campaign</h3>
                 <p class="card-note">
-                    Hide is available after you have an operator-created campaign with a track and a playlist that exposes that track. When hidden, the shipped <strong>bandPromo demo</strong> campaign and its playlists, galleries, pages, and unused Audio/Visual media leave the player, content editors, Files pools, and pickers. Demo Brands leave Branding and brand export unless that brand is still your Base brand. Demo Brand shell assets stay visible only while your Base brand (or another non-demo brand) still uses them. Demo assets still used by your catalogue stay visible. Files remain on disk and publish builds still process them. If you later delete that operator catalogue, the demo is shown again automatically.
+                    Hide is available after you have an operator-created campaign with a track and a playlist that exposes that track. When hidden, the shipped <strong>bandPromo demo</strong> campaign and its playlists, galleries, pages, and Audio/Visual media whose catalogue home is that campaign leave the player, content editors, Files pools, and pickers. Demo Brands leave Branding and brand export unless that brand is still your Base brand. Demo Brand shell assets stay visible only while your Base brand (or another non-demo brand) still uses them. Files remain on disk and publish builds still process them. If you later delete that operator catalogue, the demo is shown again automatically.
                 </p>
                 <label class="config-checkbox-row">
                     <input type="checkbox" id="cfgDemoCatalogHidden"<?php echo !empty($demoCatalogHidden) ? ' checked' : ''; ?>>

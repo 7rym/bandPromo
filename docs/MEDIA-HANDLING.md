@@ -58,7 +58,7 @@ Assets that belong to the whole install or **base brand**:
 - welcome audio / logged-in audio
 - style reference and portrait assets curated for the brand
 
-These live in the global **Visual** (images/video) or **Sound effects** (brand UI audio) warehouses. Each Brand document curates a cross-media `library_asset_ids` list; storage ownership (`brand_id`) is provenance, not library membership. Files → Brand assets **Orphans** lists only brand-eligible warehouse rows (shell roles, special/SFX intake, or `brand_id` provenance) that are not in any Brand library — not every track cover in Visual.
+These live in the global **Visual** (images/video) or **Sound effects** (brand UI audio) warehouses. Each Brand document curates a cross-media `library_asset_ids` list; that list (plus shell slots) is membership SoT. Registry `brand_id` is a best-effort stamp kept loosely in sync on library add/remove — Files → Sound effects Brand column lists library brands, not the stamp alone. Files → Brand assets **Orphans** lists only brand-eligible warehouse rows (shell roles, special/SFX intake, or library-eligible) that are not in any Brand library — not every track cover in Visual.
 
 ### Release scope
 
@@ -760,7 +760,7 @@ The current `bandPromo_*` naming convention may be used as a temporary implement
 
 - Unused demo campaign files leave Files → Audio / Visual and pickers (including demo Brand library members).
 - Demo assets still referenced by a non-demo playlist, gallery, page, or campaign stay visible (`kept_visible` soft warning on save).
-- Demo Brand shell (Files → Brand assets / Sound effects, and logo / poster / still / living slots) stay visible while **any** Brand references them, and hide when unused. Operator-uploaded brand media is untouched.
+- Demo Brand shell (Files → Brand assets / Sound effects, and logo / poster / still / living slots) stay visible while the **Base** brand or another non-demo brand references them. Operator-uploaded brand media is untouched.
 - Filename prefixes such as `bandPromo_*` are **not** the hide gate.
 
 **Locked demo delete:** deleting campaign media that belongs to the locked demo campaign is denied until the demo campaign is unlocked on localhost.
@@ -774,14 +774,14 @@ Deleting media from Admin is a real delete (unlink), subject to:
 - locked demo campaign ownership guards
 - in-use / multi-reference detach requirements
 
-Demo campaign visibility is **preference-level** (`demo_release_hidden`) with **unused-only** Files filtering. Do not use filename-prefix (`bandPromo_*`) soft-hide as a substitute. Registry identity is `ast_*`; filename prefixes are provenance/display hints only.
+Demo campaign visibility is **preference-level** (`demo_release_hidden`) with Files filtering by **catalogue home** (demo campaign id). Base brand shell assets stay visible while referenced. Do not use filename-prefix (`bandPromo_*`) soft-hide as a substitute. Registry identity is `ast_*`; filename prefixes are provenance/display hints only.
 
 ### Recommended first implementation shape
 
 Per-install soft-hide maps for bundled placeholders are retired. Prefer:
 
 - campaign ownership + lock for demo media
-- `demo_release_hidden` for operator hide of that campaign (unused-only workspace filter)
+- `demo_release_hidden` for operator hide of that campaign (catalogue-home Files filter + Base shell exception)
 - registry `origin` for provenance badges (not hide/delete policy)
 
 That keeps Files pools and media pickers consistent without a second hide system.
@@ -1278,7 +1278,7 @@ The runtime manifest in `data/media-library-state.json` records advisory `assets
 
 Visual usage identity is the registry `ast_*` id. Stored paths, delivery URLs, original names, and master names are resolvers that map onto that id. Titles, operator titles, and filename stems are never compared. Unregistered leftovers with no id do not match a registered asset. After a visual re-register, track covers may still store the previous `ast_*`; lookup treats a live Visual whose original or master filename is `{former_id}.ext` as that file. `/media/visual/delivery/{id}/card.jpg` (and other variants) resolve by the `{id}` segment, not the basename `card.jpg`.
 
-`biblioteca/list-media.php` returns this as `cover_info` / `reference_info` for Files → Visual, including role, origin, references, and an `orphan` flag for unreferenced non-demo files. The **In use / Unused** chip follows that live reference index (track cover, gallery, page picture/poster, release/playlist poster, press photo, or brand shell slot). Brand **library** membership alone does not count as used. Files → Visual **Catalogue** names every campaign that uses the file: owned gallery, track cover / living cover, release or playlist poster, press photo, page picture, **or** the Brand visual shell those campaigns play (logo, poster, still/living). Empty Brand slots inherit the install Base brand (login / player fallback), so a site-wide background lists every release that still inherits it. Shared files list each matching release on its own line. Brand-library members with no campaign use list that Brand rather than Orphan. Catalogue must not infer the campaign from Brand ownership on the asset. Unused-but-filed assets may still show a release from `assets[].release_id`. The invisible `primary` bucket is never catalogue membership.
+`biblioteca/list-media.php` returns this as `cover_info` / `reference_info` for Files → Visual, including role, origin, references, and an `orphan` flag for unreferenced non-demo files. The **In use / Unused** chip follows that live reference index (track cover, gallery, page picture/poster, release/playlist poster, press photo, or brand shell slot). Brand **library** membership alone does not count as used. Files → Visual **Catalogue** is the asset’s catalogue home (`assets[].release_id`). Brand-library members with no campaign home list that Brand rather than Orphan. Catalogue must not infer the campaign from Brand ownership on the asset. The invisible `primary` bucket is never catalogue membership.
 
 Files -> Illustrations now surfaces that metadata in the admin UI with role/origin badges, compact list-header filter dropdowns (`All`, `Track covers`, `Orphans`, `Build-generated`, plus `User files` / `Include demo`), and delete-preview hints for theme references and regenerable build artifacts. Detailed per-row `Used by:` reference text stays out of the normal operator list view; badges and filters are the primary signal. After playlist regeneration, stale `configured_release_cover.*` variants are removed when they are no longer the active fallback copy.
 

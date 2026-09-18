@@ -746,7 +746,8 @@ function bandpromo_demo_media_non_demo_references(
 
 /**
  * Whether a Files-pool row should be omitted while the demo campaign is hidden.
- * Unused demo workspace media (and unused demo shell) hide; in-use / any-brand stay visible.
+ * Audio/Visual hide when catalogue home is the demo campaign.
+ * Brand shell / SFX stay visible while Base (or another non-demo brand) still references them.
  */
 function bandpromo_demo_workspace_media_should_hide(
     string $root,
@@ -764,16 +765,13 @@ function bandpromo_demo_workspace_media_should_hide(
         return false;
     }
 
-    $set = is_array($precomputedSet) ? $precomputedSet : bandpromo_demo_campaign_asset_set($root);
-    if (!bandpromo_demo_campaign_owns_media_file($root, $target, $filename, $set)) {
-        return false;
-    }
-
     require_once __DIR__ . '/asset-registry.php';
     $asset = bandpromo_asset_lookup_by_original_filename($root, $filename)
         ?? bandpromo_asset_lookup_by_master_filename($root, $filename);
     $assetId = is_array($asset) ? trim((string) ($asset['id'] ?? '')) : '';
+    $demoId = bandpromo_demo_campaign_id($root);
 
+    $set = is_array($precomputedSet) ? $precomputedSet : bandpromo_demo_campaign_asset_set($root);
     $isShell = ($target === 'special' || $target === 'sfx')
         || ($assetId !== '' && !empty($set['shell_asset_ids'][$assetId]))
         || (is_array($asset) && bandpromo_demo_campaign_asset_is_brand_shell($asset));
@@ -786,7 +784,17 @@ function bandpromo_demo_workspace_media_should_hide(
         return !bandpromo_demo_asset_referenced_by_any_brand($root, $assetId);
     }
 
-    return bandpromo_demo_media_non_demo_references($root, $target, $filename) === [];
+    if ($demoId === '' || !is_array($asset)) {
+        return false;
+    }
+
+    require_once __DIR__ . '/campaign-storage.php';
+    $home = bandpromo_campaign_normalize_id((string) ($asset['release_id'] ?? ''));
+    if ($home === BANDPROMO_CAMPAIGN_DEFAULT_ID) {
+        $home = '';
+    }
+
+    return $home !== '' && $home === $demoId;
 }
 
 /**
@@ -845,32 +853,7 @@ function bandpromo_demo_campaign_assets_kept_visible(string $root): array
             continue;
         }
 
-        foreach (bandpromo_demo_media_non_demo_references($root, $target, $filename) as $reference) {
-            if (!is_array($reference)) {
-                continue;
-            }
-            $containerId = bandpromo_demo_campaign_reference_owner_id($reference);
-            $kind = (string) ($reference['kind'] ?? 'reference');
-            $dedupe = $assetId . '|' . $target . '|' . $filename . '|' . $kind . '|' . $containerId;
-            if (isset($seen[$dedupe])) {
-                continue;
-            }
-            $seen[$dedupe] = true;
-
-            $row = [
-                'asset_id' => $assetId,
-                'target' => $target,
-                'filename' => $filename,
-                'kind' => $kind,
-                'label' => trim((string) ($reference['label'] ?? $containerId)) ?: $filename,
-                'container_id' => $containerId,
-                'scope' => (string) ($reference['scope'] ?? ''),
-                'reason' => 'operator',
-            ];
-            $row['detail'] = bandpromo_demo_campaign_hide_blocker_detail($row);
-            $row['href'] = bandpromo_demo_campaign_hide_blocker_href($row);
-            $kept[] = $row;
-        }
+        // Demo-homed Audio/Visual hide with the campaign; no unused-only keep list.
     }
 
     return $kept;

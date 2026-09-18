@@ -388,6 +388,38 @@ def run_triage(plan, deep=False, suppress_json_drift=False):
                 ).format(len(janitor_targets)),
             )
 
+        # Orphans used in playlists / galleries / pages → stamp catalogue home.
+        try:
+            import orphan_homes
+            orphan_probe = orphan_homes.probe_orphan_homes(registry)
+        except Exception as exc:
+            log.info('Orphan home probe skipped: {0}'.format(exc))
+            orphan_probe = {'stampable': [], 'ambiguous': []}
+        stampable = orphan_probe.get('stampable') or []
+        ambiguous = orphan_probe.get('ambiguous') or []
+        if stampable:
+            plan_mod.add_finding(
+                plan, 'orphan_assets_in_containers', 'attention',
+                'Orphan media used in campaigns needs a catalogue home', len(stampable),
+                'orphan_home_stamp',
+                sample=[r.get('asset_id') for r in stampable],
+                body=(
+                    '{0} audio/visual file(s) are used in a playlist, gallery, or page '
+                    'but have no campaign home. Apply stamps home to that campaign.'
+                ).format(len(stampable)),
+            )
+        if ambiguous:
+            plan_mod.add_finding(
+                plan, 'orphan_assets_multi_campaign', 'attention',
+                'Orphan media used by more than one campaign', len(ambiguous),
+                '',
+                sample=[r.get('asset_id') for r in ambiguous],
+                body=(
+                    '{0} orphan file(s) are referenced by containers owned by different '
+                    'campaigns. Assign a home from Files — Site health will not guess.'
+                ).format(len(ambiguous)),
+            )
+
         # Quick duplicate masters: same size → whole-file XXH3.
         try:
             import dedupe

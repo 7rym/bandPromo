@@ -519,6 +519,20 @@ if (isset($_POST['chunk_index']) && isset($_POST['filename'])) {
             $response['asset_id'] = $visualAsset['id'];
             $response['visual_role'] = $visualAsset['role'] ?? 'unassigned';
             $response['brand_id'] = $visualAsset['brand_id'] ?? '';
+            if ($target_hint === 'visual') {
+                $requestedCampaignId = trim((string) ($_POST['campaign_id'] ?? $_POST['release_id'] ?? ''));
+                $assign = bandpromo_campaign_assign_visual_on_upload(
+                    $root_dir,
+                    (string) $visualAsset['id'],
+                    $requestedCampaignId
+                );
+                if ($assign['campaign_id'] !== '') {
+                    $response['campaign_id'] = $assign['campaign_id'];
+                }
+                if ($assign['warning'] !== '') {
+                    $response['campaign_warning'] = $assign['warning'];
+                }
+            }
         }
         if (is_array($sfxAsset) && !empty($sfxAsset['id'])) {
             $response['asset_id'] = $sfxAsset['id'];
@@ -763,6 +777,21 @@ foreach ($files as $file) {
             $result['asset_id'] = $visualAsset['id'];
             $result['visual_role'] = $visualAsset['role'] ?? 'unassigned';
             $result['brand_id'] = $visualAsset['brand_id'] ?? '';
+            if ($target_hint === 'visual') {
+                $requestedCampaignId = trim((string) ($_POST['campaign_id'] ?? $_POST['release_id'] ?? ''));
+                $assign = bandpromo_campaign_assign_visual_on_upload(
+                    $root_dir,
+                    (string) $visualAsset['id'],
+                    $requestedCampaignId
+                );
+                if ($assign['campaign_id'] !== '') {
+                    $result['campaign_id'] = $assign['campaign_id'];
+                }
+                if ($assign['warning'] !== '') {
+                    $result['campaign_warning'] = $assign['warning'];
+                    $masterWarnings[] = $saved_name . ': ' . $assign['warning'];
+                }
+            }
         }
         if (is_array($sfxAsset) && !empty($sfxAsset['id'])) {
             $result['asset_id'] = $sfxAsset['id'];

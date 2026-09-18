@@ -60,6 +60,7 @@
     let pollTimer = null;
     let running = false;
     let lastPlan = null;
+    let staleAutoCheckStarted = false;
     let previewOpen = false;
 
     const STALE_CHECK_MS = 60 * 60 * 1000;
@@ -146,6 +147,9 @@
         if (key === 'healthy') {
             label = 'Healthy';
             cls = 'badge audit-status-badge status-ok';
+        } else if (key === 'outdated' || key === 'stale') {
+            label = 'Out of date';
+            cls = 'badge audit-status-badge status-warning';
         } else if (key === 'attention') {
             label = 'Needs attention';
             cls = 'badge audit-status-badge status-warning';
@@ -556,7 +560,7 @@
                 bits.push(appVersion);
             }
             if (isPlanStale(plan)) {
-                bits.push('stale — run a fresh check');
+                bits.push('out of date — refreshing');
             }
             metaEl.innerHTML = bits.length
                 ? escapeHtml(bits.join(' · '))
@@ -583,24 +587,39 @@
 
         const stale = isPlanStale(plan);
 
-        // Good / Bad / Ugly is the Status summary; findings detail lives under Bad & Ugly.
-        renderSummary(plan);
-        if (summaryEl && !summaryEl.hidden) {
-            summaryEl.classList.toggle('is-stale', stale);
-        }
-        if (plan.summary) {
+        if (stale) {
+            // Never present hour-old Good/Bad/Ugly as current health.
+            if (summaryEl) {
+                summaryEl.hidden = false;
+                summaryEl.classList.add('is-stale');
+                summaryEl.innerHTML = (
+                    '<p class="publish-status-empty site-health-stale-notice">' +
+                    'Last check is more than an hour old. Starting a fresh Quick health check…' +
+                    '</p>'
+                );
+            }
             findingsEl.innerHTML = '';
             findingsEl.hidden = true;
-        } else if (findings.length === 0) {
-            findingsEl.hidden = false;
-            findingsEl.innerHTML = '<p class="publish-status-empty">Nothing needs treatment. Listener catalogue looks healthy.</p>';
         } else {
-            findingsEl.hidden = false;
-            findingsEl.innerHTML = (
-                '<div class="publish-status-checks">' +
-                findings.map(findingCardHtml).join('') +
-                '</div>'
-            );
+            // Good / Bad / Ugly is the Status summary; findings detail lives under Bad & Ugly.
+            renderSummary(plan);
+            if (summaryEl && !summaryEl.hidden) {
+                summaryEl.classList.remove('is-stale');
+            }
+            if (plan.summary) {
+                findingsEl.innerHTML = '';
+                findingsEl.hidden = true;
+            } else if (findings.length === 0) {
+                findingsEl.hidden = false;
+                findingsEl.innerHTML = '<p class="publish-status-empty">Nothing needs treatment. Listener catalogue looks healthy.</p>';
+            } else {
+                findingsEl.hidden = false;
+                findingsEl.innerHTML = (
+                    '<div class="publish-status-checks">' +
+                    findings.map(findingCardHtml).join('') +
+                    '</div>'
+                );
+            }
         }
 
         // While a job is running, setRunningUi owns chrome (status + Stop only).
@@ -610,7 +629,6 @@
         }
 
         if (stale) {
-            // Do not treat or keep Review open on a stale plan — ask for a fresh check.
             setPreviewMode(false);
             if (treatBtn) {
                 treatBtn.hidden = true;
@@ -619,7 +637,6 @@
                 forceBtn.hidden = false;
                 forceBtn.disabled = false;
             }
-            setJobStatus(staleCheckMessage(), 'attention');
             syncRecommendedAction();
             return;
         }
@@ -705,49 +722,55 @@
             renderPlan(plan);
             setRunningUi(isRunning);
             if (!data.running) {
-                setOverall(data.overall || plan.overall || 'unknown');
-                if (data.exit_code === 0) {
-                    const overall = String(data.overall || plan.overall || '');
-                    const metaMode = String((data.meta && data.meta.mode) || '').trim();
-                    const planMode = String(plan.mode || '').trim();
-                    // Prefer the job that was launched (meta.mode). Follow-up overwrites
-                    // plan.mode to "followup" / check — never call Force a Quick check.
-                    const jobMode = metaMode || planMode;
-                    if (overall === 'healthy') {
-                        setPreviewMode(false);
-                        let doneMsg = 'Health job complete — site looks healthy.';
-                        if (jobMode === 'check_full') {
-                            doneMsg = 'Full check complete — site looks healthy.';
-                        } else if (jobMode === 'check') {
-                            doneMsg = 'Quick check complete — site looks healthy.';
-                        } else if (jobMode === 'treat') {
-                            doneMsg = 'Treatment complete — site looks healthy.';
-                        } else if (jobMode === 'force') {
-                            doneMsg = 'Force rebuild complete — site looks healthy.';
-                        } else if (jobMode === 'followup') {
-                            doneMsg = 'Follow-up complete — site looks healthy.';
-                        }
-                        setJobStatus(doneMsg, 'success');
-                    } else if (overall === 'critical' || overall === 'attention') {
-                        // Findings live in The bad / The ugly — no duplicate status nudge.
-                        if (jobMode === 'force') {
-                            setJobStatus(
-                                'Force rebuild finished with remaining findings.',
-                                overall === 'critical' ? 'error' : 'attention'
-                            );
-                        } else if (jobMode === 'treat') {
-                            setJobStatus(
-                                'Treatment finished with remaining findings.',
-                                overall === 'critical' ? 'error' : 'attention'
-                            );
+                if (isPlanStale(plan)) {
+                    setOverall('outdated');
+                    syncRecommendedAction();
+                    maybeAutoStartStaleQuickCheck();
+                } else {
+                    setOverall(data.overall || plan.overall || 'unknown');
+                    if (data.exit_code === 0) {
+                        const overall = String(data.overall || plan.overall || '');
+                        const metaMode = String((data.meta && data.meta.mode) || '').trim();
+                        const planMode = String(plan.mode || '').trim();
+                        // Prefer the job that was launched (meta.mode). Follow-up overwrites
+                        // plan.mode to "followup" / check — never call Force a Quick check.
+                        const jobMode = metaMode || planMode;
+                        if (overall === 'healthy') {
+                            setPreviewMode(false);
+                            let doneMsg = 'Health job complete — site looks healthy.';
+                            if (jobMode === 'check_full') {
+                                doneMsg = 'Full check complete — site looks healthy.';
+                            } else if (jobMode === 'check') {
+                                doneMsg = 'Quick check complete — site looks healthy.';
+                            } else if (jobMode === 'treat') {
+                                doneMsg = 'Treatment complete — site looks healthy.';
+                            } else if (jobMode === 'force') {
+                                doneMsg = 'Force rebuild complete — site looks healthy.';
+                            } else if (jobMode === 'followup') {
+                                doneMsg = 'Follow-up complete — site looks healthy.';
+                            }
+                            setJobStatus(doneMsg, 'success');
+                        } else if (overall === 'critical' || overall === 'attention') {
+                            // Findings live in The bad / The ugly — no duplicate status nudge.
+                            if (jobMode === 'force') {
+                                setJobStatus(
+                                    'Force rebuild finished with remaining findings.',
+                                    overall === 'critical' ? 'error' : 'attention'
+                                );
+                            } else if (jobMode === 'treat') {
+                                setJobStatus(
+                                    'Treatment finished with remaining findings.',
+                                    overall === 'critical' ? 'error' : 'attention'
+                                );
+                            } else {
+                                setJobStatus('');
+                            }
                         } else {
                             setJobStatus('');
                         }
-                    } else {
-                        setJobStatus('');
                     }
+                    syncRecommendedAction();
                 }
-                syncRecommendedAction();
             } else {
                 const message = data.meta && data.meta.message ? String(data.meta.message) : 'Working…';
                 setJobStatus(message);
@@ -850,6 +873,22 @@
             // Ignore storage failures.
         }
         return false;
+    }
+
+    async function maybeAutoStartStaleQuickCheck() {
+        if (staleAutoCheckStarted || running) {
+            return;
+        }
+        if (!isPlanStale(lastPlan)) {
+            return;
+        }
+        staleAutoCheckStarted = true;
+        setPreviewMode(false);
+        await startMode('check');
+        // Allow a later retry if start failed (still idle + still out of date).
+        if (!running && isPlanStale(lastPlan)) {
+            staleAutoCheckStarted = false;
+        }
     }
 
     async function maybeAutoStartAfterUpdate() {

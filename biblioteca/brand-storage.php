@@ -1390,9 +1390,12 @@ function bandpromo_brand_add_assets_to_library(string $root, string $brandId, ar
  *
  * @return array<string, list<array{brand_id: string, brand_title: string}>>
  */
-function bandpromo_brand_library_membership_index(string $root): array
+function bandpromo_brand_library_membership_index(string $root, bool $refresh = false): array
 {
     static $cache = [];
+    if ($refresh) {
+        unset($cache[$root]);
+    }
     if (isset($cache[$root]) && is_array($cache[$root])) {
         return $cache[$root];
     }
@@ -2414,10 +2417,16 @@ function bandpromo_brand_registry_entries(string $root): array
 
 /**
  * Operator-facing brand list (Branding pool, PBF export). Hides demo brands when demo campaign is hidden.
+ * Includes campaign reuse counts (`campaign_count`, `campaign_titles`) for shared-brand linking.
+ *
+ * @return list<array<string, mixed>>
  */
 function bandpromo_brand_admin_registry_entries(string $root): array
 {
     require_once __DIR__ . '/demo-catalog-state.php';
+    require_once __DIR__ . '/campaign-storage.php';
+
+    $usage = bandpromo_brand_campaign_usage_index($root);
     $entries = [];
     foreach (bandpromo_brand_registry_entries($root) as $entry) {
         if (!is_array($entry)) {
@@ -2427,6 +2436,20 @@ function bandpromo_brand_admin_registry_entries(string $root): array
         if ($brandId === '' || !bandpromo_demo_brand_visible_in_admin($root, $brandId)) {
             continue;
         }
+        $canonical = bandpromo_brand_canonical_id($brandId);
+        $used = isset($usage[$canonical]) && is_array($usage[$canonical]) ? $usage[$canonical] : [];
+        $titles = [];
+        foreach ($used as $row) {
+            if (!is_array($row)) {
+                continue;
+            }
+            $title = trim((string) ($row['title'] ?? ''));
+            if ($title !== '') {
+                $titles[] = $title;
+            }
+        }
+        $entry['campaign_count'] = count($used);
+        $entry['campaign_titles'] = $titles;
         $entries[] = $entry;
     }
 

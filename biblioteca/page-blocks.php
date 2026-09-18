@@ -917,6 +917,40 @@ function bandpromo_page_normalize_document(array $input, string $expectedId): ar
     }
     unset($document['release_id']);
     $document['campaign_id'] = $campaignId;
+
+    if ($campaignId !== '') {
+        require_once __DIR__ . '/asset-registry.php';
+        require_once __DIR__ . '/campaign-storage.php';
+        $checkIds = [];
+        $posterId = trim((string) ($document['poster_asset_id'] ?? ''));
+        if ($posterId !== '' && bandpromo_asset_is_asset_id($posterId)) {
+            $checkIds[] = $posterId;
+        }
+        foreach ($blocks as $block) {
+            if (!is_array($block)) {
+                continue;
+            }
+            foreach (['asset_id', 'poster_asset_id'] as $field) {
+                $ref = trim((string) ($block[$field] ?? ''));
+                if ($ref !== '' && bandpromo_asset_is_asset_id($ref)) {
+                    $checkIds[] = $ref;
+                }
+            }
+        }
+        foreach (array_unique($checkIds) as $assetId) {
+            $asset = bandpromo_asset_lookup_by_id(dirname(__DIR__), $assetId);
+            if (!is_array($asset)) {
+                continue;
+            }
+            if (!bandpromo_campaign_asset_home_allowed_for_container(dirname(__DIR__), $asset, $campaignId)) {
+                throw new InvalidArgumentException(
+                    'Page visuals must come from this campaign’s catalogue (or be orphans). '
+                    . 'Rehome the picture in Files → Visual, or pick a visual from this campaign.'
+                );
+            }
+        }
+    }
+
     // Player tab text (public). Persisted on the document so PCF import keeps it.
     if (array_key_exists('label', $input)) {
         $document['label'] = bandpromo_page_normalize_text((string) $input['label'], 32);

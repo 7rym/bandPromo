@@ -261,6 +261,20 @@ def run_treat():
         touch_heartbeat(ROOT_DIR, stage='idle', message='Treat stopped', name=META_NAME)
         return 0
 
+    if 'orphan_home_stamp' in ids:
+        import orphan_homes
+        _fixed, orphan_failed = orphan_homes.treat_orphan_homes()
+        if orphan_failed > 0:
+            treat_ok = False
+        if _fixed > 0:
+            did_register = True
+
+    if stop_requested():
+        log.info('Stop requested after orphan home stamp.')
+        followup.run_followup('treat')
+        touch_heartbeat(ROOT_DIR, stage='idle', message='Treat stopped', name=META_NAME)
+        return 0
+
     if 'dedupe_retarget_and_remove' in ids:
         treat_ok = treat_dedupe_mod.treat_dedupe(
             include_file=dedupe_file_scope,

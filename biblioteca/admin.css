@@ -4209,6 +4209,9 @@ canvas { max-width: 100%; height: auto; }
 
 .visual-pool-list--grid .visual-pool-card-grid-caption {
     display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.1rem;
 }
 
 .visual-pool-card-grid-caption .visual-pool-card-meta-title {
@@ -4222,6 +4225,14 @@ canvas { max-width: 100%; height: auto; }
 .visual-pool-card-grid-caption .visual-pool-card-meta-sub {
     font-size: 0.74rem;
     color: var(--text-muted, #8a8f98);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.visual-pool-card-grid-caption .visual-pool-card-meta-campaign {
+    font-size: 0.72rem;
+    color: var(--muted, #9aa4b2);
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -5258,7 +5269,16 @@ canvas { max-width: 100%; height: auto; }
 }
 
 .site-health-summary.is-stale {
-    opacity: 0.72;
+    opacity: 1;
+}
+
+.site-health-stale-notice {
+    margin: 0;
+    padding: 12px 14px;
+    border-radius: 8px;
+    border: 1px solid rgba(240, 180, 41, 0.5);
+    background: color-mix(in srgb, rgba(240, 180, 41, 0.1) 100%, var(--surface));
+    color: var(--text, #e8eef7);
 }
 
 .site-health-summary-panel {

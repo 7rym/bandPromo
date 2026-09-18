@@ -80,6 +80,31 @@ try {
     bandpromo_brand_write_document($root, $document, ['allow_locked' => true]);
     $document = bandpromo_brand_load_document($root, $brandId);
 
+    // Keep registry brand_id stamp loosely aligned with library membership (display SoT is library).
+    $membership = bandpromo_brand_library_membership_index($root, true);
+    foreach ($assetIds as $assetId) {
+        $nextStamp = '';
+        if ($action === 'add') {
+            $nextStamp = $brandId;
+        } else {
+            $members = isset($membership[$assetId]) && is_array($membership[$assetId])
+                ? $membership[$assetId]
+                : [];
+            if ($members !== []) {
+                $nextStamp = bandpromo_brand_canonical_id((string) ($members[0]['brand_id'] ?? ''));
+            }
+        }
+        try {
+            $asset = bandpromo_asset_lookup_by_id($root, $assetId);
+            $currentStamp = bandpromo_brand_canonical_id((string) (($asset['brand_id'] ?? '') ?: ''));
+            if ($currentStamp !== $nextStamp) {
+                bandpromo_asset_update_entry($root, $assetId, ['brand_id' => $nextStamp]);
+            }
+        } catch (Throwable $throwable) {
+            // Library write already succeeded; stamp sync is best-effort.
+        }
+    }
+
     bandpromo_admin_audit_log('brand_library_' . $action, [
         'target_type' => 'brand',
         'target_id' => $brandId,

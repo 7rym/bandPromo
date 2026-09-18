@@ -1132,7 +1132,7 @@ function bandpromo_asset_register_visual(
         'original_filename' => $originalFilename,
         'master_filename' => $masterFilename,
         'master_format' => $masterFormat,
-        'release_id' => '',
+        'release_id' => trim((string) ($options['release_id'] ?? '')),
         'slug' => '',
         'display' => $initialDisplay,
         'tags' => [$role],

@@ -760,7 +760,8 @@ function bandpromo_campaign_collect_asset_ids(string $root, string $releaseId): 
         if (!is_array($asset)) {
             continue;
         }
-        if (($asset['kind'] ?? '') === 'audio' && bandpromo_campaign_doc_belongs_to($asset, $releaseId)) {
+        $kind = (string) ($asset['kind'] ?? '');
+        if ($kind === 'audio' && bandpromo_campaign_doc_belongs_to($asset, $releaseId)) {
             $add((string) $assetId);
             $display = is_array($asset['display'] ?? null) ? $asset['display'] : [];
             // display.cover / living_cover are filenames (or occasionally asset ids).
@@ -779,6 +780,9 @@ function bandpromo_campaign_collect_asset_ids(string $root, string $releaseId): 
                     $add((string) ($visual['id'] ?? ''));
                 }
             }
+        } elseif ($kind === 'visual' && bandpromo_campaign_doc_belongs_to($asset, $releaseId)) {
+            // Catalogue home is source of truth for visual care/export (parity with audio).
+            $add((string) $assetId);
         }
     }
 

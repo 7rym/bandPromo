@@ -236,6 +236,27 @@ def run_investigate(plan, deep=False):
                 finding['items_sample'] = [t.get('path') for t in targets[:12]]
                 finding['count'] = len(targets)
                 log.items('Investigate media janitor targets', [t.get('path') for t in targets])
+            elif fid in ('orphan_assets_in_containers', 'orphan_assets_multi_campaign'):
+                try:
+                    import orphan_homes
+                    probe = orphan_homes.probe_orphan_homes(registry) if status == 'ok' else {
+                        'stampable': [], 'ambiguous': [],
+                    }
+                except Exception:
+                    probe = {'stampable': [], 'ambiguous': []}
+                if fid == 'orphan_assets_in_containers':
+                    rows = probe.get('stampable') or []
+                    finding['items_sample'] = [
+                        '{0} → {1}'.format(r.get('asset_id'), r.get('campaign_id'))
+                        for r in rows[:12]
+                    ]
+                    finding['count'] = len(rows)
+                    log.items('Investigate orphan homes (stampable)', finding['items_sample'])
+                else:
+                    rows = probe.get('ambiguous') or []
+                    finding['items_sample'] = [r.get('asset_id') for r in rows[:12]]
+                    finding['count'] = len(rows)
+                    log.items('Investigate orphan homes (multi-campaign)', finding['items_sample'])
             elif fid == 'empty_sfx_registry_with_disk_masters':
                 disk = reg.list_sfx_masters_on_disk()
                 finding['items_sample'] = disk[:12]

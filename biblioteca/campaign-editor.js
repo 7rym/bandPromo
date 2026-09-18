@@ -544,7 +544,20 @@
                 }
                 const option = document.createElement('option');
                 option.value = id === 'setup-default' ? 'bandpromo-default' : id;
-                option.textContent = String(brand?.title || id);
+                const title = String(brand?.title || id);
+                const usedCount = Math.max(0, Number(brand?.campaign_count) || 0);
+                if (usedCount > 1) {
+                    option.textContent = `${title} (used by ${usedCount} campaigns)`;
+                } else if (usedCount === 1) {
+                    const usedTitle = Array.isArray(brand?.campaign_titles) && brand.campaign_titles[0]
+                        ? String(brand.campaign_titles[0])
+                        : '';
+                    option.textContent = usedTitle !== '' && usedTitle !== title
+                        ? `${title} (used by ${usedTitle})`
+                        : `${title} (used by 1 campaign)`;
+                } else {
+                    option.textContent = title;
+                }
                 campaignSettingsBrandId.appendChild(option);
             });
             campaignSettingsBrandId.value = selected;

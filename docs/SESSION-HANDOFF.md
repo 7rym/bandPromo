@@ -2,18 +2,17 @@
 
 ## Resume point
 
-**Published:** Site health Status polish + media janitor (this checkpoint).
+**Shared brands + library Brand column** validated locally and ready to publish (this checkpoint).
 
 ### Done
 
-1. Media janitor (orphan delivery / empty / junk; Windows readonly clear).
-2. Status: Good/Bad/Ugly summary; selectable Proposed treatment; stale checks; breadcrumb nav links; job-status line removed.
-3. Docs/rules: ADMIN-UI breadcrumb preference (underlined roots, including self-links).
+1. Catalogue home SoT (prior) + shared brands + Files Brand from library membership.
+2. Operator validated: SFX Brand column and campaign brand reuse.
 
 ### Next
 
-1. **Campaign media ownership** (plan): catalogue home as SoT for visual care/export/demo; Site health orphan-in-container heal; Files Assign/Remove; simplify demo hide. Do not start until operator confirms after this publish.
-2. Fleet Site update on test hosts when the new build appears.
+1. After publish: Site update on test fleet (bandpromo.site / Spandexual / HITZ as needed).
+2. Optional later: pool “use in…” verbs; retire Brand assets as a parallel habitat.
 
 ### Local workspace
 

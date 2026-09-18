@@ -174,7 +174,7 @@ function bandpromo_audio_metadata_health_for_listing(
 }
 
 /**
- * Attach brand title when an entry already has brand_id.
+ * Attach Brand column labels from library membership (SoT), not registry brand_id stamp.
  *
  * @param array<string, mixed> $entry
  * @return array<string, mixed>
@@ -182,20 +182,44 @@ function bandpromo_audio_metadata_health_for_listing(
 function bandpromo_list_media_attach_brand_labels(string $root, array $entry): array
 {
     require_once __DIR__ . '/brand-storage.php';
-    $brandId = trim((string) ($entry['brand_id'] ?? ''));
-    $entry['brand_orphan'] = $brandId === '';
-    if ($brandId === '') {
-        $entry['brand_title'] = '';
 
-        return $entry;
+    $assetId = trim((string) ($entry['asset_id'] ?? ''));
+    $members = [];
+    if ($assetId !== '') {
+        $index = bandpromo_brand_library_membership_index($root);
+        if (isset($index[$assetId]) && is_array($index[$assetId])) {
+            $members = $index[$assetId];
+        }
     }
 
-    try {
-        $document = bandpromo_brand_load_document($root, $brandId);
-        $title = trim((string) ($document['title'] ?? ''));
-        $entry['brand_title'] = $title !== '' ? $title : $brandId;
-    } catch (Throwable $throwable) {
-        $entry['brand_title'] = $brandId;
+    $brandIds = [];
+    $brandTitles = [];
+    foreach ($members as $member) {
+        if (!is_array($member)) {
+            continue;
+        }
+        $memberId = bandpromo_brand_canonical_id((string) ($member['brand_id'] ?? ''));
+        $memberTitle = trim((string) ($member['brand_title'] ?? ''));
+        if ($memberId === '') {
+            continue;
+        }
+        if ($memberTitle === '') {
+            $memberTitle = $memberId;
+        }
+        $brandIds[] = $memberId;
+        $brandTitles[] = $memberTitle;
+    }
+
+    $entry['brand_ids'] = $brandIds;
+    $entry['brand_titles'] = $brandTitles;
+    $entry['brand_orphan'] = $brandIds === [];
+    $entry['brand_title'] = $brandTitles === [] ? '' : implode("\n", $brandTitles);
+
+    // Keep a single brand_id for legacy callers: first library member, else clear the stamp display path.
+    if ($brandIds !== []) {
+        $entry['brand_id'] = $brandIds[0];
+    } else {
+        $entry['brand_id'] = '';
     }
 
     return $entry;

@@ -1705,6 +1705,7 @@ function bandpromo_playlist_save_order(string $root, string $playlistId, array $
     }
 
     $document = bandpromo_playlist_load_document($root, $playlistId);
+    $ownerCampaignId = bandpromo_document_campaign_id($document);
 
     $entries = [];
     $skipped = [];
@@ -1719,6 +1720,12 @@ function bandpromo_playlist_save_order(string $root, string $playlistId, array $
         if ($asset === null || ($asset['kind'] ?? '') !== 'audio') {
             $skipped[] = $masterFile;
             continue;
+        }
+        if (!bandpromo_campaign_asset_home_allowed_for_container($root, $asset, $ownerCampaignId)) {
+            throw new InvalidArgumentException(
+                'Playlist tracks must come from this campaign’s catalogue (or be orphans). '
+                . 'Rehome “' . $masterFile . '” in Files → Audio, or pick a track from this campaign.'
+            );
         }
         $canonicalMaster = basename(trim((string) ($asset['master_filename'] ?? $masterFile)));
         if ($canonicalMaster === '') {

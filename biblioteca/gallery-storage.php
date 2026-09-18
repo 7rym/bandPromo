@@ -351,18 +351,36 @@ function bandpromo_gallery_save_items(string $root, string $galleryId, array $it
         $galleryId = BANDPROMO_GALLERY_DEMO_ID;
     }
 
+    $document = bandpromo_gallery_load_document($root, $galleryId);
+    $ownerCampaignId = bandpromo_document_campaign_id($document);
+
     $entries = [];
     foreach ($items as $item) {
         if (!is_array($item)) {
             continue;
         }
         $normalized = bandpromo_gallery_normalize_entry($item);
-        if ($normalized !== null) {
-            $entries[] = $normalized;
+        if ($normalized === null) {
+            continue;
         }
+        $assetId = trim((string) ($normalized['asset_id'] ?? ''));
+        if ($assetId !== '' && bandpromo_asset_is_asset_id($assetId)) {
+            require_once __DIR__ . '/asset-registry.php';
+            require_once __DIR__ . '/campaign-storage.php';
+            $asset = bandpromo_asset_lookup_by_id($root, $assetId);
+            if (is_array($asset)
+                && !bandpromo_campaign_asset_home_allowed_for_container($root, $asset, $ownerCampaignId)
+            ) {
+                $label = trim((string) ($normalized['title'] ?? $assetId));
+                throw new InvalidArgumentException(
+                    'Gallery visuals must come from this campaign’s catalogue (or be orphans). '
+                    . 'Rehome “' . $label . '” in Files → Visual, or pick a visual from this campaign.'
+                );
+            }
+        }
+        $entries[] = $normalized;
     }
 
-    $document = bandpromo_gallery_load_document($root, $galleryId);
     $document['entries'] = $entries;
     bandpromo_gallery_write_document($root, $document);
 

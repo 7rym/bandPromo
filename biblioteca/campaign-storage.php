@@ -1017,6 +1017,49 @@ function bandpromo_campaign_id_for_brand_owned_asset(string $root, string $brand
 }
 
 /**
+ * Maps brand_id → campaigns that link it via campaign.brand_id (shared brands allowed).
+ *
+ * @return array<string, list<array{campaign_id: string, title: string}>>
+ */
+function bandpromo_brand_campaign_usage_index(string $root): array
+{
+    require_once __DIR__ . '/brand-storage.php';
+
+    $index = [];
+    foreach (bandpromo_campaign_registry_entries($root) as $entry) {
+        if (!is_array($entry)) {
+            continue;
+        }
+        $campaignId = bandpromo_campaign_normalize_id((string) ($entry['id'] ?? ''));
+        if ($campaignId === '' || bandpromo_campaign_id_is_unowned($campaignId)) {
+            continue;
+        }
+        try {
+            $document = bandpromo_campaign_load_document($root, $campaignId);
+        } catch (Throwable $throwable) {
+            continue;
+        }
+        $brandId = bandpromo_brand_canonical_id((string) ($document['brand_id'] ?? ''));
+        if ($brandId === '') {
+            continue;
+        }
+        $title = trim((string) ($document['title'] ?? ''));
+        if ($title === '') {
+            $title = $campaignId;
+        }
+        if (!isset($index[$brandId])) {
+            $index[$brandId] = [];
+        }
+        $index[$brandId][] = [
+            'campaign_id' => $campaignId,
+            'title' => $title,
+        ];
+    }
+
+    return $index;
+}
+
+/**
  * Resolve a cover/poster/page ref to a Visual asset id.
  */
 function bandpromo_campaign_visual_asset_id_from_ref(string $root, string $ref): string
@@ -1354,99 +1397,52 @@ function bandpromo_campaign_visual_listing_meta(string $root, string $assetId, s
         $storedReleaseId = '';
     }
 
-    $memberships = $assetId !== ''
-        ? (bandpromo_campaign_visual_membership_index($root)[$assetId] ?? [])
-        : [];
-
-    if ($memberships === [] && $storedReleaseId !== '' && bandpromo_demo_catalog_entity_is_visible($root, $storedReleaseId)) {
+    // Catalogue home is source of truth (usage refs are consumers only).
+    if ($storedReleaseId !== '' && bandpromo_demo_catalog_entity_is_visible($root, $storedReleaseId)) {
         try {
             $document = bandpromo_campaign_load_document($root, $storedReleaseId);
-            $memberships = [[
-                'release_id' => $storedReleaseId,
-                'release_title' => trim((string) ($document['title'] ?? '')),
-                'release_date' => trim((string) ($document['release_date'] ?? '')),
-            ]];
-        } catch (Throwable $throwable) {
-            $memberships = [];
-        }
-    }
+            $title = trim((string) ($document['title'] ?? ''));
+            $date = trim((string) ($document['release_date'] ?? ''));
 
-    $memberships = array_values(array_filter(
-        $memberships,
-        static function ($row) use ($root): bool {
-            if (!is_array($row)) {
-                return false;
-            }
-            $releaseId = bandpromo_campaign_normalize_id((string) ($row['release_id'] ?? ''));
-            if ($releaseId === '' || $releaseId === BANDPROMO_CAMPAIGN_DEFAULT_ID) {
-                return false;
-            }
-
-            return bandpromo_demo_catalog_entity_is_visible($root, $releaseId);
-        }
-    ));
-
-    if ($memberships === []) {
-        $library = $assetId !== ''
-            ? (bandpromo_brand_library_membership_index($root)[$assetId] ?? [])
-            : [];
-        $brandTitles = [];
-        foreach ($library as $row) {
-            if (!is_array($row)) {
-                continue;
-            }
-            $title = trim((string) ($row['brand_title'] ?? ''));
-            if ($title === '') {
-                $title = trim((string) ($row['brand_id'] ?? ''));
-            }
-            if ($title !== '' && !in_array($title, $brandTitles, true)) {
-                $brandTitles[] = $title;
-            }
-        }
-        if ($brandTitles !== []) {
             return [
-                'release_id' => '',
-                'release_ids' => [],
-                'release_title' => implode("\n", $brandTitles),
-                'release_date' => '',
+                'release_id' => $storedReleaseId,
+                'release_ids' => [$storedReleaseId],
+                'release_title' => $title !== '' ? $title : $storedReleaseId,
+                'release_date' => $date,
                 'release_orphan' => false,
             ];
+        } catch (Throwable $throwable) {
+            // Fall through to brand-library / orphan.
         }
-
-        return $empty;
     }
 
-    $ids = [];
-    $titles = [];
-    $firstDate = '';
-    foreach ($memberships as $membership) {
-        if (!is_array($membership)) {
+    $library = $assetId !== ''
+        ? (bandpromo_brand_library_membership_index($root)[$assetId] ?? [])
+        : [];
+    $brandTitles = [];
+    foreach ($library as $row) {
+        if (!is_array($row)) {
             continue;
         }
-        $releaseId = bandpromo_campaign_normalize_id((string) ($membership['release_id'] ?? ''));
-        if ($releaseId === '' || $releaseId === BANDPROMO_CAMPAIGN_DEFAULT_ID || isset($ids[$releaseId])) {
-            continue;
+        $title = trim((string) ($row['brand_title'] ?? ''));
+        if ($title === '') {
+            $title = trim((string) ($row['brand_id'] ?? ''));
         }
-        $ids[$releaseId] = true;
-        $title = trim((string) ($membership['release_title'] ?? ''));
-        $titles[] = $title !== '' ? $title : $releaseId;
-        if ($firstDate === '') {
-            $firstDate = trim((string) ($membership['release_date'] ?? ''));
+        if ($title !== '' && !in_array($title, $brandTitles, true)) {
+            $brandTitles[] = $title;
         }
     }
-
-    $idList = array_keys($ids);
-    if ($idList === []) {
-        return $empty;
+    if ($brandTitles !== []) {
+        return [
+            'release_id' => '',
+            'release_ids' => [],
+            'release_title' => implode("\n", $brandTitles),
+            'release_date' => '',
+            'release_orphan' => false,
+        ];
     }
 
-    return [
-        'release_id' => $idList[0],
-        'release_ids' => $idList,
-        'release_title' => implode("\n", $titles),
-        'release_date' => $firstDate,
-        'release_orphan' => false,
-    ];
+    return $empty;
 }
 
 function bandpromo_campaign_normalize_pool_filter(string $value): string
@@ -3099,6 +3095,153 @@ function bandpromo_campaign_assign_audio_on_upload(string $root, string $assetId
     ];
 }
 
+/**
+ * Whether an asset catalogue home may be referenced by a container owned by $containerCampaignId.
+ * Orphans (empty / primary) are allowed; foreign homes are refused.
+ */
+function bandpromo_campaign_asset_home_allowed_for_container(string $root, array $asset, string $containerCampaignId): bool
+{
+    $containerCampaignId = bandpromo_campaign_normalize_id($containerCampaignId);
+    if ($containerCampaignId === '' || bandpromo_campaign_id_is_unowned($containerCampaignId)) {
+        return true;
+    }
+
+    $home = bandpromo_campaign_normalize_id((string) ($asset['release_id'] ?? ''));
+    if ($home === '' || $home === BANDPROMO_CAMPAIGN_DEFAULT_ID || bandpromo_campaign_id_is_unowned($home)) {
+        return true;
+    }
+
+    return $home === $containerCampaignId;
+}
+
+/**
+ * Stamp visual catalogue home on upload (no tracks[] — visuals are home-only).
+ *
+ * @return array{ok:bool,campaign_id:string,warning:string}
+ */
+function bandpromo_campaign_assign_visual_on_upload(string $root, string $assetId, string $requestedCampaignId): array
+{
+    $assetId = trim($assetId);
+    $campaignId = bandpromo_campaign_normalize_id($requestedCampaignId);
+    if ($campaignId === 'orphans' || $campaignId === 'all') {
+        $campaignId = '';
+    }
+
+    if ($assetId === '' || bandpromo_campaign_id_is_unowned($campaignId)) {
+        return [
+            'ok' => true,
+            'campaign_id' => '',
+            'warning' => '',
+        ];
+    }
+
+    try {
+        $document = bandpromo_campaign_load_document($root, $campaignId);
+    } catch (Throwable $throwable) {
+        return [
+            'ok' => false,
+            'campaign_id' => '',
+            'warning' => 'Campaign not found — upload kept as orphan.',
+        ];
+    }
+
+    if (!empty($document['locked'])) {
+        return [
+            'ok' => false,
+            'campaign_id' => '',
+            'warning' => 'Campaign is locked — upload kept as orphan.',
+        ];
+    }
+
+    $asset = bandpromo_asset_lookup_by_id($root, $assetId);
+    if ($asset === null || (string) ($asset['kind'] ?? '') !== 'visual') {
+        return [
+            'ok' => false,
+            'campaign_id' => '',
+            'warning' => 'Visual asset missing after upload — could not assign campaign.',
+        ];
+    }
+
+    try {
+        bandpromo_asset_update_entry($root, $assetId, [
+            'release_id' => $campaignId,
+        ]);
+    } catch (Throwable $throwable) {
+        return [
+            'ok' => false,
+            'campaign_id' => '',
+            'warning' => 'Could not stamp catalogue home: ' . $throwable->getMessage(),
+        ];
+    }
+
+    return [
+        'ok' => true,
+        'campaign_id' => $campaignId,
+        'warning' => '',
+    ];
+}
+
+/**
+ * Set or clear visual catalogue homes (Files Assign / Remove).
+ *
+ * @param list<string> $assetIds
+ * @return array{ok:bool,updated:int,errors:list<string>}
+ */
+function bandpromo_campaign_set_visual_homes(string $root, array $assetIds, string $campaignId): array
+{
+    $campaignId = bandpromo_campaign_normalize_id($campaignId);
+    if ($campaignId === 'orphans' || $campaignId === 'all' || $campaignId === BANDPROMO_CAMPAIGN_DEFAULT_ID) {
+        $campaignId = '';
+    }
+
+    if ($campaignId !== '') {
+        try {
+            $document = bandpromo_campaign_load_document($root, $campaignId);
+        } catch (Throwable $throwable) {
+            return [
+                'ok' => false,
+                'updated' => 0,
+                'errors' => ['Campaign not found.'],
+            ];
+        }
+        if (!empty($document['locked'])) {
+            return [
+                'ok' => false,
+                'updated' => 0,
+                'errors' => ['Campaign is locked.'],
+            ];
+        }
+    }
+
+    $updated = 0;
+    $errors = [];
+    foreach ($assetIds as $rawId) {
+        $assetId = trim((string) $rawId);
+        if ($assetId === '' || !bandpromo_asset_is_asset_id($assetId)) {
+            continue;
+        }
+        $asset = bandpromo_asset_lookup_by_id($root, $assetId);
+        if ($asset === null || (string) ($asset['kind'] ?? '') !== 'visual') {
+            $errors[] = $assetId . ': not a visual asset.';
+            continue;
+        }
+        try {
+            bandpromo_asset_update_entry($root, $assetId, [
+                'release_id' => $campaignId,
+            ]);
+            $updated++;
+        } catch (Throwable $throwable) {
+            $errors[] = $assetId . ': ' . $throwable->getMessage();
+        }
+    }
+
+    return [
+        'ok' => $errors === [],
+        'updated' => $updated,
+        'errors' => $errors,
+    ];
+}
+
 function bandpromo_campaign_remove_asset_from_document(string $root, string $releaseId, string $assetId): void
 {
     if ($assetId === '') {
@@ -3350,11 +3493,12 @@ function bandpromo_campaign_update_details(string $root, string $releaseId, arra
         $document['brand_id'] = bandpromo_campaign_normalize_brand_id($root, $fields['brand_id']);
         $nextBrandId = (string) ($document['brand_id'] ?? '');
 
-        // Keep brand.campaign_id aligned so ownership inference and player shell stay in sync.
+        // Shared brands: many campaigns may point at one brand_id. Only claim
+        // brand.campaign_id when it is empty (first link / provenance), never steal.
         if ($nextBrandId !== '') {
             try {
                 $brandDocument = bandpromo_brand_load_document($root, $nextBrandId);
-                if (bandpromo_document_campaign_id($brandDocument) !== $releaseId) {
+                if (bandpromo_document_campaign_id($brandDocument) === '') {
                     $brandDocument = bandpromo_document_with_campaign_id($brandDocument, $releaseId);
                     bandpromo_brand_write_document($root, $brandDocument, ['allow_locked' => true]);
                 }

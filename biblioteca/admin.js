@@ -2616,11 +2616,28 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 return bandpromoAdminEscapeHtml(formatAudioListRowBody(mediaFile));
             }
 
+            function brandLibraryTitles(file) {
+                if (Array.isArray(file?.brand_titles)) {
+                    return file.brand_titles
+                        .map((title) => String(title || '').trim())
+                        .filter(Boolean);
+                }
+                const raw = String(file?.brand_title || '').trim();
+                if (raw === '') {
+                    return [];
+                }
+                return raw.split(/\r?\n+| · /).map((part) => part.trim()).filter(Boolean);
+            }
+
             function formatBrandContextPlain(file) {
-                if (file?.brand_orphan === true || String(file?.brand_id || '').trim() === '') {
+                if (file?.brand_orphan === true) {
                     return 'Orphan';
                 }
-                return String(file?.brand_title || '').trim();
+                const titles = brandLibraryTitles(file);
+                if (titles.length === 0) {
+                    return 'Orphan';
+                }
+                return titles.join('\n');
             }
 
             function poolAssetWarehouseLabel(file) {
@@ -2656,7 +2673,14 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
             }
 
             function poolAssetContextMarkup(panelType, file) {
-                if (panelType === 'special' || panelType === 'sfx') {
+                if (panelType === 'sfx') {
+                    const titles = file?.brand_orphan === true ? [] : brandLibraryTitles(file);
+                    if (file?.brand_orphan === true || titles.length === 0) {
+                        return bandpromoAdminEscapeHtml('Orphan');
+                    }
+                    return titles.map((title) => bandpromoAdminEscapeHtml(title)).join('<br>');
+                }
+                if (panelType === 'special') {
                     const label = poolAssetContextPlain(panelType, file);
                     return label !== '' ? bandpromoAdminEscapeHtml(label) : '';
                 }
@@ -2671,12 +2695,15 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
             }
 
             function formatBrandContextMarkup(file) {
-                const brandTitle = formatBrandContextPlain(file);
-                if (brandTitle === '') {
-                    return '';
+                if (file?.brand_orphan === true) {
+                    return '<span class="media-file-campaign-content">Orphan</span>';
+                }
+                const titles = brandLibraryTitles(file);
+                if (titles.length === 0) {
+                    return '<span class="media-file-campaign-content">Orphan</span>';
                 }
 
-                return `<span class="media-file-campaign-content">${bandpromoAdminEscapeHtml(brandTitle)}</span>`;
+                return `<span class="media-file-campaign-content">${titles.map((title) => bandpromoAdminEscapeHtml(title)).join('<br>')}</span>`;
             }
 
             function formatAudioCampaignContextMarkup(file) {
@@ -4095,6 +4122,28 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                         : 'Remove selected assets from this Brand library';
                 }
 
+                if (type === 'visual') {
+                    const selectedDetails = getSelectedMediaDetails('visual');
+                    const assignBtn = document.getElementById('visualAssignCampaignBtn');
+                    const removeHomeBtn = document.getElementById('visualRemoveCampaignBtn');
+                    if (assignBtn) {
+                        assignBtn.disabled = selectedDetails.length < 1;
+                        assignBtn.title = selectedDetails.length < 1
+                            ? 'Select one or more files to assign'
+                            : 'Assign selected visuals to a campaign';
+                    }
+                    if (removeHomeBtn) {
+                        const hasHome = selectedDetails.some((file) => {
+                            const home = String(file?.release_id || file?.campaign_id || '').trim();
+                            return home !== '' && home !== 'primary' && home !== 'orphans';
+                        });
+                        removeHomeBtn.disabled = !hasHome;
+                        removeHomeBtn.title = hasHome
+                            ? 'Clear catalogue home on selected visuals'
+                            : 'Select files that already have a catalogue home';
+                    }
+                }
+
                 const selectedDetails = getSelectedMediaDetails(type);
                 document.querySelectorAll(`[data-bulk-download-target="${type}"]`).forEach((button) => {
                     const variant = resolveBulkDownloadVariant(type, String(button.dataset.downloadVariant || 'original').trim());
@@ -4613,7 +4662,12 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 }
                 if (options.refresh !== false) {
                     mediaFilesState.delete('special');
-                    await loadMediaList('special');
+                    mediaFilesState.delete('sfx');
+                    if (activeMediaPanel === 'sfx') {
+                        await loadMediaList('sfx');
+                    } else {
+                        await loadMediaList('special');
+                    }
                 }
                 if (options.notify !== false) {
                     const count = assetIds.length;
@@ -4797,6 +4851,9 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     <div class="visual-pool-card-grid-caption">
                         <span class="visual-pool-card-meta-title"><strong class="media-file-name-text">${bandpromoAdminEscapeHtml(headline)}</strong></span>
                         <span class="visual-pool-card-meta-sub">${typeLabel} · ${bandpromoAdminEscapeHtml(sizeLabel)}</span>
+                        ${panelType === 'visual' || panelType === 'audio'
+                            ? `<span class="visual-pool-card-meta-campaign">${bandpromoAdminEscapeHtml(contextLabel || 'Orphan')}</span>`
+                            : ''}
                     </div>
                 </article>`;
             }
@@ -4933,9 +4990,9 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     detailRows.push(
                         [panelType === 'sfx' ? 'Brand' : 'Catalogue',
                             panelType === 'sfx'
-                                ? (file.brand_orphan === true || String(file.brand_id || '').trim() === ''
+                                ? (file.brand_orphan === true || brandLibraryTitles(file).length === 0
                                     ? 'Orphan'
-                                    : (String(file.brand_title || '').trim() || 'Linked brand'))
+                                    : brandLibraryTitles(file).map((title) => bandpromoAdminEscapeHtml(title)).join('<br>'))
                                 : (file.release_orphan === true
                                     ? 'Orphan'
                                     : (visualCatalogueTitles(file).map((title) => bandpromoAdminEscapeHtml(title)).join('<br>') || 'Linked campaign'))],
@@ -4959,7 +5016,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 }
 
                 detailsEl.innerHTML = detailRows.map(([label, value]) => {
-                    const isHtml = label === 'References' || label === 'Catalogue';
+                    const isHtml = label === 'References' || label === 'Catalogue' || label === 'Brand';
                     return `<dt>${bandpromoAdminEscapeHtml(label)}</dt><dd>${isHtml ? value : bandpromoAdminEscapeHtml(String(value))}</dd>`;
                 }).join('');
 
@@ -5660,7 +5717,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 if (!mediaUploadCampaignField || !mediaUploadCampaignSelect) {
                     return;
                 }
-                const show = type === 'audio';
+                const show = type === 'audio' || type === 'visual';
                 mediaUploadCampaignField.hidden = !show;
                 if (!show) {
                     mediaUploadCampaignSelect.value = '';
@@ -7672,6 +7729,217 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 });
             });
 
+            async function saveVisualCampaignHomes(assetIds, campaignId) {
+                const ids = (Array.isArray(assetIds) ? assetIds : [])
+                    .map((id) => String(id || '').trim())
+                    .filter(Boolean);
+                if (!ids.length) {
+                    return { ok: false, updated: 0 };
+                }
+                const csrfToken = typeof refreshAdminCsrfToken === 'function'
+                    ? await refreshAdminCsrfToken()
+                    : (adminCsrf || '');
+                const resp = await fetch('/biblioteca/save-visual-campaign-home.php', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'same-origin',
+                    body: JSON.stringify({
+                        asset_ids: ids,
+                        campaign_id: String(campaignId || ''),
+                        csrf_token: csrfToken,
+                    }),
+                });
+                const data = await resp.json().catch(() => ({}));
+                if (!resp.ok || !data || data.ok !== true) {
+                    const err = (data && (data.error || (data.errors && data.errors[0]))) || 'Could not update catalogue home.';
+                    throw new Error(err);
+                }
+                return data;
+            }
+
+            function summariseVisualCatalogueHomes(files) {
+                const counts = new Map();
+                let orphans = 0;
+                (Array.isArray(files) ? files : []).forEach((file) => {
+                    const home = String(file?.release_id || file?.campaign_id || '').trim();
+                    if (!home || home === 'primary' || home === 'orphans') {
+                        orphans += 1;
+                        return;
+                    }
+                    const title = String(file?.release_title || home).trim().split('\n')[0] || home;
+                    const key = home + '\0' + title;
+                    counts.set(key, (counts.get(key) || 0) + 1);
+                });
+                const lines = [];
+                if (orphans > 0) {
+                    lines.push(`${orphans} orphan${orphans === 1 ? '' : 's'} (no catalogue home)`);
+                }
+                counts.forEach((count, key) => {
+                    const title = key.split('\0')[1] || key;
+                    lines.push(`${count} already on “${title}”`);
+                });
+                return lines;
+            }
+
+            function campaignTitleForId(campaignId) {
+                const id = String(campaignId || '').trim();
+                const entry = (campaignsCatalog || []).find((row) => String(row?.id || '') === id);
+                const title = String(entry?.title || '').trim();
+                return title || id;
+            }
+
+            function closeVisualCampaignAssignModal() {
+                const modal = document.getElementById('visualCampaignAssignModal');
+                if (!modal) {
+                    return;
+                }
+                modal.style.display = 'none';
+                modal.setAttribute('aria-hidden', 'true');
+            }
+
+            window.closeVisualCampaignAssignModal = closeVisualCampaignAssignModal;
+
+            async function assignSelectedVisualsToCampaign() {
+                const selected = getSelectedMediaDetails('visual');
+                const assetIds = selected
+                    .map((file) => String(file?.asset_id || '').trim())
+                    .filter(Boolean);
+                if (!assetIds.length) {
+                    showAdminToast('Select one or more visuals first.', 'error');
+                    return;
+                }
+                await loadCampaignsCatalog();
+                if (!(campaignsCatalog || []).length) {
+                    showAdminToast('No campaigns available to assign.', 'error');
+                    return;
+                }
+
+                const modal = document.getElementById('visualCampaignAssignModal');
+                const summaryEl = document.getElementById('visualCampaignAssignSummary');
+                const selectEl = document.getElementById('visualCampaignAssignSelect');
+                const confirmBtn = document.getElementById('visualCampaignAssignConfirmBtn');
+                if (!modal || !summaryEl || !selectEl || !confirmBtn) {
+                    showAdminToast('Assign dialog is missing. Reload the page.', 'error');
+                    return;
+                }
+
+                const homeLines = summariseVisualCatalogueHomes(selected);
+                summaryEl.textContent = [
+                    `Selected: ${assetIds.length} visual${assetIds.length === 1 ? '' : 's'}.`,
+                    homeLines.length ? `Currently: ${homeLines.join('; ')}.` : '',
+                    'Choose the campaign that should own them.',
+                ].filter(Boolean).join(' ');
+
+                // No Orphan option here — Assign always sets a home.
+                selectEl.innerHTML = (campaignsCatalog || []).map((entry) => {
+                    const id = String(entry?.id || '').trim();
+                    if (!id) {
+                        return '';
+                    }
+                    const title = String(entry?.title || id).trim() || id;
+                    return `<option value="${bandpromoAdminEscapeHtml(id)}">${bandpromoAdminEscapeHtml(title)}</option>`;
+                }).join('');
+
+                const filter = normalizePoolCampaignFilter(poolCampaignFilter);
+                if (filter && filter !== 'all' && filter !== 'orphans') {
+                    selectEl.value = filter;
+                }
+                if (!selectEl.value && selectEl.options.length) {
+                    selectEl.selectedIndex = 0;
+                }
+
+                const onConfirm = async () => {
+                    const campaignId = String(selectEl.value || '').trim();
+                    if (!campaignId) {
+                        showAdminToast('Choose a campaign.', 'error');
+                        return;
+                    }
+                    const title = campaignTitleForId(campaignId);
+                    confirmBtn.disabled = true;
+                    try {
+                        const result = await saveVisualCampaignHomes(assetIds, campaignId);
+                        closeVisualCampaignAssignModal();
+                        showAdminToast(
+                            result.updated === 1
+                                ? `Catalogue home set to “${title}” on 1 visual.`
+                                : `Catalogue home set to “${title}” on ${result.updated} visuals.`
+                        );
+                        clearMediaSelection('visual');
+                        await loadMediaList('visual');
+                    } catch (error) {
+                        showAdminToast(error.message || 'Could not assign campaign.', 'error');
+                    } finally {
+                        confirmBtn.disabled = false;
+                    }
+                };
+
+                confirmBtn.onclick = () => {
+                    onConfirm().catch((error) => {
+                        showAdminToast(error.message || 'Could not assign campaign.', 'error');
+                    });
+                };
+
+                modal.style.display = 'flex';
+                modal.setAttribute('aria-hidden', 'false');
+                selectEl.focus();
+            }
+
+            async function removeSelectedVisualsFromCampaign() {
+                const selected = getSelectedMediaDetails('visual');
+                const withHome = selected.filter((file) => {
+                    const home = String(file?.release_id || file?.campaign_id || '').trim();
+                    return home !== '' && home !== 'primary' && home !== 'orphans';
+                });
+                const assetIds = withHome
+                    .map((file) => String(file?.asset_id || '').trim())
+                    .filter(Boolean);
+                if (!assetIds.length) {
+                    showAdminToast('Select visuals that already have a catalogue home.', 'error');
+                    return;
+                }
+                const homeLines = summariseVisualCatalogueHomes(withHome);
+                const confirmed = typeof window.bandpromoConfirm === 'function'
+                    ? await window.bandpromoConfirm({
+                        title: 'Remove catalogue home?',
+                        body: [
+                            `Clear home on ${assetIds.length} visual${assetIds.length === 1 ? '' : 's'}.`,
+                            homeLines.length ? `Currently: ${homeLines.join('; ')}.` : '',
+                            'They become orphans for Files filters and campaign export-by-home. Gallery / poster / cover usage is unchanged.',
+                        ].filter(Boolean).join(' '),
+                        confirmLabel: 'Remove home',
+                        tone: 'danger',
+                    })
+                    : window.confirm('Clear catalogue home on selected visuals?');
+                if (!confirmed) {
+                    return;
+                }
+                const result = await saveVisualCampaignHomes(assetIds, '');
+                showAdminToast(
+                    result.updated === 1
+                        ? 'Catalogue home cleared on 1 visual.'
+                        : `Catalogue home cleared on ${result.updated} visuals.`
+                );
+                clearMediaSelection('visual');
+                await loadMediaList('visual');
+            }
+
+            const visualAssignBtn = document.getElementById('visualAssignCampaignBtn');
+            if (visualAssignBtn) {
+                visualAssignBtn.addEventListener('click', () => {
+                    assignSelectedVisualsToCampaign().catch((error) => {
+                        showAdminToast(error.message || 'Could not assign campaign.', 'error');
+                    });
+                });
+            }
+            const visualRemoveBtn = document.getElementById('visualRemoveCampaignBtn');
+            if (visualRemoveBtn) {
+                visualRemoveBtn.addEventListener('click', () => {
+                    removeSelectedVisualsFromCampaign().catch((error) => {
+                        showAdminToast(error.message || 'Could not clear catalogue home.', 'error');
+                    });
+                });
+            }
+
             document.querySelectorAll('[data-bulk-download-target]').forEach((button) => {
                 const target = String(button.dataset.bulkDownloadTarget || '').trim();
                 syncMediaSelectionUi(target);
@@ -9678,10 +9946,14 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                             'Add to gallery',
                             'visual',
                             {
-                                campaignFilter: 'all',
+                                campaignFilter: (() => {
+                                    const owner = galleries.find((g) => String(g?.id || '') === String(selectedGalleryId || ''));
+                                    const campaignId = String(owner?.campaign_id || '').trim();
+                                    return campaignId || 'all';
+                                })(),
                                 multiSelect: true,
                                 ownedAssetIds: ownedIds,
-                                hint: 'Select photos and videos to add to this gallery. Items already in the gallery are hidden.',
+                                hint: 'Select photos and videos from this campaign’s catalogue (orphans allowed). Items already in the gallery are hidden.',
                                 async onSelectMany(selections) {
                                     const ids = (Array.isArray(selections) ? selections : [])
                                         .map((item) => String(item?.assetId || '').trim())
@@ -11055,8 +11327,14 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
 
                 function playlistPreviewParams(extraParams) {
                     const params = new URLSearchParams(extraParams || {});
+                    const ownerCampaign = String(playlistEntry(selectedPlaylistId)?.campaign_id || '').trim();
+                    // Prefer the playlist’s campaign catalogue; Files pool filter overrides when set.
+                    let campaign = ownerCampaign;
                     if (poolCampaignFilter && poolCampaignFilter !== 'all') {
-                        params.set('campaign', poolCampaignFilter);
+                        campaign = poolCampaignFilter;
+                    }
+                    if (campaign && campaign !== 'all') {
+                        params.set('campaign', campaign);
                     }
                     return params;
                 }

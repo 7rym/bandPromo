@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-09-18 11:30 - Shared brands + honest Files Brand column: Sound effects Brand follows library membership (not upload stamp); library add/remove syncs stamp; campaigns may reuse one brand without stealing `brand.campaign_id`; Branding picker shows “used by N campaigns”.
+
+2026-09-17 23:45 - Status: never show Healthy / Good·Bad·Ugly from a check older than 1 hour — badge becomes Out of date, summary is replaced, and a fresh Quick health check starts automatically.
+
+2026-09-17 23:25 - Files → Visual Assign: dedicated dialog with current-home summary + named campaign select (no opaque “this campaign”); grid captions show catalogue home; Remove confirm lists homes being cleared.
+
+2026-09-17 23:15 - Campaign membership as source of truth: audio/visual catalogue home (`release_id`) drives Files Catalogue, PCF packing (visuals by home), demo hide, and Site health orphan-in-container heal. Files → Visual gains Assign/Remove + upload Campaign; playlist/gallery/page saves refuse foreign-home picks; Base brand shell remains the demo-hide exception.
+
 2026-09-17 21:00 - Status breadcrumbs: section root is an underlined nav link (even self-link to Status); preference locked in ADMIN-UI + admin-breadcrumb rule. Helper supports `root_href`.
 
 2026-09-17 20:55 - Status: remove the Site health job-status line under the buttons (badge + summary + Activity are enough; hard errors still alert).
