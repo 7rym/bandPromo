@@ -915,7 +915,7 @@
             if (hasOrphanClash || hasDataOrphans) {
                 return (
                     '<p class="site-health-treat-assurance site-health-treat-assurance--caution">' +
-                    'These need your choice on each row — select a campaign (green prompt), then Adopt or Set. ' +
+                    'These need your choice on each row — select a campaign, then Adopt or Set. ' +
                     'Nothing is auto-fixed by Apply.' +
                     '</p>'
                 );
@@ -1033,11 +1033,13 @@
             '<p class="site-health-orphan-clash-used">Used in: ' + usedIn + '</p>' +
             '</div></div>' +
             choiceHtml +
-            '<button type="button" class="btn btn-sm site-health-orphan-home-set" ' +
+            '<div class="site-health-orphan-clash-actions">' +
+            '<button type="button" class="btn btn-good btn-sm site-health-orphan-home-set" ' +
             'data-asset-id="' + escapeHtml(assetId) + '" ' +
-            'data-campaign-id="" data-campaign-title="" disabled>' +
-            'Select catalogue home' +
+            'data-campaign-id="" data-campaign-title="" hidden disabled>' +
+            'Set catalogue home' +
             '</button>' +
+            '</div>' +
             '</li>'
         );
     }
@@ -1124,21 +1126,24 @@
             'data-kind="' + escapeHtml(kind) + '" data-entity-id="' + escapeHtml(entityId) + '">' +
             '<p class="site-health-orphan-clash-file"><strong>' + escapeHtml(title) +
             '</strong> <span class="site-health-orphan-clash-kind">(' + escapeHtml(kind) +
-            ' · ' + escapeHtml(dataContainerClassLabel(className)) + ')</span></p>' +
+            ')</span>' +
+            '<span class="site-health-orphan-clash-badge">' +
+            escapeHtml(dataContainerClassLabel(className)) +
+            '</span></p>' +
             '<p class="site-health-orphan-clash-used">' +
             escapeHtml(path || entityId) +
             (wasHome ? ' — was: ' + escapeHtml(wasHome) : '') +
             '</p>' +
             choiceHtml +
             '<div class="site-health-data-orphan-actions">' +
-            '<button type="button" class="btn btn-sm site-health-data-adopt" ' +
+            '<button type="button" class="btn btn-good btn-sm site-health-data-adopt" ' +
             'data-kind="' + escapeHtml(kind) + '" data-entity-id="' + escapeHtml(entityId) + '" ' +
-            'data-campaign-id="" data-campaign-title="" disabled>' +
-            'Select campaign' +
+            'data-campaign-id="" data-campaign-title="" hidden disabled>' +
+            'Adopt' +
             '</button>' +
             (allowDelete
                 ? (
-                    '<button type="button" class="btn btn-danger-outline btn-sm site-health-data-delete" ' +
+                    '<button type="button" class="btn btn-sm site-health-data-delete" ' +
                     'data-kind="' + escapeHtml(kind) + '" data-entity-id="' + escapeHtml(entityId) + '" ' +
                     'data-title="' + escapeHtml(title) + '">' +
                     'Delete…' +
@@ -1302,9 +1307,10 @@
         btn.setAttribute('data-campaign-id', campaignId);
         btn.setAttribute('data-campaign-title', campaignTitle);
         if (campaignId === '') {
-            btn.textContent = 'Select catalogue home';
-            btn.classList.remove('btn-good');
+            btn.hidden = true;
             btn.disabled = true;
+            btn.classList.add('btn-good');
+            btn.textContent = 'Set catalogue home';
             if (field) {
                 field.classList.add('is-needs-choice');
             }
@@ -1312,6 +1318,7 @@
                 label.textContent = 'Select catalogue home:';
             }
         } else {
+            btn.hidden = false;
             btn.textContent = 'Set catalogue home';
             btn.classList.add('btn-good');
             btn.disabled = running;
@@ -1552,9 +1559,10 @@
         btn.setAttribute('data-campaign-id', selected.id);
         btn.setAttribute('data-campaign-title', selected.title);
         if (selected.id === '') {
-            btn.textContent = 'Select campaign';
-            btn.classList.remove('btn-good');
+            btn.hidden = true;
             btn.disabled = true;
+            btn.classList.add('btn-good');
+            btn.textContent = 'Adopt';
             if (field) {
                 field.classList.add('is-needs-choice');
             }
@@ -1562,6 +1570,7 @@
                 label.textContent = 'Select campaign:';
             }
         } else {
+            btn.hidden = false;
             btn.textContent = 'Adopt';
             btn.classList.add('btn-good');
             btn.disabled = running;
@@ -1930,7 +1939,7 @@
         );
         if (fix.manual > 0 && fix.fixable === 0 && (hasOrphanClash || hasDataOrphans)) {
             previewNote = (
-                'Select a campaign on each manual row (green prompt), then Adopt or Set. ' +
+                'Select a campaign on each manual row, then Adopt or Set. ' +
                 'Apply stays off for these — Site health will not guess. ' +
                 'A backup first is a good idea if you want a restore point.'
             );

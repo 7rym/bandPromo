@@ -5768,22 +5768,28 @@ canvas { max-width: 100%; height: auto; }
     padding: 0;
     display: flex;
     flex-direction: column;
-    gap: 10px;
+    gap: 8px;
 }
 
 .site-health-orphan-clash {
     margin: 0;
-    padding: 10px 12px;
-    border-radius: 8px;
-    border: 1px solid rgba(240, 180, 41, 0.35);
-    background: color-mix(in srgb, rgba(240, 180, 41, 0.06) 100%, var(--surface));
+    padding: 10px 0;
+    border: 0;
+    border-radius: 0;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    background: transparent;
+}
+
+.site-health-orphan-clash:last-child {
+    border-bottom: 0;
+    padding-bottom: 0;
 }
 
 .site-health-orphan-clash-head {
     display: flex;
     flex-wrap: wrap;
     align-items: flex-start;
-    gap: 12px;
+    gap: 10px;
 }
 
 .site-health-orphan-clash-meta {
@@ -5797,8 +5803,8 @@ canvas { max-width: 100%; height: auto; }
 
 .site-health-orphan-clash-thumb {
     display: block;
-    width: 88px;
-    height: 88px;
+    width: 64px;
+    height: 64px;
     object-fit: cover;
     border-radius: 6px;
     border: 1px solid rgba(255, 255, 255, 0.12);
@@ -5807,8 +5813,8 @@ canvas { max-width: 100%; height: auto; }
 
 .site-health-orphan-clash-audio {
     display: block;
-    width: min(100%, 280px);
-    height: 36px;
+    width: min(100%, 260px);
+    height: 32px;
     margin: 0;
 }
 
@@ -5824,9 +5830,23 @@ canvas { max-width: 100%; height: auto; }
     font-size: 12px;
 }
 
+.site-health-orphan-clash-badge {
+    display: inline-block;
+    margin-left: 6px;
+    padding: 1px 7px;
+    border-radius: 999px;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    background: rgba(255, 255, 255, 0.04);
+    color: var(--muted);
+    font-size: 11px;
+    font-weight: 600;
+    vertical-align: middle;
+}
+
 .site-health-orphan-clash-used {
     margin: 4px 0 0 !important;
     font-size: 12px !important;
+    color: var(--muted) !important;
 }
 
 .site-health-orphan-clash-field {
@@ -5848,12 +5868,14 @@ canvas { max-width: 100%; height: auto; }
     font-weight: 700;
 }
 
-.site-health-orphan-clash-field.is-needs-choice .site-health-orphan-home-toggle {
+.site-health-orphan-clash-field.is-needs-choice .site-health-orphan-home-toggle,
+.site-health-orphan-clash-field.is-needs-choice .site-health-data-adopt-toggle {
     border-color: rgba(76, 175, 80, 0.55);
     box-shadow: 0 0 0 1px rgba(76, 175, 80, 0.18);
 }
 
-.site-health-orphan-home-toggle {
+.site-health-orphan-home-toggle,
+.site-health-data-adopt-toggle {
     display: inline-flex;
     flex-wrap: wrap;
     gap: 0;
@@ -5863,7 +5885,8 @@ canvas { max-width: 100%; height: auto; }
     background: rgba(15, 23, 42, 0.45);
 }
 
-.site-health-orphan-home-toggle .brand-player-setting-btn {
+.site-health-orphan-home-toggle .brand-player-setting-btn,
+.site-health-data-adopt-toggle .brand-player-setting-btn {
     margin: 0;
     padding: 0.28rem 0.65rem;
     border: 0;
@@ -5876,41 +5899,49 @@ canvas { max-width: 100%; height: auto; }
     cursor: pointer;
 }
 
-.site-health-orphan-home-toggle .brand-player-setting-btn:first-child {
+.site-health-orphan-home-toggle .brand-player-setting-btn:first-child,
+.site-health-data-adopt-toggle .brand-player-setting-btn:first-child {
     border-left: 0;
 }
 
-.site-health-orphan-home-toggle .brand-player-setting-btn.is-active {
+.site-health-orphan-home-toggle .brand-player-setting-btn.is-active,
+.site-health-data-adopt-toggle .brand-player-setting-btn.is-active {
     background: color-mix(in srgb, var(--success, #3d9a5f) 28% 100%, transparent);
     color: var(--text);
     font-weight: 600;
 }
 
-.site-health-orphan-home-select {
+.site-health-orphan-home-select,
+.site-health-data-adopt-select {
     max-width: 100%;
     min-width: 12rem;
 }
 
-.site-health-orphan-home-set {
-    margin-top: 10px;
-}
-
-.site-health-orphan-home-set:disabled {
-    opacity: 0.55;
-    cursor: not-allowed;
-}
-
-.site-health-data-orphan-actions {
+.site-health-data-orphan-actions,
+.site-health-orphan-clash-actions {
     display: flex;
     flex-wrap: wrap;
     align-items: center;
     gap: 8px;
-    margin-top: 10px;
+    margin-top: 8px;
 }
 
-.site-health-data-orphan-actions .site-health-data-adopt,
-.site-health-data-orphan-actions .site-health-data-delete {
+.site-health-orphan-home-set,
+.site-health-data-adopt,
+.site-health-data-delete {
     margin-top: 0;
+}
+
+.site-health-data-delete {
+    color: var(--muted);
+    border-color: rgba(255, 255, 255, 0.14);
+    background: transparent;
+}
+
+.site-health-data-delete:hover:not(:disabled) {
+    color: #fca5a5;
+    border-color: rgba(244, 67, 54, 0.45);
+    background: rgba(244, 67, 54, 0.08);
 }
 
 .site-health-treat-preview-actions {
