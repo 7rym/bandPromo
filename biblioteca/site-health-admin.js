@@ -1277,10 +1277,39 @@
         );
     }
 
+    async function getAdminCsrfToken() {
+        if (typeof window.refreshAdminCsrfToken === 'function') {
+            return await window.refreshAdminCsrfToken();
+        }
+        if (typeof refreshAdminCsrfToken === 'function') {
+            return await refreshAdminCsrfToken();
+        }
+        if (typeof adminCsrfToken === 'string' && adminCsrfToken) {
+            return adminCsrfToken;
+        }
+        const respCsrf = await fetch('/biblioteca/get-admin-csrf.php', {
+            credentials: 'same-origin',
+        });
+        const dataCsrf = await respCsrf.json().catch(() => ({}));
+        if (respCsrf.ok && dataCsrf && typeof dataCsrf.csrf_token === 'string' && dataCsrf.csrf_token) {
+            return dataCsrf.csrf_token;
+        }
+        return '';
+    }
+
     async function postJson(url, body) {
         let csrfToken = '';
-        if (typeof refreshAdminCsrfToken === 'function') {
-            csrfToken = await refreshAdminCsrfToken();
+        try {
+            csrfToken = await getAdminCsrfToken();
+        } catch (err) {
+            throw new Error(
+                err && err.message
+                    ? String(err.message)
+                    : 'Could not refresh CSRF token'
+            );
+        }
+        if (!csrfToken) {
+            throw new Error('Session expired or invalid request token. Refresh admin and try again.');
         }
         const payload = Object.assign({}, body || {}, { csrf_token: csrfToken });
         const resp = await fetch('/' + String(url || '').replace(/^\//, ''), {
@@ -2169,8 +2198,10 @@
             return 'already-running';
         }
         let csrfToken = '';
-        if (typeof refreshAdminCsrfToken === 'function') {
-            csrfToken = await refreshAdminCsrfToken();
+        try {
+            csrfToken = await getAdminCsrfToken();
+        } catch (err) {
+            csrfToken = '';
         }
         startInFlight = true;
         setRunningUi(true);
@@ -2484,8 +2515,10 @@
     if (stopBtn) {
         stopBtn.addEventListener('click', async () => {
             let csrfToken = '';
-            if (typeof refreshAdminCsrfToken === 'function') {
-                csrfToken = await refreshAdminCsrfToken();
+            try {
+                csrfToken = await getAdminCsrfToken();
+            } catch (err) {
+                csrfToken = '';
             }
             try {
                 const resp = await fetch('/biblioteca/request-job-stop.php', {

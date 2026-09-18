@@ -5243,6 +5243,8 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 adminCsrf = data.csrf_token;
                 return adminCsrf;
             }
+            // Separate admin scripts (Site health, campaign editor) call this via window.
+            window.refreshAdminCsrfToken = refreshAdminCsrfToken;
 
             async function loadMediaList(type, options = {}) {
                 const listEl  = document.getElementById('filelist-' + type);

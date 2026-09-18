@@ -2,21 +2,18 @@
 
 ## Resume point
 
-**Pending-plans audit + folder hygiene docs locked** — Keep three near-term items in TODO/ROADMAP; Drop 18 stale Cursor plans; runtime path contract + CODE-LAYOUT Phase 0 documented (no path moves yet).
+**Site health Manual Apply CSRF fix published** — token was empty because refresh lived inside admin.js; now on `window` + Site health helper.
 
 ### Shipped recently
 
-1. Site health Manual Include→Apply (or Delete in choice strip; green selection; copy polish).
-2. Data janitor + orphan clash catalogue home via Apply.
-3. Plans audit: Keep Shell preview parity, admin editor remainder, PCF smoke; Drop superseded Branding/infra duplicates.
+1. Manual Include→Apply CSRF fix (empty token → “Session expired…”).
+2. Plans audit docs + runtime path hygiene contract.
+3. Site health Manual rows polish (or Delete, selection border, copy).
 
 ### Next
 
-1. Fleet feedback on Status / Site health Manual rows (then quieten).
-2. **Shell / Player / Content preview parity** (Common→Shell; real `/play` preview) — plan `shell_player_content_parity_65f2246f`.
-3. Admin editor refactor remainder → consistency audit — plan `admin_editor_refactor_940d3935`.
-4. Exit gate: Campaign navigator fleet validate; PCF round-trip smoke; favicon/PWA; legacy audit.
-5. After exit gate: CODE-LAYOUT Phase 0 (`data/jobs/`, clean `log/`, `temp/` scratch) then `lib/` consolidation.
+1. Re-try Manual Apply on fleet (Delete copy gallery/page + set catalogue home).
+2. Then Site health fleet quiet → Shell preview parity.
 
 ### Local workspace
 
