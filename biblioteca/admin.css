@@ -5905,11 +5905,11 @@ canvas { max-width: 100%; height: auto; }
 
 .site-health-choice-toggle .brand-player-setting-btn.is-active,
 .site-health-choice-chip.is-active {
-    color: var(--text);
-    font-weight: 700;
-    border-color: rgba(76, 175, 80, 0.85);
-    box-shadow: 0 0 0 1px rgba(76, 175, 80, 0.25);
-    background: color-mix(in srgb, var(--success, #3d9a5f) 22% 100%, transparent);
+    color: var(--text) !important;
+    font-weight: 700 !important;
+    border: 1px solid rgba(76, 175, 80, 0.9) !important;
+    box-shadow: 0 0 0 1px rgba(76, 175, 80, 0.35) !important;
+    background: color-mix(in srgb, var(--success, #3d9a5f) 22% 100%, transparent) !important;
 }
 
 .site-health-choice-or {
@@ -5925,10 +5925,12 @@ canvas { max-width: 100%; height: auto; }
     border-style: dashed;
 }
 
+.site-health-choice-toggle .brand-player-setting-btn.site-health-choice-delete.is-active,
 .site-health-choice-delete.is-active {
-    border-color: rgba(244, 67, 54, 0.7);
-    box-shadow: 0 0 0 1px rgba(244, 67, 54, 0.2);
-    background: rgba(244, 67, 54, 0.12);
+    color: var(--text) !important;
+    border: 1px solid rgba(244, 67, 54, 0.75) !important;
+    box-shadow: 0 0 0 1px rgba(244, 67, 54, 0.25) !important;
+    background: rgba(244, 67, 54, 0.12) !important;
 }
 
 .site-health-choice-select,

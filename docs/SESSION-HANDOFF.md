@@ -2,14 +2,14 @@
 
 ## Resume point
 
-**Manual Include→Apply polish published** — Delete in choice strip, green selection border, no per-row Adopt/Set.
+**Proposed treatment copy polish published** — amber guidance + grey backup-only; Manual Suggested treatment dropped; Apply summary includes kind.
 
 ### Shipped recently
 
-1. Data janitor (prune / relink / Manual Adopt|Delete via Include+Apply).
-2. Orphan clash preview + select-first catalogue home.
+1. Data janitor + Manual Include→Apply (or Delete in choice strip).
+2. Orphan clash preview + catalogue home via Apply.
 3. Post-update “already running” modal fix.
-4. Manual row chrome: `or Delete` in the chip strip; selected keeps green border; Include enables when every row has a choice; Apply runs manual PHP actions then autofix / follow-up check.
+4. Header copy dedupe; selected-chip border hardened; Delete/Adopt labels include `(gallery)` / `(page)`.
 
 ### Next
 

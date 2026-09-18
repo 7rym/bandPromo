@@ -1165,17 +1165,15 @@
         const canTreat = treatmentId !== '';
         const isOrphanClash = findingId === 'orphan_assets_multi_campaign';
         const isDataOrphans = findingId === 'data_container_orphans';
+        const isManualChoice = isOrphanClash || isDataOrphans;
         const treatmentLabel = canTreat
             ? escapeHtml(TREATMENT_COPY[treatmentId] || treatmentId)
-            : (isOrphanClash
-                ? 'Choose a catalogue home on each row, Include the finding, then Apply.'
-                : (isDataOrphans
-                    ? 'Choose a campaign or Delete on each row, Include the finding, then Apply.'
-                    : 'Needs a manual step — Site health will not change this automatically.'));
+            : (isManualChoice
+                ? ''
+                : 'Needs a manual step — Site health will not change this automatically.');
         const sample = Array.isArray(finding && finding.items_sample)
             ? finding.items_sample
             : [];
-        const isManualChoice = isOrphanClash || isDataOrphans;
 
         const foundBits = [];
         if (body) {
@@ -1270,8 +1268,10 @@
             '<div class="site-health-treat-finding-body">' +
             '<p><strong>Found this:</strong></p>' +
             foundBits.join('') +
-            '<p class="site-health-treat-suggested"><strong>Suggested treatment:</strong> ' +
-            treatmentLabel + '</p>' +
+            (treatmentLabel
+                ? ('<p class="site-health-treat-suggested"><strong>Suggested treatment:</strong> ' +
+                   treatmentLabel + '</p>')
+                : '') +
             '</div>' +
             '</details>'
         );
@@ -1464,16 +1464,18 @@
 
     function manualActionLabel(action) {
         const a = action || {};
+        const kind = String(a.kind || '').trim().toLowerCase();
+        const kindSuffix = kind ? ' (' + kind + ')' : '';
         if (a.type === 'assign_orphan_home') {
             return 'Set catalogue home: ' + (a.filename || a.assetId || 'file') +
                 ' → ' + (a.campaignTitle || a.campaignId || 'campaign');
         }
         if (a.type === 'adopt_container') {
-            return 'Adopt ' + (a.title || a.entityId || 'container') +
+            return 'Adopt ' + (a.title || a.entityId || 'container') + kindSuffix +
                 ' into ' + (a.campaignTitle || a.campaignId || 'campaign');
         }
         if (a.type === 'delete_container') {
-            return 'Delete ' + (a.title || a.entityId || 'container');
+            return 'Delete ' + (a.title || a.entityId || 'container') + kindSuffix;
         }
         return 'Manual action';
     }
@@ -1729,29 +1731,18 @@
 
         const findings = Array.isArray(lastPlan.findings) ? lastPlan.findings : [];
         const fix = findingsFixable(lastPlan);
-        const hasOrphanClash = findings.some(
-            (f) => String((f && f.id) || '') === 'orphan_assets_multi_campaign'
-        );
-        const hasDataOrphans = findings.some(
-            (f) => String((f && f.id) || '') === 'data_container_orphans'
-        );
         const findingRows = findings.length
             ? findings.map(findingReviewRowHtml).join('')
             : '<p class="site-health-summary-empty">No findings on the current plan.</p>';
 
+        // Grey note stays a side hint (backup). Amber assurance carries the how-to guidance.
         let previewNote = (
-            'Tick what you want fixed (everything useful is selected to start). ' +
-            'Nothing changes until you Apply. A backup first is a good idea if you want a restore point.'
+            'A backup first is a good idea if you want a restore point.'
         );
-        if (fix.manual > 0 && fix.fixable === 0 && (hasOrphanClash || hasDataOrphans)) {
+        if (fix.all) {
             previewNote = (
-                'These need your choice on each row — pick a campaign (or Delete), Include, then Apply. ' +
-                'Nothing is auto-guessed. A backup first is a good idea if you want a restore point.'
-            );
-        } else if (fix.manual > 0 && fix.fixable > 0 && (hasOrphanClash || hasDataOrphans)) {
-            previewNote = (
-                'Tick auto-fixable items for Apply. Manual rows need a choice on each line, then Include. ' +
-                'A backup first is a good idea if you want a restore point.'
+                'Tick what you want fixed (everything useful is selected to start). ' +
+                'Nothing changes until you Apply. A backup first is a good idea if you want a restore point.'
             );
         }
 
