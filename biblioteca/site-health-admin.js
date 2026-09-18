@@ -89,6 +89,8 @@
 
     let pollTimer = null;
     let running = false;
+    /** True while a start request is in flight — status refresh must not clear local busy. */
+    let startInFlight = false;
     let lastPlan = null;
     let staleAutoCheckStarted = false;
     let previewOpen = false;
@@ -2224,7 +2226,9 @@
             }
             const plan = data.plan && typeof data.plan === 'object' ? data.plan : {};
             // Set running before renderPlan so action buttons stay hidden while busy.
-            const isRunning = !!data.running;
+            // Do not clear local busy while a start request is still in flight — a
+            // mid-start status paint can race the lock and open a second start.
+            const isRunning = !!data.running || startInFlight;
             running = isRunning;
             if (isRunning) {
                 const liveMode = String((data.meta && data.meta.mode) || '').trim();
@@ -2351,10 +2355,14 @@
 
     async function startMode(mode, options) {
         const opts = options && typeof options === 'object' ? options : {};
+        if (startInFlight) {
+            return 'already-running';
+        }
         let csrfToken = '';
         if (typeof refreshAdminCsrfToken === 'function') {
             csrfToken = await refreshAdminCsrfToken();
         }
+        startInFlight = true;
         setRunningUi(true);
         let starting = 'Starting…';
         if (mode === 'check') {
@@ -2386,13 +2394,16 @@
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(body),
             });
-            const data = await resp.json();
-            if (!resp.ok || !data || data.ok !== true) {
+            const data = await resp.json().catch(() => ({}));
+            const alreadyRunning = !!(data && data.running === true)
+                || /already running/i.test(String((data && data.error) || ''));
+            if ((!resp.ok || !data || data.ok !== true) && !alreadyRunning) {
+                startInFlight = false;
                 setRunningUi(false);
                 setJobStatus((data && data.error) ? data.error : 'Could not start site health.', 'error');
-                return;
+                return 'error';
             }
-            if (mode === 'treat') {
+            if (mode === 'treat' && !alreadyRunning) {
                 previewOpen = false;
                 if (previewEl) {
                     previewEl.hidden = true;
@@ -2405,14 +2416,22 @@
             }
             beginPolling();
             await refreshStatus();
+            startInFlight = false;
+            // Keep busy if the server is still running; refreshStatus owns the flag.
+            if (!running) {
+                setRunningUi(!!(data && data.running));
+            }
+            return alreadyRunning ? 'already-running' : 'started';
         } catch (err) {
+            startInFlight = false;
             setRunningUi(false);
             setJobStatus('Could not start site health.', 'error');
+            return 'error';
         }
     }
 
     window.bandpromoStartSiteHealthQuickCheck = function bandpromoStartSiteHealthQuickCheck() {
-        if (running) {
+        if (running || startInFlight) {
             return 'already-running';
         }
         if (!checkBtn) {
@@ -2472,13 +2491,23 @@
         }
     }
 
+    function clearPostUpdateAutoStartFlags() {
+        try {
+            sessionStorage.removeItem('bandpromo_run_site_health_check');
+            sessionStorage.removeItem('bandpromo_post_package_update');
+        } catch (error) {
+            // Ignore storage failures.
+        }
+    }
+
     async function maybeAutoStartAfterUpdate() {
         if (!shouldAutoStartQuickCheck()) {
             return;
         }
         // Wait for the first status paint so we do not fight a busy lock.
         await refreshStatus();
-        if (running) {
+        if (running || startInFlight) {
+            clearPostUpdateAutoStartFlags();
             return;
         }
         let attempts = 0;
@@ -2486,11 +2515,7 @@
             attempts += 1;
             const result = window.bandpromoStartSiteHealthQuickCheck();
             if (result === 'started' || result === 'already-running') {
-                try {
-                    sessionStorage.removeItem('bandpromo_run_site_health_check');
-                } catch (error) {
-                    // Ignore.
-                }
+                clearPostUpdateAutoStartFlags();
                 if (typeof window.closeOperatorNotifications === 'function') {
                     window.closeOperatorNotifications();
                 }

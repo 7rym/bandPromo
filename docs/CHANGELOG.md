@@ -2,6 +2,8 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-09-18 22:50 - Site health post-update auto-start: do not show an error modal when a second Quick check hits “already running”; keep local busy during start so status refresh cannot clear it and race a duplicate start.
+
 2026-09-18 19:05 - Site health data janitor: Check finds ephemeral leftovers under `data/` (Apply prune), unambiguous container registry fixes (Apply relink), and Manual Adopt/Delete rows for orphan/unowned playlists, galleries, and pages — never auto-guesses a campaign.
 
 2026-09-18 18:45 - Status multi-campaign orphan clash rows: show visual thumb / audio preview; green **Select catalogue home** until a campaign is chosen; Set stays disabled until then; confirm names the chosen campaign.

@@ -12424,6 +12424,11 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     attempts += 1;
                     const runResult = startSiteHealthQuickCheck();
                     if (runResult === 'started' || runResult === 'already-running') {
+                        try {
+                            sessionStorage.removeItem('bandpromo_run_site_health_check');
+                        } catch (storageError) {
+                            // Ignore.
+                        }
                         if (typeof closeOperatorNotifications === 'function') {
                             closeOperatorNotifications();
                         }
