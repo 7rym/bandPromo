@@ -28,7 +28,7 @@ v0.9 opens wider access (anonymous entry, tier enforcement, more concurrent list
 | Admin audit | `log/admin-audit/YYYY-MM-DD.log` | Same pattern, lower volume |
 | Analytics engine | `PlaybackAnalytics` | O(events in range) on every dashboard load; unused in-memory cache |
 
-Legacy daily files are imported once on upgrade, then deleted. New writes go only to SQLite. `log/` still holds build/dev logs and other non-activity files.
+Legacy daily files are imported once on upgrade, then deleted. New writes go only to SQLite. `log/` still holds build/dev **text** logs and lock/stop flags. Structured job/state JSON that still lives under `log/` (meta, queues, caches) is a known hygiene debt — target **`data/jobs/`** per [CODE-LAYOUT-REFACTOR.md](CODE-LAYOUT-REFACTOR.md) Phase 0 and [TODO.md](TODO.md) → Runtime path hygiene. Do not add new JSON queues under `log/`.
 
 ## Target architecture (v0.8)
 

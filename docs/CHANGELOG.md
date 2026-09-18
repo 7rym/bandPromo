@@ -2,6 +2,8 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-09-18 23:50 - Docs: pending Cursor plans audit (Keep Shell preview parity, admin editor remainder, PCF smoke; Drop 18 stale); runtime path contract (`log/`=Activity, `data/jobs/`=JSON, `temp/`=scratch); CODE-LAYOUT Phase 0 outline. No path moves yet.
+
 2026-09-18 23:25 - Site health Proposed treatment: amber guidance + grey backup-only note (no duplicate how-to); drop Suggested treatment on Manual choice findings; Apply summary names container kind; harden selected-chip borders.
 
 2026-09-18 23:15 - Site health Manual rows: Delete moves into the choice strip as “or Delete”; selected chip keeps a green border (peers muted); Adopt/Set row buttons removed — choose, Include, then Apply like autofix.

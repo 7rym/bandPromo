@@ -163,6 +163,7 @@ Implementation order:
 - [x] **Login + player OG deferred** — remove Open Graph/Twitter from authenticated surfaces until v0.9; login uses base brand CSS tokens.
 - [x] **Welcome nudge** — post-setup suggestions for duplicate brand (when Base is still locked demo), catalogue, FAQ, Pages, and backup import (no auto-provision of “Your own brand”).
 - [x] Unify Content editors (Playlist, Gallery, Pages) around one pool/result layout with shared headers, demo filter on media pools, and amber/green save controls. Release Pages associations own player tab order; Player layout tab retired.
+- [ ] **Shell / Player / Content preview parity** — rename Branding **Common → Shell**; Live preview must share real `/play` markup/CSS (no parallel `.theme-preview-*` chrome). Resume from Cursor plan `shell_player_content_parity_65f2246f`. **Order:** after Site health fleet quietens; before favicon/PWA gate.
 - [ ] **Favicon + PWA icons from Branding (v0.8 gate)** — operators must not hand-craft `media/icons/` with external generators. Platform derives favicon (ICO/SVG/PNG set) and PWA icons (`web-app-manifest-192/512`, apple-touch, etc.) from brand shell identity (logo / dedicated icon slot) under Content → Branding + rebuild. Manual icon drops are developer-only. **Required before closing the v0.8 exit gate** — site chrome branding is incomplete without this (cold-load HARs showed a 4.4MB hand-made `favicon.svg` on an operator install).
 
 ### Analytics and activity log storage (v0.8 data foundation)
@@ -283,6 +284,8 @@ Implementation order:
 
 Operator chrome patterns across Dashboard / Files / Content / Settings / System are **not verified** as one system. Track as a deliberate pass before calling the management UI “done.”
 
+**Resume:** finish the open Admin editor refactor remainder (Playlist migrate + CSS/save unify) from Cursor plan `admin_editor_refactor_940d3935` (prefer over draft `3d16d4f8`). Parallel with Branding after Site health quietens; feeds the consistency audit below.
+
 Policy — **lock before implementation**:
 
 - [ ] Lock **shared patterns** — edit headers (inline name + ← Back), amber/green save, pool/result editors, picker chrome, status/empty states, and developer-only cards use one vocabulary and spacing.
@@ -290,6 +293,7 @@ Policy — **lock before implementation**:
 
 Implementation order:
 
+- [ ] **Editor refactor remainder** — Playlist onto shared modules; CSS rename; save UX unify (`admin_editor_refactor_940d3935`).
 - [ ] **Consistency audit** — walk every admin tab against [ADMIN-UI.md](ADMIN-UI.md); list drifts (buttons, headers, filters, modals, copy).
 - [ ] **Remediation pass** — fix high-traffic drifts; ticket the rest before v0.9 access UI expands the surface.
 
@@ -468,7 +472,7 @@ Legacy checklist (superseded wording kept for history):
 
 2. **Portability proof at latest build**
    - [x] Fleet sync — active sites on same published GitHub Release (**build 438**, 2026-08-31: bandpromo.site, hitz.no, spandexualtension.com). Twisted Chronicles deferred to v0.9 reinstall.
-   - [ ] PCF round-trip smoke — local → bandpromo.site → Spandexual Tension / HITZ ([Portable Campaign Files (PCF)](#portable-campaign-files-pcf--active-v0-8-gate)).
+   - [ ] PCF round-trip smoke — local → bandpromo.site → Spandexual Tension / HITZ ([Portable Campaign Files (PCF)](#portable-campaign-files-pcf--active-v0-8-gate)). Residual validate-matrix from plan `prp_implementation_schema_8db8d623` (schema shipped; this is validation only — not a PRP rebuild).
 
 3. **Operator chrome**
    - [ ] **Favicon + PWA icons from Branding** — required; no manual RealFaviconGenerator dependency ([Brand section](#brand-replaces-theme)).
@@ -607,12 +611,31 @@ Transitional schema work (in progress):
 
 Policy — **deferred from v0.8**; full plan in [CODE-LAYOUT-REFACTOR.md](CODE-LAYOUT-REFACTOR.md). Re-evaluate at v0.9 kickoff after v0.8 exit gate.
 
+**Do not** merge `biblioteca/` + `scripts/` or relocate root `vendor/` during v0.8 — that is CODE-LAYOUT Phases 2–4. **Do** run **Phase 0 runtime path hygiene** first (after exit gate): structured JSON out of `log/` into `data/jobs/`; scratch only under `temp/` (see that doc).
+
 - [ ] Lock **scope** — `/lib` consolidation + `/admin/` entry (mirror `/play/`); keep `/biblioteca/` as stable public URL alias unless explicitly dropped.
 - [ ] Lock **scheduling** — Option A–D in plan doc (default: incremental internal `lib/` split in early v0.9; `/admin/` move after login/access URLs stable).
 - [ ] Lock **compatibility** — redirects/shims for `admin.php` and `/biblioteca/*`; release packager + service worker + fleet smoke before closing refactor checkpoint.
 
+### Runtime path hygiene (post exit gate / CODE-LAYOUT Phase 0)
+
+Contract (docs lock now; path moves after v0.8 exit gate — not mid–Site health fleet polish):
+
+| Root | Holds | Must not hold |
+|------|--------|----------------|
+| `data/` | Catalogue, analytics, **`data/jobs/`** structured job/state JSON | Ephemeral probe scratch |
+| `log/` | Append-only Activity text logs + lock/stop flags | Queues, meta JSON, job payloads |
+| `temp/` | Scratch only (demux, probes, short-lived files) | Durable operator catalogue |
+| `media/`, `backups/` | Unchanged runtime | — |
+
+- [ ] Lock **contract** — table above + [CODE-LAYOUT-REFACTOR.md](CODE-LAYOUT-REFACTOR.md) Phase 0; [PLATFORM-MODEL.md](PLATFORM-MODEL.md) ownership cheat sheet; [ANALYTICS-STORAGE.md](ANALYTICS-STORAGE.md) note.
+- [ ] Migrate JSON writers (`*.meta.json`, `build-required.json`, `background-tasks.json`, package-update cache, security-sanity snapshot, video-delivery job payloads) → `data/jobs/…` (hard cut; no speculative dual-read).
+- [ ] Prefer scratch under `temp/` (including uploads if open_basedir allows); otherwise keep one documented durable staging exception (`data/upload_tmp/` only).
+- [ ] Fleet Site update + Quick health check after the cut.
+
 Implementation (when scheduled — not now):
 
+- [ ] Phase 0 — runtime JSON/scratch honesty (`data/jobs/`, `temp/`, clean `log/`).
 - [ ] Phase 2 — split include-only PHP vs public APIs/assets under `lib/`.
 - [ ] Phase 3 — consolidate vendors (`lib/vendor/php`, `lib/vendor/js`, `lib/build/wheels`, `lib/build/site-packages`).
 - [ ] Phase 4 — relocate Python build + ffmpeg under `lib/build/`; keep `scripts/` launchers if needed.

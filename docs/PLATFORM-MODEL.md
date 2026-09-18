@@ -99,11 +99,14 @@ An operator-owned install can still contain platform-bundled assets. Separation 
 
 | Thing | Owner | Lives in |
 |-------|-------|----------|
-| PHP/JS/Python code | Platform | repo |
+| PHP/JS/Python code | Platform | repo (`biblioteca/`, `scripts/`, root `vendor/` today; `lib/` after CODE-LAYOUT) |
 | Templates / seeds | Platform | `biblioteca/templates/` |
 | Install config + pointers | Operator (on host) | `web-config.json`, `data/install/` |
 | Releases, playlists, pages, … | Operator | `data/{type}/` |
 | Asset registry + metadata | Operator | `data/assets/` |
+| Job / build state JSON | Platform writers on host | **`data/jobs/`** (target; today many still under `log/*.json` — Phase 0 hygiene) |
+| Activity text logs + lock flags | Platform writers on host | `log/` (append-only `.log` + locks — not queues) |
+| Scratch (demux, probes, ephemeral) | Platform | `temp/` only |
 | Uploaded originals | Operator | `media/*/original/` |
 | Bundled demo media | Platform (shipped into install) | `media/` (`bandPromo_*`) |
 | Delivery files | Build output (derived) | `media/*/optimal/`, etc. |
@@ -133,7 +136,7 @@ v0.8 labels operator-made playlists `kind: "system"` until **user playlists** sh
 ### How to read any path in five seconds
 
 1. **Git or host?** — Git → platform. `data/` + `media/` on host → operator install (may include bundled demo).
-2. **Edited or generated?** — `data/*.json` → edited. `media/*/optimal/` → generated delivery.
+2. **Edited or generated?** — `data/*.json` (catalogue / jobs) → durable data. `log/*.log` → Activity. `temp/` → scratch. `media/*/optimal/` → generated delivery.
 3. **Who is the audience?** — Admin → operator. Player/login → user. Templates/migrations → platform.
 
 ### Operator mental model (containers, brand, player)

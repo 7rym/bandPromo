@@ -127,7 +127,7 @@ Do **not** combine with unrelated v0.8 feature work in the same checkpoint.
 
 | Phase | Scope | Risk |
 |-------|--------|------|
-| **0 — Plan lock** | This doc + ROADMAP/TODO pointers; inventory grep counts | None |
+| **0 — Runtime path hygiene** | Structured JSON out of `log/` → `data/jobs/`; scratch only under `temp/`; docs + writers in one hard cut (see below) | Medium (fleet path migration) |
 | **1 — Docs + naming** | Rename `scripts/vendor-wheels` → `scripts/python-wheels` (or move under `lib/build/wheels/`) in docs first | Low |
 | **2 — Internal split** | Move include-only PHP to `lib/php/`; keep HTTP paths at `/biblioteca/` | Medium |
 | **3 — Vendor consolidation** | `/vendor` → `lib/vendor/php` + `lib/vendor/js`; Python wheels/site-packages under `lib/build/` | Medium |
@@ -136,6 +136,25 @@ Do **not** combine with unrelated v0.8 feature work in the same checkpoint.
 | **6 — Optional public rename** | `/biblioteca/` → `/lib/public/` HTTP alias decision | High — defer unless strong reason |
 
 Each phase: PHP syntax check, release package build, smoke on **bandpromo.site** (Vanilla fresh-install host), update `CHANGELOG.md`.
+
+### Phase 0 — Runtime path hygiene (detail)
+
+**Problem:** `log/` holds Activity text **and** many structured `.json` sidecars (build/Site health meta, queues, package-update cache, video-delivery payloads). Scratch also leaks into `data/upload_tmp` while `temp/` is underused. Operator expectation: JSON is data; scratch is wipeable.
+
+**Contract:**
+
+| Root | Role |
+|------|------|
+| `data/` | Durable operator + system data: catalogue, `data/analytics/`, **`data/jobs/`** (job/state JSON) |
+| `log/` | Append-only Activity `.log` files + lock/stop flags only — **no** queues/meta JSON |
+| `temp/` | Scratch only (Site health demux already here; probes; prefer `temp/uploads/` for chunk staging if open_basedir allows) |
+| `media/`, `backups/` | Unchanged |
+
+**Migrate writers (examples):** `*.meta.json`, `build-required.json`, `background-tasks.json`, `package-update-cache.json`, `security-sanity-latest.json`, `log/video-delivery-jobs/*` → under `data/jobs/…`. Prefer hard cut (no dual-read) unless one fleet release needs dual-write for safety.
+
+**Do not** in Phase 0: rename `biblioteca`/`scripts`/`vendor`, or move root `vendor/` under `biblioteca/` alone (that fights Phases 3–4).
+
+**Prerequisites:** v0.8 exit gate complete; fleet on one build; then Site update + Quick health check after the cut.
 
 ---
 
@@ -182,10 +201,11 @@ Re-evaluate at v0.9 kickoff against open [TODO.md](TODO.md) access-tier items an
 
 ## Out of scope
 
-- Moving `data/`, `media/`, `log/`, `backups/` (operator runtime — unchanged).
+- Moving `data/`, `media/`, `log/`, `backups/` **roots** (operator runtime — unchanged). Phase 0 only relocates **files inside** those roots (`log/*.json` → `data/jobs/`; scratch → `temp/`).
 - Composer/npm package managers (manual vendor trees stay for shared-host simplicity).
 - Renaming `docs/` or `.github/`.
 - Wiping or re-seeding local runtime on this working copy.
+- Relocating root `vendor/` under `biblioteca/` without the full `lib/vendor/` move (would force a second migration).
 
 ---
 
@@ -205,3 +225,4 @@ Re-evaluate at v0.9 kickoff against open [TODO.md](TODO.md) access-tier items an
 | Date | Decision |
 |------|----------|
 | 2026-08-17 | Defer implementation to v0.9 evaluation; store plan in this doc. User preference: `/admin/` like `/play/`; consolidate under `/lib`. |
+| 2026-09-18 | Pending-plans audit: keep Shell preview parity, admin editor remainder, PCF smoke in v0.8 TODO; do not merge `biblioteca`/`scripts`/`vendor` in v0.8. Expand Phase 0 to **runtime path hygiene** (`log/` JSON → `data/jobs/`; scratch → `temp/`) before folder renames. |

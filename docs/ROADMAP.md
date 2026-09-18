@@ -53,7 +53,7 @@ bandPromo may provide technical controls, access rules, and operator-facing mode
 | Content AI wizards (release + brand canon) | Policy locked; **implementation v0.9+** |
 | PWA / protected delivery architecture | Defined; implementation in progress |
 
-**Next focus:** Player **Campaign navigator** (policy locked 2026-09-08 — implement + validate); PCF fleet smoke; favicon/PWA from Branding; legacy audit refresh. Content AI wizards and OMP → v0.9. Page OG/share runtime still v0.9 (storage shipped). See [TODO.md](TODO.md).
+**Next focus:** After Site health fleet quietens — **Shell / Player / Content preview parity** (Common→Shell; real `/play` Live preview); then Admin editor refactor remainder + consistency audit. Exit gate still needs: Player **Campaign navigator** fleet validate; PCF round-trip smoke; favicon/PWA from Branding; legacy audit refresh. Content AI wizards and OMP → v0.9. Page OG/share runtime still v0.9 (storage shipped). See [TODO.md](TODO.md).
 
 ## Core vs modules
 
@@ -548,7 +548,7 @@ Closed-beta fleet personas ([USE-CASES.md](USE-CASES.md)): **Vanilla** (bandprom
 - **Sharing** cards use container description + poster fields in storage; public OG runtime wiring is **v0.9**.
 
 - **Shipped now:** package updater; Backup & export; Branding; block-based Pages + gallery presets; unified Content editors; upload-time delivery; platform storage/API; SQLite activity store; playlist documents (legacy `play/playlist.json` removed); campaign-associated player page tabs; Brand shell override; Lyrics ↔ Notes; Content → Player layout retired; Demo PCF setup import; Catalogue campaign delete.
-- **In progress in v0.8:** player **Campaign navigator** (**exit gate — ship before new testers**); `media/special/` fold; Admin panel consistency pass; PCF fleet validation at latest build; favicon/PWA from Branding; legacy audit refresh. Brand export/import and gallery multi-select **shipped**. Admin `bandpromoConfirm` **shipped** (native confirms replaced). **Deferred to v0.9:** content AI wizards, OMP toast→inbox ([OPERATOR-MESSAGING.md](OPERATOR-MESSAGING.md)), access tiers, page OG runtime.
+- **In progress in v0.8:** Site health fleet polish (Manual Include→Apply); **Shell / Player / Content preview parity**; Admin editor refactor remainder + consistency pass; player **Campaign navigator** fleet validate (**exit gate — ship before new testers**); `media/special/` fold; PCF fleet validation at latest build; favicon/PWA from Branding; legacy audit refresh. Brand export/import and gallery multi-select **shipped**. Admin `bandpromoConfirm` **shipped** (native confirms replaced). **Deferred to v0.9:** content AI wizards, OMP toast→inbox ([OPERATOR-MESSAGING.md](OPERATOR-MESSAGING.md)), access tiers, page OG runtime; **CODE-LAYOUT** folder consolidation + **Phase 0 runtime path hygiene** (`log/` JSON → `data/jobs/`, scratch → `temp/`).
 - **v0.8 exit gate (2026-08-31):** (1) Campaign navigator policy + ship + validate on Vanilla / Spandexual Tension / HITZ, (2) PCF/PBF smoke on active fleet (build **438** synced 2026-08-31; Twisted Chronicles deferred to v0.9), (3) favicon/PWA from Branding, (4) developer-only System → Audit/Security, (5) legacy audit refresh. **Do not expand tester pool until complete.** See [TODO.md](TODO.md) → v0.8 exit gate.
 - **Defined in v0.8, built in v0.9:** login/FAQ/shared-link flow with restricted anonymous entry, access tiers (VIP pre-access, anonymous released-only, etc.), user/VIP playlists, page OG tags.
 - **v1+:** fan credits, news module with timed release and social push, richer engagement modules (fanboard, feeds).
@@ -738,7 +738,7 @@ Rules:
 
 Theme: public-readiness, **access-tier implementation**, user roles, and user-facing engagement services on stable v0.8 deliverables — **not** the v2 marketing machine.
 
-**Infrastructure candidate (evaluate at v0.9 open):** consolidate application code under `/lib` (PHP, public assets, templates, build tooling, vendors), move operator UI from root `admin.php` to `/admin/` (mirror `/play/`), and retire the scattered `biblioteca/` + `scripts/` + dual-`vendor` layout. Planned in [CODE-LAYOUT-REFACTOR.md](CODE-LAYOUT-REFACTOR.md) — **not** v0.8 work; schedule after v0.8 exit gate.
+**Infrastructure candidate (evaluate at v0.9 open):** (0) **runtime path hygiene** — move structured job/state JSON out of `log/` into `data/jobs/`; use `temp/` for scratch only; then (1+) consolidate application code under `/lib` (PHP, public assets, templates, build tooling, vendors), move operator UI from root `admin.php` to `/admin/` (mirror `/play/`), and retire the scattered `biblioteca/` + `scripts/` + dual-`vendor` layout. Planned in [CODE-LAYOUT-REFACTOR.md](CODE-LAYOUT-REFACTOR.md) — **not** v0.8 feature work; schedule after v0.8 exit gate. Do **not** relocate `vendor/` under `biblioteca/` alone — that fights the `lib/vendor/` target.
 
 Goals:
 
