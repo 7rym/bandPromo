@@ -287,8 +287,8 @@ function bandpromo_campaign_import_from_directory(string $root, string $packageD
                 bandpromo_campaign_merge_asset_registry(
                     $root,
                     $decoded,
-                    $remapRelease ? $sourceReleaseId : '',
-                    $remapRelease ? $targetReleaseId : ''
+                    $sourceReleaseId,
+                    $targetReleaseId
                 );
                 $imported++;
                 continue;
@@ -436,6 +436,13 @@ function bandpromo_campaign_import_from_directory(string $root, string $packageD
         if ($deliverablesWarning !== '') {
             $message .= ' (' . $deliverablesWarning . ')';
         }
+    }
+
+    // Heal any remaining empty homes referenced by imported containers (Demo PCF safety net).
+    try {
+        bandpromo_campaign_heal_orphan_homes_in_containers($root);
+    } catch (Throwable $throwable) {
+        // Non-fatal — Site health orphan_home_stamp remains available.
     }
 
     return [
@@ -635,7 +642,9 @@ function bandpromo_campaign_allocate_id(string $root, string $title): string
 
 /**
  * Merge a packaged asset registry subset into the install registry (no silent wipe).
- * When allocate remaps the campaign id, retarget matching asset catalogue-home fields.
+ * Remaps catalogue homes when allocate changes the campaign id.
+ * Empty / primary homes on audio and visual rows are claimed to the package campaign
+ * so Demo/PCF imports do not leave container-referenced orphans.
  *
  * @param array<string, mixed> $incoming
  */
@@ -669,6 +678,16 @@ function bandpromo_campaign_merge_asset_registry(
         $normalized = bandpromo_asset_normalize_entry(array_merge($asset, ['id' => $assetId]));
         if ($normalized === null) {
             continue;
+        }
+        // Claim empty catalogue homes to the package campaign (audio/visual only).
+        $kind = strtolower(trim((string) ($normalized['kind'] ?? '')));
+        $home = trim((string) ($normalized['release_id'] ?? ''));
+        if (
+            $targetReleaseId !== ''
+            && in_array($kind, ['audio', 'visual'], true)
+            && ($home === '' || strcasecmp($home, 'primary') === 0)
+        ) {
+            $normalized['release_id'] = $targetReleaseId;
         }
         // PRP rows are masters-only; keep host-local delivery when the asset already exists.
         $normalized = bandpromo_campaign_strip_delivery_from_asset($normalized);

@@ -1060,6 +1060,174 @@ function bandpromo_brand_campaign_usage_index(string $root): array
 }
 
 /**
+ * Collect ast_* ids from nested playlist / gallery / page JSON (parity with Site health orphan_homes.py).
+ *
+ * @param mixed $node
+ * @param array<string, true> $found
+ */
+function bandpromo_campaign_collect_nested_asset_ids($node, array &$found): void
+{
+    if (is_array($node)) {
+        $isList = array_keys($node) === range(0, count($node) - 1);
+        if ($isList) {
+            foreach ($node as $item) {
+                bandpromo_campaign_collect_nested_asset_ids($item, $found);
+            }
+
+            return;
+        }
+        foreach ($node as $key => $value) {
+            $keyL = strtolower(trim((string) $key));
+            if (in_array($keyL, ['asset_id', 'poster_asset_id', 'cover_asset_id', 'living_cover_asset_id'], true)) {
+                $id = trim((string) $value);
+                if ($id !== '' && bandpromo_asset_is_asset_id($id)) {
+                    $found[$id] = true;
+                }
+            } elseif (in_array($keyL, ['src', 'poster', 'cover', 'living_cover'], true)) {
+                $text = trim((string) $value);
+                if ($text !== '' && bandpromo_asset_is_asset_id($text)) {
+                    $found[$text] = true;
+                } elseif (str_starts_with($text, 'ast_')) {
+                    $stem = basename(str_replace('\\', '/', $text));
+                    if (str_contains($stem, '.')) {
+                        $stem = (string) preg_replace('/\.[^.]+$/', '', $stem);
+                    }
+                    if (bandpromo_asset_is_asset_id($stem)) {
+                        $found[$stem] = true;
+                    }
+                }
+            } else {
+                bandpromo_campaign_collect_nested_asset_ids($value, $found);
+            }
+        }
+    }
+}
+
+/**
+ * Stamp empty/primary catalogue homes when a playlist/gallery/page owned by exactly one
+ * campaign references the asset. Never overwrites a non-empty home.
+ *
+ * @return array{ok: bool, stamped: int, ambiguous: int, failed: int}
+ */
+function bandpromo_campaign_heal_orphan_homes_in_containers(string $root): array
+{
+    require_once __DIR__ . '/asset-registry.php';
+    require_once __DIR__ . '/json-file-helpers.php';
+
+    $result = ['ok' => true, 'stamped' => 0, 'ambiguous' => 0, 'failed' => 0];
+    $owners = [];
+    $dirs = [
+        $root . '/data/playlists',
+        $root . '/data/galleries',
+        $root . '/data/pages',
+    ];
+    foreach ($dirs as $folder) {
+        if (!is_dir($folder)) {
+            continue;
+        }
+        foreach (scandir($folder) ?: [] as $name) {
+            if ($name === '.' || $name === '..' || $name === 'registry.json' || !str_ends_with($name, '.json')) {
+                continue;
+            }
+            $path = $folder . DIRECTORY_SEPARATOR . $name;
+            $payload = bandpromo_json_read_array_file($path);
+            if (!is_array($payload)) {
+                continue;
+            }
+            $campaignId = bandpromo_document_campaign_id($payload);
+            if ($campaignId === '' || bandpromo_campaign_id_is_unowned($campaignId)) {
+                continue;
+            }
+            $found = [];
+            bandpromo_campaign_collect_nested_asset_ids($payload, $found);
+            foreach (array_keys($found) as $assetId) {
+                if (!isset($owners[$assetId])) {
+                    $owners[$assetId] = [];
+                }
+                $owners[$assetId][$campaignId] = true;
+            }
+        }
+    }
+
+    if ($owners === []) {
+        return $result;
+    }
+
+    bandpromo_asset_registry_ensure_migrated($root);
+    $registry = bandpromo_asset_load_registry($root);
+    if (!is_array($registry['assets'] ?? null)) {
+        $result['ok'] = false;
+        $result['failed'] = 1;
+
+        return $result;
+    }
+
+    $dirty = false;
+    foreach ($owners as $assetId => $campaignMap) {
+        $campaigns = array_keys($campaignMap);
+        $asset = $registry['assets'][$assetId] ?? null;
+        if (!is_array($asset)) {
+            continue;
+        }
+        $kind = strtolower(trim((string) ($asset['kind'] ?? '')));
+        if (!in_array($kind, ['audio', 'visual'], true)) {
+            continue;
+        }
+        $home = trim((string) ($asset['release_id'] ?? ''));
+        if ($home !== '' && strcasecmp($home, 'primary') !== 0) {
+            continue;
+        }
+        if (count($campaigns) !== 1) {
+            $result['ambiguous']++;
+            continue;
+        }
+        $campaignId = $campaigns[0];
+        $registry['assets'][$assetId]['release_id'] = $campaignId;
+        $dirty = true;
+        $result['stamped']++;
+
+        if ($kind === 'audio') {
+            try {
+                $campaignPath = $root . '/data/campaigns/' . $campaignId . '.json';
+                if (!is_file($campaignPath)) {
+                    continue;
+                }
+                $doc = bandpromo_json_read_array_file($campaignPath);
+                if (!is_array($doc)) {
+                    continue;
+                }
+                $tracks = is_array($doc['tracks'] ?? null) ? $doc['tracks'] : [];
+                $present = false;
+                foreach ($tracks as $track) {
+                    if (is_array($track) && trim((string) ($track['asset_id'] ?? '')) === $assetId) {
+                        $present = true;
+                        break;
+                    }
+                }
+                if (!$present) {
+                    $tracks[] = ['asset_id' => $assetId];
+                    $doc['tracks'] = $tracks;
+                    bandpromo_json_write_file($campaignPath, $doc);
+                }
+            } catch (Throwable $throwable) {
+                // Home stamp still counts; track pool append is best-effort.
+            }
+        }
+    }
+
+    if ($dirty) {
+        try {
+            bandpromo_asset_write_registry($root, $registry);
+        } catch (Throwable $throwable) {
+            $result['ok'] = false;
+            $result['failed']++;
+        }
+    }
+
+    return $result;
+}
+
+/**
  * Resolve a cover/poster/page ref to a Visual asset id.
  */
 function bandpromo_campaign_visual_asset_id_from_ref(string $root, string $ref): string

@@ -2,6 +2,8 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-09-18 13:35 - Demo/PCF catalogue homes: import merge always receives the package campaign id and stamps empty audio/visual `release_id` homes; post-import + Site update migration heal unambiguous orphans used in playlists/galleries/pages (fixes vanilla “11 orphan media” after Site update).
+
 2026-09-18 11:30 - Shared brands + honest Files Brand column: Sound effects Brand follows library membership (not upload stamp); library add/remove syncs stamp; campaigns may reuse one brand without stealing `brand.campaign_id`; Branding picker shows “used by N campaigns”.
 
 2026-09-17 23:45 - Status: never show Healthy / Good·Bad·Ugly from a check older than 1 hour — badge becomes Out of date, summary is replaced, and a fresh Quick health check starts automatically.

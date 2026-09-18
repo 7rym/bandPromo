@@ -11,6 +11,10 @@ require_once __DIR__ . '/build-required.php';
 const BANDPROMO_INSTALL_MIGRATION_ORPHAN_PRIMARY_ID = 'orphan-primary-uploads-b422';
 const BANDPROMO_INSTALL_MIGRATION_ORPHAN_PRIMARY_MIN_BUILD = 422;
 
+/** One-shot Site update migration: stamp container-referenced orphan catalogue homes (build 533). */
+const BANDPROMO_INSTALL_MIGRATION_ORPHAN_HOMES_ID = 'orphan-homes-in-containers-b533';
+const BANDPROMO_INSTALL_MIGRATION_ORPHAN_HOMES_MIN_BUILD = 533;
+
 function bandpromo_install_migrations_dir(string $root): string
 {
     return rtrim($root, '/\\') . '/data/install/migrations';
@@ -196,6 +200,80 @@ function bandpromo_install_migration_run_orphan_primary_uploads(string $root, ar
 }
 
 /**
+ * One-time build 533+ migration: stamp empty catalogue homes for media used in exactly one campaign's containers.
+ *
+ * Demo PCF imports historically left release_id empty while playlists/galleries still referenced the masters.
+ *
+ * @param array{dry_run?: bool, trigger?: string} $context
+ * @return array<string, mixed>
+ */
+function bandpromo_install_migration_run_orphan_homes_in_containers(string $root, array $context = []): array
+{
+    $migrationId = BANDPROMO_INSTALL_MIGRATION_ORPHAN_HOMES_ID;
+    $dryRun = !empty($context['dry_run']);
+    $trigger = trim((string) ($context['trigger'] ?? 'unknown'));
+    $installedVersion = bandpromo_package_read_installed_version($root);
+    $installedBuild = bandpromo_install_migration_build_number($installedVersion);
+
+    $base = [
+        'ok' => true,
+        'id' => $migrationId,
+        'applied' => false,
+        'skipped' => true,
+        'dry_run' => $dryRun,
+    ];
+
+    if (bandpromo_install_migration_is_applied($root, $migrationId)) {
+        return array_merge($base, [
+            'skip_reason' => 'Migration already applied on this install.',
+        ]);
+    }
+
+    if ($installedBuild < BANDPROMO_INSTALL_MIGRATION_ORPHAN_HOMES_MIN_BUILD) {
+        return array_merge($base, [
+            'skip_reason' => 'Install is older than build '
+                . BANDPROMO_INSTALL_MIGRATION_ORPHAN_HOMES_MIN_BUILD
+                . '; update first.',
+        ]);
+    }
+
+    if ($dryRun) {
+        return array_merge($base, [
+            'skipped' => false,
+            'message' => 'Would stamp unambiguous orphan catalogue homes from container usage.',
+        ]);
+    }
+
+    $heal = bandpromo_campaign_heal_orphan_homes_in_containers($root);
+    $stamped = (int) ($heal['stamped'] ?? 0);
+    $ambiguous = (int) ($heal['ambiguous'] ?? 0);
+    $ok = !empty($heal['ok']);
+
+    bandpromo_install_migration_mark_applied($root, $migrationId, [
+        'trigger' => $trigger,
+        'stamped' => $stamped,
+        'ambiguous' => $ambiguous,
+        'ok' => $ok,
+    ]);
+
+    if ($stamped > 0) {
+        bandpromo_mark_build_required('content_autofix');
+    }
+
+    return array_merge($base, [
+        'ok' => $ok,
+        'applied' => true,
+        'skipped' => false,
+        'stamped' => $stamped,
+        'ambiguous' => $ambiguous,
+        'changed' => $stamped,
+        'message' => $stamped > 0
+            ? 'Stamped catalogue home on ' . $stamped . ' orphan media file(s) used in campaigns.'
+            : 'No unambiguous orphan-in-container homes to stamp.',
+    ]);
+}
+
+/**
  * Run pending install migrations after Site update or bootstrap.
  *
  * @return array<string, array<string, mixed>>
@@ -208,6 +286,9 @@ function bandpromo_install_migrations_run_after_update(string $root, array $appl
         BANDPROMO_INSTALL_MIGRATION_ORPHAN_PRIMARY_ID => bandpromo_install_migration_run_orphan_primary_uploads($root, [
             'trigger' => 'package_update',
             'previous_version' => $previousVersion,
+        ]),
+        BANDPROMO_INSTALL_MIGRATION_ORPHAN_HOMES_ID => bandpromo_install_migration_run_orphan_homes_in_containers($root, [
+            'trigger' => 'package_update',
         ]),
     ];
 }
