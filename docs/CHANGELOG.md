@@ -2,6 +2,8 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-09-18 23:15 - Site health Manual rows: Delete moves into the choice strip as “or Delete”; selected chip keeps a green border (peers muted); Adopt/Set row buttons removed — choose, Include, then Apply like autofix.
+
 2026-09-18 22:58 - Session handoff notes fleet-testing preference: Status / Site health work in this stretch defaults to check-and-publish checkpoints.
 
 2026-09-18 22:55 - Site health Proposed treatment Manual rows: drop amber-in-amber nesting; hide Adopt/Set until a campaign is chosen (green label on the choice only); quieter Delete; status as a muted chip.

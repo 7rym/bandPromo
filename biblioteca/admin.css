@@ -5868,80 +5868,79 @@ canvas { max-width: 100%; height: auto; }
     font-weight: 700;
 }
 
-.site-health-orphan-clash-field.is-needs-choice .site-health-orphan-home-toggle,
-.site-health-orphan-clash-field.is-needs-choice .site-health-data-adopt-toggle {
-    border-color: rgba(76, 175, 80, 0.55);
-    box-shadow: 0 0 0 1px rgba(76, 175, 80, 0.18);
-}
-
-.site-health-orphan-home-toggle,
-.site-health-data-adopt-toggle {
-    display: inline-flex;
-    flex-wrap: wrap;
-    gap: 0;
-    border: 1px solid var(--border, rgba(255, 255, 255, 0.14));
-    border-radius: 7px;
-    overflow: hidden;
-    background: rgba(15, 23, 42, 0.45);
-}
-
-.site-health-orphan-home-toggle .brand-player-setting-btn,
-.site-health-data-adopt-toggle .brand-player-setting-btn {
-    margin: 0;
-    padding: 0.28rem 0.65rem;
-    border: 0;
-    border-left: 1px solid var(--border, rgba(255, 255, 255, 0.14));
-    border-radius: 0;
-    background: transparent;
-    color: var(--text);
-    font: inherit;
-    font-size: 12px;
-    cursor: pointer;
-}
-
-.site-health-orphan-home-toggle .brand-player-setting-btn:first-child,
-.site-health-data-adopt-toggle .brand-player-setting-btn:first-child {
-    border-left: 0;
-}
-
-.site-health-orphan-home-toggle .brand-player-setting-btn.is-active,
-.site-health-data-adopt-toggle .brand-player-setting-btn.is-active {
-    background: color-mix(in srgb, var(--success, #3d9a5f) 28% 100%, transparent);
-    color: var(--text);
+.site-health-orphan-clash-field.is-chosen .site-health-orphan-clash-field-label {
+    color: var(--muted);
     font-weight: 600;
 }
 
+.site-health-choice-chips,
+.site-health-choice-toggle {
+    display: inline-flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
+    border: 0;
+    background: transparent;
+}
+
+.site-health-choice-toggle .brand-player-setting-btn,
+.site-health-choice-chip {
+    margin: 0;
+    padding: 0.28rem 0.7rem;
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    border-radius: 7px;
+    background: rgba(15, 23, 42, 0.35);
+    color: var(--muted);
+    font: inherit;
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+}
+
+.site-health-choice-toggle .brand-player-setting-btn:hover,
+.site-health-choice-chip:hover {
+    color: var(--text);
+    border-color: rgba(255, 255, 255, 0.28);
+}
+
+.site-health-choice-toggle .brand-player-setting-btn.is-active,
+.site-health-choice-chip.is-active {
+    color: var(--text);
+    font-weight: 700;
+    border-color: rgba(76, 175, 80, 0.85);
+    box-shadow: 0 0 0 1px rgba(76, 175, 80, 0.25);
+    background: color-mix(in srgb, var(--success, #3d9a5f) 22% 100%, transparent);
+}
+
+.site-health-choice-or {
+    display: inline-block;
+    margin: 0 2px 0 4px;
+    color: var(--muted);
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.site-health-choice-delete:not(.is-active) {
+    color: var(--muted);
+    border-style: dashed;
+}
+
+.site-health-choice-delete.is-active {
+    border-color: rgba(244, 67, 54, 0.7);
+    box-shadow: 0 0 0 1px rgba(244, 67, 54, 0.2);
+    background: rgba(244, 67, 54, 0.12);
+}
+
+.site-health-choice-select,
 .site-health-orphan-home-select,
 .site-health-data-adopt-select {
     max-width: 100%;
     min-width: 12rem;
 }
 
-.site-health-data-orphan-actions,
-.site-health-orphan-clash-actions {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 8px;
-    margin-top: 8px;
-}
-
-.site-health-orphan-home-set,
-.site-health-data-adopt,
-.site-health-data-delete {
-    margin-top: 0;
-}
-
-.site-health-data-delete {
-    color: var(--muted);
-    border-color: rgba(255, 255, 255, 0.14);
-    background: transparent;
-}
-
-.site-health-data-delete:hover:not(:disabled) {
-    color: #fca5a5;
-    border-color: rgba(244, 67, 54, 0.45);
-    background: rgba(244, 67, 54, 0.08);
+.site-health-treat-select.is-disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
 }
 
 .site-health-treat-preview-actions {

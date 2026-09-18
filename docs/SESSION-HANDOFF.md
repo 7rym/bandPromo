@@ -2,14 +2,14 @@
 
 ## Resume point
 
-**Manual row chrome polish published (build 540)** — fleet testing Site health Adopt/Delete + clash UX.
+**Manual Include→Apply polish published** — Delete in choice strip, green selection border, no per-row Adopt/Set.
 
 ### Shipped recently
 
-1. Data janitor (prune / relink / Manual Adopt|Delete).
-2. Orphan clash preview + select-first Set.
+1. Data janitor (prune / relink / Manual Adopt|Delete via Include+Apply).
+2. Orphan clash preview + select-first catalogue home.
 3. Post-update “already running” modal fix.
-4. Proposed treatment Manual rows: quieter separators, Adopt/Set hidden until choice, soft Delete.
+4. Manual row chrome: `or Delete` in the chip strip; selected keeps green border; Include enables when every row has a choice; Apply runs manual PHP actions then autofix / follow-up check.
 
 ### Next
 
