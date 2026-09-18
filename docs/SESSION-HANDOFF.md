@@ -2,21 +2,20 @@
 
 ## Resume point
 
-**Vanilla orphan homes (11 demo assets)** — root cause fixed; publish build with import stamp + Site update migration, then Site update vanilla again (or Review → Apply on 532 meanwhile).
+**orphan_home_stamp Apply was a no-op** — fixed in build 534. Site update vanilla again; or Apply after 534.
 
 ### Cause
 
-Demo/PCF registry merge only remapped homes when the campaign id changed, and same-id demo import passed **empty** source/target ids — so packaged assets with empty `release_id` stayed orphans while playlists still used them. Site update only auto-runs Quick check (finds them); it does not Apply treatment.
+`treat_orphan_homes()` called `reg.load_registry()` and treated the return value as a dict. That API returns `(registry, status)`, so Treat exited with “registry unavailable” and wrote nothing. Check still found the 11 orphans (it passes a real registry into `probe_orphan_homes`).
 
-### Fix (this tree)
+### Fix
 
-1. PCF merge always passes package campaign ids; empty/primary audio+visual homes → package campaign.
-2. Post-import heal + install migration `orphan-homes-in-containers-b533` stamps unambiguous container orphans on Site update.
+1. Unpack `(registry, status)` in treat/probe.
+2. Migration id bumped to `orphan-homes-in-containers-b534` so installs that already marked b533 still heal on update.
 
 ### Next
 
-1. Checkpoint + publish.
-2. Site update bandpromo.site → migration should clear The bad; or Apply on 532 as interim.
+Publish 534 → Site update bandpromo.site → Apply should stamp (or migration clears The bad).
 
 ### Local workspace
 

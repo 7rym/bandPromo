@@ -86,7 +86,10 @@ def probe_orphan_homes(registry=None):
     }
     """
     if registry is None:
-        registry = reg.load_registry()
+        registry, _status = reg.load_registry()
+    elif isinstance(registry, tuple):
+        # Defensive: callers sometimes pass load_registry() wholesale.
+        registry = registry[0] if registry else {}
     assets = registry.get('assets') if isinstance(registry, dict) else None
     if not isinstance(assets, dict):
         return {'stampable': [], 'ambiguous': []}
@@ -155,9 +158,9 @@ def probe_orphan_homes(registry=None):
 def treat_orphan_homes():
     """Stamp unambiguous orphan homes. Returns (fixed, failed)."""
     log.phase('treat:orphan_homes')
-    registry = reg.load_registry()
-    if not isinstance(registry, dict) or not isinstance(registry.get('assets'), dict):
-        log.info('Registry unavailable — cannot stamp catalogue homes.')
+    registry, status = reg.load_registry()
+    if status != 'ok' or not isinstance(registry, dict) or not isinstance(registry.get('assets'), dict):
+        log.info('Registry unavailable — cannot stamp catalogue homes ({0}).'.format(status))
         log.treat_result('orphan_home_stamp', 'failed', 0)
         return 0, 1
 
@@ -206,6 +209,7 @@ def treat_orphan_homes():
     if dirty:
         try:
             reg.write_registry(registry)
+            log.info('Wrote catalogue homes for {0} asset(s).'.format(fixed))
         except Exception as exc:
             log.info('Failed to write registry after home stamp: {0}'.format(exc))
             log.treat_result('orphan_home_stamp', 'failed', fixed)

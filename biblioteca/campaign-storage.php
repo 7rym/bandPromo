@@ -1067,6 +1067,25 @@ function bandpromo_brand_campaign_usage_index(string $root): array
  */
 function bandpromo_campaign_collect_nested_asset_ids($node, array &$found): void
 {
+    $add = static function (string $raw) use (&$found): void {
+        $id = trim($raw);
+        if ($id === '') {
+            return;
+        }
+        if (bandpromo_asset_is_asset_id($id)) {
+            $found[$id] = true;
+
+            return;
+        }
+        // Python Site health accepts case-insensitive Crockford; fold to canonical.
+        if (preg_match('/^ast_(.+)$/i', $id, $matches)) {
+            $folded = 'ast_' . strtoupper((string) $matches[1]);
+            if (bandpromo_asset_is_asset_id($folded)) {
+                $found[$folded] = true;
+            }
+        }
+    };
+
     if (is_array($node)) {
         $isList = array_keys($node) === range(0, count($node) - 1);
         if ($isList) {
@@ -1079,22 +1098,16 @@ function bandpromo_campaign_collect_nested_asset_ids($node, array &$found): void
         foreach ($node as $key => $value) {
             $keyL = strtolower(trim((string) $key));
             if (in_array($keyL, ['asset_id', 'poster_asset_id', 'cover_asset_id', 'living_cover_asset_id'], true)) {
-                $id = trim((string) $value);
-                if ($id !== '' && bandpromo_asset_is_asset_id($id)) {
-                    $found[$id] = true;
-                }
+                $add((string) $value);
             } elseif (in_array($keyL, ['src', 'poster', 'cover', 'living_cover'], true)) {
                 $text = trim((string) $value);
-                if ($text !== '' && bandpromo_asset_is_asset_id($text)) {
-                    $found[$text] = true;
-                } elseif (str_starts_with($text, 'ast_')) {
+                $add($text);
+                if (str_starts_with($text, 'ast_')) {
                     $stem = basename(str_replace('\\', '/', $text));
                     if (str_contains($stem, '.')) {
                         $stem = (string) preg_replace('/\.[^.]+$/', '', $stem);
                     }
-                    if (bandpromo_asset_is_asset_id($stem)) {
-                        $found[$stem] = true;
-                    }
+                    $add($stem);
                 }
             } else {
                 bandpromo_campaign_collect_nested_asset_ids($value, $found);

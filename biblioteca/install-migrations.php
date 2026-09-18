@@ -11,9 +11,9 @@ require_once __DIR__ . '/build-required.php';
 const BANDPROMO_INSTALL_MIGRATION_ORPHAN_PRIMARY_ID = 'orphan-primary-uploads-b422';
 const BANDPROMO_INSTALL_MIGRATION_ORPHAN_PRIMARY_MIN_BUILD = 422;
 
-/** One-shot Site update migration: stamp container-referenced orphan catalogue homes (build 533). */
-const BANDPROMO_INSTALL_MIGRATION_ORPHAN_HOMES_ID = 'orphan-homes-in-containers-b533';
-const BANDPROMO_INSTALL_MIGRATION_ORPHAN_HOMES_MIN_BUILD = 533;
+/** One-shot Site update migration: stamp container-referenced orphan catalogue homes (build 534; replaces b533 no-op marker). */
+const BANDPROMO_INSTALL_MIGRATION_ORPHAN_HOMES_ID = 'orphan-homes-in-containers-b534';
+const BANDPROMO_INSTALL_MIGRATION_ORPHAN_HOMES_MIN_BUILD = 534;
 
 function bandpromo_install_migrations_dir(string $root): string
 {

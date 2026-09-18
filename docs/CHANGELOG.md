@@ -2,6 +2,8 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-09-18 13:45 - Site health orphan_home_stamp: Apply was a no-op because treat called `load_registry()` as a dict (it returns `(registry, status)`). Fixed unpack; new Site update migration `orphan-homes-in-containers-b534` re-heals installs that got the empty b533 marker.
+
 2026-09-18 13:35 - Demo/PCF catalogue homes: import merge always receives the package campaign id and stamps empty audio/visual `release_id` homes; post-import + Site update migration heal unambiguous orphans used in playlists/galleries/pages (fixes vanilla “11 orphan media” after Site update).
 
 2026-09-18 11:30 - Shared brands + honest Files Brand column: Sound effects Brand follows library membership (not upload stamp); library add/remove syncs stamp; campaigns may reuse one brand without stealing `brand.campaign_id`; Branding picker shows “used by N campaigns”.
