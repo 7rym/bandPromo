@@ -883,6 +883,10 @@
 
     function assuranceHtml(plan) {
         const fix = findingsFixable(plan);
+        const findings = Array.isArray(plan && plan.findings) ? plan.findings : [];
+        const hasOrphanClash = findings.some(
+            (f) => String((f && f.id) || '') === 'orphan_assets_multi_campaign'
+        );
         if (fix.all) {
             return (
                 '<p class="site-health-treat-assurance">' +
@@ -896,11 +900,19 @@
                 '<p class="site-health-treat-assurance">' +
                 'We found some issues. Apply can fix <strong>' + fix.fixable +
                 '</strong> of them automatically; <strong>' + fix.manual +
-                '</strong> need a manual step (see the items without a treatment).' +
+                '</strong> need a choice below (Site health will not guess).' +
                 '</p>'
             );
         }
         if (fix.manual > 0 && fix.fixable === 0) {
+            if (hasOrphanClash) {
+                return (
+                    '<p class="site-health-treat-assurance site-health-treat-assurance--caution">' +
+                    'These need your choice on each row — pick a catalogue home, then Set. ' +
+                    'Nothing is auto-fixed by Apply.' +
+                    '</p>'
+                );
+            }
             return (
                 '<p class="site-health-treat-assurance site-health-treat-assurance--caution">' +
                 'These findings need your attention outside Apply — bandPromo cannot auto-fix them from here.' +
@@ -914,6 +926,88 @@
         );
     }
 
+    function orphanClashRowHtml(item) {
+        if (!item || typeof item !== 'object') {
+            const text = String(item || '').trim();
+            return text
+                ? '<li class="site-health-orphan-clash"><code>' + escapeHtml(text) + '</code></li>'
+                : '';
+        }
+        const assetId = String(item.asset_id || '').trim();
+        const kind = String(item.kind || 'media').trim().toLowerCase() || 'media';
+        const filename = String(item.filename || assetId).trim() || assetId;
+        const campaigns = Array.isArray(item.campaigns) ? item.campaigns : [];
+        const containers = Array.isArray(item.containers) ? item.containers : [];
+        const usedIn = containers.length
+            ? containers.slice(0, 8).map((c) => escapeHtml(String(c))).join(', ')
+                + (containers.length > 8 ? ', …' : '')
+            : '—';
+
+        let choiceHtml = '';
+        if (campaigns.length > 5) {
+            choiceHtml = (
+                '<label class="site-health-orphan-clash-field">' +
+                '<span class="site-health-orphan-clash-field-label">Catalogue home:</span> ' +
+                '<select class="site-health-orphan-home-select" data-asset-id="' +
+                escapeHtml(assetId) + '">' +
+                '<option value="">Choose…</option>' +
+                campaigns.map((c) => {
+                    const id = String((c && c.id) || '').trim();
+                    const title = String((c && (c.title || c.id)) || id).trim() || id;
+                    return (
+                        '<option value="' + escapeHtml(id) + '">' +
+                        escapeHtml(title) +
+                        '</option>'
+                    );
+                }).join('') +
+                '</select>' +
+                '</label>'
+            );
+        } else {
+            choiceHtml = (
+                '<div class="site-health-orphan-clash-field">' +
+                '<span class="site-health-orphan-clash-field-label">Catalogue home:</span> ' +
+                '<div class="brand-player-setting-toggle site-health-orphan-home-toggle" ' +
+                'role="group" aria-label="Catalogue home for ' + escapeHtml(filename) + '" ' +
+                'data-asset-id="' + escapeHtml(assetId) + '">' +
+                campaigns.map((c, index) => {
+                    const id = String((c && c.id) || '').trim();
+                    const title = String((c && (c.title || c.id)) || id).trim() || id;
+                    const pressed = index === 0 ? 'true' : 'false';
+                    return (
+                        '<button type="button" class="brand-player-setting-btn' +
+                        (index === 0 ? ' is-active' : '') + '" ' +
+                        'data-campaign-id="' + escapeHtml(id) + '" ' +
+                        'aria-pressed="' + pressed + '">' +
+                        escapeHtml(title) +
+                        '</button>'
+                    );
+                }).join('') +
+                '</div></div>'
+            );
+        }
+
+        const defaultCampaign = campaigns.length
+            ? String((campaigns[0] && campaigns[0].id) || '').trim()
+            : '';
+
+        return (
+            '<li class="site-health-orphan-clash" data-asset-id="' + escapeHtml(assetId) + '">' +
+            '<p class="site-health-orphan-clash-file"><strong>' + escapeHtml(filename) +
+            '</strong> <span class="site-health-orphan-clash-kind">(' + escapeHtml(kind) +
+            ')</span></p>' +
+            '<p class="site-health-orphan-clash-used">Used in: ' + usedIn + '</p>' +
+            choiceHtml +
+            '<button type="button" class="btn btn-good btn-sm site-health-orphan-home-set" ' +
+            'data-asset-id="' + escapeHtml(assetId) + '" ' +
+            'data-campaign-id="' + escapeHtml(defaultCampaign) + '"' +
+            (defaultCampaign ? '' : ' disabled') + '>' +
+            'Set catalogue home' +
+            '</button>' +
+            '</li>'
+        );
+    }
+
     function findingReviewRowHtml(finding) {
         const severity = String((finding && finding.severity) || 'attention').toLowerCase();
         const tone = severity === 'critical' ? 'is-critical' : 'is-attention';
@@ -923,21 +1017,42 @@
         const count = Number((finding && finding.count) || 0);
         const treatmentId = String((finding && finding.treatment) || '').trim();
         const canTreat = treatmentId !== '';
+        const isOrphanClash = findingId === 'orphan_assets_multi_campaign';
         const treatmentLabel = canTreat
             ? escapeHtml(TREATMENT_COPY[treatmentId] || treatmentId)
-            : 'Needs a manual step — Site health will not change this automatically.';
+            : (isOrphanClash
+                ? 'Pick which campaign should own each file’s catalogue home, then Set catalogue home.'
+                : 'Needs a manual step — Site health will not change this automatically.');
         const sample = Array.isArray(finding && finding.items_sample)
             ? finding.items_sample
             : [];
-        const sampleItems = sample.map((item) => (
-            '<li><code>' + escapeHtml(item) + '</code></li>'
-        )).join('');
 
         const foundBits = [];
         if (body) {
             foundBits.push('<p>' + body + '</p>');
         }
-        if (sampleItems) {
+        if (isOrphanClash && sample.length) {
+            const more = count > sample.length
+                ? '<p class="site-health-treat-detail-more">Showing ' + sample.length +
+                  ' of ' + count + ' — the rest is in Activity.</p>'
+                : '';
+            foundBits.push(
+                '<p class="site-health-treat-detail-label">Clash detail</p>' +
+                '<ul class="site-health-orphan-clash-list">' +
+                sample.map(orphanClashRowHtml).join('') +
+                '</ul>' +
+                more
+            );
+        } else if (sample.length) {
+            const sampleItems = sample.map((item) => {
+                if (item && typeof item === 'object') {
+                    const label = String(item.filename || item.asset_id || item.text || '').trim();
+                    return label
+                        ? '<li><code>' + escapeHtml(label) + '</code></li>'
+                        : '';
+                }
+                return '<li><code>' + escapeHtml(item) + '</code></li>';
+            }).join('');
             const more = count > sample.length
                 ? '<p class="site-health-treat-detail-more">Showing ' + sample.length +
                   ' of ' + count + ' for operators who want the full names — the rest is in Activity.</p>'
@@ -972,7 +1087,8 @@
 
         return (
             '<details class="site-health-treat-finding ' + tone +
-            (canTreat ? '' : ' is-manual') + '">' +
+            (canTreat ? '' : ' is-manual') +
+            (isOrphanClash ? ' is-orphan-clash' : '') + '" open>' +
             '<summary>' +
             selectHtml +
             '<span class="site-health-treat-finding-title">' + title +
@@ -987,6 +1103,205 @@
             '</div>' +
             '</details>'
         );
+    }
+
+    function selectedCampaignForOrphanRow(row) {
+        if (!(row instanceof HTMLElement)) {
+            return '';
+        }
+        const select = row.querySelector('.site-health-orphan-home-select');
+        if (select instanceof HTMLSelectElement) {
+            return String(select.value || '').trim();
+        }
+        const active = row.querySelector('.site-health-orphan-home-toggle .brand-player-setting-btn.is-active');
+        if (active instanceof HTMLElement) {
+            return String(active.getAttribute('data-campaign-id') || '').trim();
+        }
+        return '';
+    }
+
+    function syncOrphanSetButton(row) {
+        if (!(row instanceof HTMLElement)) {
+            return;
+        }
+        const btn = row.querySelector('.site-health-orphan-home-set');
+        if (!(btn instanceof HTMLButtonElement)) {
+            return;
+        }
+        const campaignId = selectedCampaignForOrphanRow(row);
+        btn.setAttribute('data-campaign-id', campaignId);
+        btn.disabled = campaignId === '' || running;
+    }
+
+    function removeOrphanClashFromPlan(assetId) {
+        const id = String(assetId || '').trim();
+        if (!id || !lastPlan || !Array.isArray(lastPlan.findings)) {
+            return;
+        }
+        const nextFindings = [];
+        lastPlan.findings.forEach((finding) => {
+            if (String((finding && finding.id) || '') !== 'orphan_assets_multi_campaign') {
+                nextFindings.push(finding);
+                return;
+            }
+            const sample = Array.isArray(finding.items_sample) ? finding.items_sample : [];
+            const kept = sample.filter((item) => {
+                if (item && typeof item === 'object') {
+                    return String(item.asset_id || '').trim() !== id;
+                }
+                return String(item || '').trim() !== id;
+            });
+            const prevCount = Number(finding.count) || sample.length;
+            const nextCount = Math.max(0, prevCount - 1);
+            if (nextCount === 0) {
+                return;
+            }
+            nextFindings.push(Object.assign({}, finding, {
+                items_sample: kept,
+                count: nextCount,
+                body: (
+                    nextCount + ' file(s) are used by more than one campaign and have no catalogue home. ' +
+                    'Choose which campaign should own each file below — Site health will not guess.'
+                ),
+            }));
+        });
+        lastPlan.findings = nextFindings;
+        if (!nextFindings.length) {
+            lastPlan.overall = 'healthy';
+            setOverall('healthy');
+        } else {
+            const hasCritical = nextFindings.some(
+                (f) => String((f && f.severity) || '').toLowerCase() === 'critical'
+            );
+            setOverall(hasCritical ? 'critical' : 'attention');
+        }
+    }
+
+    async function assignOrphanHome(assetId, campaignId, filenameLabel) {
+        const asset = String(assetId || '').trim();
+        const campaign = String(campaignId || '').trim();
+        if (!asset || !campaign) {
+            return false;
+        }
+        const label = String(filenameLabel || asset).trim() || asset;
+        const confirmed = typeof window.bandpromoConfirm === 'function'
+            ? await window.bandpromoConfirm({
+                title: 'Set catalogue home?',
+                body: (
+                    'Assign “' + label + '” to the chosen campaign as its catalogue home?\n\n' +
+                    'Site health will not change other campaigns’ containers — only the file’s home stamp.'
+                ),
+                confirmLabel: 'Set catalogue home',
+                cancelLabel: 'Cancel',
+            })
+            : window.confirm('Assign “' + label + '” to the chosen campaign as its catalogue home?');
+        if (!confirmed) {
+            return false;
+        }
+        let csrfToken = '';
+        if (typeof refreshAdminCsrfToken === 'function') {
+            csrfToken = await refreshAdminCsrfToken();
+        }
+        try {
+            const resp = await fetch('/biblioteca/site-health-assign-orphan-home.php', {
+                method: 'POST',
+                credentials: 'same-origin',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    asset_id: asset,
+                    campaign_id: campaign,
+                    csrf_token: csrfToken,
+                }),
+            });
+            const data = await resp.json().catch(() => ({}));
+            if (!resp.ok || !data || data.ok !== true) {
+                setJobStatus(
+                    (data && data.error) ? data.error : 'Could not set catalogue home.',
+                    'error'
+                );
+                return false;
+            }
+            removeOrphanClashFromPlan(asset);
+            if (previewOpen) {
+                const stillClash = Array.isArray(lastPlan && lastPlan.findings)
+                    && lastPlan.findings.some(
+                        (f) => String((f && f.id) || '') === 'orphan_assets_multi_campaign'
+                    );
+                const stillFindings = Array.isArray(lastPlan && lastPlan.findings)
+                    && lastPlan.findings.length > 0;
+                if (!stillFindings) {
+                    setPreviewMode(false);
+                    setUiStage('exam');
+                    if (lastPlan) {
+                        renderPlan(lastPlan);
+                    }
+                } else if (!stillClash && findingsFixable(lastPlan).fixable === 0) {
+                    setPreviewMode(true);
+                } else {
+                    setPreviewMode(true);
+                }
+            }
+            if (typeof window.showAdminToast === 'function') {
+                window.showAdminToast('Catalogue home set for ' + label + '.', 'success');
+            }
+            return true;
+        } catch (err) {
+            setJobStatus('Could not set catalogue home.', 'error');
+            return false;
+        }
+    }
+
+    function bindOrphanHomeHandlers() {
+        if (!previewBodyEl) {
+            return;
+        }
+        previewBodyEl.querySelectorAll('.site-health-orphan-clash').forEach((row) => {
+            if (!(row instanceof HTMLElement)) {
+                return;
+            }
+            syncOrphanSetButton(row);
+            const toggle = row.querySelector('.site-health-orphan-home-toggle');
+            if (toggle) {
+                toggle.querySelectorAll('.brand-player-setting-btn').forEach((btn) => {
+                    btn.addEventListener('click', (event) => {
+                        event.preventDefault();
+                        event.stopPropagation();
+                        toggle.querySelectorAll('.brand-player-setting-btn').forEach((other) => {
+                            other.classList.remove('is-active');
+                            other.setAttribute('aria-pressed', 'false');
+                        });
+                        btn.classList.add('is-active');
+                        btn.setAttribute('aria-pressed', 'true');
+                        syncOrphanSetButton(row);
+                    });
+                });
+            }
+            const select = row.querySelector('.site-health-orphan-home-select');
+            if (select instanceof HTMLSelectElement) {
+                select.addEventListener('change', () => {
+                    syncOrphanSetButton(row);
+                });
+                select.addEventListener('click', (event) => {
+                    event.stopPropagation();
+                });
+            }
+            const setBtn = row.querySelector('.site-health-orphan-home-set');
+            if (setBtn instanceof HTMLButtonElement) {
+                setBtn.addEventListener('click', async (event) => {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    const campaignId = selectedCampaignForOrphanRow(row);
+                    const assetId = String(setBtn.getAttribute('data-asset-id') || '').trim();
+                    const fileEl = row.querySelector('.site-health-orphan-clash-file strong');
+                    const label = fileEl ? String(fileEl.textContent || '').trim() : assetId;
+                    setBtn.disabled = true;
+                    await assignOrphanHome(assetId, campaignId, label);
+                    if (previewBodyEl && previewBodyEl.contains(setBtn)) {
+                        syncOrphanSetButton(row);
+                    }
+                });
+            }
+        });
     }
 
     function selectedTreatmentsFromPreview() {
@@ -1040,6 +1355,7 @@
                 event.stopPropagation();
             });
         });
+        bindOrphanHomeHandlers();
         syncApplyEnabledFromSelection();
     }
 
@@ -1076,18 +1392,36 @@
         }
 
         const findings = Array.isArray(lastPlan.findings) ? lastPlan.findings : [];
+        const fix = findingsFixable(lastPlan);
+        const hasOrphanClash = findings.some(
+            (f) => String((f && f.id) || '') === 'orphan_assets_multi_campaign'
+        );
         const findingRows = findings.length
             ? findings.map(findingReviewRowHtml).join('')
             : '<p class="site-health-summary-empty">No findings on the current plan.</p>';
+
+        let previewNote = (
+            'Tick what you want fixed (everything useful is selected to start). ' +
+            'Nothing changes until you Apply. A backup first is a good idea if you want a restore point.'
+        );
+        if (fix.manual > 0 && fix.fixable === 0 && hasOrphanClash) {
+            previewNote = (
+                'Choose a catalogue home on each clash row, then Set. ' +
+                'Apply stays off for these — Site health will not guess. ' +
+                'A backup first is a good idea if you want a restore point.'
+            );
+        } else if (fix.manual > 0 && fix.fixable > 0 && hasOrphanClash) {
+            previewNote = (
+                'Tick auto-fixable items for Apply. Multi-campaign orphans need a home choice on each row. ' +
+                'A backup first is a good idea if you want a restore point.'
+            );
+        }
 
         if (previewBodyEl) {
             previewBodyEl.innerHTML = (
                 '<h3 class="site-health-treat-preview-title">Proposed treatment</h3>' +
                 assuranceHtml(lastPlan) +
-                '<p class="site-health-treat-preview-note">' +
-                'Tick what you want fixed (everything useful is selected to start). ' +
-                'Nothing changes until you Apply. A backup first is a good idea if you want a restore point.' +
-                '</p>' +
+                '<p class="site-health-treat-preview-note">' + previewNote + '</p>' +
                 '<div class="site-health-treat-finding-list">' + findingRows + '</div>' +
                 '<p class="site-health-treat-preview-steps" id="siteHealthTreatApplySummary"></p>'
             );

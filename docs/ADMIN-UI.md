@@ -109,7 +109,7 @@ On **System → Status**:
 0. **Status** landing → enter **Site health** (only Status tool for now).  
 1. **Site health** hub → each guide panel is headed by its action button (Quick / Full / Force); **Quick health check** is the single green recommended step; Full and Force stay grey. No duplicate toolbar under the panels.  
 2. After a check with findings → **Review treatment** becomes the single green step; Quick/Full/Force stay grey.  
-3. Review open → findings are **ticked by default** (Apply only those selected); **Apply treatment** (green) + **Not now** + **Back up first…** sit under the panel.  
+3. Review open → findings are **ticked by default** (Apply only those selected); **Apply treatment** (green) + **Not now** + **Back up first…** sit under the panel. Multi-campaign orphan homes stay Manual: each clash row shows the filename, campaigns that use it, and a catalogue-home choice with **Set catalogue home** (no Files detour).  
 4. Checks older than **1 hour** are out of date: do not show Healthy or Good/Bad/Ugly from that plan — badge is **Out of date**, summary is replaced with a short notice, and Status **auto-starts Quick health check** (opens the exam directly). Review/Apply stay refused until the fresh check finishes.  
 5. After **Site update**, Status also auto-starts Quick health check directly (skips the Status / Site health hubs). Stale auto-start runs only from the **Status** landing — not while the operator is on the Site health hub choosing Full/Force, and never as a banner over an already-running job.  
 6. Attention findings use amber cards; critical findings use red cards. Job status line uses success / attention / error tones.

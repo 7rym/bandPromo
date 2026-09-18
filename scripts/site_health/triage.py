@@ -402,21 +402,32 @@ def run_triage(plan, deep=False, suppress_json_drift=False):
                 plan, 'orphan_assets_in_containers', 'attention',
                 'Orphan media used in campaigns needs a catalogue home', len(stampable),
                 'orphan_home_stamp',
-                sample=[r.get('asset_id') for r in stampable],
+                sample=[
+                    '{0} → {1}'.format(
+                        r.get('filename') or r.get('asset_id'),
+                        r.get('campaign_id'),
+                    )
+                    for r in stampable
+                ],
                 body=(
                     '{0} audio/visual file(s) are used in a playlist, gallery, or page '
                     'but have no campaign home. Apply stamps home to that campaign.'
                 ).format(len(stampable)),
             )
         if ambiguous:
+            sample_rows = []
+            for row in ambiguous:
+                formatted = orphan_homes.format_ambiguous_sample_row(row)
+                if formatted:
+                    sample_rows.append(formatted)
             plan_mod.add_finding(
                 plan, 'orphan_assets_multi_campaign', 'attention',
                 'Orphan media used by more than one campaign', len(ambiguous),
                 '',
-                sample=[r.get('asset_id') for r in ambiguous],
+                sample=sample_rows,
                 body=(
-                    '{0} orphan file(s) are referenced by containers owned by different '
-                    'campaigns. Assign a home from Files — Site health will not guess.'
+                    '{0} file(s) are used by more than one campaign and have no catalogue home. '
+                    'Choose which campaign should own each file below — Site health will not guess.'
                 ).format(len(ambiguous)),
             )
 

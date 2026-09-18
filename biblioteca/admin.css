@@ -5757,6 +5757,100 @@ canvas { max-width: 100%; height: auto; }
 }
 
 .site-health-treat-detail-more {
+    margin: 6px 0 0 !important;
+    font-size: 11px !important;
+    color: var(--muted) !important;
+}
+
+.site-health-orphan-clash-list {
+    list-style: none;
+    margin: 8px 0 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.site-health-orphan-clash {
+    margin: 0;
+    padding: 10px 12px;
+    border-radius: 8px;
+    border: 1px solid rgba(240, 180, 41, 0.35);
+    background: color-mix(in srgb, rgba(240, 180, 41, 0.06) 100%, var(--surface));
+}
+
+.site-health-orphan-clash-file {
+    margin: 0 !important;
+    color: var(--text) !important;
+    font-size: 13px !important;
+}
+
+.site-health-orphan-clash-kind {
+    font-weight: 400;
+    color: var(--muted);
+    font-size: 12px;
+}
+
+.site-health-orphan-clash-used {
+    margin: 4px 0 0 !important;
+    font-size: 12px !important;
+}
+
+.site-health-orphan-clash-field {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    margin-top: 8px;
+}
+
+.site-health-orphan-clash-field-label {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text);
+}
+
+.site-health-orphan-home-toggle {
+    display: inline-flex;
+    flex-wrap: wrap;
+    gap: 0;
+    border: 1px solid var(--border, rgba(255, 255, 255, 0.14));
+    border-radius: 7px;
+    overflow: hidden;
+    background: rgba(15, 23, 42, 0.45);
+}
+
+.site-health-orphan-home-toggle .brand-player-setting-btn {
+    margin: 0;
+    padding: 0.28rem 0.65rem;
+    border: 0;
+    border-left: 1px solid var(--border, rgba(255, 255, 255, 0.14));
+    border-radius: 0;
+    background: transparent;
+    color: var(--text);
+    font: inherit;
+    font-size: 12px;
+    cursor: pointer;
+}
+
+.site-health-orphan-home-toggle .brand-player-setting-btn:first-child {
+    border-left: 0;
+}
+
+.site-health-orphan-home-toggle .brand-player-setting-btn.is-active {
+    background: color-mix(in srgb, var(--success, #3d9a5f) 28% 100%, transparent);
+    color: var(--text);
+    font-weight: 600;
+}
+
+.site-health-orphan-home-select {
+    max-width: 100%;
+    min-width: 12rem;
+}
+
+.site-health-orphan-home-set {
+    margin-top: 10px;
+}
     margin-top: 6px !important;
     font-style: italic;
 }

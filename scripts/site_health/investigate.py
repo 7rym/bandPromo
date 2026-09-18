@@ -247,16 +247,32 @@ def run_investigate(plan, deep=False):
                 if fid == 'orphan_assets_in_containers':
                     rows = probe.get('stampable') or []
                     finding['items_sample'] = [
-                        '{0} → {1}'.format(r.get('asset_id'), r.get('campaign_id'))
+                        '{0} → {1}'.format(
+                            r.get('filename') or r.get('asset_id'),
+                            r.get('campaign_id'),
+                        )
                         for r in rows[:12]
                     ]
                     finding['count'] = len(rows)
                     log.items('Investigate orphan homes (stampable)', finding['items_sample'])
                 else:
                     rows = probe.get('ambiguous') or []
-                    finding['items_sample'] = [r.get('asset_id') for r in rows[:12]]
+                    sample_rows = []
+                    log_lines = []
+                    for row in rows[:12]:
+                        formatted = orphan_homes.format_ambiguous_sample_row(row)
+                        if formatted:
+                            sample_rows.append(formatted)
+                        line = orphan_homes.format_ambiguous_log_line(row)
+                        if line:
+                            log_lines.append(line)
+                    finding['items_sample'] = sample_rows
                     finding['count'] = len(rows)
-                    log.items('Investigate orphan homes (multi-campaign)', finding['items_sample'])
+                    finding['body'] = (
+                        '{0} file(s) are used by more than one campaign and have no catalogue home. '
+                        'Choose which campaign should own each file below — Site health will not guess.'
+                    ).format(len(rows))
+                    log.items('Investigate orphan homes (multi-campaign)', log_lines)
             elif fid == 'empty_sfx_registry_with_disk_masters':
                 disk = reg.list_sfx_masters_on_disk()
                 finding['items_sample'] = disk[:12]

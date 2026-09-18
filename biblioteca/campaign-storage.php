@@ -1241,6 +1241,162 @@ function bandpromo_campaign_heal_orphan_homes_in_containers(string $root): array
 }
 
 /**
+ * Campaign ids that own a playlist/gallery/page referencing this asset.
+ *
+ * @return list<string>
+ */
+function bandpromo_campaign_container_owner_ids_for_asset(string $root, string $assetId): array
+{
+    $assetId = trim($assetId);
+    if ($assetId === '' || !bandpromo_asset_is_asset_id($assetId)) {
+        return [];
+    }
+
+    $owners = [];
+    $dirs = [
+        $root . '/data/playlists',
+        $root . '/data/galleries',
+        $root . '/data/pages',
+    ];
+    foreach ($dirs as $folder) {
+        if (!is_dir($folder)) {
+            continue;
+        }
+        foreach (scandir($folder) ?: [] as $name) {
+            if ($name === '.' || $name === '..' || $name === 'registry.json' || !str_ends_with($name, '.json')) {
+                continue;
+            }
+            $path = $folder . DIRECTORY_SEPARATOR . $name;
+            $payload = bandpromo_json_read_array_file($path);
+            if (!is_array($payload)) {
+                continue;
+            }
+            $campaignId = bandpromo_document_campaign_id($payload);
+            if ($campaignId === '' || bandpromo_campaign_id_is_unowned($campaignId)) {
+                continue;
+            }
+            $found = [];
+            bandpromo_campaign_collect_nested_asset_ids($payload, $found);
+            if (isset($found[$assetId])) {
+                $owners[$campaignId] = true;
+            }
+        }
+    }
+
+    $ids = array_keys($owners);
+    sort($ids);
+
+    return $ids;
+}
+
+/**
+ * Operator-chosen catalogue home for a multi-campaign orphan (Status Proposed treatment).
+ * Server re-validates clash membership; never guesses a home.
+ *
+ * @return array{ok:bool, asset_id:string, campaign_id:string, kind:string, error:string}
+ */
+function bandpromo_site_health_assign_orphan_home(string $root, string $assetId, string $campaignId): array
+{
+    require_once __DIR__ . '/asset-registry.php';
+    require_once __DIR__ . '/json-file-helpers.php';
+
+    $assetId = trim($assetId);
+    $campaignId = bandpromo_campaign_normalize_id($campaignId);
+    $empty = [
+        'ok' => false,
+        'asset_id' => $assetId,
+        'campaign_id' => $campaignId,
+        'kind' => '',
+        'error' => '',
+    ];
+
+    if ($assetId === '' || !bandpromo_asset_is_asset_id($assetId)) {
+        $empty['error'] = 'Invalid asset id.';
+
+        return $empty;
+    }
+    if ($campaignId === '' || bandpromo_campaign_id_is_unowned($campaignId)) {
+        $empty['error'] = 'Choose a campaign home.';
+
+        return $empty;
+    }
+
+    try {
+        $document = bandpromo_campaign_load_document($root, $campaignId);
+    } catch (Throwable $throwable) {
+        $empty['error'] = 'Campaign not found.';
+
+        return $empty;
+    }
+    if (!empty($document['locked'])) {
+        $empty['error'] = 'Campaign is locked.';
+
+        return $empty;
+    }
+
+    $asset = bandpromo_asset_lookup_by_id($root, $assetId);
+    if (!is_array($asset)) {
+        $empty['error'] = 'Asset not found.';
+
+        return $empty;
+    }
+    $kind = strtolower(trim((string) ($asset['kind'] ?? '')));
+    $empty['kind'] = $kind;
+    if (!in_array($kind, ['audio', 'visual'], true)) {
+        $empty['error'] = 'Only audio and visual orphans can be assigned here.';
+
+        return $empty;
+    }
+
+    $home = trim((string) ($asset['release_id'] ?? ''));
+    if ($home !== '' && strcasecmp($home, BANDPROMO_CAMPAIGN_DEFAULT_ID) !== 0) {
+        $empty['error'] = 'This file already has a catalogue home.';
+
+        return $empty;
+    }
+
+    $ownerIds = bandpromo_campaign_container_owner_ids_for_asset($root, $assetId);
+    if (count($ownerIds) < 2) {
+        $empty['error'] = 'This clash is no longer multi-campaign. Run a fresh health check.';
+
+        return $empty;
+    }
+    if (!in_array($campaignId, $ownerIds, true)) {
+        $empty['error'] = 'Choose one of the campaigns that already use this file.';
+
+        return $empty;
+    }
+
+    try {
+        bandpromo_asset_update_entry($root, $assetId, [
+            'release_id' => $campaignId,
+        ]);
+    } catch (Throwable $throwable) {
+        $empty['error'] = $throwable->getMessage() !== ''
+            ? $throwable->getMessage()
+            : 'Could not update catalogue home.';
+
+        return $empty;
+    }
+
+    if ($kind === 'audio') {
+        try {
+            bandpromo_campaign_append_track_to_document($root, $campaignId, $assetId);
+        } catch (Throwable $throwable) {
+            // Home stamp still counts; track pool append is best-effort.
+        }
+    }
+
+    return [
+        'ok' => true,
+        'asset_id' => $assetId,
+        'campaign_id' => $campaignId,
+        'kind' => $kind,
+        'error' => '',
+    ];
+}
+
+/**
  * Resolve a cover/poster/page ref to a Visual asset id.
  */
 function bandpromo_campaign_visual_asset_id_from_ref(string $root, string $ref): string

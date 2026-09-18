@@ -2,13 +2,13 @@
 
 ## Resume point
 
-**Status Site health confirms published** — next session can pick new Status work from operator feedback.
+**Multi-campaign orphan clash picker published** — next session can take operator feedback.
 
 ### Shipped
 
-1. Status landing → Site health hub → exam → Proposed treatment → Treatment result.
-2. Honest treatment result / stale Full check / Last check healthy badge.
-3. Apply / Force / error acknowledges use `bandpromoConfirm` (not native dialogs).
+1. Proposed treatment shows filename + campaign clash for multi-campaign orphans.
+2. Operator picks a home and Sets catalogue home in place (confirm modal; server re-validates).
+3. Site health still never auto-guesses.
 
 ### Next
 

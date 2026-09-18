@@ -78,11 +78,96 @@ def _home_is_orphan(release_id):
     return home == '' or home.lower() == _PRIMARY_HOME
 
 
+def _asset_filename(asset):
+    """Operator-facing filename for Site health / Files focus."""
+    if not isinstance(asset, dict):
+        return ''
+    for key in ('master_filename', 'original_filename', 'filename', 'title', 'display_name'):
+        raw = os.path.basename(str(asset.get(key) or '').strip())
+        if raw:
+            return raw
+    return ''
+
+
+def _campaign_title(campaign_id):
+    """Load campaign display title; fall back to id."""
+    cid = str(campaign_id or '').strip()
+    if cid == '':
+        return ''
+    path = os.path.join(ROOT_DIR, 'data', 'campaigns', cid + '.json')
+    if not os.path.isfile(path):
+        return cid
+    try:
+        with open(path, 'r', encoding='utf-8') as handle:
+            doc = json.load(handle)
+    except Exception:
+        return cid
+    if not isinstance(doc, dict):
+        return cid
+    title = str(doc.get('title') or doc.get('name') or '').strip()
+    return title if title else cid
+
+
+def format_ambiguous_sample_row(row):
+    """
+    Structured Proposed-treatment sample for a multi-campaign orphan.
+    {asset_id, kind, filename, campaigns:[{id,title}], containers:[...]}
+    """
+    if not isinstance(row, dict):
+        return None
+    asset_id = str(row.get('asset_id') or '').strip()
+    if asset_id == '':
+        return None
+    campaign_ids = row.get('campaign_ids') or []
+    if not isinstance(campaign_ids, list):
+        campaign_ids = []
+    campaigns = []
+    for cid in campaign_ids:
+        cid_s = str(cid or '').strip()
+        if cid_s == '':
+            continue
+        campaigns.append({
+            'id': cid_s,
+            'title': _campaign_title(cid_s),
+        })
+    filename = str(row.get('filename') or '').strip() or asset_id
+    containers = row.get('containers') or []
+    if not isinstance(containers, list):
+        containers = []
+    return {
+        'asset_id': asset_id,
+        'kind': str(row.get('kind') or '').strip().lower(),
+        'filename': filename,
+        'campaigns': campaigns,
+        'containers': [str(c) for c in containers if str(c or '').strip()],
+    }
+
+
+def format_ambiguous_log_line(row):
+    """One Activity line: filename — campaigns: A, B — used in: …"""
+    sample = format_ambiguous_sample_row(row)
+    if not sample:
+        return ''
+    titles = [c.get('title') or c.get('id') for c in (sample.get('campaigns') or [])]
+    title_bit = ', '.join([str(t) for t in titles if t]) or '(unknown campaigns)'
+    containers = sample.get('containers') or []
+    used = ', '.join(containers[:6]) if containers else '(no container labels)'
+    if len(containers) > 6:
+        used += ', …'
+    kind = sample.get('kind') or 'media'
+    return '{0} ({1}) — campaigns: {2} — used in: {3}'.format(
+        sample.get('filename') or sample.get('asset_id'),
+        kind,
+        title_bit,
+        used,
+    )
+
+
 def probe_orphan_homes(registry=None):
     """
     Return {
-      'stampable': [{asset_id, kind, campaign_id, containers: [...]}],
-      'ambiguous': [{asset_id, kind, campaign_ids: [...], containers: [...]}],
+      'stampable': [{asset_id, kind, filename, campaign_id, containers: [...]}],
+      'ambiguous': [{asset_id, kind, filename, campaign_ids: [...], containers: [...]}],
     }
     """
     if registry is None:
@@ -141,6 +226,7 @@ def probe_orphan_homes(registry=None):
         row = {
             'asset_id': asset_id,
             'kind': kind,
+            'filename': _asset_filename(asset),
             'containers': labels,
         }
         if len(campaigns) == 1:
@@ -170,7 +256,7 @@ def treat_orphan_homes():
     if ambiguous:
         log.items(
             'Orphans used by multiple campaigns (left alone)',
-            [r.get('asset_id') for r in ambiguous],
+            [format_ambiguous_log_line(r) or r.get('asset_id') for r in ambiguous],
         )
     if not stampable:
         log.info('No unambiguous orphan-in-container homes to stamp.')

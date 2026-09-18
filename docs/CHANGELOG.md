@@ -2,6 +2,8 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-09-18 18:30 - Status multi-campaign orphan homes: Proposed treatment shows filename + campaign clash and lets the operator Set catalogue home in place (no Files detour); Site health still never auto-guesses.
+
 2026-09-18 18:15 - Status Site health: Apply treatment and Force full rebuild use `bandpromoConfirm` (in-app modal); error acknowledges no longer call `window.alert`.
 
 2026-09-18 17:15 - Status badge honesty: on Status / Site health hub, a prior healthy plan shows “Last check healthy” (neutral), not a live green Healthy — strong Healthy only on exam / treatment steps.
