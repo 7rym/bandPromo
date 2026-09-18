@@ -73,7 +73,7 @@ await bandpromoConfirm({
 // → Promise<boolean>
 ```
 
-Implemented as [`biblioteca/operator-confirm.js`](../biblioteca/operator-confirm.js) + `#adminConfirmModal` in `admin.php`. Used for Site update install, Environment host-protection stub repair, Backup import, Jobs cancel/delete fallbacks, Catalogue/Branding follow-ups, user delete, gallery/playlist/brand unsaved leave fallbacks, campaign purge/duplicate/Jobs follow-up, and the unsaved-modal markup-missing path.
+Implemented as [`biblioteca/operator-confirm.js`](../biblioteca/operator-confirm.js) + `#adminConfirmModal` in `admin.php`. Used for Site update install, Environment host-protection stub repair, Backup import, Jobs cancel/delete fallbacks, Catalogue/Branding follow-ups, user delete, gallery/playlist/brand unsaved leave fallbacks, campaign purge/duplicate/Jobs follow-up, Site health Apply / Force rebuild (and Site health error acknowledges), and the unsaved-modal markup-missing path.
 
 Three-button unsaved leave (Save / Discard / Cancel) remains [`editor-unsaved-modal.js`](../biblioteca/editor-unsaved-modal.js) / `#contentUnsavedModal`. Existing feature delete modals stay until a consolidation pass.
 

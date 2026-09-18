@@ -670,13 +670,22 @@
 
     function setJobStatus(text, tone) {
         // Status line removed — Healthy/attention badge + summary + Activity carry the story.
-        // Keep hard errors visible via alert so start/stop failures are not silent.
+        // Hard errors use the shared in-app confirm (acknowledge), not window.alert.
         const message = String(text || '').trim();
         if (!message) {
             return;
         }
         if (tone === 'error') {
-            window.alert(message);
+            if (typeof window.bandpromoConfirm === 'function') {
+                window.bandpromoConfirm({
+                    title: 'Site health',
+                    body: message,
+                    confirmLabel: 'OK',
+                    cancelLabel: 'Close',
+                });
+            } else {
+                window.alert(message);
+            }
         }
     }
 
@@ -1676,7 +1685,7 @@
     }
 
     if (treatApplyBtn) {
-        treatApplyBtn.addEventListener('click', () => {
+        treatApplyBtn.addEventListener('click', async () => {
             if (isPlanStale(lastPlan)) {
                 setPreviewMode(false);
                 setUiStage('exam');
@@ -1690,13 +1699,24 @@
                 return;
             }
             const summary = selected.labels.length
-                ? selected.labels.map((line) => '- ' + line).join('\n')
-                : '- (none)';
-            if (!window.confirm(
-                'Apply the selected treatment now?\n\n' +
-                summary +
-                '\n\nOnly the ticked items will be fixed. Unticked items stay for later.'
-            )) {
+                ? selected.labels.map((line) => '• ' + line).join('\n')
+                : '• (none)';
+            const confirmed = typeof window.bandpromoConfirm === 'function'
+                ? await window.bandpromoConfirm({
+                    title: 'Apply treatment?',
+                    body: (
+                        'Only the ticked items will be fixed. Unticked items stay for later.\n\n' +
+                        summary
+                    ),
+                    confirmLabel: 'Apply treatment',
+                    cancelLabel: 'Not now',
+                })
+                : window.confirm(
+                    'Apply the selected treatment now?\n\n' +
+                    summary +
+                    '\n\nOnly the ticked items will be fixed. Unticked items stay for later.'
+                );
+            if (!confirmed) {
                 return;
             }
             lastTreatReport = {
@@ -1712,8 +1732,22 @@
         });
     }
 
-    forceBtn.addEventListener('click', () => {
-        if (!window.confirm('Force a full listener rebuild even if Check looks healthy?\n\nThis is blocked while critical catalogue findings remain. Prefer Check → Review → Apply for missing Files rows.')) {
+    forceBtn.addEventListener('click', async () => {
+        const confirmed = typeof window.bandpromoConfirm === 'function'
+            ? await window.bandpromoConfirm({
+                title: 'Force full rebuild?',
+                body: (
+                    'Force a full listener rebuild even if Check looks healthy?\n\n' +
+                    'This is blocked while critical catalogue findings remain. Prefer Check → Review → Apply for missing Files rows.'
+                ),
+                confirmLabel: 'Force full rebuild',
+                cancelLabel: 'Cancel',
+            })
+            : window.confirm(
+                'Force a full listener rebuild even if Check looks healthy?\n\n' +
+                'This is blocked while critical catalogue findings remain. Prefer Check → Review → Apply for missing Files rows.'
+            );
+        if (!confirmed) {
             return;
         }
         previewOpen = false;

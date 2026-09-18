@@ -2,14 +2,13 @@
 
 ## Resume point
 
-**Status Site health stepped views published** — next session can pick a new Status tool or polish from operator feedback.
+**Status Site health confirms published** — next session can pick new Status work from operator feedback.
 
-### Shipped this session
+### Shipped
 
-1. Status landing → Site health hub (Quick/Full/Force as panel buttons) → exam → Proposed treatment → Treatment result.
-2. Treatment result: honest running vs summary-at-end + Continue; no sticky result on Status crumb.
-3. Stale auto-Quick only from Status landing; no Quick banner over a live Full check.
-4. Badge on chooser: “Last check healthy” (not live green Healthy).
+1. Status landing → Site health hub → exam → Proposed treatment → Treatment result.
+2. Honest treatment result / stale Full check / Last check healthy badge.
+3. Apply / Force / error acknowledges use `bandpromoConfirm` (not native dialogs).
 
 ### Next
 

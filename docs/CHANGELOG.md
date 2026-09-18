@@ -2,6 +2,8 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-09-18 18:15 - Status Site health: Apply treatment and Force full rebuild use `bandpromoConfirm` (in-app modal); error acknowledges no longer call `window.alert`.
+
 2026-09-18 17:15 - Status badge honesty: on Status / Site health hub, a prior healthy plan shows “Last check healthy” (neutral), not a live green Healthy — strong Healthy only on exam / treatment steps.
 
 2026-09-18 17:10 - Status Site health hub: restore green recommended Quick button after panel placement; drop duplicate titles/meta/long panel copy (help box shortened).
