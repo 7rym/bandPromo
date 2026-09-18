@@ -4,7 +4,7 @@ Site health summary — The good, The bad, and The ugly.
 
 Good: registered masters present on disk (ok/total) + container docs present.
 Bad: findings that need treatment (missing, unregistered, duplicates, drift…).
-Ugly: janitor junk / homeless leftovers under media/.
+Ugly: janitor junk / homeless leftovers under media/ and ephemeral clutter under data/.
 """
 
 from __future__ import print_function
@@ -24,6 +24,7 @@ from paths import (
 # Findings that are clutter / cleanup, not catalogue repair.
 UGLY_FINDING_IDS = frozenset({
     'media_janitor_orphans',
+    'data_janitor_ephemeral',
 })
 
 # Container registries: (dir under data/, registry list key, operator label).

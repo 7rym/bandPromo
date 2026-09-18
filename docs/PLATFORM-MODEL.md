@@ -150,6 +150,8 @@ Worked examples: [USE-CASES.md](USE-CASES.md).
 
 **Orphan in a container:** Site health finding `orphan_assets_in_containers` (Review → Apply) stamps home to the single campaign that owns the referencing playlist/gallery/page. Multi-campaign orphans (`orphan_assets_multi_campaign`) are reported with clash detail in Proposed treatment — the operator picks which campaign should own the catalogue home and stamps it there; Site health never auto-guesses. Never overwrite a non-empty home. PCF export does not mutate homes.
 
+**Data janitor (v0.8):** Site health also probes `data/` (separate from the media janitor). Ephemeral leftovers (`data_janitor_ephemeral` → Treat `data_janitor_prune`) clear OS junk, stale `upload_tmp` files older than 24h, and empty scratch folders — never `terces`, setup markers, install prefs, analytics, assets, campaigns, brands, or site-health plan files. Invisible playlist/gallery/page docs that already stamp a valid campaign home (`data_container_unlinked` → `data_container_relink`) are registered into their type registry (and registry stubs with no document are dropped). Orphan/unowned containers (`data_container_orphans`) stay Manual in Proposed treatment: **Adopt** into a chosen campaign or **Delete** with a named confirm — Site health never auto-guesses. System shell pages (`faq`, `bio`, `gallery`) and locked demo containers are skipped.
+
 **PCF membership:** Pack all audio/visual rows whose home is the campaign, plus owned brand library/slots and container-referenced masters (foreign homes travel as dependencies). Site health heals empty homes before relying on home-only collect.
 
 **Base brand vs release brand:**

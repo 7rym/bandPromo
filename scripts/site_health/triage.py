@@ -388,6 +388,68 @@ def run_triage(plan, deep=False, suppress_json_drift=False):
                 ).format(len(janitor_targets)),
             )
 
+        # data/ ephemeral junk + orphan / unlinked containers.
+        try:
+            import data_janitor
+            data_probe = data_janitor.probe_all()
+        except Exception as exc:
+            log.info('Data janitor probe skipped: {0}'.format(exc))
+            data_probe = {
+                'ephemeral': [],
+                'containers': {'relinkable': [], 'registry_stubs': [], 'manual': []},
+            }
+        ephemeral = data_probe.get('ephemeral') or []
+        containers = data_probe.get('containers') or {}
+        relinkable = containers.get('relinkable') or []
+        stubs = containers.get('registry_stubs') or []
+        manual_containers = containers.get('manual') or []
+        if ephemeral:
+            plan_mod.add_finding(
+                plan, 'data_janitor_ephemeral', 'attention',
+                'Leftover files under data/ can be cleaned up', len(ephemeral),
+                'data_janitor_prune',
+                sample=[t.get('path') for t in ephemeral],
+                body=(
+                    '{0} leftover file(s) or empty folder(s) under data/ that are safe to clear. '
+                    'Catalogue documents, analytics, and install prefs stay put.'
+                ).format(len(ephemeral)),
+            )
+        relink_count = len(relinkable) + len(stubs)
+        if relink_count:
+            sample = [
+                '{0}/{1} → {2}'.format(
+                    r.get('kind'), r.get('id'), r.get('campaign_id') or '(drop stub)',
+                )
+                for r in (relinkable + stubs)
+            ]
+            plan_mod.add_finding(
+                plan, 'data_container_unlinked', 'attention',
+                'Catalogue containers need a registry fix', relink_count,
+                'data_container_relink',
+                sample=sample,
+                body=(
+                    '{0} playlist/gallery/page item(s) are invisible or stubbed in the registry. '
+                    'Apply registers docs that already have a campaign home, and drops registry '
+                    'rows with no document.'
+                ).format(relink_count),
+            )
+        if manual_containers:
+            sample_rows = []
+            for row in manual_containers:
+                formatted = data_janitor.format_manual_sample_row(row)
+                if formatted:
+                    sample_rows.append(formatted)
+            plan_mod.add_finding(
+                plan, 'data_container_orphans', 'attention',
+                'Catalogue containers need Adopt or Delete', len(manual_containers),
+                '',
+                sample=sample_rows,
+                body=(
+                    '{0} playlist/gallery/page item(s) are orphaned or unowned. '
+                    'Adopt them into a campaign, or Delete leftovers — Site health will not guess.'
+                ).format(len(manual_containers)),
+            )
+
         # Orphans used in playlists / galleries / pages → stamp catalogue home.
         try:
             import orphan_homes

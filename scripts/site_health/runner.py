@@ -261,6 +261,18 @@ def run_treat():
         touch_heartbeat(ROOT_DIR, stage='idle', message='Treat stopped', name=META_NAME)
         return 0
 
+    if 'data_container_relink' in ids:
+        import treat_data_containers
+        _fixed, relink_failed = treat_data_containers.treat_data_container_relink()
+        if relink_failed > 0:
+            treat_ok = False
+
+    if stop_requested():
+        log.info('Stop requested after data container relink.')
+        followup.run_followup('treat')
+        touch_heartbeat(ROOT_DIR, stage='idle', message='Treat stopped', name=META_NAME)
+        return 0
+
     if 'orphan_home_stamp' in ids:
         import orphan_homes
         _fixed, orphan_failed = orphan_homes.treat_orphan_homes()
@@ -316,6 +328,18 @@ def run_treat():
 
     if stop_requested():
         log.info('Stop requested after media janitor.')
+        followup.run_followup('treat')
+        touch_heartbeat(ROOT_DIR, stage='idle', message='Treat stopped', name=META_NAME)
+        return 0
+
+    if 'data_janitor_prune' in ids:
+        import treat_data_janitor
+        _removed, data_janitor_failed = treat_data_janitor.treat_data_janitor_prune()
+        if data_janitor_failed > 0:
+            treat_ok = False
+
+    if stop_requested():
+        log.info('Stop requested after data janitor.')
         followup.run_followup('treat')
         touch_heartbeat(ROOT_DIR, stage='idle', message='Treat stopped', name=META_NAME)
         return 0

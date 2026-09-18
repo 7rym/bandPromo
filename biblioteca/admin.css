@@ -5779,6 +5779,39 @@ canvas { max-width: 100%; height: auto; }
     background: color-mix(in srgb, rgba(240, 180, 41, 0.06) 100%, var(--surface));
 }
 
+.site-health-orphan-clash-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    gap: 12px;
+}
+
+.site-health-orphan-clash-meta {
+    flex: 1 1 12rem;
+    min-width: 0;
+}
+
+.site-health-orphan-clash-preview {
+    flex: 0 0 auto;
+}
+
+.site-health-orphan-clash-thumb {
+    display: block;
+    width: 88px;
+    height: 88px;
+    object-fit: cover;
+    border-radius: 6px;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    background: rgba(0, 0, 0, 0.25);
+}
+
+.site-health-orphan-clash-audio {
+    display: block;
+    width: min(100%, 280px);
+    height: 36px;
+    margin: 0;
+}
+
 .site-health-orphan-clash-file {
     margin: 0 !important;
     color: var(--text) !important;
@@ -5808,6 +5841,16 @@ canvas { max-width: 100%; height: auto; }
     font-size: 12px;
     font-weight: 600;
     color: var(--text);
+}
+
+.site-health-orphan-clash-field.is-needs-choice .site-health-orphan-clash-field-label {
+    color: #a7f3c0;
+    font-weight: 700;
+}
+
+.site-health-orphan-clash-field.is-needs-choice .site-health-orphan-home-toggle {
+    border-color: rgba(76, 175, 80, 0.55);
+    box-shadow: 0 0 0 1px rgba(76, 175, 80, 0.18);
 }
 
 .site-health-orphan-home-toggle {
@@ -5851,8 +5894,23 @@ canvas { max-width: 100%; height: auto; }
 .site-health-orphan-home-set {
     margin-top: 10px;
 }
-    margin-top: 6px !important;
-    font-style: italic;
+
+.site-health-orphan-home-set:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+}
+
+.site-health-data-orphan-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    margin-top: 10px;
+}
+
+.site-health-data-orphan-actions .site-health-data-adopt,
+.site-health-data-orphan-actions .site-health-data-delete {
+    margin-top: 0;
 }
 
 .site-health-treat-preview-actions {

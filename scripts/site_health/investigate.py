@@ -236,6 +236,60 @@ def run_investigate(plan, deep=False):
                 finding['items_sample'] = [t.get('path') for t in targets[:12]]
                 finding['count'] = len(targets)
                 log.items('Investigate media janitor targets', [t.get('path') for t in targets])
+            elif fid == 'data_janitor_ephemeral':
+                try:
+                    import data_janitor
+                    targets = data_janitor.probe_ephemeral_targets()
+                except Exception:
+                    targets = []
+                finding['items_sample'] = [t.get('path') for t in targets[:12]]
+                finding['count'] = len(targets)
+                log.items('Investigate data janitor leftovers', [t.get('path') for t in targets])
+            elif fid == 'data_container_unlinked':
+                try:
+                    import data_janitor
+                    probe = data_janitor.probe_containers()
+                except Exception:
+                    probe = {'relinkable': [], 'registry_stubs': []}
+                rows = (probe.get('relinkable') or []) + (probe.get('registry_stubs') or [])
+                finding['items_sample'] = [
+                    '{0}/{1}'.format(r.get('kind'), r.get('id'))
+                    for r in rows[:12]
+                ]
+                finding['count'] = len(rows)
+                log.items(
+                    'Investigate container registry fixes',
+                    [
+                        '{0}/{1} → {2}'.format(
+                            r.get('kind'), r.get('id'),
+                            r.get('campaign_id') or '(drop stub)',
+                        )
+                        for r in rows
+                    ],
+                )
+            elif fid == 'data_container_orphans':
+                try:
+                    import data_janitor
+                    probe = data_janitor.probe_containers()
+                except Exception:
+                    probe = {'manual': []}
+                rows = probe.get('manual') or []
+                sample_rows = []
+                log_lines = []
+                for row in rows[:12]:
+                    formatted = data_janitor.format_manual_sample_row(row)
+                    if formatted:
+                        sample_rows.append(formatted)
+                    line = data_janitor.format_manual_log_line(row)
+                    if line:
+                        log_lines.append(line)
+                finding['items_sample'] = sample_rows
+                finding['count'] = len(rows)
+                finding['body'] = (
+                    '{0} playlist/gallery/page item(s) are orphaned or unowned. '
+                    'Adopt them into a campaign, or Delete leftovers — Site health will not guess.'
+                ).format(len(rows))
+                log.items('Investigate data container orphans', log_lines)
             elif fid in ('orphan_assets_in_containers', 'orphan_assets_multi_campaign'):
                 try:
                     import orphan_homes

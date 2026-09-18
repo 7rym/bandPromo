@@ -2,18 +2,18 @@
 
 ## Resume point
 
-**Multi-campaign orphan clash picker published** — next session can take operator feedback.
+**Data janitor + orphan clash UX published** — next session can take operator feedback on Adopt/Delete and clash previews.
 
-### Shipped
+### Shipped this session
 
-1. Proposed treatment shows filename + campaign clash for multi-campaign orphans.
-2. Operator picks a home and Sets catalogue home in place (confirm modal; server re-validates).
-3. Site health still never auto-guesses.
+1. Multi-campaign orphan clash rows: visual/audio preview, select-first gating, named campaign confirm.
+2. Site health data janitor: ephemeral `data/` prune, container relink Treat, Manual Adopt/Delete for orphan containers.
 
 ### Next
 
-1. Operator feedback on Status / Site health flow.
-2. Optional: further Status tools beside Site health.
+1. Operator feedback on Status / Site health (clash + data janitor).
+2. Optional follow-up: teach `orphan_homes` to ignore invisible docs once Adopt/Delete is live on hosts.
+3. Optional: further Status tools beside Site health.
 
 ### Local workspace
 

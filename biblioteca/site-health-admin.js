@@ -67,6 +67,8 @@
         audio_fill_display_from_tags: 'Fill empty track title/artist from master tags.',
         audio_extract_covers: 'Extract embedded artwork and link track covers.',
         media_janitor_prune: 'Clear the selected leftovers. Your originals and masters stay safe.',
+        data_janitor_prune: 'Clear leftover files under data/ (upload scratch, OS junk, empty folders).',
+        data_container_relink: 'Register invisible containers that already have a campaign home, and drop registry stubs.',
         dedupe_retarget_and_remove: 'Retarget duplicates and remove unreferenced clone masters.',
         files_index_rebuild: 'Rebuild the Files → Audio index from the registry.',
         playlists: 'Republish player playlist payloads.',
@@ -887,6 +889,9 @@
         const hasOrphanClash = findings.some(
             (f) => String((f && f.id) || '') === 'orphan_assets_multi_campaign'
         );
+        const hasDataOrphans = findings.some(
+            (f) => String((f && f.id) || '') === 'data_container_orphans'
+        );
         if (fix.all) {
             return (
                 '<p class="site-health-treat-assurance">' +
@@ -905,10 +910,10 @@
             );
         }
         if (fix.manual > 0 && fix.fixable === 0) {
-            if (hasOrphanClash) {
+            if (hasOrphanClash || hasDataOrphans) {
                 return (
                     '<p class="site-health-treat-assurance site-health-treat-assurance--caution">' +
-                    'These need your choice on each row — pick a catalogue home, then Set. ' +
+                    'These need your choice on each row — select a campaign (green prompt), then Adopt or Set. ' +
                     'Nothing is auto-fixed by Apply.' +
                     '</p>'
                 );
@@ -924,6 +929,34 @@
             'Read-only preview. Nothing changes until you Apply.' +
             '</p>'
         );
+    }
+
+    function orphanClashPreviewHtml(kind, assetId, filename) {
+        const id = String(assetId || '').trim();
+        const name = String(filename || '').trim();
+        const kindNorm = String(kind || '').trim().toLowerCase();
+        if (kindNorm === 'visual' && id) {
+            return (
+                '<div class="site-health-orphan-clash-preview site-health-orphan-clash-preview--visual">' +
+                '<img class="site-health-orphan-clash-thumb" ' +
+                'src="/media/visual/delivery/' + encodeURIComponent(id) + '/card.jpg" ' +
+                'alt="" loading="lazy" decoding="async" ' +
+                'onerror="this.closest(\'.site-health-orphan-clash-preview\').hidden=true;">' +
+                '</div>'
+            );
+        }
+        if (kindNorm === 'audio' && name) {
+            const params = new URLSearchParams();
+            params.set('file', name);
+            params.set('variant', 'master');
+            return (
+                '<div class="site-health-orphan-clash-preview site-health-orphan-clash-preview--audio">' +
+                '<audio class="site-health-orphan-clash-audio" controls preload="none" ' +
+                'src="/biblioteca/audio.php?' + params.toString() + '"></audio>' +
+                '</div>'
+            );
+        }
+        return '';
     }
 
     function orphanClashRowHtml(item) {
@@ -942,12 +975,13 @@
             ? containers.slice(0, 8).map((c) => escapeHtml(String(c))).join(', ')
                 + (containers.length > 8 ? ', …' : '')
             : '—';
+        const previewHtml = orphanClashPreviewHtml(kind, assetId, filename);
 
         let choiceHtml = '';
         if (campaigns.length > 5) {
             choiceHtml = (
-                '<label class="site-health-orphan-clash-field">' +
-                '<span class="site-health-orphan-clash-field-label">Catalogue home:</span> ' +
+                '<label class="site-health-orphan-clash-field is-needs-choice">' +
+                '<span class="site-health-orphan-clash-field-label">Select catalogue home:</span> ' +
                 '<select class="site-health-orphan-home-select" data-asset-id="' +
                 escapeHtml(assetId) + '">' +
                 '<option value="">Choose…</option>' +
@@ -965,20 +999,19 @@
             );
         } else {
             choiceHtml = (
-                '<div class="site-health-orphan-clash-field">' +
-                '<span class="site-health-orphan-clash-field-label">Catalogue home:</span> ' +
+                '<div class="site-health-orphan-clash-field is-needs-choice">' +
+                '<span class="site-health-orphan-clash-field-label">Select catalogue home:</span> ' +
                 '<div class="brand-player-setting-toggle site-health-orphan-home-toggle" ' +
-                'role="group" aria-label="Catalogue home for ' + escapeHtml(filename) + '" ' +
+                'role="group" aria-label="Select catalogue home for ' + escapeHtml(filename) + '" ' +
                 'data-asset-id="' + escapeHtml(assetId) + '">' +
-                campaigns.map((c, index) => {
+                campaigns.map((c) => {
                     const id = String((c && c.id) || '').trim();
                     const title = String((c && (c.title || c.id)) || id).trim() || id;
-                    const pressed = index === 0 ? 'true' : 'false';
                     return (
-                        '<button type="button" class="brand-player-setting-btn' +
-                        (index === 0 ? ' is-active' : '') + '" ' +
+                        '<button type="button" class="brand-player-setting-btn" ' +
                         'data-campaign-id="' + escapeHtml(id) + '" ' +
-                        'aria-pressed="' + pressed + '">' +
+                        'data-campaign-title="' + escapeHtml(title) + '" ' +
+                        'aria-pressed="false">' +
                         escapeHtml(title) +
                         '</button>'
                     );
@@ -987,23 +1020,130 @@
             );
         }
 
-        const defaultCampaign = campaigns.length
-            ? String((campaigns[0] && campaigns[0].id) || '').trim()
-            : '';
-
         return (
             '<li class="site-health-orphan-clash" data-asset-id="' + escapeHtml(assetId) + '">' +
+            '<div class="site-health-orphan-clash-head">' +
+            previewHtml +
+            '<div class="site-health-orphan-clash-meta">' +
             '<p class="site-health-orphan-clash-file"><strong>' + escapeHtml(filename) +
             '</strong> <span class="site-health-orphan-clash-kind">(' + escapeHtml(kind) +
             ')</span></p>' +
             '<p class="site-health-orphan-clash-used">Used in: ' + usedIn + '</p>' +
+            '</div></div>' +
             choiceHtml +
-            '<button type="button" class="btn btn-good btn-sm site-health-orphan-home-set" ' +
+            '<button type="button" class="btn btn-sm site-health-orphan-home-set" ' +
             'data-asset-id="' + escapeHtml(assetId) + '" ' +
-            'data-campaign-id="' + escapeHtml(defaultCampaign) + '"' +
-            (defaultCampaign ? '' : ' disabled') + '>' +
-            'Set catalogue home' +
+            'data-campaign-id="" data-campaign-title="" disabled>' +
+            'Select catalogue home' +
             '</button>' +
+            '</li>'
+        );
+    }
+
+    function dataContainerClassLabel(className) {
+        const key = String(className || '').trim().toLowerCase();
+        if (key === 'invisible') {
+            return 'Not in registry';
+        }
+        if (key === 'unowned') {
+            return 'No campaign home';
+        }
+        if (key === 'dangling') {
+            return 'Campaign missing';
+        }
+        return key || 'Orphan';
+    }
+
+    function dataContainerRowHtml(item) {
+        if (!item || typeof item !== 'object') {
+            const text = String(item || '').trim();
+            return text
+                ? '<li class="site-health-data-orphan"><code>' + escapeHtml(text) + '</code></li>'
+                : '';
+        }
+        const kind = String(item.kind || '').trim().toLowerCase() || 'container';
+        const entityId = String(item.id || '').trim();
+        const title = String(item.title || entityId).trim() || entityId;
+        const path = String(item.path || '').trim();
+        const className = String(item.class || '').trim().toLowerCase();
+        const campaigns = Array.isArray(item.campaigns) ? item.campaigns : [];
+        const allowDelete = item.allow_delete !== false;
+        const wasHome = String(item.campaign_title || item.campaign_id || '').trim();
+
+        let choiceHtml = '';
+        if (campaigns.length > 5) {
+            choiceHtml = (
+                '<label class="site-health-orphan-clash-field is-needs-choice">' +
+                '<span class="site-health-orphan-clash-field-label">Select campaign:</span> ' +
+                '<select class="site-health-data-adopt-select" data-entity-id="' +
+                escapeHtml(entityId) + '" data-kind="' + escapeHtml(kind) + '">' +
+                '<option value="">Choose…</option>' +
+                campaigns.map((c) => {
+                    const id = String((c && c.id) || '').trim();
+                    const ctitle = String((c && (c.title || c.id)) || id).trim() || id;
+                    return (
+                        '<option value="' + escapeHtml(id) + '">' +
+                        escapeHtml(ctitle) +
+                        '</option>'
+                    );
+                }).join('') +
+                '</select>' +
+                '</label>'
+            );
+        } else if (campaigns.length) {
+            choiceHtml = (
+                '<div class="site-health-orphan-clash-field is-needs-choice">' +
+                '<span class="site-health-orphan-clash-field-label">Select campaign:</span> ' +
+                '<div class="brand-player-setting-toggle site-health-data-adopt-toggle" ' +
+                'role="group" aria-label="Select campaign for ' + escapeHtml(title) + '" ' +
+                'data-entity-id="' + escapeHtml(entityId) + '" data-kind="' + escapeHtml(kind) + '">' +
+                campaigns.map((c) => {
+                    const id = String((c && c.id) || '').trim();
+                    const ctitle = String((c && (c.title || c.id)) || id).trim() || id;
+                    return (
+                        '<button type="button" class="brand-player-setting-btn" ' +
+                        'data-campaign-id="' + escapeHtml(id) + '" ' +
+                        'data-campaign-title="' + escapeHtml(ctitle) + '" ' +
+                        'aria-pressed="false">' +
+                        escapeHtml(ctitle) +
+                        '</button>'
+                    );
+                }).join('') +
+                '</div></div>'
+            );
+        } else {
+            choiceHtml = (
+                '<p class="site-health-orphan-clash-used">No campaigns available to Adopt into.</p>'
+            );
+        }
+
+        return (
+            '<li class="site-health-data-orphan site-health-orphan-clash" ' +
+            'data-kind="' + escapeHtml(kind) + '" data-entity-id="' + escapeHtml(entityId) + '">' +
+            '<p class="site-health-orphan-clash-file"><strong>' + escapeHtml(title) +
+            '</strong> <span class="site-health-orphan-clash-kind">(' + escapeHtml(kind) +
+            ' · ' + escapeHtml(dataContainerClassLabel(className)) + ')</span></p>' +
+            '<p class="site-health-orphan-clash-used">' +
+            escapeHtml(path || entityId) +
+            (wasHome ? ' — was: ' + escapeHtml(wasHome) : '') +
+            '</p>' +
+            choiceHtml +
+            '<div class="site-health-data-orphan-actions">' +
+            '<button type="button" class="btn btn-sm site-health-data-adopt" ' +
+            'data-kind="' + escapeHtml(kind) + '" data-entity-id="' + escapeHtml(entityId) + '" ' +
+            'data-campaign-id="" data-campaign-title="" disabled>' +
+            'Select campaign' +
+            '</button>' +
+            (allowDelete
+                ? (
+                    '<button type="button" class="btn btn-danger-outline btn-sm site-health-data-delete" ' +
+                    'data-kind="' + escapeHtml(kind) + '" data-entity-id="' + escapeHtml(entityId) + '" ' +
+                    'data-title="' + escapeHtml(title) + '">' +
+                    'Delete…' +
+                    '</button>'
+                )
+                : '') +
+            '</div>' +
             '</li>'
         );
     }
@@ -1018,11 +1158,14 @@
         const treatmentId = String((finding && finding.treatment) || '').trim();
         const canTreat = treatmentId !== '';
         const isOrphanClash = findingId === 'orphan_assets_multi_campaign';
+        const isDataOrphans = findingId === 'data_container_orphans';
         const treatmentLabel = canTreat
             ? escapeHtml(TREATMENT_COPY[treatmentId] || treatmentId)
             : (isOrphanClash
-                ? 'Pick which campaign should own each file’s catalogue home, then Set catalogue home.'
-                : 'Needs a manual step — Site health will not change this automatically.');
+                ? 'Select a catalogue home on each clash row, then Set catalogue home.'
+                : (isDataOrphans
+                    ? 'Select a campaign on each row, then Adopt — or Delete leftovers.'
+                    : 'Needs a manual step — Site health will not change this automatically.'));
         const sample = Array.isArray(finding && finding.items_sample)
             ? finding.items_sample
             : [];
@@ -1040,6 +1183,18 @@
                 '<p class="site-health-treat-detail-label">Clash detail</p>' +
                 '<ul class="site-health-orphan-clash-list">' +
                 sample.map(orphanClashRowHtml).join('') +
+                '</ul>' +
+                more
+            );
+        } else if (isDataOrphans && sample.length) {
+            const more = count > sample.length
+                ? '<p class="site-health-treat-detail-more">Showing ' + sample.length +
+                  ' of ' + count + ' — the rest is in Activity.</p>'
+                : '';
+            foundBits.push(
+                '<p class="site-health-treat-detail-label">Container detail</p>' +
+                '<ul class="site-health-orphan-clash-list site-health-data-orphan-list">' +
+                sample.map(dataContainerRowHtml).join('') +
                 '</ul>' +
                 more
             );
@@ -1088,7 +1243,7 @@
         return (
             '<details class="site-health-treat-finding ' + tone +
             (canTreat ? '' : ' is-manual') +
-            (isOrphanClash ? ' is-orphan-clash' : '') + '" open>' +
+            (isOrphanClash || isDataOrphans ? ' is-orphan-clash' : '') + '" open>' +
             '<summary>' +
             selectHtml +
             '<span class="site-health-treat-finding-title">' + title +
@@ -1107,17 +1262,26 @@
 
     function selectedCampaignForOrphanRow(row) {
         if (!(row instanceof HTMLElement)) {
-            return '';
+            return { id: '', title: '' };
         }
         const select = row.querySelector('.site-health-orphan-home-select');
         if (select instanceof HTMLSelectElement) {
-            return String(select.value || '').trim();
+            const id = String(select.value || '').trim();
+            const opt = select.selectedOptions && select.selectedOptions[0]
+                ? select.selectedOptions[0]
+                : null;
+            const title = opt ? String(opt.textContent || '').trim() : '';
+            return { id: id, title: title || id };
         }
         const active = row.querySelector('.site-health-orphan-home-toggle .brand-player-setting-btn.is-active');
         if (active instanceof HTMLElement) {
-            return String(active.getAttribute('data-campaign-id') || '').trim();
+            const id = String(active.getAttribute('data-campaign-id') || '').trim();
+            const title = String(
+                active.getAttribute('data-campaign-title') || active.textContent || ''
+            ).trim();
+            return { id: id, title: title || id };
         }
-        return '';
+        return { id: '', title: '' };
     }
 
     function syncOrphanSetButton(row) {
@@ -1128,9 +1292,34 @@
         if (!(btn instanceof HTMLButtonElement)) {
             return;
         }
-        const campaignId = selectedCampaignForOrphanRow(row);
+        const field = row.querySelector('.site-health-orphan-clash-field');
+        const label = row.querySelector('.site-health-orphan-clash-field-label');
+        const selected = selectedCampaignForOrphanRow(row);
+        const campaignId = selected.id;
+        const campaignTitle = selected.title;
         btn.setAttribute('data-campaign-id', campaignId);
-        btn.disabled = campaignId === '' || running;
+        btn.setAttribute('data-campaign-title', campaignTitle);
+        if (campaignId === '') {
+            btn.textContent = 'Select catalogue home';
+            btn.classList.remove('btn-good');
+            btn.disabled = true;
+            if (field) {
+                field.classList.add('is-needs-choice');
+            }
+            if (label) {
+                label.textContent = 'Select catalogue home:';
+            }
+        } else {
+            btn.textContent = 'Set catalogue home';
+            btn.classList.add('btn-good');
+            btn.disabled = running;
+            if (field) {
+                field.classList.remove('is-needs-choice');
+            }
+            if (label) {
+                label.textContent = 'Catalogue home:';
+            }
+        }
     }
 
     function removeOrphanClashFromPlan(assetId) {
@@ -1177,24 +1366,27 @@
         }
     }
 
-    async function assignOrphanHome(assetId, campaignId, filenameLabel) {
+    async function assignOrphanHome(assetId, campaignId, filenameLabel, campaignTitle) {
         const asset = String(assetId || '').trim();
         const campaign = String(campaignId || '').trim();
         if (!asset || !campaign) {
             return false;
         }
         const label = String(filenameLabel || asset).trim() || asset;
+        const homeTitle = String(campaignTitle || campaign).trim() || campaign;
         const confirmed = typeof window.bandpromoConfirm === 'function'
             ? await window.bandpromoConfirm({
                 title: 'Set catalogue home?',
                 body: (
-                    'Assign “' + label + '” to the chosen campaign as its catalogue home?\n\n' +
+                    'Assign “' + label + '” to “' + homeTitle + '” as its catalogue home?\n\n' +
                     'Site health will not change other campaigns’ containers — only the file’s home stamp.'
                 ),
                 confirmLabel: 'Set catalogue home',
                 cancelLabel: 'Cancel',
             })
-            : window.confirm('Assign “' + label + '” to the chosen campaign as its catalogue home?');
+            : window.confirm(
+                'Assign “' + label + '” to “' + homeTitle + '” as its catalogue home?'
+            );
         if (!confirmed) {
             return false;
         }
@@ -1255,7 +1447,7 @@
         if (!previewBodyEl) {
             return;
         }
-        previewBodyEl.querySelectorAll('.site-health-orphan-clash').forEach((row) => {
+        previewBodyEl.querySelectorAll('.site-health-orphan-clash:not(.site-health-data-orphan)').forEach((row) => {
             if (!(row instanceof HTMLElement)) {
                 return;
             }
@@ -1290,14 +1482,340 @@
                 setBtn.addEventListener('click', async (event) => {
                     event.preventDefault();
                     event.stopPropagation();
-                    const campaignId = selectedCampaignForOrphanRow(row);
+                    const selected = selectedCampaignForOrphanRow(row);
+                    if (!selected.id) {
+                        return;
+                    }
                     const assetId = String(setBtn.getAttribute('data-asset-id') || '').trim();
                     const fileEl = row.querySelector('.site-health-orphan-clash-file strong');
                     const label = fileEl ? String(fileEl.textContent || '').trim() : assetId;
                     setBtn.disabled = true;
-                    await assignOrphanHome(assetId, campaignId, label);
+                    await assignOrphanHome(assetId, selected.id, label, selected.title);
                     if (previewBodyEl && previewBodyEl.contains(setBtn)) {
                         syncOrphanSetButton(row);
+                    }
+                });
+            }
+            const audio = row.querySelector('.site-health-orphan-clash-audio');
+            if (audio instanceof HTMLAudioElement) {
+                audio.addEventListener('play', () => {
+                    if (!previewBodyEl) {
+                        return;
+                    }
+                    previewBodyEl.querySelectorAll('.site-health-orphan-clash-audio').forEach((other) => {
+                        if (other !== audio && !other.paused) {
+                            other.pause();
+                        }
+                    });
+                });
+            }
+        });
+    }
+
+    function selectedCampaignForDataRow(row) {
+        if (!(row instanceof HTMLElement)) {
+            return { id: '', title: '' };
+        }
+        const select = row.querySelector('.site-health-data-adopt-select');
+        if (select instanceof HTMLSelectElement) {
+            const id = String(select.value || '').trim();
+            const opt = select.selectedOptions && select.selectedOptions[0]
+                ? select.selectedOptions[0]
+                : null;
+            const title = opt ? String(opt.textContent || '').trim() : '';
+            return { id: id, title: title || id };
+        }
+        const active = row.querySelector('.site-health-data-adopt-toggle .brand-player-setting-btn.is-active');
+        if (active instanceof HTMLElement) {
+            const id = String(active.getAttribute('data-campaign-id') || '').trim();
+            const title = String(
+                active.getAttribute('data-campaign-title') || active.textContent || ''
+            ).trim();
+            return { id: id, title: title || id };
+        }
+        return { id: '', title: '' };
+    }
+
+    function syncDataAdoptButton(row) {
+        if (!(row instanceof HTMLElement)) {
+            return;
+        }
+        const btn = row.querySelector('.site-health-data-adopt');
+        if (!(btn instanceof HTMLButtonElement)) {
+            return;
+        }
+        const field = row.querySelector('.site-health-orphan-clash-field');
+        const label = row.querySelector('.site-health-orphan-clash-field-label');
+        const selected = selectedCampaignForDataRow(row);
+        btn.setAttribute('data-campaign-id', selected.id);
+        btn.setAttribute('data-campaign-title', selected.title);
+        if (selected.id === '') {
+            btn.textContent = 'Select campaign';
+            btn.classList.remove('btn-good');
+            btn.disabled = true;
+            if (field) {
+                field.classList.add('is-needs-choice');
+            }
+            if (label) {
+                label.textContent = 'Select campaign:';
+            }
+        } else {
+            btn.textContent = 'Adopt';
+            btn.classList.add('btn-good');
+            btn.disabled = running;
+            if (field) {
+                field.classList.remove('is-needs-choice');
+            }
+            if (label) {
+                label.textContent = 'Campaign:';
+            }
+        }
+    }
+
+    function removeDataOrphanFromPlan(kind, entityId) {
+        const k = String(kind || '').trim().toLowerCase();
+        const id = String(entityId || '').trim();
+        if (!k || !id || !lastPlan || !Array.isArray(lastPlan.findings)) {
+            return;
+        }
+        const nextFindings = [];
+        lastPlan.findings.forEach((finding) => {
+            if (String((finding && finding.id) || '') !== 'data_container_orphans') {
+                nextFindings.push(finding);
+                return;
+            }
+            const sample = Array.isArray(finding.items_sample) ? finding.items_sample : [];
+            const kept = sample.filter((item) => {
+                if (item && typeof item === 'object') {
+                    return !(
+                        String(item.kind || '').trim().toLowerCase() === k
+                        && String(item.id || '').trim() === id
+                    );
+                }
+                return true;
+            });
+            const prevCount = Number(finding.count) || sample.length;
+            const nextCount = Math.max(0, prevCount - 1);
+            if (nextCount === 0) {
+                return;
+            }
+            nextFindings.push(Object.assign({}, finding, {
+                items_sample: kept,
+                count: nextCount,
+                body: (
+                    nextCount + ' playlist/gallery/page item(s) are orphaned or unowned. ' +
+                    'Adopt them into a campaign, or Delete leftovers — Site health will not guess.'
+                ),
+            }));
+        });
+        lastPlan.findings = nextFindings;
+        if (!nextFindings.length) {
+            lastPlan.overall = 'healthy';
+            setOverall('healthy');
+        } else {
+            const hasCritical = nextFindings.some(
+                (f) => String((f && f.severity) || '').toLowerCase() === 'critical'
+            );
+            setOverall(hasCritical ? 'critical' : 'attention');
+        }
+    }
+
+    function refreshPreviewAfterManualFix() {
+        if (!previewOpen || !lastPlan) {
+            return;
+        }
+        const stillFindings = Array.isArray(lastPlan.findings) && lastPlan.findings.length > 0;
+        if (!stillFindings) {
+            setPreviewMode(false);
+            setUiStage('exam');
+            renderPlan(lastPlan);
+            return;
+        }
+        setPreviewMode(true);
+    }
+
+    async function adoptDataContainer(kind, entityId, titleLabel, campaignId, campaignTitle) {
+        const k = String(kind || '').trim();
+        const id = String(entityId || '').trim();
+        const campaign = String(campaignId || '').trim();
+        if (!k || !id || !campaign) {
+            return false;
+        }
+        const label = String(titleLabel || id).trim() || id;
+        const homeTitle = String(campaignTitle || campaign).trim() || campaign;
+        const confirmed = typeof window.bandpromoConfirm === 'function'
+            ? await window.bandpromoConfirm({
+                title: 'Adopt container?',
+                body: (
+                    'Adopt “' + label + '” (' + k + ') into “' + homeTitle + '”?\n\n' +
+                    'Site health will register it if needed and stamp that campaign as its home.'
+                ),
+                confirmLabel: 'Adopt',
+                cancelLabel: 'Cancel',
+            })
+            : window.confirm('Adopt “' + label + '” into “' + homeTitle + '”?');
+        if (!confirmed) {
+            return false;
+        }
+        let csrfToken = '';
+        if (typeof refreshAdminCsrfToken === 'function') {
+            csrfToken = await refreshAdminCsrfToken();
+        }
+        try {
+            const resp = await fetch('/biblioteca/site-health-data-adopt-container.php', {
+                method: 'POST',
+                credentials: 'same-origin',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    kind: k,
+                    id: id,
+                    campaign_id: campaign,
+                    csrf_token: csrfToken,
+                }),
+            });
+            const data = await resp.json().catch(() => ({}));
+            if (!resp.ok || !data || data.ok !== true) {
+                setJobStatus(
+                    (data && data.error) ? data.error : 'Could not adopt container.',
+                    'error'
+                );
+                return false;
+            }
+            removeDataOrphanFromPlan(k, id);
+            refreshPreviewAfterManualFix();
+            if (typeof window.showAdminToast === 'function') {
+                window.showAdminToast('Adopted “' + label + '” into “' + homeTitle + '”.', 'success');
+            }
+            return true;
+        } catch (err) {
+            setJobStatus('Could not adopt container.', 'error');
+            return false;
+        }
+    }
+
+    async function deleteDataContainer(kind, entityId, titleLabel) {
+        const k = String(kind || '').trim();
+        const id = String(entityId || '').trim();
+        if (!k || !id) {
+            return false;
+        }
+        const label = String(titleLabel || id).trim() || id;
+        const confirmed = typeof window.bandpromoConfirm === 'function'
+            ? await window.bandpromoConfirm({
+                title: 'Delete container?',
+                body: (
+                    'Permanently delete “' + label + '” (' + k + ')?\n\n' +
+                    'This removes the catalogue document (and registry row when present). It cannot be undone.'
+                ),
+                confirmLabel: 'Delete',
+                cancelLabel: 'Cancel',
+                tone: 'danger',
+            })
+            : window.confirm('Permanently delete “' + label + '” (' + k + ')?');
+        if (!confirmed) {
+            return false;
+        }
+        let csrfToken = '';
+        if (typeof refreshAdminCsrfToken === 'function') {
+            csrfToken = await refreshAdminCsrfToken();
+        }
+        try {
+            const resp = await fetch('/biblioteca/site-health-data-delete-container.php', {
+                method: 'POST',
+                credentials: 'same-origin',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    kind: k,
+                    id: id,
+                    csrf_token: csrfToken,
+                }),
+            });
+            const data = await resp.json().catch(() => ({}));
+            if (!resp.ok || !data || data.ok !== true) {
+                setJobStatus(
+                    (data && data.error) ? data.error : 'Could not delete container.',
+                    'error'
+                );
+                return false;
+            }
+            removeDataOrphanFromPlan(k, id);
+            refreshPreviewAfterManualFix();
+            if (typeof window.showAdminToast === 'function') {
+                window.showAdminToast('Deleted “' + label + '”.', 'success');
+            }
+            return true;
+        } catch (err) {
+            setJobStatus('Could not delete container.', 'error');
+            return false;
+        }
+    }
+
+    function bindDataContainerHandlers() {
+        if (!previewBodyEl) {
+            return;
+        }
+        previewBodyEl.querySelectorAll('.site-health-data-orphan').forEach((row) => {
+            if (!(row instanceof HTMLElement)) {
+                return;
+            }
+            syncDataAdoptButton(row);
+            const toggle = row.querySelector('.site-health-data-adopt-toggle');
+            if (toggle) {
+                toggle.querySelectorAll('.brand-player-setting-btn').forEach((btn) => {
+                    btn.addEventListener('click', (event) => {
+                        event.preventDefault();
+                        event.stopPropagation();
+                        toggle.querySelectorAll('.brand-player-setting-btn').forEach((other) => {
+                            other.classList.remove('is-active');
+                            other.setAttribute('aria-pressed', 'false');
+                        });
+                        btn.classList.add('is-active');
+                        btn.setAttribute('aria-pressed', 'true');
+                        syncDataAdoptButton(row);
+                    });
+                });
+            }
+            const select = row.querySelector('.site-health-data-adopt-select');
+            if (select instanceof HTMLSelectElement) {
+                select.addEventListener('change', () => {
+                    syncDataAdoptButton(row);
+                });
+                select.addEventListener('click', (event) => {
+                    event.stopPropagation();
+                });
+            }
+            const adoptBtn = row.querySelector('.site-health-data-adopt');
+            if (adoptBtn instanceof HTMLButtonElement) {
+                adoptBtn.addEventListener('click', async (event) => {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    const selected = selectedCampaignForDataRow(row);
+                    if (!selected.id) {
+                        return;
+                    }
+                    const kind = String(adoptBtn.getAttribute('data-kind') || '').trim();
+                    const entityId = String(adoptBtn.getAttribute('data-entity-id') || '').trim();
+                    const fileEl = row.querySelector('.site-health-orphan-clash-file strong');
+                    const label = fileEl ? String(fileEl.textContent || '').trim() : entityId;
+                    adoptBtn.disabled = true;
+                    await adoptDataContainer(kind, entityId, label, selected.id, selected.title);
+                    if (previewBodyEl && previewBodyEl.contains(adoptBtn)) {
+                        syncDataAdoptButton(row);
+                    }
+                });
+            }
+            const deleteBtn = row.querySelector('.site-health-data-delete');
+            if (deleteBtn instanceof HTMLButtonElement) {
+                deleteBtn.addEventListener('click', async (event) => {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    const kind = String(deleteBtn.getAttribute('data-kind') || '').trim();
+                    const entityId = String(deleteBtn.getAttribute('data-entity-id') || '').trim();
+                    const label = String(deleteBtn.getAttribute('data-title') || entityId).trim();
+                    deleteBtn.disabled = true;
+                    await deleteDataContainer(kind, entityId, label);
+                    if (previewBodyEl && previewBodyEl.contains(deleteBtn)) {
+                        deleteBtn.disabled = false;
                     }
                 });
             }
@@ -1356,6 +1874,7 @@
             });
         });
         bindOrphanHomeHandlers();
+        bindDataContainerHandlers();
         syncApplyEnabledFromSelection();
     }
 
@@ -1396,6 +1915,9 @@
         const hasOrphanClash = findings.some(
             (f) => String((f && f.id) || '') === 'orphan_assets_multi_campaign'
         );
+        const hasDataOrphans = findings.some(
+            (f) => String((f && f.id) || '') === 'data_container_orphans'
+        );
         const findingRows = findings.length
             ? findings.map(findingReviewRowHtml).join('')
             : '<p class="site-health-summary-empty">No findings on the current plan.</p>';
@@ -1404,15 +1926,15 @@
             'Tick what you want fixed (everything useful is selected to start). ' +
             'Nothing changes until you Apply. A backup first is a good idea if you want a restore point.'
         );
-        if (fix.manual > 0 && fix.fixable === 0 && hasOrphanClash) {
+        if (fix.manual > 0 && fix.fixable === 0 && (hasOrphanClash || hasDataOrphans)) {
             previewNote = (
-                'Choose a catalogue home on each clash row, then Set. ' +
+                'Select a campaign on each manual row (green prompt), then Adopt or Set. ' +
                 'Apply stays off for these — Site health will not guess. ' +
                 'A backup first is a good idea if you want a restore point.'
             );
-        } else if (fix.manual > 0 && fix.fixable > 0 && hasOrphanClash) {
+        } else if (fix.manual > 0 && fix.fixable > 0 && (hasOrphanClash || hasDataOrphans)) {
             previewNote = (
-                'Tick auto-fixable items for Apply. Multi-campaign orphans need a home choice on each row. ' +
+                'Tick auto-fixable items for Apply. Manual rows need a campaign selected first. ' +
                 'A backup first is a good idea if you want a restore point.'
             );
         }

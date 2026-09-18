@@ -1397,6 +1397,371 @@ function bandpromo_site_health_assign_orphan_home(string $root, string $assetId,
 }
 
 /**
+ * Classify a playlist/gallery/page for the data janitor Adopt/Delete path.
+ *
+ * @return array{
+ *   ok:bool,
+ *   class:string,
+ *   kind:string,
+ *   id:string,
+ *   title:string,
+ *   path:string,
+ *   in_registry:bool,
+ *   campaign_id:string,
+ *   error:string
+ * }
+ */
+function bandpromo_site_health_classify_container(string $root, string $kind, string $entityId): array
+{
+    require_once __DIR__ . '/demo-catalog-state.php';
+    require_once __DIR__ . '/playlist-storage.php';
+    require_once __DIR__ . '/gallery-storage.php';
+    require_once __DIR__ . '/page-registry.php';
+    require_once __DIR__ . '/page-storage.php';
+
+    $kind = strtolower(trim($kind));
+    $empty = [
+        'ok' => false,
+        'class' => '',
+        'kind' => $kind,
+        'id' => trim($entityId),
+        'title' => '',
+        'path' => '',
+        'in_registry' => false,
+        'campaign_id' => '',
+        'error' => '',
+    ];
+
+    if (!in_array($kind, ['playlist', 'gallery', 'page'], true)) {
+        $empty['error'] = 'Invalid container kind.';
+
+        return $empty;
+    }
+
+    if ($kind === 'playlist') {
+        $entityId = bandpromo_playlist_normalize_id($entityId);
+        $docPath = bandpromo_playlist_document_path($root, $entityId);
+        $inRegistry = bandpromo_playlist_registry_entry($root, $entityId) !== null;
+        $protected = bandpromo_playlist_is_protected_id($entityId);
+    } elseif ($kind === 'gallery') {
+        $entityId = bandpromo_gallery_normalize_id($entityId);
+        $docPath = bandpromo_gallery_document_path($root, $entityId);
+        $inRegistry = bandpromo_gallery_registry_entry($root, $entityId) !== null;
+        $protected = bandpromo_gallery_is_protected_id($entityId);
+    } else {
+        $entityId = bandpromo_page_normalize_id($entityId);
+        $docPath = bandpromo_page_json_path($root, $entityId);
+        $inRegistry = bandpromo_page_registry_entry($root, $entityId) !== null;
+        $protected = bandpromo_page_is_required_id($entityId);
+    }
+
+    $empty['id'] = $entityId;
+    if ($entityId === '') {
+        $empty['error'] = 'Invalid container id.';
+
+        return $empty;
+    }
+    if ($protected || bandpromo_demo_campaign_matches_entity($root, $entityId)) {
+        $empty['error'] = 'Protected demo containers cannot be changed here.';
+
+        return $empty;
+    }
+
+    $hasDoc = is_file($docPath);
+    $empty['path'] = 'data/' . ($kind === 'playlist' ? 'playlists' : ($kind === 'gallery' ? 'galleries' : 'pages'))
+        . '/' . $entityId . '.json';
+    $empty['in_registry'] = $inRegistry;
+
+    if (!$hasDoc && !$inRegistry) {
+        $empty['error'] = 'Container not found.';
+
+        return $empty;
+    }
+
+    $doc = [];
+    $title = $entityId;
+    $campaignId = '';
+    if ($hasDoc) {
+        try {
+            if ($kind === 'playlist') {
+                $doc = bandpromo_playlist_load_document($root, $entityId);
+            } elseif ($kind === 'gallery') {
+                $doc = bandpromo_gallery_load_document($root, $entityId);
+            } else {
+                $doc = bandpromo_page_load_document($root, $entityId);
+            }
+        } catch (Throwable $throwable) {
+            $doc = [];
+        }
+        if (is_array($doc)) {
+            $title = trim((string) ($doc['title'] ?? $doc['name'] ?? '')) ?: $entityId;
+            $campaignId = bandpromo_document_campaign_id($doc);
+        }
+    } elseif ($inRegistry) {
+        if ($kind === 'playlist') {
+            $entry = bandpromo_playlist_registry_entry($root, $entityId) ?? [];
+        } elseif ($kind === 'gallery') {
+            $entry = bandpromo_gallery_registry_entry($root, $entityId) ?? [];
+        } else {
+            $entry = bandpromo_page_registry_entry($root, $entityId) ?? [];
+        }
+        $title = trim((string) ($entry['title'] ?? '')) ?: $entityId;
+    }
+
+    $empty['title'] = $title;
+    $empty['campaign_id'] = $campaignId;
+    $empty['ok'] = true;
+
+    if ($hasDoc && !$inRegistry) {
+        if ($campaignId !== '' && !bandpromo_campaign_id_is_unowned($campaignId)) {
+            try {
+                $campaignDoc = bandpromo_campaign_load_document($root, $campaignId);
+                if (empty($campaignDoc['locked'])) {
+                    $empty['class'] = 'invisible_with_home';
+
+                    return $empty;
+                }
+            } catch (Throwable $throwable) {
+                // Fall through to manual invisible.
+            }
+        }
+        $empty['class'] = 'invisible';
+
+        return $empty;
+    }
+
+    if ($inRegistry && !$hasDoc) {
+        $empty['class'] = 'registry_stub';
+
+        return $empty;
+    }
+
+    if ($campaignId === '' || bandpromo_campaign_id_is_unowned($campaignId)) {
+        $empty['class'] = 'unowned';
+
+        return $empty;
+    }
+
+    try {
+        bandpromo_campaign_load_document($root, $campaignId);
+        $empty['class'] = 'owned';
+    } catch (Throwable $throwable) {
+        $empty['class'] = 'dangling';
+    }
+
+    return $empty;
+}
+
+/**
+ * Adopt a manual data-janitor container into a campaign (register if needed + stamp home).
+ *
+ * @return array{ok:bool, kind:string, id:string, campaign_id:string, error:string}
+ */
+function bandpromo_site_health_adopt_container(string $root, string $kind, string $entityId, string $campaignId): array
+{
+    require_once __DIR__ . '/playlist-storage.php';
+    require_once __DIR__ . '/gallery-storage.php';
+    require_once __DIR__ . '/page-registry.php';
+    require_once __DIR__ . '/page-storage.php';
+
+    $campaignId = bandpromo_campaign_normalize_id($campaignId);
+    $result = [
+        'ok' => false,
+        'kind' => strtolower(trim($kind)),
+        'id' => trim($entityId),
+        'campaign_id' => $campaignId,
+        'error' => '',
+    ];
+
+    if ($campaignId === '' || bandpromo_campaign_id_is_unowned($campaignId)) {
+        $result['error'] = 'Choose a campaign.';
+
+        return $result;
+    }
+
+    try {
+        $campaignDoc = bandpromo_campaign_load_document($root, $campaignId);
+    } catch (Throwable $throwable) {
+        $result['error'] = 'Campaign not found.';
+
+        return $result;
+    }
+    if (!empty($campaignDoc['locked'])) {
+        $result['error'] = 'Campaign is locked.';
+
+        return $result;
+    }
+
+    $classified = bandpromo_site_health_classify_container($root, $kind, $entityId);
+    if (empty($classified['ok'])) {
+        $result['error'] = (string) ($classified['error'] ?? 'Container not found.');
+        $result['id'] = (string) ($classified['id'] ?? $entityId);
+        $result['kind'] = (string) ($classified['kind'] ?? $kind);
+
+        return $result;
+    }
+
+    $class = (string) ($classified['class'] ?? '');
+    $entityId = (string) ($classified['id'] ?? '');
+    $kind = (string) ($classified['kind'] ?? '');
+    $result['id'] = $entityId;
+    $result['kind'] = $kind;
+
+    if (!in_array($class, ['invisible', 'unowned', 'dangling', 'invisible_with_home'], true)) {
+        $result['error'] = 'This container no longer needs Adopt. Run a fresh health check.';
+
+        return $result;
+    }
+
+    $title = (string) ($classified['title'] ?? $entityId);
+
+    try {
+        if ($kind === 'playlist') {
+            if (empty($classified['in_registry'])) {
+                $registry = bandpromo_playlist_load_registry($root);
+                $maxOrder = 0;
+                foreach ($registry['playlists'] as $entry) {
+                    $maxOrder = max($maxOrder, (int) ($entry['sort_order'] ?? 0));
+                }
+                $registry['playlists'][] = [
+                    'id' => $entityId,
+                    'title' => $title,
+                    'kind' => 'system',
+                    'publish_date' => gmdate('Y-m-d'),
+                    'sort_order' => $maxOrder + 10,
+                ];
+                bandpromo_playlist_write_registry($root, $registry);
+            }
+            bandpromo_playlist_set_campaign_id($root, $entityId, $campaignId);
+        } elseif ($kind === 'gallery') {
+            if (empty($classified['in_registry'])) {
+                $registry = bandpromo_gallery_load_registry($root);
+                $maxOrder = 0;
+                foreach ($registry['galleries'] as $entry) {
+                    $maxOrder = max($maxOrder, (int) ($entry['sort_order'] ?? 0));
+                }
+                $registry['galleries'][] = [
+                    'id' => $entityId,
+                    'title' => $title,
+                    'kind' => 'user',
+                    'sort_order' => $maxOrder + 10,
+                ];
+                bandpromo_gallery_write_registry($root, $registry);
+            }
+            bandpromo_gallery_set_campaign_id($root, $entityId, $campaignId);
+        } else {
+            if (empty($classified['in_registry'])) {
+                $registry = bandpromo_page_load_registry($root);
+                $maxOrder = 0;
+                foreach ($registry['pages'] as $entry) {
+                    $maxOrder = max($maxOrder, (int) ($entry['sort_order'] ?? 0));
+                }
+                $registry['pages'][] = [
+                    'id' => $entityId,
+                    'title' => $title,
+                    'label' => $title,
+                    'sort_order' => $maxOrder + 10,
+                ];
+                bandpromo_page_write_registry($root, $registry);
+            }
+            bandpromo_page_set_campaign_id($root, $entityId, $campaignId);
+        }
+    } catch (Throwable $throwable) {
+        $result['error'] = $throwable->getMessage() !== ''
+            ? $throwable->getMessage()
+            : 'Could not adopt container.';
+
+        return $result;
+    }
+
+    $result['ok'] = true;
+
+    return $result;
+}
+
+/**
+ * Delete a manual data-janitor container (registry row + document when present).
+ *
+ * @return array{ok:bool, kind:string, id:string, error:string}
+ */
+function bandpromo_site_health_delete_container(string $root, string $kind, string $entityId): array
+{
+    require_once __DIR__ . '/playlist-storage.php';
+    require_once __DIR__ . '/gallery-storage.php';
+    require_once __DIR__ . '/page-registry.php';
+    require_once __DIR__ . '/page-storage.php';
+
+    $result = [
+        'ok' => false,
+        'kind' => strtolower(trim($kind)),
+        'id' => trim($entityId),
+        'error' => '',
+    ];
+
+    $classified = bandpromo_site_health_classify_container($root, $kind, $entityId);
+    if (empty($classified['ok'])) {
+        $result['error'] = (string) ($classified['error'] ?? 'Container not found.');
+        $result['id'] = (string) ($classified['id'] ?? $entityId);
+        $result['kind'] = (string) ($classified['kind'] ?? $kind);
+
+        return $result;
+    }
+
+    $class = (string) ($classified['class'] ?? '');
+    $entityId = (string) ($classified['id'] ?? '');
+    $kind = (string) ($classified['kind'] ?? '');
+    $result['id'] = $entityId;
+    $result['kind'] = $kind;
+
+    if (!in_array($class, ['invisible', 'unowned', 'dangling', 'registry_stub'], true)) {
+        $result['error'] = 'This container is not eligible for Delete here. Run a fresh health check.';
+
+        return $result;
+    }
+
+    try {
+        if ($kind === 'playlist') {
+            if (!empty($classified['in_registry'])) {
+                bandpromo_playlist_delete($root, $entityId);
+            } else {
+                $path = bandpromo_playlist_document_path($root, $entityId);
+                if (is_file($path) && !unlink($path)) {
+                    throw new RuntimeException('Could not delete playlist document.');
+                }
+            }
+        } elseif ($kind === 'gallery') {
+            if (!empty($classified['in_registry'])) {
+                bandpromo_gallery_delete($root, $entityId);
+            } else {
+                $path = bandpromo_gallery_document_path($root, $entityId);
+                if (is_file($path) && !unlink($path)) {
+                    throw new RuntimeException('Could not delete gallery document.');
+                }
+            }
+        } else {
+            if (!empty($classified['in_registry'])) {
+                bandpromo_page_delete_page($root, $entityId);
+            } else {
+                $path = bandpromo_page_json_path($root, $entityId);
+                if (is_file($path) && !unlink($path)) {
+                    throw new RuntimeException('Could not delete page document.');
+                }
+            }
+        }
+    } catch (Throwable $throwable) {
+        $result['error'] = $throwable->getMessage() !== ''
+            ? $throwable->getMessage()
+            : 'Could not delete container.';
+
+        return $result;
+    }
+
+    $result['ok'] = true;
+
+    return $result;
+}
+
+/**
  * Resolve a cover/poster/page ref to a Visual asset id.
  */
 function bandpromo_campaign_visual_asset_id_from_ref(string $root, string $ref): string

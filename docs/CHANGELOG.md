@@ -2,6 +2,10 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-09-18 19:05 - Site health data janitor: Check finds ephemeral leftovers under `data/` (Apply prune), unambiguous container registry fixes (Apply relink), and Manual Adopt/Delete rows for orphan/unowned playlists, galleries, and pages — never auto-guesses a campaign.
+
+2026-09-18 18:45 - Status multi-campaign orphan clash rows: show visual thumb / audio preview; green **Select catalogue home** until a campaign is chosen; Set stays disabled until then; confirm names the chosen campaign.
+
 2026-09-18 18:30 - Status multi-campaign orphan homes: Proposed treatment shows filename + campaign clash and lets the operator Set catalogue home in place (no Files detour); Site health still never auto-guesses.
 
 2026-09-18 18:15 - Status Site health: Apply treatment and Force full rebuild use `bandpromoConfirm` (in-app modal); error acknowledges no longer call `window.alert`.
