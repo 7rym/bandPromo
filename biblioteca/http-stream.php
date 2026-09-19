@@ -277,6 +277,15 @@ function bandpromo_transfer_zip_pack_entries_slice(
                 throw new RuntimeException('Could not reopen archive for the next files.');
             }
         }
+        if ($sinceFlush > 0) {
+            if ($zip->close() !== true) {
+                throw new RuntimeException('Could not finalize archive write.');
+            }
+            $sinceFlush = 0;
+            $bytesSinceFlush = 0;
+        } else {
+            @$zip->close();
+        }
     } catch (Throwable $e) {
         @$zip->close();
         throw $e;
@@ -287,6 +296,18 @@ function bandpromo_transfer_zip_pack_entries_slice(
             @unlink($zipPath);
         }
         throw new RuntimeException('Archive was empty after packing.');
+    }
+    if (class_exists('ZipArchive')) {
+        $probe = new ZipArchive();
+        $probeStatus = $probe->open($zipPath);
+        if ($probeStatus !== true) {
+            $code = is_int($probeStatus) ? (string) $probeStatus : 'unknown';
+            @unlink($zipPath);
+            throw new RuntimeException(
+                'Archive is not a readable zip after packing (status ' . $code . ').'
+            );
+        }
+        $probe->close();
     }
     if (is_callable($onProgress)) {
         $onProgress(
@@ -473,45 +494,40 @@ function bandpromo_http_stream_file(string $path, string $downloadName, array $o
         header('X-Checksum-SHA256: ' . $sha256);
     }
 
-    $sent = @readfile($path);
-    $sentBytes = is_int($sent) ? $sent : 0;
-    if ($sent === false || $sentBytes !== $size) {
-        $handle = fopen($path, 'rb');
-        if ($handle === false) {
-            if ($doExit) {
-                exit;
-            }
-
-            return false;
+    // Prefer an explicit fread loop: readfile() can return early on some hosts while
+    // Content-Length still advertises the full size, which truncates .pbf/.pcf downloads.
+    $handle = fopen($path, 'rb');
+    if ($handle === false) {
+        if ($doExit) {
+            exit;
         }
-        try {
-            $offset = $sentBytes > 0 ? $sentBytes : 0;
-            if ($offset > 0 && fseek($handle, $offset) !== 0) {
-                if ($doExit) {
-                    exit;
-                }
 
-                return false;
+        return false;
+    }
+    $sentBytes = 0;
+    try {
+        $chunkSize = 1024 * 1024;
+        $stalls = 0;
+        while ($sentBytes < $size && !feof($handle) && $stalls < 16) {
+            $want = (int) min($chunkSize, $size - $sentBytes);
+            $read = fread($handle, $want);
+            if ($read === false || $read === '') {
+                $stalls++;
+                usleep(50000);
+                continue;
             }
-            $remaining = $size - $offset;
-            $chunkSize = 1024 * 1024;
-            while ($remaining > 0 && !feof($handle)) {
-                $read = fread($handle, (int) min($chunkSize, $remaining));
-                if ($read === false || $read === '') {
-                    break;
-                }
-                echo $read;
-                $remaining -= strlen($read);
-                $sentBytes += strlen($read);
-                if (function_exists('flush')) {
-                    flush();
-                }
+            $stalls = 0;
+            echo $read;
+            $sentBytes += strlen($read);
+            if (function_exists('flush')) {
+                @flush();
             }
-        } finally {
-            fclose($handle);
         }
+    } finally {
+        fclose($handle);
     }
 
+    // Incomplete body with Content-Length set yields truncated downloads (zip status 19).
     $ok = $sentBytes >= $size;
     if ($doExit) {
         exit;

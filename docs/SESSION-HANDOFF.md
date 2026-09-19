@@ -2,18 +2,19 @@
 
 ## Resume point
 
-**Site health Manual Apply CSRF fix published** — token was empty because refresh lived inside admin.js; now on `window` + Site health helper.
+**PBF download integrity fix published** — truncated Jobs downloads caused zip status 19 on HITZ import; local export was valid.
 
 ### Shipped recently
 
-1. Manual Include→Apply CSRF fix (empty token → “Session expired…”).
-2. Plans audit docs + runtime path hygiene contract.
-3. Site health Manual rows polish (or Delete, selection border, copy).
+1. Jobs PBF/PCF: verified download (fetch→SHA→save) for archives ≤64 MB; hard fread stream; Ready zip probe.
+2. Site health Manual Apply CSRF fix.
+3. Plans audit + runtime path hygiene docs.
 
 ### Next
 
-1. Re-try Manual Apply on fleet (Delete copy gallery/page + set catalogue home).
-2. Then Site health fleet quiet → Shell preview parity.
+1. Site update to build with the PBF fix → re-export HITZ brand → download until “integrity verified” → import on HITZ.
+2. Continue brand portability testing.
+3. Site health fleet quiet → Shell preview parity.
 
 ### Local workspace
 
@@ -21,4 +22,4 @@ Checkout is **`C:\dev\bandpromo`**. Never wipe `data/` / `media/` / `log/` / `ba
 
 ### Fleet testing note
 
-Operator is testing the fleet — treat “check and publish” as the default checkpoint for Status/Site health work in this stretch.
+Operator is testing the fleet — treat “check and publish” as the default checkpoint for Status/Site health / portability work in this stretch.

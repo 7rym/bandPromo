@@ -129,7 +129,11 @@ function bandpromo_chunked_upload_zip_open_error(string $zipPath, string $label 
     }
     $hint = $size < 100
         ? 'File is nearly empty — the upload likely did not finish.'
-        : 'Chunk assembly did not produce a readable ' . $label . ' (status ' . $statusCode . '). Retry the upload.';
+        : (
+            'The file looks zip-like but is not readable (often a truncated download). '
+            . 'Re-download from Jobs (wait for “integrity verified”), confirm the size matches, then retry the upload. '
+            . 'Status ' . $statusCode . '.'
+        );
 
     return 'Could not open the ' . $label . ' (status ' . $statusCode . ', size ' . $size . ' bytes). ' . $hint;
 }

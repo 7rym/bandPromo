@@ -14371,7 +14371,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 }
 
                 if (jobsWrap) {
-                    jobsWrap.addEventListener('click', (event) => {
+                    jobsWrap.addEventListener('click', async (event) => {
                         const target = event.target;
                         if (!(target instanceof HTMLElement)) {
                             return;
@@ -14387,20 +14387,35 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                             }
                             const url = `/biblioteca/download-site-backup.php?id=${encodeURIComponent(jobId)}`;
                             const sizeHint = expectedBytes > 0 ? ` (${formatJobsTransferBytes(expectedBytes)})` : '';
+                            const verifyMaxBytes = 64 * 1024 * 1024;
+                            // Modest archives with a known digest: fetch → verify → save so the
+                            // on-disk file cannot be a truncated browser download (zip status 19).
+                            if (expectedSha256 && expectedBytes > 0 && expectedBytes <= verifyMaxBytes) {
+                                showJobsToast(`Downloading ${filename}${sizeHint}…`, 'info');
+                                downloadBtn.disabled = true;
+                                try {
+                                    await bandpromoDownloadVerified({
+                                        url,
+                                        filename,
+                                        expectedBytes,
+                                        expectedSha256,
+                                    });
+                                    showJobsToast('Download saved and integrity verified (SHA-256).', 'success');
+                                } catch (error) {
+                                    showJobsToast(
+                                        (error && error.message)
+                                            ? String(error.message)
+                                            : 'Download failed.',
+                                        'error'
+                                    );
+                                } finally {
+                                    downloadBtn.disabled = false;
+                                }
+                                return;
+                            }
                             showJobsToast(`Downloading ${filename}${sizeHint}…`, 'info');
                             bandpromoTriggerBrowserDownload(url, filename);
-                            const verifyMaxBytes = 64 * 1024 * 1024;
-                            if (expectedSha256 && expectedBytes > 0 && expectedBytes <= verifyMaxBytes) {
-                                bandpromoVerifyDownloadBlob({
-                                    url,
-                                    expectedBytes,
-                                    expectedSha256,
-                                }).then(() => {
-                                    showJobsToast('Download integrity verified (SHA-256).', 'success');
-                                }).catch((error) => {
-                                    showJobsToast(error.message || 'Integrity check failed.', 'warning');
-                                });
-                            } else if (expectedSha256) {
+                            if (expectedSha256) {
                                 showJobsToast(
                                     `Large archive — compare size${sizeHint} and SHA ${expectedSha256.slice(0, 12)}… in Jobs after download.`,
                                     'info'

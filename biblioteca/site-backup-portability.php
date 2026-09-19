@@ -1664,6 +1664,29 @@ function bandpromo_site_backup_stream_file(string $path, string $downloadName, s
     ]);
 }
 
+function bandpromo_site_backup_assert_archive_readable(string $zipPath): void
+{
+    if (!is_file($zipPath) || filesize($zipPath) === 0) {
+        throw new RuntimeException('Archive is missing or empty after packing.');
+    }
+    if (!class_exists('ZipArchive')) {
+        return;
+    }
+    $zip = new ZipArchive();
+    $status = $zip->open($zipPath);
+    if ($status !== true) {
+        $code = is_int($status) ? (string) $status : 'unknown';
+        throw new RuntimeException(
+            'Archive is not a readable zip after packing (status ' . $code . '). Export failed — try again.'
+        );
+    }
+    $count = (int) $zip->numFiles;
+    $zip->close();
+    if ($count < 1) {
+        throw new RuntimeException('Archive has no files after packing.');
+    }
+}
+
 function bandpromo_site_backup_mark_job_ready(string $root, array &$job, string $zipPath): void
 {
     require_once __DIR__ . '/http-stream.php';
@@ -1679,6 +1702,13 @@ function bandpromo_site_backup_mark_job_ready(string $root, array &$job, string 
     }
 
     $sizeBytes = is_file($zipPath) ? (int) filesize($zipPath) : 0;
+    try {
+        bandpromo_site_backup_assert_archive_readable($zipPath);
+    } catch (Throwable $e) {
+        bandpromo_site_backup_mark_job_failed($root, $job, $zipPath, $e->getMessage());
+
+        return;
+    }
 
     // Commit Ready immediately. Hashing a multi-GB PCF after pack used to run for
     // minutes; host kill left status=building with no plan → full export restart.

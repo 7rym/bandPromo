@@ -2,6 +2,8 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-09-19 13:30 - PBF/PCF Jobs download: local HITZ brand export was a valid zip; truncated browser downloads (~55 KB short) caused import zip status 19. Stream archives with an explicit fread loop; modest Jobs downloads now fetch→verify SHA→save; Ready refuses unreadable zips; clearer import hint for truncated files.
+
 2026-09-18 23:58 - Site health Manual Apply: CSRF was sent empty because `refreshAdminCsrfToken` lived inside admin.js and was invisible to site-health-admin.js — expose it on `window` and resolve tokens via a shared helper.
 
 2026-09-18 23:50 - Docs: pending Cursor plans audit (Keep Shell preview parity, admin editor remainder, PCF smoke; Drop 18 stale); runtime path contract (`log/`=Activity, `data/jobs/`=JSON, `temp/`=scratch); CODE-LAYOUT Phase 0 outline. No path moves yet.
