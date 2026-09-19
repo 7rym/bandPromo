@@ -3044,7 +3044,8 @@ if ($tab === 'analytics') {
             <div class="card site-backup-card">
                 <h3>📦 Jobs</h3>
                 <p class="card-note backup-builder-note">
-                    Leave this tab open while a job runs. Archives stay until you download or delete them.
+                    Keep this Backup tab open while a job builds — the browser polls Jobs to advance each slice on shared hosts.
+                    You get a toast when an export is Ready to download. Archives stay until you download or delete them.
                 </p>
                 <div id="siteBackupJobsWrap" class="site-backup-jobs-wrap">
                     <?php if (empty($siteBackupJobs)): ?>

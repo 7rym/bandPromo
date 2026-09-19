@@ -2,17 +2,17 @@
 
 ## Resume point
 
-**PBF packer double-close fix published** — export FAILED “Invalid or uninitialized Zip object” after build 546; close-only-while-open.
+**Backup Jobs Ready toast shipped** — explain leave-tab (poll advances slices); toast when Ready/Failed.
 
 ### Shipped recently
 
-1. Fix ZipArchive double-close that broke PBF Ready.
-2. Jobs download: one fetch→verify→save (success or fail toast — not “retry until”).
-3. Earlier: truncated download caused HITZ import status 19.
+1. Ready/Failed toasts for Backup Jobs; clearer queued copy (why keep tab open).
+2. PBF ZipArchive double-close fix (build 547).
+3. Jobs download: one fetch→verify→save (not “retry until”).
 
 ### Next
 
-1. Site update → Queue PBF export again (leave Backup open until Ready) → Download once → import on HITZ.
+1. Site update → Queue PBF export (keep Backup open) → Ready toast → Download once → import on HITZ.
 2. Continue brand portability testing.
 
 ### Local workspace

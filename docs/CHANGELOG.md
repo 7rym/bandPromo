@@ -2,6 +2,8 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-09-19 13:58 - Backup Jobs toasts: queued copy explains why the Backup tab must stay open (browser poll advances each build slice on shared hosts). Toast when an export becomes Ready to download (or fails) — previously only the queued toast existed.
+
 2026-09-19 13:35 - PBF export FAILED with “Invalid or uninitialized Zip object”: packer double-closed ZipArchive after the final flush (PHP 8 Error). Close only while open. Soften download/import copy — one verified save, not “retry until”.
 
 2026-09-19 13:30 - PBF/PCF Jobs download: local HITZ brand export was a valid zip; truncated browser downloads (~55 KB short) caused import zip status 19. Stream archives with an explicit fread loop; modest Jobs downloads now fetch→verify SHA→save; Ready refuses unreadable zips; clearer import hint for truncated files.

@@ -13969,6 +13969,8 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 let backupRefreshSeq = 0;
                 let syncingFullCheckbox = false;
                 let pendingBackupDeleteId = '';
+                /** @type {Record<string, string>} */
+                let backupJobNotifySeen = {};
 
                 function showJobsToast(message, type) {
                     if (typeof window.bandpromoShowAdminToast === 'function') {
@@ -13995,22 +13997,99 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     return `${n} B`;
                 }
 
+                function backupJobNotifyKey(job) {
+                    if (!job || typeof job !== 'object') {
+                        return '';
+                    }
+                    const status = String(job.status || '');
+                    if (status === 'failed') {
+                        return 'failed';
+                    }
+                    if (job.download_ready) {
+                        return 'download_ready';
+                    }
+                    if (status === 'ready' && job.sha256_pending) {
+                        return 'ready_hashing';
+                    }
+                    return status || 'unknown';
+                }
+
+                function backupJobDisplayName(job) {
+                    const label = String((job && (job.label || job.filename || job.id)) || '').trim();
+                    return label || 'Archive';
+                }
+
+                function notifyBackupJobTransitions(jobs) {
+                    const list = Array.isArray(jobs) ? jobs : [];
+                    list.forEach((job) => {
+                        const id = String((job && job.id) || '').trim();
+                        if (!id) {
+                            return;
+                        }
+                        const nextKey = backupJobNotifyKey(job);
+                        const prevKey = backupJobNotifySeen[id];
+                        backupJobNotifySeen[id] = nextKey;
+                        // First sighting (page load / optimistic row) — no toast.
+                        if (prevKey === undefined || prevKey === nextKey) {
+                            return;
+                        }
+                        const name = backupJobDisplayName(job);
+                        const kind = String((job && job.type) || '');
+                        const kindLabel = kind === 'pbf'
+                            ? 'Portable Brand File (.pbf)'
+                            : (kind === 'prp'
+                                ? 'Portable Campaign File (.pcf)'
+                                : 'Archive');
+                        if (nextKey === 'download_ready') {
+                            showJobsToast(
+                                kindLabel + ' Ready: “' + name + '”. Download it from Jobs.',
+                                'success'
+                            );
+                            return;
+                        }
+                        if (nextKey === 'ready_hashing') {
+                            showJobsToast(
+                                '“' + name + '” is packed — finishing checksum, then you can download.',
+                                'info'
+                            );
+                            return;
+                        }
+                        if (nextKey === 'failed') {
+                            const err = String((job && job.error) || '').trim();
+                            showJobsToast(
+                                'Job failed: “' + name + '”'
+                                + (err ? (' — ' + err) : ''),
+                                'error'
+                            );
+                        }
+                    });
+                }
+
                 function showJobsQueuedToast(kind, subjectLabel) {
                     const subject = String(subjectLabel || '').trim();
                     const named = subject ? ` for “${subject}”` : '';
                     let message = '';
                     switch (kind) {
                         case 'pcf':
-                            message = `Portable Campaign File (.pcf) export queued${named}. It appears under Jobs while building — leave Backup open until Ready, then download.`;
+                            message = (
+                                `Portable Campaign File (.pcf) export queued${named}. `
+                                + 'Keep this Backup tab open so Jobs can advance the build — you’ll get a toast when it’s Ready.'
+                            );
                             break;
                         case 'pbf':
-                            message = `Portable Brand File (.pbf) export queued${named}. It appears under Jobs while building — leave Backup open until Ready, then download.`;
+                            message = (
+                                `Portable Brand File (.pbf) export queued${named}. `
+                                + 'Keep this Backup tab open so Jobs can advance the build — you’ll get a toast when it’s Ready.'
+                            );
                             break;
                         case 'import':
                             message = `Import queued${named}. Progress and result appear in ${jobsWhereHint}.`;
                             break;
                         default:
-                            message = `Site backup queued${named}. When status is Ready, download it from ${jobsWhereHint}.`;
+                            message = (
+                                `Site backup queued${named}. Keep this Backup tab open while it builds — `
+                                + 'you’ll get a toast when it’s Ready.'
+                            );
                             break;
                     }
                     showJobsToast(message);
@@ -14088,6 +14167,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     }
 
                     lastBackupJobs = Array.isArray(jobs) ? jobs.slice() : [];
+                    notifyBackupJobTransitions(lastBackupJobs);
 
                     if (!Array.isArray(jobs) || jobs.length === 0) {
                         jobsWrap.innerHTML = '<p id="siteBackupJobsEmpty" class="empty-msg">No backup jobs yet. Create or import one below.</p>';

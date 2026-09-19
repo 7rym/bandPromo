@@ -64,7 +64,7 @@ try {
         'job' => $job,
         'job_id' => (string) ($job['id'] ?? ''),
         'filename' => (string) ($job['filename'] ?? ''),
-        'message' => 'PCF export queued. It appears under Jobs while building — leave this Backup tab open until Ready.',
+        'message' => 'PCF export queued. Keep this Backup tab open so Jobs can advance the build — you will get a toast when it is Ready.',
         'jobs_url' => '?tab=system&stab=backup',
     ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
 
