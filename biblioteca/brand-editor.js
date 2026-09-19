@@ -1588,6 +1588,13 @@
             if (entry.id === activeBrandId) {
                 parts.push('<span class="brand-pool-meta-active">base</span>');
             }
+            const title = String(entry.title || '').trim();
+            if (title !== '') {
+                const sameTitle = brands.filter((row) => String(row?.title || '').trim() === title).length;
+                if (sameTitle > 1) {
+                    parts.push(escapeHtml(String(entry.id || '')));
+                }
+            }
             return parts.join(' · ');
         }
 
@@ -1912,8 +1919,34 @@
             renderPoolList();
         }
 
+        function pruneBrandFromPool(brandId) {
+            const id = String(brandId || '').trim();
+            if (id === '') {
+                return;
+            }
+            brands = brands.filter((entry) => String(entry?.id || '') !== id);
+            if (selectedBrandId === id) {
+                selectedBrandId = activeBrandId || brands[0]?.id || 'setup-default';
+                syncBrandUrl(selectedBrandId, false);
+            }
+            renderPoolList();
+        }
+
         async function loadBrandDocuments(brandId) {
-            const data = await fetchJson(`/biblioteca/get-brand.php?brand=${encodeURIComponent(brandId)}`);
+            let data;
+            try {
+                data = await fetchJson(`/biblioteca/get-brand.php?brand=${encodeURIComponent(brandId)}`);
+            } catch (error) {
+                const message = String(error?.message || '');
+                if (/belongs to the hidden bandPromo demo|demo brand is hidden/i.test(message)) {
+                    pruneBrandFromPool(brandId);
+                    throw new Error(
+                        'That brand belongs to the hidden bandPromo demo campaign. '
+                        + 'It left the list after you set another brand as base.'
+                    );
+                }
+                throw error;
+            }
             previewDocument = data.document || null;
             if (previewDocument && (!previewDocument.assets || typeof previewDocument.assets !== 'object')) {
                 previewDocument.assets = {};
@@ -2330,6 +2363,13 @@
                     body: JSON.stringify({ brand_id: document.id }),
                 });
                 activeBrandId = String(data.active_brand_id || document.id);
+                if (Array.isArray(data.brands)) {
+                    brands = data.brands;
+                    if (!brands.some((entry) => String(entry?.id || '') === selectedBrandId)) {
+                        selectedBrandId = activeBrandId;
+                        syncBrandUrl(selectedBrandId, false);
+                    }
+                }
                 renderPreview(previewDocument);
                 if (isEditing) {
                     renderForm();

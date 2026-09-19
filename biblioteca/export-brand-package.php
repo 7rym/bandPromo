@@ -49,7 +49,7 @@ if (!bandpromo_demo_brand_visible_in_admin($root, $brandId)) {
     http_response_code(400);
     echo json_encode([
         'ok' => false,
-        'error' => 'That demo brand is hidden with the bandPromo demo campaign.',
+        'error' => 'That brand belongs to the hidden bandPromo demo campaign.',
     ]);
     exit;
 }

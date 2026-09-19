@@ -2,6 +2,8 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-09-19 14:15 - Branding: after Set as base, refresh the pool so a demoted demo-owned brand disappears (stale row looked like a deletable duplicate and toasted “demo brand”). Clarify that error; show brand id when titles collide; PBF export dropdown does the same.
+
 2026-09-19 13:58 - Backup Jobs toasts: queued copy explains why the Backup tab must stay open (browser poll advances each build slice on shared hosts). Toast when an export becomes Ready to download (or fails) — previously only the queued toast existed.
 
 2026-09-19 13:35 - PBF export FAILED with “Invalid or uninitialized Zip object”: packer double-closed ZipArchive after the final flush (PHP 8 Error). Close only while open. Soften download/import copy — one verified save, not “retry until”.

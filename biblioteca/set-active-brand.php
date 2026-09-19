@@ -42,12 +42,17 @@ try {
         'status' => 'ok',
     ]);
 
+    // Fresh operator list: demoted demo-owned brands hide once they are no longer Base.
+    $brands = bandpromo_brand_admin_registry_entries($root);
+
     echo json_encode([
         'ok' => true,
         'active_brand_id' => $brandId,
+        'brands' => $brands,
         // Backwards compatibility for older clients not yet migrated.
         'active_theme_id' => $brandId,
-    ]);
+        'themes' => $brands,
+    ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
 } catch (Throwable $throwable) {
     http_response_code(400);
     echo json_encode(['ok' => false, 'error' => $throwable->getMessage()]);

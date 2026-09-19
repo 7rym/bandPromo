@@ -2,18 +2,18 @@
 
 ## Resume point
 
-**Backup Jobs Ready toast shipped** — explain leave-tab (poll advances slices); toast when Ready/Failed.
+**Branding stale demo row after Set as base** — pool now refreshes; demoted demo-owned brands leave the list instead of toasting on click.
 
 ### Shipped recently
 
-1. Ready/Failed toasts for Backup Jobs; clearer queued copy (why keep tab open).
-2. PBF ZipArchive double-close fix (build 547).
-3. Jobs download: one fetch→verify→save (not “retry until”).
+1. Set as base returns refreshed brands; prune + clearer toast if a hidden demo row is opened.
+2. Duplicate titles show brand id in pool / PBF export dropdown.
+3. Backup Jobs Ready toast (build 548).
 
 ### Next
 
-1. Site update → Queue PBF export (keep Backup open) → Ready toast → Download once → import on HITZ.
-2. Continue brand portability testing.
+1. Site update on HITZ → Branding pool should drop the demoted demo “HITZ” row after Set as base (hard refresh once if still on build 545).
+2. Continue brand portability testing with a fresh PBF from local HITZ (`brd_7mbzzy…`, not `bandpromo-default`).
 
 ### Local workspace
 

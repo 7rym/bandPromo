@@ -17,7 +17,9 @@ $brandId = bandpromo_brand_normalize_id((string) ($_GET['brand'] ?? $_GET['theme
 try {
     bandpromo_brand_ensure_seeded($root);
     if (!bandpromo_demo_brand_visible_in_admin($root, $brandId)) {
-        throw new InvalidArgumentException('That demo brand is hidden with the bandPromo demo campaign.');
+        throw new InvalidArgumentException(
+            'That brand belongs to the hidden bandPromo demo campaign.'
+        );
     }
     $document = bandpromo_brand_load_document($root, $brandId);
     $activeBrandId = bandpromo_brand_active_id($root);

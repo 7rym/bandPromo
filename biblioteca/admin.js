@@ -15165,6 +15165,14 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                             throw new Error(data.error || 'Could not load brands');
                         }
                         const brands = Array.isArray(data.brands) ? data.brands : [];
+                        const titleCounts = {};
+                        brands.forEach((entry) => {
+                            const title = String((entry && entry.title) || (entry && entry.id) || '').trim();
+                            if (title === '') {
+                                return;
+                            }
+                            titleCounts[title] = (titleCounts[title] || 0) + 1;
+                        });
                         const options = brands
                             .map((entry) => {
                                 const id = String(entry && entry.id ? entry.id : '').trim();
@@ -15172,7 +15180,10 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                                     return '';
                                 }
                                 const title = String(entry.title || id).trim() || id;
-                                return `<option value="${escapeHtml(id)}">${escapeHtml(title)}</option>`;
+                                const label = (titleCounts[title] > 1)
+                                    ? `${title} (${id})`
+                                    : title;
+                                return `<option value="${escapeHtml(id)}">${escapeHtml(label)}</option>`;
                             })
                             .filter(Boolean);
                         brandPackageExportSelect.innerHTML = options.length
