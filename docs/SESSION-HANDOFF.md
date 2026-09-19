@@ -2,18 +2,18 @@
 
 ## Resume point
 
-**Branding stale demo row after Set as base** — pool now refreshes; demoted demo-owned brands leave the list instead of toasting on click.
+**PBF download names use brand title** — not opaque `brd_*` ids.
 
-### Shipped recently
+### Clarified (operator model)
 
-1. Set as base returns refreshed brands; prune + clearer toast if a hidden demo row is opened.
-2. Duplicate titles show brand id in pool / PBF export dropdown.
-3. Backup Jobs Ready toast (build 548).
+- Brands are **shared**: many campaigns may link one brand. `brand.campaign_id` is optional **first-claim provenance**, not exclusive ownership.
+- Local **HITZ by 7rym** stamps `twisted-chronicles` as that provenance; it is still free for other campaigns to use.
+- Storage ids stay internal; download filenames and pool labels should stay title-first.
 
 ### Next
 
-1. Site update on HITZ → Branding pool should drop the demoted demo “HITZ” row after Set as base (hard refresh once if still on build 545).
-2. Continue brand portability testing with a fresh PBF from local HITZ (`brd_7mbzzy…`, not `bandpromo-default`).
+1. Site update → re-export PBF; expect `bandPromo-brand-HITZ-by-7rym-….pbf`.
+2. Continue brand portability testing on HITZ.
 
 ### Local workspace
 

@@ -809,9 +809,15 @@ function bandpromo_site_backup_enqueue_pbf(string $root, string $brandId, string
 
     $suffix = bin2hex(random_bytes(3));
     $stamp = gmdate('Ymd-His');
-    $safeBrand = preg_replace('/[^a-zA-Z0-9_-]+/', '-', $brandId) ?: 'brand';
-    $jobId = bandpromo_site_backup_sanitize_job_id('pbf-' . $safeBrand . '-' . $stamp . '-' . $suffix);
-    $filename = 'bandPromo-brand-' . $safeBrand . '-' . $stamp . '.pbf';
+    // Job id stays on the stable storage id; download name uses the operator title.
+    $safeBrandId = preg_replace('/[^a-zA-Z0-9_-]+/', '-', $brandId) ?: 'brand';
+    $safeTitle = preg_replace('/[^a-zA-Z0-9_-]+/', '-', $title) ?: '';
+    $safeTitle = trim((string) $safeTitle, '-');
+    if ($safeTitle === '') {
+        $safeTitle = $safeBrandId;
+    }
+    $jobId = bandpromo_site_backup_sanitize_job_id('pbf-' . $safeBrandId . '-' . $stamp . '-' . $suffix);
+    $filename = 'bandPromo-brand-' . $safeTitle . '-' . $stamp . '.pbf';
 
     $job = [
         'id' => $jobId,

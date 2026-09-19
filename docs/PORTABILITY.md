@@ -198,7 +198,7 @@ When the brand id already exists: **Refuse** / **Overwrite** / **Skip** / **AsNe
 
 #### Surfaces
 
-Admin → System → **Backup, export & import**: Export / Import PBF cards + Jobs (**Download .pbf**). Optional Branding deep-link after import.
+Admin → System → **Backup, export & import**: Export / Import PBF cards + Jobs (**Download .pbf**). Download filenames use the brand **title** (plus UTC stamp), not the opaque `brd_*` storage id. Optional Branding deep-link after import.
 
 ## Moved-site recovery
 
