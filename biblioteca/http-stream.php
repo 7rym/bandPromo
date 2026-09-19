@@ -166,10 +166,12 @@ function bandpromo_transfer_zip_pack_entries_slice(
     }
 
     $zip = new ZipArchive();
+    $zipIsOpen = false;
     if ($index === 0) {
         if ($zip->open($zipPath, ZipArchive::CREATE | ZipArchive::OVERWRITE) !== true) {
             throw new RuntimeException('Could not create the archive.');
         }
+        $zipIsOpen = true;
     } else {
         if (!is_file($zipPath) || $zip->open($zipPath) !== true) {
             // Partial archive lost after a host kill — restart packing.
@@ -180,10 +182,12 @@ function bandpromo_transfer_zip_pack_entries_slice(
             if ($zip->open($zipPath, ZipArchive::CREATE | ZipArchive::OVERWRITE) !== true) {
                 throw new RuntimeException('Could not recreate the archive after a host interrupt.');
             }
+            $zipIsOpen = true;
             if (is_callable($onProgress)) {
                 $onProgress('Archive interrupted — restarting pack…', 0);
             }
         } else {
+            $zipIsOpen = true;
             // Resync if a kill dropped the last incomplete entry.
             $numFiles = (int) $zip->numFiles;
             if ($numFiles < $index) {
@@ -191,6 +195,16 @@ function bandpromo_transfer_zip_pack_entries_slice(
             }
         }
     }
+
+    $closeZip = static function () use ($zip, &$zipIsOpen): void {
+        if (!$zipIsOpen) {
+            return;
+        }
+        $zipIsOpen = false;
+        if ($zip->close() !== true) {
+            throw new RuntimeException('Could not write archive entries to disk.');
+        }
+    };
 
     try {
         $sinceFlush = 0;
@@ -202,13 +216,12 @@ function bandpromo_transfer_zip_pack_entries_slice(
         while ($index < $total) {
             if (microtime(true) >= $deadline && $index > 0) {
                 if ($sinceFlush > 0) {
-                    if ($zip->close() !== true) {
-                        throw new RuntimeException('Could not pause archive write.');
-                    }
+                    $closeZip();
                     $sinceFlush = 0;
                     $bytesSinceFlush = 0;
-                } else {
-                    @$zip->close();
+                } elseif ($zipIsOpen) {
+                    // Pause with no pending adds — still close so the next slice can reopen.
+                    $closeZip();
                 }
                 if (is_callable($onProgress) && is_file($zipPath)) {
                     $onProgress(
@@ -258,9 +271,7 @@ function bandpromo_transfer_zip_pack_entries_slice(
                 continue;
             }
 
-            if ($zip->close() !== true) {
-                throw new RuntimeException('Could not write archive entries to disk.');
-            }
+            $closeZip();
             $sinceFlush = 0;
             $bytesSinceFlush = 0;
             if (is_callable($onProgress) && is_file($zipPath)) {
@@ -276,18 +287,18 @@ function bandpromo_transfer_zip_pack_entries_slice(
             if ($zip->open($zipPath) !== true) {
                 throw new RuntimeException('Could not reopen archive for the next files.');
             }
+            $zipIsOpen = true;
         }
-        if ($sinceFlush > 0) {
-            if ($zip->close() !== true) {
-                throw new RuntimeException('Could not finalize archive write.');
-            }
+        if ($sinceFlush > 0 || $zipIsOpen) {
+            $closeZip();
             $sinceFlush = 0;
             $bytesSinceFlush = 0;
-        } else {
-            @$zip->close();
         }
     } catch (Throwable $e) {
-        @$zip->close();
+        if ($zipIsOpen) {
+            $zipIsOpen = false;
+            @$zip->close();
+        }
         throw $e;
     }
 

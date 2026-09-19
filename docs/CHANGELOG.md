@@ -2,6 +2,8 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-09-19 13:35 - PBF export FAILED with “Invalid or uninitialized Zip object”: packer double-closed ZipArchive after the final flush (PHP 8 Error). Close only while open. Soften download/import copy — one verified save, not “retry until”.
+
 2026-09-19 13:30 - PBF/PCF Jobs download: local HITZ brand export was a valid zip; truncated browser downloads (~55 KB short) caused import zip status 19. Stream archives with an explicit fread loop; modest Jobs downloads now fetch→verify SHA→save; Ready refuses unreadable zips; clearer import hint for truncated files.
 
 2026-09-18 23:58 - Site health Manual Apply: CSRF was sent empty because `refreshAdminCsrfToken` lived inside admin.js and was invisible to site-health-admin.js — expose it on `window` and resolve tokens via a shared helper.

@@ -130,8 +130,8 @@ function bandpromo_chunked_upload_zip_open_error(string $zipPath, string $label 
     $hint = $size < 100
         ? 'File is nearly empty — the upload likely did not finish.'
         : (
-            'The file looks zip-like but is not readable (often a truncated download). '
-            . 'Re-download from Jobs (wait for “integrity verified”), confirm the size matches, then retry the upload. '
+            'The file looks zip-like but is damaged or incomplete. '
+            . 'Use a fresh Jobs download (must finish with a success toast), then import that file. '
             . 'Status ' . $statusCode . '.'
         );
 

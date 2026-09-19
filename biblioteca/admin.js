@@ -14400,12 +14400,12 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                                         expectedBytes,
                                         expectedSha256,
                                     });
-                                    showJobsToast('Download saved and integrity verified (SHA-256).', 'success');
+                                    showJobsToast('Download complete — size and SHA-256 match Jobs.', 'success');
                                 } catch (error) {
                                     showJobsToast(
                                         (error && error.message)
                                             ? String(error.message)
-                                            : 'Download failed.',
+                                            : 'Download failed — nothing saved. Try again.',
                                         'error'
                                     );
                                 } finally {
