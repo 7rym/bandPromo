@@ -86,6 +86,7 @@ function bandpromo_summarize_reference_counts(array $references): array {
         'playlist_covers' => 0,
         'gallery_items' => 0,
         'theme_assets' => 0,
+        'brand_libraries' => 0,
         'release_fallbacks' => 0,
         'page_images' => 0,
         'release_posters' => 0,
@@ -102,6 +103,8 @@ function bandpromo_summarize_reference_counts(array $references): array {
             $summary['playlist_covers']++;
         } elseif ($kind === 'gallery-item') {
             $summary['gallery_items']++;
+        } elseif ($kind === 'brand-library') {
+            $summary['brand_libraries']++;
         } elseif (in_array($kind, [
             'theme-cover',
             'theme-background',
@@ -110,7 +113,6 @@ function bandpromo_summarize_reference_counts(array $references): array {
             'brand-logo',
             'welcome-audio',
             'loggedin-audio',
-            'brand-library',
         ], true)) {
             $summary['theme_assets']++;
         } elseif ($kind === 'release-fallback') {
@@ -128,6 +130,38 @@ function bandpromo_summarize_reference_counts(array $references): array {
     }
 
     return $summary;
+}
+
+/**
+ * Collapse duplicate media references (same slot found via master + original + id).
+ *
+ * @param list<array<string,mixed>> $references
+ * @return list<array<string,mixed>>
+ */
+function bandpromo_media_reference_dedupe(array $references): array
+{
+    $seen = [];
+    $out = [];
+    foreach ($references as $reference) {
+        if (!is_array($reference)) {
+            continue;
+        }
+        $key = implode('|', [
+            (string) ($reference['scope'] ?? ''),
+            (string) ($reference['kind'] ?? ''),
+            (string) ($reference['brand_id'] ?? ''),
+            (string) ($reference['gallery_id'] ?? ''),
+            (string) ($reference['container_id'] ?? ''),
+            (string) ($reference['label'] ?? ''),
+        ]);
+        if ($key === '|||||' || isset($seen[$key])) {
+            continue;
+        }
+        $seen[$key] = true;
+        $out[] = $reference;
+    }
+
+    return $out;
 }
 
 function bandpromo_cleanup_media_references(
@@ -276,6 +310,7 @@ function bandpromo_delete_media_item(
             bandpromo_media_reference_collect_brand_library_references($root, $assetId)
         );
     }
+    $references = bandpromo_media_reference_dedupe($references);
     $reference_summary = bandpromo_summarize_reference_counts($references);
 
     if ($mode === 'preview') {
@@ -292,11 +327,13 @@ function bandpromo_delete_media_item(
         $references,
         static fn(array $reference): bool => (string) ($reference['kind'] ?? '') === 'brand-library'
     ));
-    if ($brandLibraryReferences !== []) {
+    // Brand library membership is soft — Delete with detach clears it.
+    // Shell slots (logo / poster / backgrounds) still block; clear those in Branding first.
+    if ($brandLibraryReferences !== [] && !$detach_references) {
         return [
             'ok' => false,
             'filename' => $listingName,
-            'error' => 'Remove this asset from every Brand library before deleting the global media.',
+            'error' => 'This file is in one or more Brand libraries. Confirm Delete to remove those memberships, or use From brand first.',
             'references' => $references,
             'reference_summary' => $reference_summary,
         ];
@@ -319,10 +356,29 @@ function bandpromo_delete_media_item(
         'playlist_tracks_removed' => 0,
         'playlist_covers_cleared' => 0,
         'gallery_items_removed' => 0,
+        'brand_libraries_cleared' => 0,
         'embedded_covers_cleared' => 0,
         'warnings' => [],
     ];
     if ($detach_references && $mode !== 'preview') {
+        if ($brandLibraryReferences !== [] && $assetId !== '') {
+            require_once __DIR__ . '/brand-storage.php';
+            $libraryCleanup = bandpromo_brand_remove_asset_from_all_libraries($root, $assetId);
+            $reference_cleanup['brand_libraries_cleared'] = (int) ($libraryCleanup['removed'] ?? 0);
+            $blockedBrands = is_array($libraryCleanup['blocked'] ?? null)
+                ? $libraryCleanup['blocked']
+                : [];
+            if ($blockedBrands !== []) {
+                $names = implode(', ', $blockedBrands);
+                return [
+                    'ok' => false,
+                    'filename' => $listingName,
+                    'error' => 'Clear this file from Branding shell slots first (' . $names . '), then delete.',
+                    'references' => $references,
+                    'reference_summary' => $reference_summary,
+                ];
+            }
+        }
         if ($reference_summary['total'] > 0) {
             foreach ($referenceNames as $refName) {
                 $partial = bandpromo_cleanup_media_references($root, $target, $refName, $clear_embedded_covers);

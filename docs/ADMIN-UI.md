@@ -8,13 +8,13 @@ Main tabs (Dashboard, Analytics, Users, Files, Content, Settings, System, Docume
 
 ## Page headings under the nav bar (preferred)
 
-For admin surfaces that sit under the main tab / Content sub-nav (especially Content editors), prefer a **breadcrumb heading** over a plain `h2` card title:
+For admin surfaces that sit under the main tab / Content sub-nav (especially Content **pool → editor** flows), prefer a **breadcrumb heading** plus an **inline-editable entity title** — not a plain `h2` and not a separate “Title:” field buried in Base info for the entity name.
 
 | View | Crumb |
 |------|--------|
 | Pool / list | `{emoji} {Section} > Pool` |
 | Editor | `{emoji} {Section} > Editor` |
-| System Status | Default: `📊 Status` landing (Site health tool card only — **no Activity**). Open Site health → **Action** hub (Quick / Full / Force). While a job runs → Action checklist only (mode in the crumb: Quick check / Full check / Force rebuild) + Stop; no Good/Bad/Ugly, no Activity. When finished → **Diagnosis** (Good/Bad/Ugly + Review when findings exist; Activity visible). **Review** → `… > Diagnosis > Proposed treatment`. **Apply** → Action checklist, then `… > Treatment result`. Hub resume opens last Diagnosis. Post–Site update / stale auto-start opens the Quick check checklist directly. |
+| System Status | Default: `📊 Status` landing (Site health tool card only — **no Activity**). Open Site health → **Action** hub (Quick / Full / Force; no Activity). While a job runs → Action checklist + Stop (mode in the crumb) with **Activity** visible underneath; no Good/Bad/Ugly. When finished → **Diagnosis** (Good/Bad/Ugly + Review when findings exist; Activity). **Review** → `… > Diagnosis > Proposed treatment`. **Apply** → Action checklist + Activity, then `… > Treatment result`. Hub resume opens last Diagnosis. Post–Site update / stale auto-start opens the Quick check checklist directly. |
 
 ### Breadcrumb line layout
 
@@ -30,11 +30,28 @@ One row under the Content sub-nav (`.content-editor-card-head`, min-height match
 - Options: `current` (default `Pool`), `root_navigable` (default true), `root_href` (optional — render an `<a>` instead of the Pool button; use for page-level crumbs such as Status).
 - **Preference:** breadcrumb roots are always visually links (underlined). Do not render a plain muted span for the section root unless there is truly no destination.
 - Behaviour: `bandpromoContentEditorBreadcrumb.attach()` — `setView('pool'|'edit')` on lifecycle show hooks (Content editors). Status roots use `root_href` to System → Status.
-- Entity name stays in the left edit header under the breadcrumb row; preview headers are titles only (no Save strip).
 
-Shipped on Catalogue, Playlists, Galleries, Pages, Branding, and System → Status (Site health stepped crumb; Activity is a plain panel title).
+### Inline entity title (Content editors)
 
-Do not invent a second under-nav title pattern for new Content editors unless the surface is not a pool→editor flow. Do not leave ← Back / Save only in the split-editor headers when the breadcrumb row is present.
+While editing, the **entity name is an inline text field in the left edit header** under the breadcrumb row — not a static `h3` and not duplicated as a “Title:” row in the settings body.
+
+| Pattern | Detail |
+|---------|--------|
+| Control | `.content-editor-name-input` (Branding also uses `.brand-editor-name-input`) |
+| Placement | Left edit header, under `.content-editor-card-head` |
+| Behaviour | Edit in place; dirty state feeds the head Save\|Saved machine / leave Discard path |
+| Preview | Pool / Live preview headers stay **title-only** (readout, no Save strip, no second name field) |
+
+Shipped on Catalogue, Playlists, Galleries, Pages, and Branding. Prefer this whenever a Content (or Content-like) editor has a single primary display name.
+
+Do **not**:
+
+- Invent a second under-nav title pattern for new Content pool→editor flows
+- Leave ← Back / Save only in split-editor headers when the breadcrumb row is present
+- Put the canonical entity name only inside Base info / settings while the header shows a non-editable label
+- Use a plain muted span for the breadcrumb root when a destination exists
+
+Files modals (track / visual drilldowns) are not breadcrumb surfaces; still prefer an **editable title in the modal header** over a static heading plus a redundant Title field in the body when aligning those editors.
 
 ## Sticky toolbars
 
@@ -78,7 +95,7 @@ Defined on `:root` in `biblioteca/admin.css`:
 
 | Token | Role |
 |-------|------|
-| `--accent` / `--primary` | Affirmative coral (create / confirm safe forms) |
+| `--accent` / `--primary` | Affirmative coral (legacy safe-form confirm) — **prefer amber Save / green Saved / grey secondary**; see Colour caution below |
 | `--success` | Positive completion and the **recommended next step** |
 | `--warn` | Attention / dirty / important information |
 | `--error` | Hard destructive / validation failure / critical findings |
@@ -86,6 +103,43 @@ Defined on `:root` in `biblioteca/admin.css`:
 | `--intent-good-*` | Green constructive icon actions |
 | `--intent-warn-*` | Amber caution / preview icon actions |
 | `--intent-quiet-*` | Grey quiet dismiss/delete (not alarm red) |
+
+### Colour caution (coral vs red)
+
+`--accent` / `--primary` (`#FF6B6B`) sits next to `--error` (`#f44336`). Operators (including colourblind ones) easily read coral as “danger.” **Do not** use coral as a general “important button” colour beside Delete, and do not rely on hue alone to separate safe vs destructive.
+
+Prefer:
+
+| Intent | Control |
+|--------|---------|
+| Dirty / needs save | Amber **Save** (`.btn-amber`) |
+| Saved / idle | Green disabled **Saved** (`.btn-saved`) |
+| Recommended next step | One green (`.btn-good`) — Status ladder |
+| Secondary / Download / Close | Grey (`.btn`) |
+| Irreversible | Red (`.btn-danger`) only |
+
+Legacy coral `.btn-primary` remains for older safe confirms until those screens are migrated; new editor chrome should not introduce more coral primaries next to danger actions.
+
+### Compactness (spacing)
+
+Admin chrome is **dense**. Prefer less air over padded “dashboard cards.” When touching a surface, bring it onto this scale — do not invent a new inset for one page.
+
+| Token (target) | Size | Use |
+|----------------|------|-----|
+| none | `0` | **Prefer this** when a border, hairline, or sibling gap already separates content |
+| tight | `4px` | Chips, icon buttons, dense toolbar clusters, label↔control nudge |
+| default | `8px` | **Absolute max layout padding** for cards, section bodies, modal side panes, form stacks, list rows, head/actions gutters |
+
+Rules:
+
+1. **Layout padding ≤ 8px.** No `12` / `14` / `16` / `18` / `20` / `24` insets on new or retouched admin panels. If it feels cramped, tighten typography or use a hairline — do not add padding.
+2. **Prefer none** inside nested boxes that already have an outer border (avoid padding-on-padding).
+3. **Gaps** between siblings in a row or stack: `4px` or `8px` only (same cap). Section-to-section separation: hairline / `--border2` bar, not a large spacer.
+4. **Control internals** (`.btn`, text inputs, chips): horizontal padding may exceed 8px for hit targets; keep vertical padding ≤ 8px where practical. Do not use control padding as an excuse for loose card insets.
+5. **Page shell:** `.container` and tab panes stay tight (today’s ~4px is fine). Do not reintroduce large page gutters.
+6. **Migration:** existing `admin.css` still has many 12–24px insets — treat them as debt. Opportunistic when editing a surface; no big-bang restyle unless asked.
+
+Optional future tokens on `:root` (when first refactoring a shared surface): `--space-0: 0`, `--space-1: 4px`, `--space-2: 8px`. Until then, use the literal values above.
 
 ### Operator colour roles (toolbar / Status)
 
@@ -95,7 +149,7 @@ Defined on `:root` in `biblioteca/admin.css`:
 | **Amber** | Needs attention (findings, dirty save, caution) | Catch the eye; not the click path |
 | **Red** | Errors and irreversible confirms | Critical findings, delete confirms |
 | **Grey** (`.btn`) | Optional alternate paths | Full check, Force, Not now, Copy log |
-| **Coral** (`.btn-primary`) | Affirmative form submit outside the doctor/Status ladder | Create user, confirm safe settings |
+| **Coral** (`.btn-primary`) | Legacy affirmative outside Status | Prefer amber Save / grey secondary; see Colour caution |
 
 ## Text buttons
 
@@ -105,7 +159,7 @@ Prefer **one class ladder**. Unstyled `button` elements without a `class` keep t
 |-------|---------|-------------|
 | `.btn` | Neutral secondary | Cancel, alternate / optional actions |
 | `.btn.btn-secondary` | Alias of `.btn` | Legacy markup |
-| `.btn.btn-primary` | Affirmative coral | Create, confirm safe form actions |
+| `.btn.btn-primary` | Affirmative coral (legacy) | Prefer amber Save / grey secondary on new chrome; see Colour caution |
 | `.btn.btn-good` | Recommended next step | Exactly one on Site health (and similar toolbars) |
 | `.btn.btn-amber` | Dirty / needs attention | Save controls while unsaved (`content-save-ui.js`) |
 | `.btn.btn-saved` | Saved / idle success | Save controls after successful save |
@@ -121,8 +175,8 @@ On **System → Status**:
 
 0. **Status** landing → enter **Site health** (only Status tool for now). No Activity on this page.  
 1. **Action** hub (`Status > Site health`) → each guide panel is headed by its action button (Quick / Full / Force); **Quick health check** is the single green recommended step; Full and Force stay grey. No Good/Bad/Ugly and no Activity here.  
-2. **Action running** (`… > Quick check` / `Full check` / `Force rebuild`) → phase checklist only (driven by Activity `HEALTH_PHASE` tokens) + Stop. Hide hub guides, summary, findings, and Activity.  
-3. **Diagnosis** (`… > Diagnosis`) → always open after a finished Quick / Full / Force (even when healthy). Good/Bad/Ugly + meta; **Review treatment** is the green next step when findings exist. Activity visible (plain **Activity** heading). Hub **Open last Diagnosis** resumes here.  
+2. **Action running** (`… > Quick check` / `Full check` / `Force rebuild`) → phase checklist (driven by Activity `HEALTH_PHASE` tokens) + Stop, with **Activity** visible underneath for the live detail. Hide hub guides, summary, and findings. Force checklist splits delivery into **Rebuild streams** then **Rebuild artwork**, then video / links / icons / follow-up.  
+3. **Diagnosis** (`… > Diagnosis`) → always open after a finished Quick / Full / Force (even when healthy). Good/Bad/Ugly + meta; **Review treatment** is the green next step when findings exist. Activity stays visible (plain **Activity** heading). Hub **Open last Diagnosis** resumes here.  
 4. **Proposed treatment** (`… > Diagnosis > Proposed treatment`) → auto-fixable findings are **Yes** by default (Apply only those selected); **Apply treatment** (green) + **Not now** + **Back up first…** sit under the panel. Amber assurance carries the how-to line; the grey note under it is backup-only (no duplicate guidance). Multi-campaign orphan homes and data-container orphans stay Manual: each row shows a choice strip (campaign chips, or a dropdown when there are more than five). The selected chip keeps a clear green border; peers stay muted. Container rows end with **or Delete** in the same strip (no separate Adopt/Set row buttons). Once every row has a choice, the finding’s **Include** Yes|Skip enables (same greenlit pattern as autofix); Apply runs the chosen adopts / deletes / catalogue-home stamps, then any Yes autofix treatments. Manual findings omit the “Suggested treatment” footer (Found this + choices are enough). Row cards use hairline separators only — not amber-nested. Ephemeral `data/` leftovers and unambiguous container registry fixes stay Yes for Apply.  
 5. **Apply** returns to Action running (treat checklist), then **Treatment result**; Continue lands on Diagnosis (or remaining findings Review).  
 6. Checks older than **1 hour** are out of date: do not show Healthy or Good/Bad/Ugly from that plan — badge is **Out of date**, Diagnosis shows a short notice, and Status **auto-starts Quick health check** (Action checklist). Review/Apply stay refused until the fresh check finishes.  
@@ -140,6 +194,62 @@ On **System → Status**:
 4. `.btn-saved` (disabled) after success  
 
 Do **not** invent a second amber/green save pattern.
+
+## Same-factory editor chrome
+
+Editors that can change install data should look like they came off one line — Content pool→editor, Files track/visual drilldowns, and similar modals. Prefer shared classes and the placements below over one-off footers or mid-form Save buttons.
+
+**Content pool→editor reference:** breadcrumb head + **inline entity title** (`.content-editor-name-input`) + Save\|Saved / ← Back on the right. New Content editors follow that factory; do not invent a static title + separate name field pattern.
+
+### Working chrome (top right)
+
+While the operator is editing, **status and save state live on the right edge of the working head** — the place they are already looking:
+
+| Slot | Placement | Contents |
+|------|-----------|----------|
+| Head **actions** (right) | Breadcrumb `.content-editor-card-head-actions`, or the equivalent modal/header actions row | ← Back (page editors) · **Save \| Saved** via `content-save-ui.js` · ★ Set as default/base when present · Status health badge on System → Status |
+| Head **status** (near actions) | Same row or immediately beside it | Short working line when useful (“Close to save”, “Unsaved changes”, “Saving…”) — not a second Save button in the form body |
+
+Do **not** bury the only Save control halfway down a form while Download / Delete / Close live in a disconnected footer. Form fields stay in the body; chrome owns leave/save.
+
+### Footer / modal action row
+
+Footer `.modal-actions` (and track-editor `.audio-master-modal-actions`) hold **leave and secondary** actions, left-to-right preference:
+
+1. **Abort** (or soft destructive discard) — discard without writing (`.btn-danger-outline` or quiet grey when not alarming)
+2. Neutral secondaries — **Download**, optional tools (`.btn`)
+3. Affirmative leave — **Done** / **Close** when that path saves (see Close vs Abort)
+4. Hard **Delete** when the surface owns irreversible remove (`.btn-danger`) — keep visually distinct from Abort/Done
+
+Page editors use ← Back on the head instead of Done; destructive pool deletes stay on list toolbars / confirm modals, not mixed into Save chrome.
+
+## Close vs Abort (every mutating editor)
+
+Any surface that can modify registry, masters, containers, brands, or config must make **leave-with-save** and **leave-without-save** obvious. Prefer **save on close** so routine Done / ✕ / backdrop / ← Back does not strand dirty work — but never without an explicit discard path.
+
+| Control | Meaning | Must write? |
+|---------|---------|-------------|
+| **Done** / **Close** / ✕ / backdrop / ← Back (clean or after save-on-close) | Leave the editor; **persist** dirty edits (save-on-close or flush queued autosave) | Yes, when dirty |
+| **Abort** | Leave **without** writing. Local edits discarded. Synonym on page leave prompts: **Discard** (`#contentUnsavedModal`) | No |
+| **Cancel** (on the unsaved leave modal only) | Stay in the editor — neither save nor leave | No |
+| Explicit **Save** / **Saved** (head) | Manual flush while staying; still use the amber→Saved machine | Yes |
+
+Rules:
+
+1. **If it can modify, it must offer Abort (or Discard on leave).** A lone **Close** that always saves (or never saves) without a discard path is not allowed.
+2. **Save-on-close is preferred** for modal editors (reference: Files → Audio track editor — Done / ✕ / backdrop save; **Abort** discards). Status may say “Close to save” / “Unsaved changes.”
+3. **Page editors** (Catalogue, Playlists, Galleries, Pages, Branding): ← Back / root crumb use `#contentUnsavedModal` — **Save** / **Discard** / **Cancel**. Field-level blur autosave is optional for settings; membership drops may autosave immediately — still expose Discard when a dirty batch exists.
+4. **Vocabulary:** use **Abort** on modal footers; use **Discard** on the shared unsaved-leave modal. Same intent (no write). Do not label a save-on-close control “Abort.”
+5. Validation or save errors keep the editor open; do not silently discard on failed close-save.
+6. Read-only or non-mutating dialogs (help, pickers with no pending write) may use plain **Close** / **Got it** without Abort.
+
+### Compliance snapshot
+
+| Surface | Save-on-close / head Save | Abort / Discard | Notes |
+|---------|---------------------------|-----------------|-------|
+| Files → Audio track editor | Done / ✕ / backdrop | **Abort** | Reference modal |
+| Content editors | Head Save\|Saved + leave modal | **Discard** on leave | `#contentUnsavedModal` |
+| Files → Visual / SFX drilldown | Mid-form Save today | Missing Abort; Close does not save-on-close | **Target:** align with track editor (head Save\|Saved or save-on-close + Abort; footer Download grey · Delete danger · Done/Close) |
 
 ## Confirmation modals (`bandpromoConfirm`)
 
@@ -200,10 +310,10 @@ Shares Content/Visual chrome without the pool → preview layout:
 | Lyrics / Notes | Compact pill `.audio-master-text-role-toggle` / `.audio-master-text-role-btn` |
 | Autosave status | Header `.playlist-settings-status--head` + `.visual-asset-display-status.is-success/.is-error` (“Close to save” / “Unsaved changes”) |
 | Listen preview | Compact `<audio>` under Master audio asset (`.audio-master-listen-bar`); Files rows use ▶ → `#adminAudioListenDock` via `audio.php` (`.media-action-good`) |
-| Save / Abort | Footer `.audio-master-modal-actions`: **Done** / ✕ / backdrop save on close; **Abort** discards |
+| Save / Abort | Footer `.audio-master-modal-actions`: **Done** / ✕ / backdrop = save on close; **Abort** = discard (see Close vs Abort). Reference implementation for mutating Files modals. |
 | Audio list columns | Compact `.audio-pool-toolbar` + shared grid; All/None `.audio-select-chip` in header; `[data-audio-sort]` for client sort |
 
-Edits stay local until close. Validation or save errors keep the modal open.
+Edits stay local until close (or Abort). Validation or save errors keep the modal open.
 
 ## Visual / Sound effects lists (Files → Visual, Sound effects)
 
@@ -211,7 +321,7 @@ Same operator patterns as Audio, plus Grid/List on Visual:
 
 | Pattern | Behavior |
 |---------|----------|
-| Toolbar | Shared `.audio-pool-toolbar` density; Visual: type chips + **campaign** filter + **brand library** filter (**All brands** / **Not in a brand** / each brand) + title search + Grid/List + S/M/L thumbs. Sound effects: brand filter + title search. **Use in brand** adds selected Visual/SFX to a brand library; **From brand** appears when a concrete brand filter is set. Visual **Use in gallery** appends selected delivery-ready visuals to a gallery. Visual **Assign** / **Remove** still set or clear catalogue home. Audio **Use in playlist** appends selected masters to a playlist. Filter/action toolbar + column headers use classic sticky (pin only when scroll would hide them under the Files sub-tab bar). |
+| Toolbar | Shared `.audio-pool-toolbar` density; Visual: type chips + **campaign** filter + **brand library** filter (**All brands** / **Not in a brand** / each brand) + title search + Grid/List + S/M/L thumbs. Sound effects: brand filter + title search. **Use in brand** / **From brand** open a brand picker to add or remove selected Visual/SFX from a brand library (no brand filter required). **Delete** clears Brand library memberships on confirm (same as playlist/gallery detach); shell slots still need Content → Branding first. Visual **Use in gallery** appends selected delivery-ready visuals to a gallery. Visual **Assign** / **Remove** still set or clear catalogue home. Audio **Use in playlist** appends selected masters to a playlist. Filter/action toolbar + column headers use classic sticky (pin only when scroll would hide them under the Files sub-tab bar). |
 | Selection | All/None `.audio-select-chip` in `.visual-pool-col-headers`; checkbox click updates selection |
 | List mode | Title / Catalogue\|Brand / Dimensions / Size. Visual **Catalogue** is campaign home. Brand-library members with no home list that Brand, not Orphan. In use / Unused is live assignment (cover, gallery, page, poster, or brand shell slot). |
 | Grid mode | Thumbnails + caption under each card; column labels stay as sort chips with All/None; **S / M / L** scales grid tile density (same control as List) |

@@ -90,7 +90,7 @@ function bandpromo_run_publish_preflight(string $root, ?callable $logger = null)
             bandpromo_publish_preflight_log_line('[preflight] Warning: ' . $error, $logger);
         }
     } else {
-        bandpromo_publish_preflight_log_line('[preflight] Site settings check passed.', $logger);
+        bandpromo_publish_preflight_log_line('[preflight] Install config check passed.', $logger);
         bandpromo_publish_preflight_log_line(
             '[preflight] Catalogue preparation runs automatically in the background when uploads need registry or master fixes.',
             $logger

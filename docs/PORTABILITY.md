@@ -224,7 +224,7 @@ Archives are written to `backups/` on the server (HTTP-blocked, gitignored, excl
 
 | Component | Meaning (operator) | ZIP contents |
 |-----------|--------------------|--------------|
-| **Site settings** | Install config | `web-config.json`, optional `.env` |
+| **Install config** | Install config | `web-config.json`, optional `.env` |
 | **Catalogue & config** | Campaigns, brands, users, activity | `data/` |
 | **Media library** | Originals, masters, delivery | `media/` |
 | **Support logs** | Build and admin logs | `log/` |

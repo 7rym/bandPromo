@@ -19,6 +19,12 @@ def run_followup(previous_mode='treat'):
     # Import here to avoid circular import at module load in some runners
     import investigate
     plan = investigate.run_investigate(plan)
+    # Force/Treat may have failed a rebuild while an older stream still looks Ready.
+    try:
+        import delivery_failures
+        delivery_failures.apply_to_plan(plan)
+    except Exception:
+        pass
     plan_mod.overall_from_findings(plan)
     import summary as summary_mod
     summary_mod.build_summary(plan)

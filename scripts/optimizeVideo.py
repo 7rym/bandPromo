@@ -111,6 +111,11 @@ def check_ffmpeg():
 
 
 def remux_mp4_keep_audio(source_path: Path, target_path: Path) -> bool:
+    ok, _detail = remux_mp4_keep_audio_with_detail(source_path, target_path)
+    return ok
+
+
+def remux_mp4_keep_audio_with_detail(source_path: Path, target_path: Path):
     """Stream-copy into MP4 (e.g. MKV master → delivery). Falls back to re-encode."""
     ffmpeg = get_ffmpeg_path()
     target_path.parent.mkdir(parents=True, exist_ok=True)
@@ -133,13 +138,26 @@ def remux_mp4_keep_audio(source_path: Path, target_path: Path) -> bool:
         result = _run_ffmpeg_capture(command)
     except Exception as exc:
         print(f"  ❌ Could not start ffmpeg for MP4 remux: {exc}", file=sys.stderr)
-        return False
+        return False, 'Could not start ffmpeg for remux: {0}'.format(exc)
 
     if result.returncode != 0:
+        remux_detail = _ffmpeg_error_detail(result)
         print("  ❌ ffmpeg MP4 remux failed — falling back to re-encode", file=sys.stderr)
-        return transcode_to_mp4(source_path, target_path, keep_audio=True)
+        if remux_detail:
+            print('  ffmpeg remux: {0}'.format(remux_detail), file=sys.stderr)
+        ok, reencode_detail = transcode_to_mp4_with_detail(
+            source_path, target_path, keep_audio=True
+        )
+        if ok:
+            return True, ''
+        bits = []
+        if remux_detail:
+            bits.append('remux: {0}'.format(remux_detail))
+        if reencode_detail:
+            bits.append('re-encode: {0}'.format(reencode_detail))
+        return False, ' | '.join(bits) if bits else 'ffmpeg remux and re-encode both failed.'
 
-    return True
+    return True, ''
 
 
 def delivery_mode_for(source_path: Path, keep_audio: bool = True) -> str:
@@ -269,7 +287,52 @@ def _run_ffmpeg_capture(command):
     )
 
 
+def _ffmpeg_error_detail(result, limit=8):
+    """
+    Compact operator-facing snippet from ffmpeg stdout/stderr.
+    Prefers lines that look like errors; otherwise the last few useful lines.
+    """
+    raw = getattr(result, 'stdout', None) or getattr(result, 'stderr', None) or ''
+    lines = []
+    for ln in str(raw).splitlines():
+        text = ln.strip()
+        if not text:
+            continue
+        lower = text.lower()
+        if lower.startswith('frame=') or lower.startswith('press ['):
+            continue
+        if lower.startswith('ffmpeg version') or lower.startswith('built with'):
+            continue
+        if lower.startswith('configuration:') or lower.startswith('lib'):
+            continue
+        lines.append(text)
+    if not lines:
+        code = getattr(result, 'returncode', None)
+        if code not in (None, 0):
+            return 'ffmpeg exited with code {0}'.format(code)
+        return ''
+    tokens = (
+        'error', 'invalid', 'fail', 'does not', 'unsupported', 'could not',
+        'no such', 'not found', 'permission', 'conversion failed', 'unknown',
+        'impossible', 'nothing was written', 'matches no streams',
+    )
+    interesting = [
+        ln for ln in lines
+        if any(tok in ln.lower() for tok in tokens)
+    ]
+    pick = interesting[-limit:] if interesting else lines[-limit:]
+    detail = ' | '.join(pick)
+    if len(detail) > 480:
+        detail = detail[:477] + '...'
+    return detail
+
+
 def remux_mp4_silent(source_path: Path, target_path: Path) -> bool:
+    ok, _detail = remux_mp4_silent_with_detail(source_path, target_path)
+    return ok
+
+
+def remux_mp4_silent_with_detail(source_path: Path, target_path: Path):
     """Fast path: copy video stream, drop all audio (brand shell / living covers)."""
     ffmpeg = get_ffmpeg_path()
     target_path.parent.mkdir(parents=True, exist_ok=True)
@@ -291,16 +354,34 @@ def remux_mp4_silent(source_path: Path, target_path: Path) -> bool:
         result = _run_ffmpeg_capture(command)
     except Exception as exc:
         print(f"  ❌ Could not start ffmpeg for silent remux: {exc}", file=sys.stderr)
-        return False
+        return False, 'Could not start ffmpeg for silent remux: {0}'.format(exc)
 
     if result.returncode != 0:
+        remux_detail = _ffmpeg_error_detail(result)
         print("  ❌ ffmpeg silent remux failed — falling back to re-encode", file=sys.stderr)
-        return transcode_to_mp4(source_path, target_path, keep_audio=False)
+        if remux_detail:
+            print('  ffmpeg remux: {0}'.format(remux_detail), file=sys.stderr)
+        ok, reencode_detail = transcode_to_mp4_with_detail(
+            source_path, target_path, keep_audio=False
+        )
+        if ok:
+            return True, ''
+        bits = []
+        if remux_detail:
+            bits.append('remux: {0}'.format(remux_detail))
+        if reencode_detail:
+            bits.append('re-encode: {0}'.format(reencode_detail))
+        return False, ' | '.join(bits) if bits else 'ffmpeg silent remux and re-encode both failed.'
 
-    return True
+    return True, ''
 
 
 def transcode_to_mp4(source_path: Path, target_path: Path, keep_audio: bool = True) -> bool:
+    ok, _detail = transcode_to_mp4_with_detail(source_path, target_path, keep_audio=keep_audio)
+    return ok
+
+
+def transcode_to_mp4_with_detail(source_path: Path, target_path: Path, keep_audio: bool = True):
     ffmpeg = get_ffmpeg_path()
     target_path.parent.mkdir(parents=True, exist_ok=True)
     command = [
@@ -332,21 +413,21 @@ def transcode_to_mp4(source_path: Path, target_path: Path, keep_audio: bool = Tr
         result = _run_ffmpeg_capture(command)
     except Exception as exc:
         print(f"  ❌ Could not start ffmpeg for video transcode: {exc}", file=sys.stderr)
-        return False
+        return False, 'Could not start ffmpeg for re-encode: {0}'.format(exc)
 
     if result.returncode != 0:
+        detail = _ffmpeg_error_detail(result)
         print("  ❌ ffmpeg video transcode failed", file=sys.stderr)
-        tail = '\n'.join((result.stdout or '').splitlines()[-12:])
-        if tail:
-            print(tail, file=sys.stderr)
+        if detail:
+            print('  ffmpeg: {0}'.format(detail), file=sys.stderr)
         if target_path.exists():
             try:
                 target_path.unlink()
             except OSError:
                 pass
-        return False
+        return False, detail or 'ffmpeg re-encode failed.'
 
-    return True
+    return True, ''
 
 
 def write_delivery_mp4(source_path: Path, target_path: Path, keep_audio: bool) -> bool:
@@ -357,7 +438,7 @@ def write_delivery_mp4(source_path: Path, target_path: Path, keep_audio: bool) -
 def write_delivery_mp4_with_reason(source_path: Path, target_path: Path, keep_audio: bool):
     """
     Build standard-stream.mp4 for one master.
-    Returns (ok, operator_reason) — reason is empty on success.
+    Returns (ok, operator_reason) — reason is empty on success; includes ffmpeg detail on failure.
     """
     mode = delivery_mode_for(source_path, keep_audio=keep_audio)
     if mode == 'copy':
@@ -365,15 +446,24 @@ def write_delivery_mp4_with_reason(source_path: Path, target_path: Path, keep_au
             return True, ''
         return False, 'Could not copy the MP4 master into the player folder.'
     if mode == 'remux-silent':
-        if remux_mp4_silent(source_path, target_path):
+        ok, detail = remux_mp4_silent_with_detail(source_path, target_path)
+        if ok:
             return True, ''
+        if detail:
+            return False, 'ffmpeg could not prepare a silent player stream — {0}'.format(detail)
         return False, 'ffmpeg could not prepare a silent player stream (remux and re-encode both failed).'
     if mode == 'remux-mp4':
-        if remux_mp4_keep_audio(source_path, target_path):
+        ok, detail = remux_mp4_keep_audio_with_detail(source_path, target_path)
+        if ok:
             return True, ''
+        if detail:
+            return False, 'ffmpeg could not remux or re-encode this video — {0}'.format(detail)
         return False, 'ffmpeg could not remux or re-encode this video for the player.'
-    if transcode_to_mp4(source_path, target_path, keep_audio=keep_audio):
+    ok, detail = transcode_to_mp4_with_detail(source_path, target_path, keep_audio=keep_audio)
+    if ok:
         return True, ''
+    if detail:
+        return False, 'ffmpeg could not re-encode this video — {0}'.format(detail)
     return False, 'ffmpeg could not re-encode this video for the player.'
 
 

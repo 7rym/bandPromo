@@ -139,6 +139,9 @@ def run_video_delivery(force=False):
             )
             failed_rows.append('{0} — {1}'.format(row_label, reason))
             log.info('FAILED video: {0} — {1}'.format(row_label, reason))
+            # Keep the ffmpeg detail on its own Activity line so it is easy to spot.
+            if reason and ('ffmpeg' in reason.lower() or 'remux:' in reason.lower() or 're-encode:' in reason.lower()):
+                log.info('  ffmpeg detail: {0}'.format(reason))
             log.info('  Next step: {0}'.format(follow))
         elif result.get('built'):
             built += 1
@@ -188,4 +191,15 @@ def run_video_delivery(force=False):
             'Follow-up: fix or re-upload each video listed above under Files → Visual, '
             'then run Site health Check → Review → Apply (or Force full rebuild again).'
         )
+        try:
+            import delivery_failures
+            delivery_failures.record_video_failures(failed_rows)
+        except Exception:
+            pass
+    else:
+        try:
+            import delivery_failures
+            delivery_failures.clear_video_failures()
+        except Exception:
+            pass
     return failed == 0

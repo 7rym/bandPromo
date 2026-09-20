@@ -174,9 +174,9 @@ function bandpromo_cover_art_collect_config_references(string $root): array
     }
 
     $paths = [
-        ['path' => 'release.theme.cover', 'legacy' => ['media.cover'], 'kind' => 'theme-cover', 'label' => 'Primary cover (theme)'],
-        ['path' => 'release.theme.background_image', 'legacy' => ['media.background_image'], 'kind' => 'theme-background', 'label' => 'Background image (theme)'],
-        ['path' => 'release.social.share_image', 'legacy' => ['social.share_image'], 'kind' => 'share-image', 'label' => 'Share image (social)'],
+        ['path' => 'release.theme.cover', 'legacy' => ['media.cover'], 'kind' => 'theme-cover', 'label' => 'Poster / cover (Base brand sync)'],
+        ['path' => 'release.theme.background_image', 'legacy' => ['media.background_image'], 'kind' => 'theme-background', 'label' => 'Still background (Base brand sync)'],
+        ['path' => 'release.social.share_image', 'legacy' => ['social.share_image'], 'kind' => 'share-image', 'label' => 'Share image (Base brand sync)'],
     ];
 
     foreach ($paths as $entry) {

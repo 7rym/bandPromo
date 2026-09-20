@@ -1318,7 +1318,7 @@ if ($tab === 'analytics') {
                         <button type="button" class="icon-btn media-action-btn media-group-action-btn media-labeled-action-btn" id="visualRemoveCampaignBtn" data-visual-remove-campaign disabled aria-label="Remove selected visuals from campaign" title="Select files with a catalogue home to remove"><span class="media-labeled-action-icon" aria-hidden="true">⏏</span><span>Remove</span></button>
                         <button type="button" class="icon-btn media-action-btn media-action-good media-group-action-btn media-labeled-action-btn" id="visualUseInBrandBtn" data-use-in-brand-target="visual" disabled aria-label="Use selected visuals in a brand" title="Select one or more files to add to a brand"><span class="media-labeled-action-icon" aria-hidden="true">✨</span><span>Use in brand</span></button>
                         <button type="button" class="icon-btn media-action-btn media-action-good media-group-action-btn media-labeled-action-btn" id="visualUseInGalleryBtn" data-use-in-gallery-target="visual" disabled aria-label="Use selected visuals in a gallery" title="Select one or more files to add to a gallery"><span class="media-labeled-action-icon" aria-hidden="true">🖼</span><span>Use in gallery</span></button>
-                        <button type="button" class="icon-btn media-action-btn media-group-action-btn media-labeled-action-btn" id="visualRemoveFromBrandBtn" data-remove-from-brand-target="visual" disabled hidden aria-label="Remove selected visuals from the filtered brand" title="Select a brand filter, then files to remove from that library"><span class="media-labeled-action-icon" aria-hidden="true">−</span><span>From brand</span></button>
+                        <button type="button" class="icon-btn media-action-btn media-group-action-btn media-labeled-action-btn" id="visualRemoveFromBrandBtn" data-remove-from-brand-target="visual" disabled aria-label="Remove selected visuals from a brand library" title="Select files to remove from a brand library"><span class="media-labeled-action-icon" aria-hidden="true">−</span><span>From brand</span></button>
                         <button type="button" class="icon-btn media-action-btn media-action-good media-group-action-btn media-labeled-action-btn media-bulk-download-btn" data-bulk-download-target="visual" data-download-variant="original" disabled aria-label="Download selected files" title="Download selected files"><span class="media-labeled-action-icon" aria-hidden="true">⬇</span><span>Download</span></button>
                         <button type="button" class="icon-btn media-action-btn media-action-danger media-group-action-btn media-labeled-action-btn media-bulk-delete-btn" data-bulk-delete-target="visual" disabled aria-label="Delete selected files" title="Delete selected files"><span class="media-labeled-action-icon" aria-hidden="true">🗑️</span><span>Delete</span></button>
                     </div>
@@ -1366,7 +1366,7 @@ if ($tab === 'analytics') {
                     <div class="audio-pool-toolbar-actions visual-pool-toolbar-actions media-file-actions">
                         <button type="button" class="icon-btn media-action-btn media-action-good media-group-action-btn media-labeled-action-btn" onclick="openUploadModal('sfx')" aria-label="Upload sound effects" title="Upload sound effects"><span class="media-labeled-action-icon" aria-hidden="true">＋</span><span>Upload</span></button>
                         <button type="button" class="icon-btn media-action-btn media-action-good media-group-action-btn media-labeled-action-btn" id="sfxUseInBrandBtn" data-use-in-brand-target="sfx" disabled aria-label="Use selected sound effects in a brand" title="Select one or more files to add to a brand"><span class="media-labeled-action-icon" aria-hidden="true">✨</span><span>Use in brand</span></button>
-                        <button type="button" class="icon-btn media-action-btn media-group-action-btn media-labeled-action-btn" id="sfxRemoveFromBrandBtn" data-remove-from-brand-target="sfx" disabled hidden aria-label="Remove selected sound effects from the filtered brand" title="Select a brand filter, then files to remove from that library"><span class="media-labeled-action-icon" aria-hidden="true">−</span><span>From brand</span></button>
+                        <button type="button" class="icon-btn media-action-btn media-group-action-btn media-labeled-action-btn" id="sfxRemoveFromBrandBtn" data-remove-from-brand-target="sfx" disabled aria-label="Remove selected sound effects from a brand library" title="Select files to remove from a brand library"><span class="media-labeled-action-icon" aria-hidden="true">−</span><span>From brand</span></button>
                         <button type="button" class="icon-btn media-action-btn media-action-good media-group-action-btn media-labeled-action-btn media-bulk-download-btn" data-bulk-download-target="sfx" data-download-variant="original" disabled aria-label="Download selected sound effects" title="Download selected sound effects"><span class="media-labeled-action-icon" aria-hidden="true">⬇</span><span>Download</span></button>
                         <button type="button" class="icon-btn media-action-btn media-action-danger media-group-action-btn media-labeled-action-btn media-bulk-delete-btn" data-bulk-delete-target="sfx" disabled aria-label="Delete selected sound effects" title="Delete selected sound effects"><span class="media-labeled-action-icon" aria-hidden="true">🗑️</span><span>Delete</span></button>
                     </div>
@@ -1462,6 +1462,24 @@ if ($tab === 'analytics') {
                     <div class="modal-actions">
                         <button type="button" id="useInBrandConfirmBtn" class="btn btn-primary">Add to brand</button>
                         <button type="button" class="btn" onclick="closeUseInBrandModal()">Cancel</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Remove selected Visual / SFX from a brand library -->
+            <div id="fromBrandModal" class="modal-overlay" style="display:none" onclick="if(event.target===this)closeFromBrandModal()" aria-hidden="true">
+                <div class="modal-box" role="dialog" aria-modal="true" aria-labelledby="fromBrandTitle">
+                    <button type="button" class="modal-close" onclick="closeFromBrandModal()" aria-label="Close">✕</button>
+                    <h3 id="fromBrandTitle">From brand</h3>
+                    <p id="fromBrandSummary" class="card-note"></p>
+                    <div class="media-upload-campaign-field visual-assign-campaign-field">
+                        <label for="fromBrandSelect">Brand:</label>
+                        <select id="fromBrandSelect" aria-label="Brand library to remove from"></select>
+                    </div>
+                    <p class="card-note text-muted">Removes the selected files from that brand’s library only. Global Files rows stay until you Delete. Shell slots (logo / poster / backgrounds) must be cleared under Content → Branding first.</p>
+                    <div class="modal-actions">
+                        <button type="button" id="fromBrandConfirmBtn" class="btn btn-primary">Remove from brand</button>
+                        <button type="button" class="btn" onclick="closeFromBrandModal()">Cancel</button>
                     </div>
                 </div>
             </div>
@@ -3283,15 +3301,15 @@ if ($tab === 'analytics') {
                         <input type="checkbox" id="siteBackupComponentFull" checked>
                         <span class="site-backup-component-label">
                             <strong>Full</strong>
-                            <span class="site-backup-component-hint">site settings, catalogue &amp; config, media library, support logs</span>
+                            <span class="site-backup-component-hint">install config, catalogue &amp; config, media library, support logs</span>
                         </span>
                     </label>
                     <div class="site-backup-component-subgrid">
                         <label class="site-backup-component-row">
                             <input type="checkbox" id="siteBackupComponentPlatform" class="site-backup-component-input" data-component="platform" checked>
                             <span class="site-backup-component-label">
-                                <strong>Site settings</strong>
-                                <span class="site-backup-component-hint">install config<?php if (!empty($siteBackupStatus['has_env'])): ?>, secrets file<?php endif; ?></span>
+                                <strong>Install config</strong>
+                                <span class="site-backup-component-hint">web-config<?php if (!empty($siteBackupStatus['has_env'])): ?>, secrets file<?php endif; ?></span>
                             </span>
                         </label>
                         <label class="site-backup-component-row">
@@ -3360,8 +3378,8 @@ if ($tab === 'analytics') {
                             <label class="site-backup-component-row">
                                 <input type="checkbox" id="siteBackupImportComponentPlatform" class="site-backup-import-component-input" data-component="platform">
                                 <span class="site-backup-component-label">
-                                    <strong>Site settings</strong>
-                                    <span class="site-backup-component-hint">install config</span>
+                                    <strong>Install config</strong>
+                                    <span class="site-backup-component-hint">web-config</span>
                                 </span>
                             </label>
                             <label class="site-backup-component-row">

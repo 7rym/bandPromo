@@ -111,6 +111,12 @@ def run_check(deep=False):
         touch_heartbeat(ROOT_DIR, stage='idle', message='Check stopped', name=META_NAME)
         return 0
     plan = investigate.run_investigate(plan, deep=deep)
+    # Sticky rebuild failures (older stream may still look Ready on disk).
+    try:
+        import delivery_failures
+        delivery_failures.apply_to_plan(plan)
+    except Exception:
+        pass
     plan_mod.overall_from_findings(plan)
     import summary as summary_mod
     summary_mod.build_summary(plan)

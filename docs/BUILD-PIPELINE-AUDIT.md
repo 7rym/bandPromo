@@ -143,7 +143,7 @@ There is **no** stage picker. `build-required` tasks (`playlist-scan`, `audio-de
 | Step | Code | Problem |
 |------|------|---------|
 | Lock + log | `build.php` | OK |
-| Preflight | `publish-preflight-helpers.php` → config repair only | Site settings structure check; catalogue repair is explicit **Repair catalogue** |
+| Preflight | `publish-preflight-helpers.php` → config repair only | Install config structure check; catalogue repair is explicit **Repair catalogue** |
 | Theme pack | `bandpromo_ensure_default_theme_package` | OK for empty installs; should be Stage 0/1 |
 | Launch | `build-runner.php` → `build.py` | OK |
 

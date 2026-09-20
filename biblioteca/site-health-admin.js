@@ -68,7 +68,7 @@
         audio_register_in_place: 'Add songs already on the server into Files (no re-upload).',
         visual_register_in_place: 'Add pictures or videos already on the server into Files (no re-upload).',
         sfx_register_in_place: 'Add sound effects already on the server into Files (no re-upload).',
-        listener_delivery: 'Build missing or outdated streaming audio and artwork for the player.',
+        listener_delivery: 'Build missing or outdated streaming audio and artwork for the player (also retries videos that failed to rebuild).',
         audio_fill_display_from_tags: 'Fill empty track title and artist from the file\'s own tags.',
         audio_extract_covers: 'Pull embedded cover art from tracks and link it in Files.',
         media_janitor_prune: 'Clear the selected leftovers. Your originals and masters stay safe.',
@@ -96,7 +96,8 @@
         ],
         force: [
             { id: 'check', label: 'Check', phases: ['force', 'check', 'check_full', 'triage', 'investigate', 'diagnose'] },
-            { id: 'delivery', label: 'Rebuild streams and artwork', phases: ['treat:delivery'] },
+            { id: 'streams', label: 'Rebuild streams', phases: ['treat:streams'] },
+            { id: 'artwork', label: 'Rebuild artwork', phases: ['treat:artwork'] },
             { id: 'video', label: 'Rebuild video', phases: ['treat:video'] },
             { id: 'links', label: 'Refresh links and playlists', phases: ['treat:links', 'treat:playlists'] },
             { id: 'chrome', label: 'Site icons', phases: ['treat:chrome'] },
@@ -123,6 +124,13 @@
     let running = false;
     /** True while a start request is in flight — status refresh must not clear local busy. */
     let startInFlight = false;
+    /**
+     * After Start, Activity may still be the previous run until Python truncates.
+     * null = not gating; string = last pre-fresh log snapshot to ignore.
+     * @type {string|null}
+     */
+    let checklistStaleLog = null;
+    let checklistAwaitFresh = false;
     let lastPlan = null;
     let staleAutoCheckStarted = false;
     let previewOpen = false;
@@ -240,8 +248,13 @@
         }
         const parsed = checklistStatesFromLog(modeKey, logText);
         let states = parsed.states.slice();
-        if (jobFinished) {
-            states = parsed.steps.map(() => 'done');
+        // Only mark every step done when the live log for *this* run finished —
+        // never from a stale previous Activity snapshot.
+        if (jobFinished && !checklistAwaitFresh) {
+            const phases = collectHealthPhases(logText);
+            if (phases.length > 0) {
+                states = parsed.steps.map(() => 'done');
+            }
         }
         checklistListEl.innerHTML = parsed.steps.map((step, index) => {
             const state = states[index] || 'pending';
@@ -253,6 +266,38 @@
                 '</li>'
             );
         }).join('');
+    }
+
+    /**
+     * Drop Activity text that still belongs to the previous job (before begin_run truncates).
+     */
+    function checklistLogForUi(rawLog) {
+        const live = String(rawLog || '');
+        if (!checklistAwaitFresh) {
+            return live;
+        }
+        if (checklistStaleLog === null) {
+            checklistStaleLog = live;
+            return '';
+        }
+        if (live !== checklistStaleLog) {
+            checklistAwaitFresh = false;
+            checklistStaleLog = null;
+            return live;
+        }
+        // Same text as at start — still the old run (or empty-vs-empty).
+        // Empty baseline: unlock once the job is known running so first phases apply.
+        if (checklistStaleLog === '' && (running || startInFlight === false)) {
+            checklistAwaitFresh = false;
+            checklistStaleLog = null;
+            return live;
+        }
+        return '';
+    }
+
+    function beginChecklistGate() {
+        checklistAwaitFresh = true;
+        checklistStaleLog = null;
     }
 
     function stripLogStamp(line) {
@@ -574,7 +619,8 @@
         const showDiagnosis = uiStage === 'diagnosis';
         const showReview = uiStage === 'review';
         const showResult = uiStage === 'result';
-        const showActivity = showDiagnosis || showReview || showResult;
+        // Activity while jobs run (checklist + detail); still hidden on Status / Action hub.
+        const showActivity = showRunning || showDiagnosis || showReview || showResult;
 
         if (statusHomeEl) {
             statusHomeEl.hidden = !showStatus;
@@ -868,6 +914,74 @@
             }
         });
         return rows;
+    }
+
+    /**
+     * When Activity lists rebuild failures but the saved plan still looks healthy
+     * (older stream left on disk), merge those into Diagnosis so The bad + Review work.
+     */
+    function mergeRebuildProblemsIntoPlan(plan, logText) {
+        const base = plan && typeof plan === 'object' ? plan : null;
+        if (!base) {
+            return base;
+        }
+        const rows = parseFailedMediaFromLog(logText);
+        if (!rows.length) {
+            return base;
+        }
+        const findings = Array.isArray(base.findings) ? base.findings.slice() : [];
+        if (findings.some((f) => String((f && f.id) || '') === 'video_delivery_failed')) {
+            return base;
+        }
+        const sample = rows.map((r) => r.name).filter(Boolean);
+        const examples = rows.slice(0, 5).map((r) => (
+            r.name + (r.reason ? (' — ' + r.reason) : '')
+        ));
+        const finding = {
+            id: 'video_delivery_failed',
+            severity: 'attention',
+            title: 'Some videos could not be rebuilt for the player',
+            count: rows.length,
+            treatment: 'listener_delivery',
+            items_sample: sample.slice(0, 12),
+            body: (
+                rows.length + ' video(s) could not be rebuilt for the player. '
+                + 'An older stream may still show as Ready in Files. '
+                + 'Open Files → Visual, confirm each master opens (re-upload if damaged), '
+                + 'then Review treatment and Apply — or run Force again. '
+                + 'Detail is in Activity.'
+                + (examples.length ? (' Examples: ' + examples.join('; ') + '.') : '')
+            ),
+        };
+        findings.push(finding);
+        const next = Object.assign({}, base, {
+            findings: findings,
+            overall: String(base.overall || '').toLowerCase() === 'critical' ? 'critical' : 'attention',
+        });
+        const summary = base.summary && typeof base.summary === 'object'
+            ? Object.assign({}, base.summary)
+            : { good: [], bad: [], ugly: [] };
+        const bad = Array.isArray(summary.bad) ? summary.bad.slice() : [];
+        bad.push({
+            id: finding.id,
+            title: finding.title,
+            body: finding.body,
+            count: finding.count,
+            severity: finding.severity,
+            treatment: finding.treatment,
+        });
+        summary.bad = bad;
+        next.summary = summary;
+        const treatments = Array.isArray(base.treatments) ? base.treatments.slice() : [];
+        if (!treatments.some((t) => String((t && t.id) || '') === 'listener_delivery')) {
+            treatments.push({
+                id: 'listener_delivery',
+                label: finding.title,
+                mutates: true,
+            });
+        }
+        next.treatments = treatments;
+        return next;
     }
 
     function healthJobProblemMessage(exitCode, overall, jobMode, logText) {
@@ -2176,7 +2290,13 @@
     }
 
     function renderPlan(plan) {
-        lastPlan = plan && typeof plan === 'object' ? plan : null;
+        let workingPlan = plan && typeof plan === 'object' ? plan : null;
+        if (workingPlan && !running && uiStage !== 'running') {
+            const logText = logEl ? String(logEl.textContent || '') : '';
+            workingPlan = mergeRebuildProblemsIntoPlan(workingPlan, logText) || workingPlan;
+        }
+        lastPlan = workingPlan;
+        plan = workingPlan;
         const findings = Array.isArray(plan && plan.findings) ? plan.findings : [];
         const checkedAt = plan && plan.checked_at ? String(plan.checked_at) : '';
         const appVersion = plan && plan.app_version ? String(plan.app_version) : '';
@@ -2447,7 +2567,12 @@
             }
             const checklistMode = runModeKey || liveMode || String(plan.mode || '').trim().toLowerCase();
             if (uiStage === 'running' || isRunning) {
-                renderRunChecklist(checklistMode, typeof data.log === 'string' ? data.log : '', !isRunning && wasRunning);
+                const logForChecklist = checklistLogForUi(typeof data.log === 'string' ? data.log : '');
+                renderRunChecklist(
+                    checklistMode,
+                    logForChecklist,
+                    !isRunning && wasRunning && !checklistAwaitFresh
+                );
             }
             renderPlan(plan);
             setRunningUi(isRunning);
@@ -2529,6 +2654,13 @@
                         if (failed > 0 && String(overall || '').toLowerCase() === 'healthy') {
                             setOverall('attention');
                         }
+                        // Re-paint Diagnosis from Activity failures even when the saved plan is healthy.
+                        if (failed > 0 && lastPlan && (uiStage === 'diagnosis' || uiStage === 'running')) {
+                            renderPlan(lastPlan);
+                            if (uiStage === 'diagnosis') {
+                                setOverall('attention');
+                            }
+                        }
                         if (wasRunning || uiStage === 'running') {
                             advanceAfterJobFinished(jobMode);
                         }
@@ -2583,6 +2715,7 @@
         }
         startInFlight = true;
         rememberProblemKey('');
+        beginChecklistGate();
         setRunningUi(true);
         let starting = 'Starting…';
         runModeKey = String(mode || '').trim().toLowerCase();

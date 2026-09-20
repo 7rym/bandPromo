@@ -1386,6 +1386,96 @@ function bandpromo_brand_add_assets_to_library(string $root, string $brandId, ar
 }
 
 /**
+ * Remove a Visual/SFX asset from every Brand library that lists it.
+ * Brands that still assign the asset to a shell slot are left alone and reported.
+ *
+ * @return array{removed:int, blocked:list<string>}
+ */
+function bandpromo_brand_remove_asset_from_all_libraries(string $root, string $assetId): array
+{
+    $assetId = trim($assetId);
+    $result = [
+        'removed' => 0,
+        'blocked' => [],
+    ];
+    if ($assetId === '') {
+        return $result;
+    }
+
+    require_once __DIR__ . '/asset-registry.php';
+    try {
+        bandpromo_brand_ensure_seeded($root);
+    } catch (Throwable $throwable) {
+        return $result;
+    }
+
+    foreach (bandpromo_brand_registry_entries($root) as $registryEntry) {
+        if (!is_array($registryEntry)) {
+            continue;
+        }
+        $brandId = bandpromo_brand_canonical_id((string) ($registryEntry['id'] ?? ''));
+        if ($brandId === '') {
+            continue;
+        }
+        try {
+            $document = bandpromo_brand_load_document($root, $brandId);
+        } catch (Throwable $throwable) {
+            continue;
+        }
+
+        $library = is_array($document['library_asset_ids'] ?? null)
+            ? $document['library_asset_ids']
+            : [];
+        if (!in_array($assetId, $library, true)) {
+            continue;
+        }
+
+        foreach ((array) ($document['asset_ids'] ?? []) as $slotAssetId) {
+            if ((string) $slotAssetId === $assetId) {
+                $title = trim((string) ($document['title'] ?? $brandId)) ?: $brandId;
+                $result['blocked'][] = $title;
+                continue 2;
+            }
+        }
+
+        $next = [];
+        foreach ($library as $memberId) {
+            if ((string) $memberId !== $assetId) {
+                $next[] = $memberId;
+            }
+        }
+        $document['library_asset_ids'] = bandpromo_brand_normalize_library_asset_ids($next);
+        bandpromo_brand_write_document($root, $document, ['allow_locked' => true]);
+        $result['removed']++;
+    }
+
+    if ($result['removed'] > 0) {
+        bandpromo_brand_library_membership_index($root, true);
+        try {
+            $asset = bandpromo_asset_lookup_by_id($root, $assetId);
+            if (is_array($asset)) {
+                $membership = bandpromo_brand_library_membership_index($root);
+                $members = isset($membership[$assetId]) && is_array($membership[$assetId])
+                    ? $membership[$assetId]
+                    : [];
+                $nextStamp = '';
+                if ($members !== []) {
+                    $nextStamp = bandpromo_brand_canonical_id((string) ($members[0]['brand_id'] ?? ''));
+                }
+                $currentStamp = bandpromo_brand_canonical_id((string) (($asset['brand_id'] ?? '') ?: ''));
+                if ($currentStamp !== $nextStamp) {
+                    bandpromo_asset_update_entry($root, $assetId, ['brand_id' => $nextStamp]);
+                }
+            }
+        } catch (Throwable $throwable) {
+            // Registry stamp is display-only; library membership is source of truth.
+        }
+    }
+
+    return $result;
+}
+
+/**
  * Maps visual/SFX asset_id to Brand libraries that include it.
  *
  * @return array<string, list<array{brand_id: string, brand_title: string}>>

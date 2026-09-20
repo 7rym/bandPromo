@@ -2543,16 +2543,17 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
             }
 
             function syncUseInBrandToolbarUi() {
-                const brandId = concreteBrandFilterSelected();
                 ['visual', 'sfx'].forEach((target) => {
                     const removeBtn = document.querySelector(`[data-remove-from-brand-target="${target}"]`);
                     if (!removeBtn) {
                         return;
                     }
-                    removeBtn.hidden = !brandId;
-                    if (!brandId) {
-                        removeBtn.disabled = true;
-                    }
+                    removeBtn.hidden = false;
+                    const selected = getSelectedMediaDetails(target);
+                    removeBtn.disabled = selected.length < 1;
+                    removeBtn.title = selected.length < 1
+                        ? 'Select files to remove from a brand library'
+                        : 'Remove selected files from a brand library';
                 });
             }
 
@@ -4133,7 +4134,6 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     const selectedDetails = getSelectedMediaDetails(type);
                     const useBtn = document.querySelector(`[data-use-in-brand-target="${type}"]`);
                     const removeBrandBtn = document.querySelector(`[data-remove-from-brand-target="${type}"]`);
-                    const brandId = concreteBrandFilterSelected();
                     if (useBtn) {
                         useBtn.disabled = selectedDetails.length < 1;
                         useBtn.title = selectedDetails.length < 1
@@ -4141,13 +4141,11 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                             : 'Add selected files to a brand library';
                     }
                     if (removeBrandBtn) {
-                        removeBrandBtn.hidden = !brandId;
-                        removeBrandBtn.disabled = !brandId || selectedDetails.length < 1;
-                        removeBrandBtn.title = !brandId
-                            ? 'Filter by one brand to remove files from its library'
-                            : (selectedDetails.length < 1
-                                ? 'Select files to remove from this brand library'
-                                : 'Remove selected files from this brand library');
+                        removeBrandBtn.hidden = false;
+                        removeBrandBtn.disabled = selectedDetails.length < 1;
+                        removeBrandBtn.title = selectedDetails.length < 1
+                            ? 'Select files to remove from a brand library'
+                            : 'Remove selected files from a brand library';
                     }
                 }
 
@@ -4547,7 +4545,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                         return kind;
                     }
                     if (/^living background\s*\(/i.test(label) || /^still background\s*\(/i.test(label)) {
-                        return kind + ': Site settings';
+                        return kind + ': Site chrome (Base brand sync)';
                     }
                     return kind + ': ' + label;
                 }).filter((line, index, all) => line && all.indexOf(line) === index);
@@ -7837,6 +7835,17 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
 
             window.closeUseInBrandModal = closeUseInBrandModal;
 
+            function closeFromBrandModal() {
+                const modal = document.getElementById('fromBrandModal');
+                if (!modal) {
+                    return;
+                }
+                modal.style.display = 'none';
+                modal.setAttribute('aria-hidden', 'true');
+            }
+
+            window.closeFromBrandModal = closeFromBrandModal;
+
             async function openUseInBrandModal(target) {
                 useInBrandTarget = target === 'sfx' ? 'sfx' : 'visual';
                 const selected = getSelectedMediaDetails(useInBrandTarget);
@@ -7905,30 +7914,116 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 selectEl.focus();
             }
 
-            async function removeSelectedFromBrandLibrary(target) {
-                const panel = target === 'sfx' ? 'sfx' : 'visual';
-                const brandId = concreteBrandFilterSelected();
-                if (!brandId) {
-                    showAdminToast('Filter by one brand first, then select files to remove.', 'error');
+            async function openFromBrandModal(target) {
+                useInBrandTarget = target === 'sfx' ? 'sfx' : 'visual';
+                const selected = getSelectedMediaDetails(useInBrandTarget);
+                if (!selected.length) {
+                    showAdminToast('Select one or more files first.', 'error');
                     return;
                 }
-                const selected = getSelectedMediaDetails(panel);
-                const removable = selected.filter((file) => file?.brand_slot_assigned !== true);
-                const assetIds = removable
-                    .map((file) => String(file?.asset_id || '').trim())
-                    .filter(Boolean);
-                if (!assetIds.length) {
-                    const slotted = selected.some((file) => file?.brand_slot_assigned === true);
+
+                const slottedOnly = selected.every((file) => file?.brand_slot_assigned === true);
+                if (slottedOnly) {
                     showAdminToast(
-                        slotted
-                            ? 'Those files are assigned to a shell slot. Clear the slot in Branding first.'
-                            : 'Select files that belong to this brand library.',
+                        'Those files are assigned to a shell slot. Clear the slot in Content → Branding first.',
                         'error'
                     );
                     return;
                 }
-                await changeBrandLibraryMembership('remove', assetIds, { brandId, refresh: true });
-                clearMediaSelection(panel);
+
+                const removable = selected.filter((file) => file?.brand_slot_assigned !== true);
+                const membershipIds = new Set();
+                removable.forEach((file) => {
+                    const ids = Array.isArray(file?.brand_ids) ? file.brand_ids : [];
+                    ids.forEach((id) => {
+                        const brandId = String(id || '').trim();
+                        if (brandId) {
+                            membershipIds.add(brandId);
+                        }
+                    });
+                });
+
+                await ensureBrandFilterCatalog();
+                const allBrands = (brandFilterCatalog || []).filter((entry) => String(entry?.id || '').trim() !== '');
+                if (!allBrands.length) {
+                    showAdminToast('No brands available. Create one under Content → Branding.', 'error');
+                    return;
+                }
+
+                let brands = allBrands;
+                if (membershipIds.size > 0) {
+                    brands = allBrands.filter((entry) => membershipIds.has(String(entry?.id || '').trim()));
+                }
+                if (!brands.length) {
+                    showAdminToast('None of the selected files are in a brand library.', 'error');
+                    return;
+                }
+
+                const modal = document.getElementById('fromBrandModal');
+                const summaryEl = document.getElementById('fromBrandSummary');
+                const selectEl = document.getElementById('fromBrandSelect');
+                const confirmBtn = document.getElementById('fromBrandConfirmBtn');
+                if (!modal || !summaryEl || !selectEl || !confirmBtn) {
+                    showAdminToast('From brand dialog is missing. Reload the page.', 'error');
+                    return;
+                }
+
+                const kindLabel = useInBrandTarget === 'sfx' ? 'sound effect' : 'visual';
+                const count = removable.length;
+                summaryEl.textContent = `Selected: ${count} ${kindLabel}${count === 1 ? '' : 's'}. Choose the brand library to remove them from.`;
+
+                selectEl.innerHTML = brands.map((entry) => {
+                    const id = String(entry?.id || '').trim();
+                    const title = String(entry?.title || entry?.name || id).trim() || id;
+                    return `<option value="${bandpromoAdminEscapeHtml(id)}">${bandpromoAdminEscapeHtml(title)}</option>`;
+                }).join('');
+
+                const filter = concreteBrandFilterSelected();
+                if (filter && membershipIds.has(filter)) {
+                    selectEl.value = filter;
+                }
+                if (!selectEl.value && selectEl.options.length) {
+                    selectEl.selectedIndex = 0;
+                }
+
+                confirmBtn.onclick = () => {
+                    const brandId = String(selectEl.value || '').trim();
+                    if (!brandId) {
+                        showAdminToast('Choose a brand.', 'error');
+                        return;
+                    }
+                    const assetIds = removable
+                        .filter((file) => {
+                            const ids = Array.isArray(file?.brand_ids) ? file.brand_ids : [];
+                            return ids.some((id) => String(id || '').trim() === brandId);
+                        })
+                        .map((file) => String(file?.asset_id || '').trim())
+                        .filter(Boolean);
+                    if (!assetIds.length) {
+                        showAdminToast('None of the selected files belong to that brand library.', 'error');
+                        return;
+                    }
+                    confirmBtn.disabled = true;
+                    changeBrandLibraryMembership('remove', assetIds, { brandId, refresh: true })
+                        .then(() => {
+                            closeFromBrandModal();
+                            clearMediaSelection(useInBrandTarget);
+                        })
+                        .catch((error) => {
+                            showAdminToast(error.message || 'Could not remove from brand.', 'error');
+                        })
+                        .finally(() => {
+                            confirmBtn.disabled = false;
+                        });
+                };
+
+                modal.style.display = 'flex';
+                modal.setAttribute('aria-hidden', 'false');
+                selectEl.focus();
+            }
+
+            async function removeSelectedFromBrandLibrary(target) {
+                return openFromBrandModal(target);
             }
 
             document.querySelectorAll('[data-use-in-brand-target]').forEach((button) => {
@@ -7942,8 +8037,8 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
             document.querySelectorAll('[data-remove-from-brand-target]').forEach((button) => {
                 button.addEventListener('click', () => {
                     const target = String(button.getAttribute('data-remove-from-brand-target') || 'visual');
-                    removeSelectedFromBrandLibrary(target).catch((error) => {
-                        showAdminToast(error.message || 'Could not remove from brand.', 'error');
+                    openFromBrandModal(target).catch((error) => {
+                        showAdminToast(error.message || 'Could not open From brand.', 'error');
                     });
                 });
             });
@@ -8344,12 +8439,54 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 }, true);
             });
 
+            function formatDeleteReferenceKind(kind) {
+                const key = String(kind || '').trim();
+                return ({
+                    'theme-background': 'Still background',
+                    'theme-background-video': 'Living background',
+                    'theme-cover': 'Poster / cover',
+                    'share-image': 'Share image',
+                    'brand-logo': 'Logo',
+                    'brand-library': 'Brand library',
+                    'welcome-audio': 'Welcome audio',
+                    'loggedin-audio': 'Logged-in audio',
+                    'playlist-track': 'Playlist track',
+                    'playlist-cover': 'Playlist cover',
+                    'playlist-poster': 'Playlist poster',
+                    'gallery-item': 'Gallery item',
+                    'page-image': 'Page image',
+                    'track-cover': 'Track cover',
+                    'track-living-cover': 'Living cover',
+                    'release-fallback': 'Campaign fallback',
+                    'release-poster': 'Campaign poster',
+                    'release-press-photo': 'Press photo',
+                })[key] || key.replace(/-/g, ' ');
+            }
+
+            function formatDeleteReferenceLine(reference) {
+                const kindLabel = formatDeleteReferenceKind(reference && reference.kind);
+                const place = String((reference && reference.label) || '').trim();
+                // Config chrome refs already name the place; avoid duplicated kind text.
+                if (place && kindLabel && place.toLowerCase().indexOf(kindLabel.toLowerCase()) === 0) {
+                    return place;
+                }
+                if (kindLabel && place) {
+                    return kindLabel + ' — ' + place;
+                }
+                if (place) {
+                    return place;
+                }
+                const filename = String((reference && reference.filename) || '').trim();
+                return filename || kindLabel || 'Reference';
+            }
+
             function formatDeleteReferenceParts(summary) {
                 const parts = [];
                 if (summary.playlist_tracks) parts.push(`${summary.playlist_tracks} playlist entr${summary.playlist_tracks === 1 ? 'y' : 'ies'}`);
                 if (summary.playlist_covers) parts.push(`${summary.playlist_covers} playlist cover reference${summary.playlist_covers === 1 ? '' : 's'}`);
                 if (summary.gallery_items) parts.push(`${summary.gallery_items} gallery item${summary.gallery_items === 1 ? '' : 's'}`);
-                if (summary.theme_assets) parts.push(`${summary.theme_assets} brand setting reference${summary.theme_assets === 1 ? '' : 's'}`);
+                if (summary.brand_libraries) parts.push(`${summary.brand_libraries} brand library membership${summary.brand_libraries === 1 ? '' : 's'}`);
+                if (summary.theme_assets) parts.push(`${summary.theme_assets} brand / site chrome reference${summary.theme_assets === 1 ? '' : 's'}`);
                 if (summary.release_fallbacks) parts.push(`${summary.release_fallbacks} campaign fallback reference${summary.release_fallbacks === 1 ? '' : 's'}`);
                 return parts;
             }
@@ -8360,6 +8497,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 }
 
                 const files = Array.isArray(data.files) ? data.files : [];
+                const topRefs = Array.isArray(data.references) ? data.references : [];
                 const selected = new Set(
                     (Array.isArray(filenames) ? filenames : [])
                         .map((name) => selectionDisplayName(target, name))
@@ -8367,13 +8505,29 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 );
                 const selectedFiles = files.filter((entry) => selected.has(String(entry.filename || '')));
                 const extras = [];
-                const themeKinds = new Set(['theme-cover', 'theme-background', 'theme-background-video', 'share-image']);
+                const themeKinds = new Set([
+                    'theme-cover',
+                    'theme-background',
+                    'theme-background-video',
+                    'share-image',
+                    'brand-logo',
+                    'welcome-audio',
+                    'loggedin-audio',
+                ]);
 
-                const hasThemeRefs = selectedFiles.some((entry) => (
-                    Array.isArray(entry.references) && entry.references.some((reference) => themeKinds.has(String(reference.kind || '')))
+                const refsFromFiles = selectedFiles.flatMap((entry) => (
+                    Array.isArray(entry.references) ? entry.references : []
                 ));
+                const allRefs = refsFromFiles.length ? refsFromFiles : topRefs;
+
+                const hasThemeRefs = allRefs.some((reference) => themeKinds.has(String(reference.kind || '')));
                 if (hasThemeRefs) {
-                    extras.push('Branding or share-image settings still point at this file and will not be cleared automatically.');
+                    extras.push('Branding or share-image slots still point at this file and will not be cleared automatically. Edit under Content → Branding (Base brand also syncs site chrome).');
+                }
+
+                const hasBrandLibraryRefs = allRefs.some((reference) => String(reference.kind || '') === 'brand-library');
+                if (hasBrandLibraryRefs && !hasThemeRefs) {
+                    extras.push('Confirming Delete removes those brand library memberships automatically. Shell slots (logo / poster / backgrounds) are not cleared this way.');
                 }
 
                 const regenerableOrphans = selectedFiles.filter((entry) => {
@@ -8393,6 +8547,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     playlist_tracks: 0,
                     playlist_covers: 0,
                     gallery_items: 0,
+                    brand_libraries: 0,
                     theme_assets: 0,
                     release_fallbacks: 0,
                 };
@@ -8593,13 +8748,16 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                                     : base;
                             } else {
                                 const parts = formatDeleteReferenceParts(summary);
-                                const labels = Array.isArray(data.references) ? data.references.slice(0, 6).map((reference) => `${bandpromoAdminEscapeHtml(reference.filename || '')}: ${bandpromoAdminEscapeHtml(reference.label || '')}`) : [];
+                                const refs = Array.isArray(data.references) ? data.references : [];
+                                const labels = refs.slice(0, 12).map((reference) => (
+                                    bandpromoAdminEscapeHtml(formatDeleteReferenceLine(reference))
+                                ));
                                 const lines = [
                                     `Deleting ${deleteFiles.length > 1 ? 'these files' : 'this file'} will also remove ${parts.join(', ')} from the saved site data.`,
                                     labels.join('<br>'),
                                 ];
-                                if ((data.references || []).length > 6) {
-                                    lines.push('…');
+                                if (refs.length > 12) {
+                                    lines.push('…and ' + (refs.length - 12) + ' more.');
                                 }
                                 if (showEmbeddedOption) {
                                     lines.push('Linked audio masters keep their embedded cover art unless you opt in below.');

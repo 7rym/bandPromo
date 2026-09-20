@@ -15,13 +15,13 @@ from delivery_visual import run_visual_still_delivery
 
 
 def treat_audio_visual_delivery(force=False):
-    """Rebuild audio + still-image deliverables in-process."""
-    log.phase('treat:delivery')
+    """Rebuild audio streams then still-image artwork in-process."""
     if force:
-        log.info('Force delivery rebuild (audio + still images).')
+        log.info('Force delivery rebuild (audio streams, then still images).')
     else:
-        log.info('Delivery rebuild (stale/missing audio + still images only).')
+        log.info('Delivery rebuild (stale/missing audio streams, then still images).')
 
+    log.phase('treat:streams')
     ok_audio = run_audio_delivery(force=force)
     if not ok_audio:
         log.treat_result('audio_visual_delivery', 'failed', 1)
@@ -37,6 +37,7 @@ def treat_audio_visual_delivery(force=False):
         log.treat_result('audio_visual_delivery', 'failed', 1)
         return False
 
+    log.phase('treat:artwork')
     ok_visual = run_visual_still_delivery(force=force)
     ok = ok_audio and ok_visual
     log.treat_result('audio_visual_delivery', 'ok' if ok else 'failed', 0 if ok else 1)

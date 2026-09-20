@@ -473,27 +473,31 @@ function bandpromo_media_reference_build_gallery_index(string $root, string $tar
 
 function bandpromo_media_reference_config_entries(string $target): array
 {
+    // Shell media is edited under Content → Branding. These web-config paths are the
+    // mirrored copy written when the Base brand is saved — not a Settings screen.
+    $siteChromeLabel = 'Site chrome (Base brand sync)';
+
     if ($target === 'photos') {
         return [
-            ['path' => 'release.theme.background_image', 'legacy' => ['media.background_image'], 'prefix' => 'media/photo/original', 'kind' => 'theme-background', 'label' => 'Site settings'],
-            ['path' => 'release.theme.cover', 'legacy' => ['media.cover'], 'prefix' => 'media/photo/original', 'kind' => 'theme-cover', 'label' => 'Site settings'],
-            ['path' => 'release.social.share_image', 'legacy' => ['social.share_image'], 'prefix' => 'media/photo/original', 'kind' => 'share-image', 'label' => 'Site settings'],
+            ['path' => 'release.theme.background_image', 'legacy' => ['media.background_image'], 'prefix' => 'media/photo/original', 'kind' => 'theme-background', 'label' => $siteChromeLabel],
+            ['path' => 'release.theme.cover', 'legacy' => ['media.cover'], 'prefix' => 'media/photo/original', 'kind' => 'theme-cover', 'label' => $siteChromeLabel],
+            ['path' => 'release.social.share_image', 'legacy' => ['social.share_image'], 'prefix' => 'media/photo/original', 'kind' => 'share-image', 'label' => $siteChromeLabel],
         ];
     }
 
     if ($target === 'video') {
         return [
-            ['path' => 'release.theme.background_video', 'legacy' => ['media.background_video'], 'prefix' => 'media/video/original', 'kind' => 'theme-background-video', 'label' => 'Site settings'],
+            ['path' => 'release.theme.background_video', 'legacy' => ['media.background_video'], 'prefix' => 'media/video/original', 'kind' => 'theme-background-video', 'label' => $siteChromeLabel],
         ];
     }
 
     if ($target === 'special') {
         return [
-            ['path' => 'install.brand.logo', 'legacy' => ['install.theme.logo', 'media.logo', 'release.brand.logo', 'release.theme.logo'], 'prefix' => 'media/special', 'kind' => 'brand-logo', 'label' => 'Site settings'],
-            ['path' => 'release.brand.poster', 'legacy' => ['release.social.share_image', 'social.share_image', 'install.brand.poster'], 'prefix' => 'media/special', 'kind' => 'share-image', 'label' => 'Site settings'],
-            ['path' => 'release.theme.cover', 'legacy' => ['media.cover'], 'prefix' => 'media/special', 'kind' => 'theme-cover', 'label' => 'Site settings'],
-            ['path' => 'release.theme.background_image', 'legacy' => ['media.background_image'], 'prefix' => 'media/special', 'kind' => 'theme-background', 'label' => 'Site settings'],
-            ['path' => 'release.theme.background_video', 'legacy' => ['media.background_video'], 'prefix' => 'media/special', 'kind' => 'theme-background-video', 'label' => 'Site settings'],
+            ['path' => 'install.brand.logo', 'legacy' => ['install.theme.logo', 'media.logo', 'release.brand.logo', 'release.theme.logo'], 'prefix' => 'media/special', 'kind' => 'brand-logo', 'label' => $siteChromeLabel],
+            ['path' => 'release.brand.poster', 'legacy' => ['release.social.share_image', 'social.share_image', 'install.brand.poster'], 'prefix' => 'media/special', 'kind' => 'share-image', 'label' => $siteChromeLabel],
+            ['path' => 'release.theme.cover', 'legacy' => ['media.cover'], 'prefix' => 'media/special', 'kind' => 'theme-cover', 'label' => $siteChromeLabel],
+            ['path' => 'release.theme.background_image', 'legacy' => ['media.background_image'], 'prefix' => 'media/special', 'kind' => 'theme-background', 'label' => $siteChromeLabel],
+            ['path' => 'release.theme.background_video', 'legacy' => ['media.background_video'], 'prefix' => 'media/special', 'kind' => 'theme-background-video', 'label' => $siteChromeLabel],
             // Legacy shell audio paths (pre–Sound effects pool).
             ['path' => 'install.theme.welcome_audio', 'legacy' => ['media.welcome_audio'], 'prefix' => 'media/special', 'kind' => 'welcome-audio', 'label' => 'Welcome audio'],
             ['path' => 'install.theme.loggedin_audio', 'legacy' => ['media.loggedin_audio'], 'prefix' => 'media/special', 'kind' => 'loggedin-audio', 'label' => 'Logged-in audio'],
@@ -775,7 +779,8 @@ function bandpromo_media_reference_collect_brand_library_references(string $root
             $references[] = [
                 'scope' => 'brand',
                 'kind' => 'brand-library',
-                'label' => trim((string) ($document['title'] ?? $brandId)) . ' — Brand library',
+                // Kind already reads “Brand library” in the delete modal; label is the brand name only.
+                'label' => trim((string) ($document['title'] ?? $brandId)) ?: $brandId,
                 'brand_id' => $brandId,
             ];
         }

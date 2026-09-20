@@ -59,7 +59,7 @@ foreach ($registry['assets'] as $asset) {
     if ($cardUrl === '' || !str_starts_with($cardUrl, '/media/visual/delivery/')) {
         continue;
     }
-    $group = $bucket === 'photo' ? 'Photos' : ($bucket === 'special' ? 'Brand assets' : 'Illustrations');
+    $group = $bucket === 'photo' ? 'Photos' : ($bucket === 'special' ? 'Visual (legacy brand intake)' : 'Illustrations');
     $label = $filename !== '' ? $filename : $assetId;
     $addItem($label, $cardUrl, $thumbUrl !== '' ? $thumbUrl : $cardUrl, $group, $assetId);
 }

@@ -2,7 +2,33 @@
 
 All notable changes to this project will be documented in this file.
 
-2026-09-20 13:40 - Site health Action vs Diagnosis: Status/Action stay quiet (no Good/Bad/Ugly, no Activity). While Quick/Full/Force/Treat runs, Action shows a HEALTH_PHASE checklist + Stop only. Finished checks open Diagnosis for Good/Bad/Ugly and Review; Activity is visible on Diagnosis / Proposed treatment / Treatment result.
+2026-09-20 19:50 - ADMIN-UI preference: Content editors use **breadcrumb + inline entity title** (`.content-editor-name-input` in the left edit header). Canonical name is not a static `h3` or only a Title field in Base info; Files modals should prefer an editable header title when aligned. Cursor rule + AGENTS updated.
+
+2026-09-20 19:45 - ADMIN-UI compactness: layout padding locked to **0 / 4 / 8px max** (prefer none when a border already separates); gaps same cap; 12–24px insets are debt to clear opportunistically. Control hit-target padding may exceed 8px horizontally only.
+
+2026-09-20 19:40 - ADMIN-UI policy lock: same-factory editor chrome (save/status top-right); Close/Done = save-on-close preferred; **Abort** (modals) / **Discard** (leave modal) required on every mutating editor; coral caution vs danger red (prefer amber Save / green Saved / grey secondary). Visual/SFX drilldown listed as out of compliance pending align with track editor.
+
+2026-09-20 19:25 - Files Delete: confirming Delete now clears Brand library memberships automatically (same as playlist/gallery detach). Shell slots still need Content → Branding first. Unused + library-only files no longer send operators through From brand first.
+
+2026-09-20 19:20 - Brand library management: **From brand** is always on the Visual / Sound effects toolbar (no brand filter required) and opens a brand picker like **Use in brand**. Delete blocker copy points operators there; Brand library reference lines no longer repeat “Brand library” twice.
+
+2026-09-20 19:15 - Theme-era wording cleanup: backup / preflight **Install config** (was “Site settings”); cover/background config refs say Base brand sync (not “theme”); page-image picker drops “Brand assets” group label.
+
+2026-09-20 19:10 - Delete / In use labels: rename leftover “Site settings” for web-config shell media to **Site chrome (Base brand sync)** — backgrounds are edited under Content → Branding, not Settings (Theme was retired).
+
+2026-09-20 19:05 - Files delete confirm: stop double-counting brand slots scanned via master + original names; list lines show the slot (e.g. Living background — Site settings) instead of repeating the filename and looking like duplicates.
+
+2026-09-20 18:50 - Video rebuild failures: Activity now includes the real ffmpeg detail (remux / re-encode stderr snippet), not only a generic “could not remux” line. Modal and The bad use the same reason text.
+
+2026-09-20 16:25 - Site health Diagnosis: when Force/Treat fails to rebuild a video but an older stream still looks Ready, keep a sticky finding in The bad (Review → Apply) instead of claiming all clear. Activity failures also merge into Diagnosis for the current log.
+
+2026-09-20 13:55 - Site health Force checklist: split “Rebuild streams and artwork” into **Rebuild streams** then **Rebuild artwork** (new HEALTH_PHASE tokens treat:streams / treat:artwork).
+
+2026-09-20 13:50 - Site health In progress checklist: ignore the previous run’s Activity until the log is truncated for the new job (was flashing all-green, then empty, then real ticks).
+
+2026-09-20 13:45 - Site health: show Activity while a check or rebuild is running (checklist stays the progress UI; Activity carries the live detail). Still hidden on Status landing and the Action hub.
+
+2026-09-20 13:40 - Site health Action vs Diagnosis: Status/Action hub stay quiet (no Good/Bad/Ugly). While Quick/Full/Force/Treat runs, Action shows a HEALTH_PHASE checklist + Stop. Finished checks open Diagnosis for Good/Bad/Ugly and Review; Activity is visible on running / Diagnosis / Proposed treatment / Treatment result.
 
 2026-09-20 12:40 - Site health problem dialog: green **Open Activity** (lists failed filenames + next step); announce once per job so it does not follow you to Files; dismiss on tab navigation. Visual references: stop “Living background: … — Living background” / “(theme)” spam. Heart in titles is not the delivery failure cause.
 

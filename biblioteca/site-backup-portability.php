@@ -146,7 +146,7 @@ function bandpromo_site_backup_is_pbf_job(array $job): bool
 function bandpromo_site_backup_component_label(string $component): string
 {
     return match ($component) {
-        BANDPROMO_SITE_BACKUP_COMPONENT_PLATFORM => 'Site settings',
+        BANDPROMO_SITE_BACKUP_COMPONENT_PLATFORM => 'Install config',
         BANDPROMO_SITE_BACKUP_COMPONENT_DATA => 'Catalogue & config',
         BANDPROMO_SITE_BACKUP_COMPONENT_MEDIA => 'Media library',
         BANDPROMO_SITE_BACKUP_COMPONENT_LOGS => 'Support logs',
