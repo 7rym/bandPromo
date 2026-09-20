@@ -111,7 +111,7 @@ Prefer **one class ladder**. Unstyled `button` elements without a `class` keep t
 | `.btn.btn-saved` | Saved / idle success | Save controls after successful save |
 | `.btn.btn-danger` | Destructive confirm | Delete / irreversible confirms |
 | `.btn.btn-danger-outline` | Soft destructive / discard | Leave without saving |
-| `.btn-sm` | Compact size | Dense toolbars |
+| `.btn-sm` | Compact size (12px; base `.btn` is 13px) | Dense toolbars, inline resume / secondary actions |
 
 Legacy standalone `.btn-primary` (without `.btn`) remains for older markup; new code should use `.btn.btn-primary`.
 

@@ -2,6 +2,8 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-09-20 11:55 - Fix `.btn-sm`: was 16px (larger than base `.btn` 13px); now 12px compact for dense toolbars / hub resume.
+
 2026-09-20 11:50 - Status layout audit: Proposed treatment Include checkboxes → Include: Yes|Skip toggles; System sub-tabs sticky with Status breadcrumb stack; review detail labels use trailing colons.
 
 2026-09-20 11:40 - Status / Site health operator copy audit: plain language across hub, Force confirm, treatment labels, and finding titles/bodies (no fingerprint / deliverables / site chrome in primary UI). Developer role gets short additive notes on hub + Force. Activity log stays detailed.

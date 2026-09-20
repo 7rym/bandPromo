@@ -275,7 +275,7 @@
             : '';
 
         const noteRows = parsed.notes.length
-            ? ('<p class="site-health-treat-detail-label">From Activity</p>' +
+            ? ('<p class="site-health-treat-detail-label">From Activity:</p>' +
                 '<ul class="site-health-treat-result-list">' +
                 parsed.notes.map((n) => '<li><code>' + escapeHtml(n) + '</code></li>').join('') +
                 '</ul>')

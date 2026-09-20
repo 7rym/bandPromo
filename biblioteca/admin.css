@@ -8008,11 +8008,11 @@ textarea.campaign-settings-description-autofit {
     color: var(--muted);
 }
 
-/* Small add button */
+/* Compact text button — smaller than base `.btn` (13px), not larger. */
 .btn-sm {
-    font-size: 16px;
-    line-height: 1;
-    padding: 3px 9px;
+    font-size: 12px;
+    line-height: 1.25;
+    padding: 4px 10px;
     border-radius: 4px;
     flex-shrink: 0;
 }
