@@ -1223,7 +1223,7 @@
                     ? `<button type="button" class="icon-btn media-picker-open audio-master-cover-action brand-shell-slot-choose"
                             data-field="brand_asset_${escapeHtml(field.key)}"
                             data-title="${escapeHtml(field.pickerTitle || `Choose ${field.label}`)}"
-                            data-targets="${escapeHtml(field.pickerTargets || 'special')}"
+                            data-targets="${escapeHtml(field.pickerTargets || 'visual')}"
                             data-accept="${escapeHtml(field.accept.join(','))}"
                             data-brand="${escapeHtml(String(editorDocument?.id || ''))}"
                             title="${escapeHtml(field.pickerTitle || `Choose ${field.label}`)}"

@@ -1245,6 +1245,7 @@ if ($tab === 'analytics') {
                     </div>
                     <div class="audio-pool-toolbar-actions media-file-actions">
                         <button type="button" class="icon-btn media-action-btn media-action-good media-group-action-btn media-labeled-action-btn" onclick="openUploadModal('audio')" aria-label="Upload audio files" title="Upload audio files"><span class="media-labeled-action-icon" aria-hidden="true">＋</span><span>Upload</span></button>
+                        <button type="button" class="icon-btn media-action-btn media-action-good media-group-action-btn media-labeled-action-btn" id="audioUseInPlaylistBtn" data-use-in-playlist-target="audio" disabled aria-label="Use selected tracks in a playlist" title="Select one or more tracks to add to a playlist"><span class="media-labeled-action-icon" aria-hidden="true">🎶</span><span>Use in playlist</span></button>
                         <button type="button" class="icon-btn media-action-btn media-action-good media-group-action-btn media-labeled-action-btn media-bulk-download-btn" data-bulk-download-target="audio" data-download-variant="master" disabled aria-label="Download selected audio files" title="Download selected audio files"><span class="media-labeled-action-icon" aria-hidden="true">⬇</span><span>Download</span></button>
                         <button type="button" class="icon-btn media-action-btn media-action-danger media-group-action-btn media-labeled-action-btn media-bulk-delete-btn" data-bulk-delete-target="audio" disabled aria-label="Delete selected audio files" title="Delete selected audio files"><span class="media-labeled-action-icon" aria-hidden="true">🗑️</span><span>Delete</span></button>
                     </div>
@@ -1313,6 +1314,7 @@ if ($tab === 'analytics') {
                         <button type="button" class="icon-btn media-action-btn media-action-good media-group-action-btn media-labeled-action-btn" id="visualAssignCampaignBtn" data-visual-assign-campaign disabled aria-label="Assign selected visuals to a campaign" title="Select one or more files to assign"><span class="media-labeled-action-icon" aria-hidden="true">📁</span><span>Assign</span></button>
                         <button type="button" class="icon-btn media-action-btn media-group-action-btn media-labeled-action-btn" id="visualRemoveCampaignBtn" data-visual-remove-campaign disabled aria-label="Remove selected visuals from campaign" title="Select files with a catalogue home to remove"><span class="media-labeled-action-icon" aria-hidden="true">⏏</span><span>Remove</span></button>
                         <button type="button" class="icon-btn media-action-btn media-action-good media-group-action-btn media-labeled-action-btn" id="visualUseInBrandBtn" data-use-in-brand-target="visual" disabled aria-label="Use selected visuals in a brand" title="Select one or more files to add to a brand"><span class="media-labeled-action-icon" aria-hidden="true">✨</span><span>Use in brand</span></button>
+                        <button type="button" class="icon-btn media-action-btn media-action-good media-group-action-btn media-labeled-action-btn" id="visualUseInGalleryBtn" data-use-in-gallery-target="visual" disabled aria-label="Use selected visuals in a gallery" title="Select one or more files to add to a gallery"><span class="media-labeled-action-icon" aria-hidden="true">🖼</span><span>Use in gallery</span></button>
                         <button type="button" class="icon-btn media-action-btn media-group-action-btn media-labeled-action-btn" id="visualRemoveFromBrandBtn" data-remove-from-brand-target="visual" disabled hidden aria-label="Remove selected visuals from the filtered brand" title="Select a brand filter, then files to remove from that library"><span class="media-labeled-action-icon" aria-hidden="true">−</span><span>From brand</span></button>
                         <button type="button" class="icon-btn media-action-btn media-action-good media-group-action-btn media-labeled-action-btn media-bulk-download-btn" data-bulk-download-target="visual" data-download-variant="original" disabled aria-label="Download selected files" title="Download selected files"><span class="media-labeled-action-icon" aria-hidden="true">⬇</span><span>Download</span></button>
                         <button type="button" class="icon-btn media-action-btn media-action-danger media-group-action-btn media-labeled-action-btn media-bulk-delete-btn" data-bulk-delete-target="visual" disabled aria-label="Delete selected files" title="Delete selected files"><span class="media-labeled-action-icon" aria-hidden="true">🗑️</span><span>Delete</span></button>
@@ -1454,6 +1456,42 @@ if ($tab === 'analytics') {
                     <div class="modal-actions">
                         <button type="button" id="useInBrandConfirmBtn" class="btn btn-primary">Add to brand</button>
                         <button type="button" class="btn" onclick="closeUseInBrandModal()">Cancel</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Use selected Visuals in a gallery -->
+            <div id="useInGalleryModal" class="modal-overlay" style="display:none" onclick="if(event.target===this)closeUseInGalleryModal()" aria-hidden="true">
+                <div class="modal-box" role="dialog" aria-modal="true" aria-labelledby="useInGalleryTitle">
+                    <button type="button" class="modal-close" onclick="closeUseInGalleryModal()" aria-label="Close">✕</button>
+                    <h3 id="useInGalleryTitle">Use in gallery</h3>
+                    <p id="useInGallerySummary" class="card-note"></p>
+                    <div class="media-upload-campaign-field visual-assign-campaign-field">
+                        <label for="useInGallerySelect">Gallery:</label>
+                        <select id="useInGallerySelect" aria-label="Gallery to add to"></select>
+                    </div>
+                    <p class="card-note text-muted">Appends selected visuals to that gallery. Owned galleries only accept files from the same campaign catalogue (or orphans).</p>
+                    <div class="modal-actions">
+                        <button type="button" id="useInGalleryConfirmBtn" class="btn btn-primary">Add to gallery</button>
+                        <button type="button" class="btn" onclick="closeUseInGalleryModal()">Cancel</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Use selected Audio in a playlist -->
+            <div id="useInPlaylistModal" class="modal-overlay" style="display:none" onclick="if(event.target===this)closeUseInPlaylistModal()" aria-hidden="true">
+                <div class="modal-box" role="dialog" aria-modal="true" aria-labelledby="useInPlaylistTitle">
+                    <button type="button" class="modal-close" onclick="closeUseInPlaylistModal()" aria-label="Close">✕</button>
+                    <h3 id="useInPlaylistTitle">Use in playlist</h3>
+                    <p id="useInPlaylistSummary" class="card-note"></p>
+                    <div class="media-upload-campaign-field visual-assign-campaign-field">
+                        <label for="useInPlaylistSelect">Playlist:</label>
+                        <select id="useInPlaylistSelect" aria-label="Playlist to add to"></select>
+                    </div>
+                    <p class="card-note text-muted">Appends selected tracks to that playlist. Owned playlists only accept tracks from the same campaign catalogue (or orphans).</p>
+                    <div class="modal-actions">
+                        <button type="button" id="useInPlaylistConfirmBtn" class="btn btn-primary">Add to playlist</button>
+                        <button type="button" class="btn" onclick="closeUseInPlaylistModal()">Cancel</button>
                     </div>
                 </div>
             </div>

@@ -4203,6 +4203,28 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     }
                 }
 
+                if (type === 'visual') {
+                    const selectedDetails = getSelectedMediaDetails('visual');
+                    const galleryBtn = document.querySelector('[data-use-in-gallery-target="visual"]');
+                    if (galleryBtn) {
+                        galleryBtn.disabled = selectedDetails.length < 1;
+                        galleryBtn.title = selectedDetails.length < 1
+                            ? 'Select one or more files to add to a gallery'
+                            : 'Add selected visuals to a gallery';
+                    }
+                }
+
+                if (type === 'audio') {
+                    const selectedDetails = getSelectedMediaDetails('audio');
+                    const playlistBtn = document.querySelector('[data-use-in-playlist-target="audio"]');
+                    if (playlistBtn) {
+                        playlistBtn.disabled = selectedDetails.length < 1;
+                        playlistBtn.title = selectedDetails.length < 1
+                            ? 'Select one or more tracks to add to a playlist'
+                            : 'Add selected tracks to a playlist';
+                    }
+                }
+
                 const selectedDetails = getSelectedMediaDetails(type);
                 document.querySelectorAll(`[data-bulk-download-target="${type}"]`).forEach((button) => {
                     const variant = resolveBulkDownloadVariant(type, String(button.dataset.downloadVariant || 'original').trim());
@@ -4832,7 +4854,13 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     selection.selected.add(mediaFileSelectionKey('special', file));
                 });
                 mediaFilesState.delete('special');
-                await loadMediaList('special');
+                mediaFilesState.delete('sfx');
+                mediaFilesState.delete('visual');
+                if (activeMediaPanel === 'sfx' || activeMediaPanel === 'visual') {
+                    await loadMediaList(activeMediaPanel);
+                } else {
+                    await loadMediaList('visual');
+                }
                 if (blocked.length) {
                     showAdminToast(
                         `${removedCount} asset${removedCount === 1 ? '' : 's'} removed. `
@@ -5599,7 +5627,6 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
             }
 
             bindPoolListInteractions('visual');
-            bindPoolListInteractions('special');
             bindPoolListInteractions('sfx');
 
             const poolAssetPreviewEl = document.getElementById('poolAssetPreview');
@@ -5857,7 +5884,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
             }
 
             function syncMediaPickerOwnershipFilters(target) {
-                const usesBrand = target === 'special' || target === 'sfx';
+                const usesBrand = target === 'sfx';
                 const fixedScope = mediaPickerHasFixedBrandScope();
                 document.querySelectorAll('#mediaPickerToolbar [data-picker-filter="campaign"]').forEach((el) => {
                     el.hidden = usesBrand || fixedScope;
@@ -5903,7 +5930,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 mediaPickerList.innerHTML = '<span class="text-muted">Loading…</span>';
 
                 try {
-                    if (target === 'special' || target === 'sfx') {
+                    if (target === 'sfx') {
                         await ensureBrandFilterCatalog();
                     } else {
                         await loadCampaignsCatalog();
@@ -6284,7 +6311,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     window.openMediaPicker(
                         openBtn.dataset.field,
                         openBtn.dataset.title,
-                        openBtn.dataset.targets || 'special',
+                        openBtn.dataset.targets || 'visual',
                         {
                             acceptKinds: normalizePickerAcceptKinds(openBtn.dataset.accept || ''),
                             brandId: String(openBtn.dataset.brand || '').trim(),
@@ -6449,7 +6476,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
             if (mediaPickerUploadBtn) {
                 mediaPickerUploadBtn.addEventListener('click', () => {
                     if (!mediaPickerState) return;
-                    const target = mediaPickerState.activeTarget || mediaPickerState.targets[0] || 'special';
+                    const target = mediaPickerState.activeTarget || mediaPickerState.targets[0] || 'visual';
                     closeMediaPickerModal();
                     openUploadModal(target);
                 });
@@ -8137,6 +8164,355 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     const target = String(button.getAttribute('data-remove-from-brand-target') || 'visual');
                     removeSelectedFromBrandLibrary(target).catch((error) => {
                         showAdminToast(error.message || 'Could not remove from brand.', 'error');
+                    });
+                });
+            });
+
+            function closeUseInGalleryModal() {
+                const modal = document.getElementById('useInGalleryModal');
+                if (!modal) {
+                    return;
+                }
+                modal.style.display = 'none';
+                modal.setAttribute('aria-hidden', 'true');
+            }
+            window.closeUseInGalleryModal = closeUseInGalleryModal;
+
+            function closeUseInPlaylistModal() {
+                const modal = document.getElementById('useInPlaylistModal');
+                if (!modal) {
+                    return;
+                }
+                modal.style.display = 'none';
+                modal.setAttribute('aria-hidden', 'true');
+            }
+            window.closeUseInPlaylistModal = closeUseInPlaylistModal;
+
+            function buildGalleryItemFromMediaFile(file) {
+                const kind = String(file?.media_type || '').trim() === 'video' ? 'video' : 'image';
+                const assetId = String(file?.asset_id || '').trim();
+                const title = String(file?.display_title || file?.operator_title || '').trim()
+                    || String(file?.name || '').replace(/\.[^.]+$/, '').replace(/[_-]+/g, ' ').trim()
+                    || 'Untitled';
+                const deliverySrc = kind === 'video'
+                    ? (String(file?.stream_url || file?.preview_url || '').trim()
+                        || (assetId
+                            ? `/media/visual/delivery/${encodeURIComponent(assetId)}/standard-stream.mp4`
+                            : ''))
+                    : (poolAssetStillPreviewUrl(file, 'card')
+                        || poolAssetStillPreviewUrl(file, 'thumb')
+                        || (assetId
+                            ? `/media/visual/delivery/${encodeURIComponent(assetId)}/card.jpg`
+                            : ''));
+                const item = {
+                    src: deliverySrc,
+                    asset_id: assetId,
+                    name: title,
+                    alt: title,
+                    type: kind,
+                };
+                if (kind === 'video') {
+                    const poster = String(file?.poster_url || '').trim()
+                        || (assetId
+                            ? `/media/visual/delivery/${encodeURIComponent(assetId)}/poster.jpg`
+                            : '');
+                    if (poster) {
+                        item.poster = poster;
+                    }
+                }
+                return item;
+            }
+
+            function audioMasterFilenameFromMediaFile(file) {
+                const fromMaster = String(file?.audio_master?.filename || '').trim();
+                if (fromMaster !== '') {
+                    return fromMaster.split(/[\\/]/).pop() || fromMaster;
+                }
+                const fromName = String(file?.name || '').trim();
+                return fromName.split(/[\\/]/).pop() || fromName;
+            }
+
+            async function appendVisualsToGallery(galleryId, selectedFiles) {
+                const gallery = String(galleryId || '').trim();
+                if (!gallery) {
+                    throw new Error('Choose a gallery.');
+                }
+                const candidates = (Array.isArray(selectedFiles) ? selectedFiles : [])
+                    .filter((file) => file && file.pool_ready !== false);
+                if (!candidates.length) {
+                    throw new Error('Selected visuals are still preparing delivery. Wait for Site health, then try again.');
+                }
+                const newItems = candidates
+                    .map((file) => buildGalleryItemFromMediaFile(file))
+                    .filter((item) => item.asset_id || item.src);
+                if (!newItems.length) {
+                    throw new Error('Selected visuals need an asset id or delivery preview.');
+                }
+                const response = await fetch(`/biblioteca/get-gallery.php?gallery=${encodeURIComponent(gallery)}`, {
+                    credentials: 'same-origin',
+                });
+                const data = await response.json().catch(() => ({}));
+                if (!response.ok || data.ok === false) {
+                    throw new Error(data.error || 'Could not load that gallery.');
+                }
+                const existing = Array.isArray(data.items) ? data.items.slice() : [];
+                const seen = new Set();
+                existing.forEach((item) => {
+                    const assetId = String(item?.asset_id || '').trim();
+                    const src = String(item?.src || '').trim();
+                    if (assetId) {
+                        seen.add('id:' + assetId);
+                    }
+                    if (src) {
+                        seen.add('src:' + src);
+                    }
+                });
+                let added = 0;
+                newItems.forEach((item) => {
+                    const assetId = String(item.asset_id || '').trim();
+                    const src = String(item.src || '').trim();
+                    const keys = [];
+                    if (assetId) {
+                        keys.push('id:' + assetId);
+                    }
+                    if (src) {
+                        keys.push('src:' + src);
+                    }
+                    if (keys.some((key) => seen.has(key))) {
+                        return;
+                    }
+                    keys.forEach((key) => seen.add(key));
+                    existing.push(item);
+                    added += 1;
+                });
+                if (added === 0) {
+                    throw new Error('Those visuals are already in that gallery.');
+                }
+                const saveResp = await fetch(`/biblioteca/save-gallery.php?gallery=${encodeURIComponent(gallery)}`, {
+                    method: 'POST',
+                    credentials: 'same-origin',
+                    headers: { 'Content-Type': 'application/json; charset=utf-8' },
+                    body: JSON.stringify(existing),
+                });
+                const saveData = await saveResp.json().catch(() => ({}));
+                if (!saveResp.ok || saveData.ok === false) {
+                    throw new Error(saveData.error || 'Could not save gallery.');
+                }
+                return { added, title: String(data.title || gallery) };
+            }
+
+            async function appendAudioToPlaylist(playlistId, selectedFiles, playlistTitle) {
+                const playlist = String(playlistId || '').trim();
+                if (!playlist) {
+                    throw new Error('Choose a playlist.');
+                }
+                const newFiles = (Array.isArray(selectedFiles) ? selectedFiles : [])
+                    .map((file) => audioMasterFilenameFromMediaFile(file))
+                    .filter(Boolean);
+                if (!newFiles.length) {
+                    throw new Error('Selected tracks need a master filename.');
+                }
+                const response = await fetch(
+                    `/biblioteca/get-playlist-preview.php?playlist=${encodeURIComponent(playlist)}`,
+                    { credentials: 'same-origin' }
+                );
+                const data = await response.json().catch(() => ({}));
+                if (!response.ok || data.ok === false) {
+                    throw new Error(data.error || 'Could not load that playlist.');
+                }
+                const active = Array.isArray(data.activeTracks) ? data.activeTracks : [];
+                const order = active.map((track) => String(track?.file || '').trim()).filter(Boolean);
+                const seen = new Set(order);
+                let added = 0;
+                newFiles.forEach((filename) => {
+                    if (seen.has(filename)) {
+                        return;
+                    }
+                    seen.add(filename);
+                    order.push(filename);
+                    added += 1;
+                });
+                if (added === 0) {
+                    throw new Error('Those tracks are already in that playlist.');
+                }
+                if (!order.length) {
+                    throw new Error('Playlist must keep at least one track.');
+                }
+                const saveResp = await fetch(
+                    `/biblioteca/save-playlist-order.php?playlist=${encodeURIComponent(playlist)}`,
+                    {
+                        method: 'POST',
+                        credentials: 'same-origin',
+                        headers: { 'Content-Type': 'application/json; charset=utf-8' },
+                        body: JSON.stringify(order),
+                    }
+                );
+                const saveData = await saveResp.json().catch(() => ({}));
+                if (!saveResp.ok || saveData.ok === false) {
+                    throw new Error(saveData.error || 'Could not save playlist.');
+                }
+                const title = String(playlistTitle || data.playlist_title || data.title || playlist).trim() || playlist;
+                return { added, title };
+            }
+
+            async function openUseInGalleryModal() {
+                const selected = getSelectedMediaDetails('visual');
+                if (!selected.length) {
+                    showAdminToast('Select one or more visuals first.', 'error');
+                    return;
+                }
+                const response = await fetch('/biblioteca/get-galleries.php', { credentials: 'same-origin' });
+                const data = await response.json().catch(() => ({}));
+                if (!response.ok || data.ok === false) {
+                    throw new Error(data.error || 'Could not load galleries.');
+                }
+                const galleries = (Array.isArray(data.galleries) ? data.galleries : [])
+                    .filter((entry) => String(entry?.id || '').trim() !== '');
+                if (!galleries.length) {
+                    showAdminToast('No galleries available. Create one under Content → Galleries.', 'error');
+                    return;
+                }
+
+                const modal = document.getElementById('useInGalleryModal');
+                const summaryEl = document.getElementById('useInGallerySummary');
+                const selectEl = document.getElementById('useInGallerySelect');
+                const confirmBtn = document.getElementById('useInGalleryConfirmBtn');
+                if (!modal || !summaryEl || !selectEl || !confirmBtn) {
+                    showAdminToast('Use in gallery dialog is missing. Reload the page.', 'error');
+                    return;
+                }
+
+                summaryEl.textContent = `Selected: ${selected.length} visual${selected.length === 1 ? '' : 's'}. Choose the gallery to append them to.`;
+                selectEl.innerHTML = galleries.map((entry) => {
+                    const id = String(entry?.id || '').trim();
+                    const title = String(entry?.title || id).trim() || id;
+                    return `<option value="${bandpromoAdminEscapeHtml(id)}">${bandpromoAdminEscapeHtml(title)}</option>`;
+                }).join('');
+                const defaultId = String(data.default_gallery_id || '').trim();
+                if (defaultId) {
+                    selectEl.value = defaultId;
+                }
+                if (!selectEl.value && selectEl.options.length) {
+                    selectEl.selectedIndex = 0;
+                }
+
+                confirmBtn.onclick = () => {
+                    const galleryId = String(selectEl.value || '').trim();
+                    if (!galleryId) {
+                        showAdminToast('Choose a gallery.', 'error');
+                        return;
+                    }
+                    confirmBtn.disabled = true;
+                    appendVisualsToGallery(galleryId, selected)
+                        .then((result) => {
+                            closeUseInGalleryModal();
+                            clearMediaSelection('visual');
+                            showAdminToast(
+                                result.added === 1
+                                    ? `Added 1 visual to gallery “${result.title}”.`
+                                    : `Added ${result.added} visuals to gallery “${result.title}”.`
+                            );
+                        })
+                        .catch((error) => {
+                            showAdminToast(error.message || 'Could not add to gallery.', 'error');
+                        })
+                        .finally(() => {
+                            confirmBtn.disabled = false;
+                        });
+                };
+
+                modal.style.display = 'flex';
+                modal.setAttribute('aria-hidden', 'false');
+                selectEl.focus();
+            }
+
+            async function openUseInPlaylistModal() {
+                const selected = getSelectedMediaDetails('audio');
+                if (!selected.length) {
+                    showAdminToast('Select one or more tracks first.', 'error');
+                    return;
+                }
+                const response = await fetch('/biblioteca/get-playlists.php', { credentials: 'same-origin' });
+                const data = await response.json().catch(() => ({}));
+                if (!response.ok || data.ok === false) {
+                    throw new Error(data.error || 'Could not load playlists.');
+                }
+                const playlists = (Array.isArray(data.playlists) ? data.playlists : [])
+                    .filter((entry) => String(entry?.id || '').trim() !== '');
+                if (!playlists.length) {
+                    showAdminToast('No playlists available. Create one under Content → Playlists.', 'error');
+                    return;
+                }
+
+                const modal = document.getElementById('useInPlaylistModal');
+                const summaryEl = document.getElementById('useInPlaylistSummary');
+                const selectEl = document.getElementById('useInPlaylistSelect');
+                const confirmBtn = document.getElementById('useInPlaylistConfirmBtn');
+                if (!modal || !summaryEl || !selectEl || !confirmBtn) {
+                    showAdminToast('Use in playlist dialog is missing. Reload the page.', 'error');
+                    return;
+                }
+
+                summaryEl.textContent = `Selected: ${selected.length} track${selected.length === 1 ? '' : 's'}. Choose the playlist to append them to.`;
+                selectEl.innerHTML = playlists.map((entry) => {
+                    const id = String(entry?.id || '').trim();
+                    const title = String(entry?.title || id).trim() || id;
+                    const campaign = String(entry?.release_title || entry?.campaign_title || '').trim();
+                    const label = campaign ? `${title} · ${campaign}` : title;
+                    return `<option value="${bandpromoAdminEscapeHtml(id)}">${bandpromoAdminEscapeHtml(label)}</option>`;
+                }).join('');
+                const defaultId = String(data.default_playlist_id || data.active_playlist_id || '').trim();
+                if (defaultId) {
+                    selectEl.value = defaultId;
+                }
+                if (!selectEl.value && selectEl.options.length) {
+                    selectEl.selectedIndex = 0;
+                }
+
+                confirmBtn.onclick = () => {
+                    const playlistId = String(selectEl.value || '').trim();
+                    if (!playlistId) {
+                        showAdminToast('Choose a playlist.', 'error');
+                        return;
+                    }
+                    const selectedOption = selectEl.options[selectEl.selectedIndex];
+                    const optionLabel = String(selectedOption?.textContent || '').trim();
+                    const playlistTitle = optionLabel.replace(/\s·\s.*$/, '').trim() || playlistId;
+                    confirmBtn.disabled = true;
+                    appendAudioToPlaylist(playlistId, selected, playlistTitle)
+                        .then((result) => {
+                            closeUseInPlaylistModal();
+                            clearMediaSelection('audio');
+                            showAdminToast(
+                                result.added === 1
+                                    ? `Added 1 track to playlist “${result.title}”.`
+                                    : `Added ${result.added} tracks to playlist “${result.title}”.`
+                            );
+                        })
+                        .catch((error) => {
+                            showAdminToast(error.message || 'Could not add to playlist.', 'error');
+                        })
+                        .finally(() => {
+                            confirmBtn.disabled = false;
+                        });
+                };
+
+                modal.style.display = 'flex';
+                modal.setAttribute('aria-hidden', 'false');
+                selectEl.focus();
+            }
+
+            document.querySelectorAll('[data-use-in-gallery-target]').forEach((button) => {
+                button.addEventListener('click', () => {
+                    openUseInGalleryModal().catch((error) => {
+                        showAdminToast(error.message || 'Could not open Use in gallery.', 'error');
+                    });
+                });
+            });
+            document.querySelectorAll('[data-use-in-playlist-target]').forEach((button) => {
+                button.addEventListener('click', () => {
+                    openUseInPlaylistModal().catch((error) => {
+                        showAdminToast(error.message || 'Could not open Use in playlist.', 'error');
                     });
                 });
             });
@@ -10787,7 +11163,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                             window.openMediaPicker(
                                 button.dataset.field || 'playlistSettingsPosterAssetId',
                                 button.dataset.title || 'Choose playlist cover',
-                                button.dataset.targets || 'illustrations,photos,special'
+                                button.dataset.targets || 'visual'
                             );
                         });
                     });

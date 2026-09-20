@@ -2,6 +2,8 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-09-20 10:35 - Files: Visual **Use in gallery** and Audio **Use in playlist** — select pool rows, pick a gallery/playlist, append (delivery-ready visuals; audio masters via playlist order save). Leftover Brand-assets picker defaults map to Visual.
+
 2026-09-20 10:30 - Files: retire Brand assets tab. Three pools only (Audio | Visual | Sound effects). Visual gains brand-library filter plus **Use in brand** / **From brand**; SFX gets the same actions. Branding shell pickers browse Visual/SFX (not Brand assets). `fpanel=special` redirects to Visual.
 
 2026-09-19 14:50 - PBF download filenames use the brand title (e.g. `bandPromo-brand-HITZ-by-7rym-….pbf`), not the opaque `brd_*` storage id. Jobs already showed the title; the saved file now matches.
