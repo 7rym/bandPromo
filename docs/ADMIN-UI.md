@@ -42,9 +42,9 @@ Do not invent a second under-nav title pattern for new Content editors unless th
 
 | Surface | When it sticks |
 |---------|----------------|
-| Files / Content sub-tab bars | Page scroll would hide them (`top: 0`) |
+| Files / Content / System sub-tab bars | Page scroll would hide them (`top: 0`) |
 | Files pool filter/actions + column headers (`.media-pool-sticky-chrome`) | Would leave the viewport under the Files sub-tab bar |
-| Content breadcrumb head (`.content-editor-card-head`) | Would leave under the Content sub-tab bar |
+| Content / Status breadcrumb head (`.content-editor-card-head`) | Would leave under the section sub-tab bar |
 | Split-editor column headers / gallery picker toolbar | Would leave under the breadcrumb head |
 
 Do not nest sticky headers inside an already-sticky column (Branding Live preview sticks as a column; its title stays in normal flow). Page builder keeps its own sticky section / richtext pattern. New pool or editor toolbars follow the same “stick only when leaving the viewport” rule.
@@ -125,7 +125,8 @@ On **System → Status**:
 3. Review open → auto-fixable findings are **ticked by default** (Apply only those selected); **Apply treatment** (green) + **Not now** + **Back up first…** sit under the panel. Amber assurance carries the how-to line; the grey note under it is backup-only (no duplicate guidance). Multi-campaign orphan homes and data-container orphans stay Manual: each row shows a choice strip (campaign chips, or a dropdown when there are more than five). The selected chip keeps a clear green border; peers stay muted. Container rows end with **or Delete** in the same strip (no separate Adopt/Set row buttons). Once every row has a choice, the finding’s **Include** checkbox enables (same greenlit pattern as autofix); Apply runs the chosen adopts / deletes / catalogue-home stamps, then any ticked autofix treatments. Manual findings omit the “Suggested treatment” footer (Found this + choices are enough). Row cards use hairline separators only — not amber-nested. Ephemeral `data/` leftovers and unambiguous container registry fixes stay ticked for Apply.  
 4. Checks older than **1 hour** are out of date: do not show Healthy or Good/Bad/Ugly from that plan — badge is **Out of date**, summary is replaced with a short notice, and Status **auto-starts Quick health check** (opens the exam directly). Review/Apply stay refused until the fresh check finishes.  
 5. After **Site update**, Status also auto-starts Quick health check directly (skips the Status / Site health hubs). Stale auto-start runs only from the **Status** landing — not while the operator is on the Site health hub choosing Full/Force, and never as a banner over an already-running job.  
-6. Attention findings use amber cards; critical findings use red cards. Job status line uses success / attention / error tones.
+6. Attention findings use amber cards; critical findings use red cards. Job status line uses success / attention / error tones.  
+7. **Proposed treatment** uses `Include:` **Yes** \| **Skip** segmented toggles (not checkboxes); campaign Adopt choices stay chip toggles (dropdown only when more than 5 campaigns).
 
 ### Save-state machine
 

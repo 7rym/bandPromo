@@ -3097,7 +3097,8 @@ canvas { max-width: 100%; height: auto; }
 }
 
 #tab-files > .tabs.sub-tabs,
-#tab-content > .tabs.sub-tabs {
+#tab-content > .tabs.sub-tabs,
+#tab-system > .tabs.sub-tabs {
     position: sticky;
     top: var(--admin-subtabs-sticky-top);
     z-index: 50;
@@ -5728,22 +5729,46 @@ canvas { max-width: 100%; height: auto; }
     flex: 0 0 auto;
     font-size: 11px;
     font-weight: 600;
-    text-transform: uppercase;
     letter-spacing: 0.03em;
     color: var(--muted);
-    cursor: pointer;
+    cursor: default;
 }
 
-.site-health-treat-select input {
-    width: 15px;
-    height: 15px;
-    accent-color: #4caf50;
-    cursor: pointer;
+.site-health-treat-include-label {
+    text-transform: none;
+    letter-spacing: 0;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text);
+    white-space: nowrap;
+}
+
+.site-health-treat-include-toggle {
+    gap: 4px;
+}
+
+.site-health-treat-include .brand-player-setting-btn {
+    text-transform: none;
+    letter-spacing: 0;
+    font-size: 11px;
+    padding: 0.22rem 0.55rem;
+}
+
+.site-health-treat-select input[hidden] {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    padding: 0;
+    border: 0;
+    clip: rect(0 0 0 0);
+    overflow: hidden;
 }
 
 .site-health-treat-select--manual {
     color: #ffd54f;
     cursor: default;
+    text-transform: uppercase;
 }
 
 .site-health-treat-detail-label {

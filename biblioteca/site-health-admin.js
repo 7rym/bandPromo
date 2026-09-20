@@ -247,7 +247,7 @@
         };
 
         const requested = labels.length
-            ? ('<p class="site-health-treat-detail-label">Requested</p>' +
+            ? ('<p class="site-health-treat-detail-label">Requested:</p>' +
                 '<ul class="site-health-treat-result-list">' +
                 labels.map((n) => '<li>' + escapeHtml(n) + '</li>').join('') +
                 '</ul>')
@@ -270,7 +270,7 @@
         });
 
         const applied = statusRows.length
-            ? ('<p class="site-health-treat-detail-label">Applied</p>' +
+            ? ('<p class="site-health-treat-detail-label">Applied:</p>' +
                 '<ul class="site-health-treat-result-list">' + statusRows.join('') + '</ul>')
             : '';
 
@@ -898,7 +898,7 @@
             return (
                 '<p class="site-health-treat-assurance">' +
                 'We found a few things that need tidying — nothing to panic about. ' +
-                'Tick what you want fixed (everything useful is selected already), then Apply.' +
+                'Choose Yes or Skip for each item (everything useful starts as Yes), then Apply.' +
                 '</p>'
             );
         }
@@ -1185,7 +1185,7 @@
                   ' of ' + count + ' — the rest is in Activity.</p>'
                 : '';
             foundBits.push(
-                '<p class="site-health-treat-detail-label">Clash detail</p>' +
+                '<p class="site-health-treat-detail-label">Clash detail:</p>' +
                 '<ul class="site-health-orphan-clash-list">' +
                 sample.map(orphanClashRowHtml).join('') +
                 '</ul>' +
@@ -1197,7 +1197,7 @@
                   ' of ' + count + ' — the rest is in Activity.</p>'
                 : '';
             foundBits.push(
-                '<p class="site-health-treat-detail-label">Container detail</p>' +
+                '<p class="site-health-treat-detail-label">Container detail:</p>' +
                 '<ul class="site-health-orphan-clash-list site-health-data-orphan-list">' +
                 sample.map(dataContainerRowHtml).join('') +
                 '</ul>' +
@@ -1218,7 +1218,7 @@
                   ' of ' + count + ' for operators who want the full names — the rest is in Activity.</p>'
                 : '';
             foundBits.push(
-                '<p class="site-health-treat-detail-label">Item names (optional detail)</p>' +
+                '<p class="site-health-treat-detail-label">Item names (optional):</p>' +
                 '<ul class="site-health-treat-detail-list">' + sampleItems + '</ul>' +
                 more
             );
@@ -1232,24 +1232,20 @@
         }
 
         const selectHtml = canTreat
-            ? (
-                '<label class="site-health-treat-select" onclick="event.stopPropagation()">' +
-                '<input type="checkbox" class="site-health-treat-check" checked ' +
-                'data-finding-id="' + escapeHtml(findingId) + '" ' +
-                'data-treatment-id="' + escapeHtml(treatmentId) + '">' +
-                '<span class="site-health-treat-select-label">Include</span>' +
-                '</label>'
-            )
+            ? treatIncludeToggleHtml({
+                findingId: findingId,
+                treatmentId: treatmentId,
+                included: true,
+                disabled: false,
+            })
             : (isManualChoice
-                ? (
-                    '<label class="site-health-treat-select" onclick="event.stopPropagation()" ' +
-                    'title="Choose an option on every row first">' +
-                    '<input type="checkbox" class="site-health-treat-check site-health-manual-check" ' +
-                    'data-finding-id="' + escapeHtml(findingId) + '" ' +
-                    'data-manual-kind="' + escapeHtml(findingId) + '" disabled>' +
-                    '<span class="site-health-treat-select-label">Include</span>' +
-                    '</label>'
-                )
+                ? treatIncludeToggleHtml({
+                    findingId: findingId,
+                    treatmentId: '',
+                    included: false,
+                    disabled: true,
+                    manual: true,
+                })
                 : (
                     '<span class="site-health-treat-select site-health-treat-select--manual" ' +
                     'title="Not auto-fixed by Apply">Manual</span>'
@@ -1275,6 +1271,70 @@
             '</div>' +
             '</details>'
         );
+    }
+
+    function treatIncludeToggleHtml(opts) {
+        const findingId = escapeHtml(String((opts && opts.findingId) || ''));
+        const treatmentId = escapeHtml(String((opts && opts.treatmentId) || ''));
+        const included = !!(opts && opts.included);
+        const disabled = !!(opts && opts.disabled);
+        const manual = !!(opts && opts.manual);
+        const title = disabled
+            ? ' title="Choose an option on every row first"'
+            : '';
+        return (
+            '<div class="site-health-treat-select site-health-treat-include' +
+            (disabled ? ' is-disabled' : '') +
+            '" onclick="event.stopPropagation()"' + title + '>' +
+            '<span class="site-health-treat-include-label">Include:</span>' +
+            '<div class="site-health-choice-toggle site-health-treat-include-toggle" ' +
+            'role="group" aria-label="Include in Apply">' +
+            '<button type="button" class="brand-player-setting-btn' +
+            (included ? ' is-active' : '') + '"' +
+            ' data-include="1" aria-pressed="' + (included ? 'true' : 'false') + '"' +
+            (disabled ? ' disabled' : '') + '>Yes</button>' +
+            '<button type="button" class="brand-player-setting-btn' +
+            (!included ? ' is-active' : '') + '"' +
+            ' data-include="0" aria-pressed="' + (!included ? 'true' : 'false') + '"' +
+            (disabled ? ' disabled' : '') + '>Skip</button>' +
+            '</div>' +
+            '<input type="checkbox" class="site-health-treat-check' +
+            (manual ? ' site-health-manual-check' : '') + '"' +
+            (included ? ' checked' : '') +
+            (disabled ? ' disabled' : '') +
+            ' data-finding-id="' + findingId + '"' +
+            (treatmentId
+                ? (' data-treatment-id="' + treatmentId + '"')
+                : (' data-manual-kind="' + findingId + '"')) +
+            ' hidden>' +
+            '</div>'
+        );
+    }
+
+    function setTreatIncludeState(wrap, included, disabled) {
+        if (!(wrap instanceof HTMLElement)) {
+            return;
+        }
+        const check = wrap.querySelector('.site-health-treat-check');
+        const buttons = wrap.querySelectorAll('[data-include]');
+        const nextIncluded = !!included;
+        const nextDisabled = !!disabled;
+        if (check instanceof HTMLInputElement) {
+            check.checked = nextIncluded && !nextDisabled;
+            check.disabled = nextDisabled;
+        }
+        Array.prototype.forEach.call(buttons, (btn) => {
+            if (!(btn instanceof HTMLButtonElement)) {
+                return;
+            }
+            const isYes = String(btn.getAttribute('data-include') || '') === '1';
+            const active = nextIncluded ? isYes : !isYes;
+            btn.classList.toggle('is-active', active);
+            btn.setAttribute('aria-pressed', active ? 'true' : 'false');
+            btn.disabled = nextDisabled;
+        });
+        wrap.classList.toggle('is-disabled', nextDisabled);
+        wrap.title = nextDisabled ? 'Choose an option on every row first' : '';
     }
 
     async function getAdminCsrfToken() {
@@ -1388,6 +1448,7 @@
                 if (!(finding instanceof HTMLElement)) {
                     return;
                 }
+                const wrap = finding.querySelector('.site-health-treat-include');
                 const check = finding.querySelector('.site-health-treat-check');
                 if (!(check instanceof HTMLInputElement)) {
                     return;
@@ -1406,19 +1467,12 @@
                     ready = false;
                 });
                 const wasDisabled = check.disabled;
-                check.disabled = !ready;
-                if (!ready) {
-                    check.checked = false;
-                } else if (wasDisabled) {
-                    check.checked = true;
-                }
-                const wrap = check.closest('.site-health-treat-select');
-                if (wrap instanceof HTMLElement) {
-                    wrap.classList.toggle('is-disabled', !ready);
-                    wrap.title = ready
-                        ? ''
-                        : 'Choose an option on every row first';
-                }
+                const keepIncluded = ready && (wasDisabled || check.checked);
+                setTreatIncludeState(
+                    wrap || check.closest('.site-health-treat-select'),
+                    keepIncluded,
+                    !ready
+                );
             }
         );
         syncApplyEnabledFromSelection();
@@ -1716,11 +1770,22 @@
         }
         // Rebinding after innerHTML — clear one-shot choice binder flag.
         previewBodyEl.removeAttribute('data-manual-choice-bound');
+        previewBodyEl.querySelectorAll('.site-health-treat-include-toggle [data-include]').forEach((btn) => {
+            btn.addEventListener('click', (event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                const button = event.currentTarget;
+                if (!(button instanceof HTMLButtonElement) || button.disabled) {
+                    return;
+                }
+                const wrap = button.closest('.site-health-treat-include');
+                const include = String(button.getAttribute('data-include') || '') === '1';
+                setTreatIncludeState(wrap, include, false);
+                syncApplyEnabledFromSelection();
+            });
+        });
         previewBodyEl.querySelectorAll('.site-health-treat-check').forEach((box) => {
             box.addEventListener('change', syncApplyEnabledFromSelection);
-            box.addEventListener('click', (event) => {
-                event.stopPropagation();
-            });
         });
         bindManualChoiceHandlers();
         syncManualFindingChecks();
@@ -1770,7 +1835,7 @@
         );
         if (fix.all) {
             previewNote = (
-                'Tick what you want fixed (everything useful is selected to start). ' +
+                'Choose Yes or Skip for each item (everything useful starts as Yes). ' +
                 'Nothing changes until you Apply. A backup first is a good idea if you want a restore point.'
             );
         }
@@ -2430,7 +2495,7 @@
                 ? await window.bandpromoConfirm({
                     title: 'Apply treatment?',
                     body: (
-                        'Only the ticked items will be fixed. Unticked items stay for later.\n\n' +
+                        'Only items set to Yes will be fixed. Skipped items stay for later.\n\n' +
                         summary
                     ),
                     confirmLabel: 'Apply treatment',
@@ -2440,7 +2505,7 @@
                 : window.confirm(
                     'Apply the selected treatment now?\n\n' +
                     summary +
-                    '\n\nOnly the ticked items will be fixed. Unticked items stay for later.'
+                    '\n\nOnly items set to Yes will be fixed. Skipped items stay for later.'
                 );
             if (!confirmed) {
                 return;

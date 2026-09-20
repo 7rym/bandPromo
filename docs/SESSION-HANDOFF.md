@@ -2,13 +2,13 @@
 
 ## Resume point
 
-**Status page operator-copy audit shipped** — hub, Force, treatment labels, finding bodies plain; developer additive notes on hub/Force.
+**Status layout prefs audit** — Include: Yes|Skip toggles; System sub-tabs sticky under Status breadcrumb. Copy audit already shipped (build 563).
 
 ### Shipped recently
 
-1. Operator messaging voice: plain for operators; developer detail optional (build 562).
-2. Force full rebuild plain copy (build 560); then full Status copy audit.
-3. Sticky chrome; Visual Grid S/M/L; grid delivery preference; confirm tones.
+1. Operator-friendly Status copy (hub / Force / findings).
+2. Status layout: Include toggles + System sticky stack.
+3. Sticky chrome; Visual Grid S/M/L; grid delivery; confirm tones.
 4. Use in brand / gallery / playlist; Brand assets tab retired.
 
 ### Operator note after update
