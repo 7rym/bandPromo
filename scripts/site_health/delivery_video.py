@@ -38,6 +38,25 @@ def _heartbeat(message):
         pass
 
 
+def _video_label(ov, asset, source=None):
+    if hasattr(ov, 'video_asset_label'):
+        try:
+            return ov.video_asset_label(asset, source)
+        except Exception:
+            pass
+    if isinstance(asset, dict):
+        for key in ('original_filename', 'master_filename', 'title', 'id'):
+            raw = str(asset.get(key) or '').strip()
+            if raw:
+                return os.path.basename(raw.replace('\\', '/')) if key.endswith('filename') else raw
+    if source is not None:
+        try:
+            return os.path.basename(str(source))
+        except Exception:
+            pass
+    return 'unknown video'
+
+
 def run_video_delivery(force=False):
     """
     Rebuild stale/missing (or all, if force) registered visual video deliverables.
@@ -55,6 +74,10 @@ def run_video_delivery(force=False):
 
     if not ov.check_ffmpeg():
         log.info('FAILED ffmpeg not found for video delivery.')
+        log.info(
+            'Follow-up: open System → Environment (developer) to locate or install ffmpeg, '
+            'then run Force or Check → Review → Apply again.'
+        )
         return False
 
     if ov.xxhash is None:
@@ -75,19 +98,22 @@ def run_video_delivery(force=False):
     posters_ready = 0
     total = len(visual_queue)
     processed_names = set()
+    failed_rows = []
 
     for index, asset in enumerate(visual_queue, start=1):
         if stop_requested():
             log.info('Stop requested — video delivery interrupted.')
             return False
         source = ov.visual_video_source_path(asset)
+        label = _video_label(ov, asset, source)
         if source is None:
             failed += 1
-            log.info(
-                'Missing video source for {0}: {1}'.format(
-                    asset.get('id'), asset.get('original_filename')
-                )
+            reason = (
+                'Master file is missing on disk. Re-upload it under Files → Visual, '
+                'then run Check → Review → Apply (or Force again).'
             )
+            failed_rows.append('{0} — {1}'.format(label, reason))
+            log.info('FAILED video: {0} — {1}'.format(label, reason))
             continue
         result = ov.process_one_video(
             source,
@@ -103,6 +129,17 @@ def run_video_delivery(force=False):
             processed_names.add(master_name)
         if result.get('failed'):
             failed += 1
+            row_label = str(result.get('label') or label).strip() or label
+            reason = str(result.get('error') or '').strip() or (
+                'Could not build the player stream for this video.'
+            )
+            follow = (
+                'Open Files → Visual, confirm this master opens, re-upload if damaged, '
+                'then run Check → Review → Apply (or Force again).'
+            )
+            failed_rows.append('{0} — {1}'.format(row_label, reason))
+            log.info('FAILED video: {0} — {1}'.format(row_label, reason))
+            log.info('  Next step: {0}'.format(follow))
         elif result.get('built'):
             built += 1
         else:
@@ -134,10 +171,21 @@ def run_video_delivery(force=False):
                     unregistered
                 )
             )
+            log.items(
+                'Unregistered video sources (add via Files → Visual first)',
+                [path.name for path in source_files],
+                limit=12,
+            )
 
     log.info(
         'Video delivery done: {0} built, {1} kept, {2} failed, {3} poster(s).'.format(
             built, skipped, failed, posters_ready
         )
     )
+    if failed_rows:
+        log.items('Videos that need attention', failed_rows, limit=20)
+        log.info(
+            'Follow-up: fix or re-upload each video listed above under Files → Visual, '
+            'then run Site health Check → Review → Apply (or Force full rebuild again).'
+        )
     return failed == 0

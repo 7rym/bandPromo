@@ -350,14 +350,31 @@ def transcode_to_mp4(source_path: Path, target_path: Path, keep_audio: bool = Tr
 
 
 def write_delivery_mp4(source_path: Path, target_path: Path, keep_audio: bool) -> bool:
+    ok, _reason = write_delivery_mp4_with_reason(source_path, target_path, keep_audio)
+    return ok
+
+
+def write_delivery_mp4_with_reason(source_path: Path, target_path: Path, keep_audio: bool):
+    """
+    Build standard-stream.mp4 for one master.
+    Returns (ok, operator_reason) — reason is empty on success.
+    """
     mode = delivery_mode_for(source_path, keep_audio=keep_audio)
     if mode == 'copy':
-        return copy_mp4(source_path, target_path)
+        if copy_mp4(source_path, target_path):
+            return True, ''
+        return False, 'Could not copy the MP4 master into the player folder.'
     if mode == 'remux-silent':
-        return remux_mp4_silent(source_path, target_path)
+        if remux_mp4_silent(source_path, target_path):
+            return True, ''
+        return False, 'ffmpeg could not prepare a silent player stream (remux and re-encode both failed).'
     if mode == 'remux-mp4':
-        return remux_mp4_keep_audio(source_path, target_path)
-    return transcode_to_mp4(source_path, target_path, keep_audio=keep_audio)
+        if remux_mp4_keep_audio(source_path, target_path):
+            return True, ''
+        return False, 'ffmpeg could not remux or re-encode this video for the player.'
+    if transcode_to_mp4(source_path, target_path, keep_audio=keep_audio):
+        return True, ''
+    return False, 'ffmpeg could not re-encode this video for the player.'
 
 
 def ensure_video_poster(source_path: Path, poster_path: Path) -> bool:
@@ -577,6 +594,7 @@ def process_one_video(source_path, asset_id='', asset=None):
     keep_audio = video_keeps_audio(asset)
     mode = delivery_mode_for(source_path, keep_audio=keep_audio)
     audio_label = audio_mode_label(keep_audio)
+    label = video_asset_label(asset, source_path)
 
     print(f"\n📼 Processing: {source_path.name}")
     if mode == 'copy':
@@ -596,10 +614,18 @@ def process_one_video(source_path, asset_id='', asset=None):
     skipped = False
     failed = False
     poster_ok = False
+    error = ''
 
     if not asset_id:
         print("  ❌ Registered asset id required — refusing stem video/optimal dual-write")
-        return {'built': False, 'skipped': False, 'failed': True, 'poster': False}
+        return {
+            'built': False,
+            'skipped': False,
+            'failed': True,
+            'poster': False,
+            'label': label,
+            'error': 'Missing catalogue id — open Files → Visual, re-save or re-upload this video, then retry.',
+        }
 
     variants = {}
     delivery_dir = VISUAL_DELIVERY_ROOT / asset_id
@@ -607,12 +633,16 @@ def process_one_video(source_path, asset_id='', asset=None):
     poster_path = delivery_dir / 'poster.jpg'
 
     if stream_needs_refresh(source_path, stream_path, asset, keep_audio):
-        ok = write_delivery_mp4(source_path, stream_path, keep_audio=keep_audio)
+        ok, reason = write_delivery_mp4_with_reason(
+            source_path, stream_path, keep_audio=keep_audio
+        )
         if ok:
             built = True
             print(f"  ✓ Wrote asset stream: {stream_path} ({audio_label})")
         else:
             failed = True
+            error = reason or 'Could not build the player stream for this video.'
+            print(f"  ❌ {error}", file=sys.stderr)
     elif stream_path.exists():
         skipped = True
         print(f"  ✓ Asset stream up to date: {stream_path.name} ({audio_label})")
@@ -624,6 +654,8 @@ def process_one_video(source_path, asset_id='', asset=None):
         variants['poster'] = variant_manifest_entry(poster_path, 'jpg')
         poster_ok = True
         print(f"  ✓ Wrote asset poster: {poster_path.name}")
+    elif failed and not error:
+        error = 'Player stream failed and no poster could be built either.'
 
     if variants:
         master_width, master_height = video_master_pixel_size(source_path)
@@ -641,7 +673,27 @@ def process_one_video(source_path, asset_id='', asset=None):
         'skipped': skipped,
         'failed': failed,
         'poster': poster_ok or bool(variants.get('poster')),
+        'label': label,
+        'error': error,
     }
+
+
+def video_asset_label(asset, source_path=None):
+    """Operator-facing name for Activity / failure lists."""
+    if isinstance(asset, dict):
+        for key in ('original_filename', 'master_filename', 'title', 'id'):
+            raw = str(asset.get(key) or '').strip()
+            if not raw:
+                continue
+            if key.endswith('filename'):
+                return Path(raw.replace('\\', '/')).name
+            return raw
+    if source_path is not None:
+        try:
+            return Path(source_path).name
+        except Exception:
+            pass
+    return 'unknown video'
 
 
 def main():
