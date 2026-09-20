@@ -3772,10 +3772,12 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 const totalBytes = items.reduce((sum, file) => sum + Math.max(0, Number(getDisplayedMediaInfo(type, file).size) || 0), 0);
                 const noun = count === 1 ? 'file' : 'files';
                 const totalCount = Number(options.totalCount);
+                const line = (text) => `<span class="media-pool-summary-line">${text}</span>`;
                 if (Number.isFinite(totalCount) && totalCount !== count) {
-                    return `(${count} of ${totalCount} ${totalCount === 1 ? 'file' : 'files'} shown, ${fmtSize(totalBytes)} visible)`;
+                    const totalNoun = totalCount === 1 ? 'file' : 'files';
+                    return line(`${count} of ${totalCount} ${totalNoun}`) + line(`${fmtSize(totalBytes)} visible`);
                 }
-                return `(${count} ${noun}, ${fmtSize(totalBytes)} total)`;
+                return line(`${count} ${noun}`) + line(`${fmtSize(totalBytes)} total`);
             }
 
             function formatDuration(seconds) {
@@ -4741,6 +4743,12 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                         : `<span class="media-file-col media-file-col-dims visual-pool-card-dims" title="${bandpromoAdminEscapeHtml(dimsLabel)}">${bandpromoAdminEscapeHtml(dimsLabel)}</span>`);
                 const detailsBtn = `<button type="button" class="icon-btn media-action-btn media-action-good" title="Open details" onclick="event.stopPropagation(); openPoolAssetModal('${panelType}', '${safeKey}')">✎</button>`;
                 const deleteBtn = `<button type="button" class="icon-btn media-action-btn media-action-danger" title="Delete" onclick="event.stopPropagation(); openDeleteModal('${panelType}', '${safeKey}')">🗑️</button>`;
+                const videoPlayOverlay = kind === 'video'
+                    ? '<span class="visual-pool-card-play" aria-hidden="true">▶</span>'
+                    : '';
+                const gridMetaSub = panelType === 'sfx'
+                    ? bandpromoAdminEscapeHtml(sizeLabel)
+                    : bandpromoAdminEscapeHtml(sizeLabel);
                 return `<article class="visual-pool-card${selected ? ' media-file-row-selected visual-pool-card-selected' : ''}" data-file="${bandpromoAdminEscapeHtml(selectionKey)}" data-intake-bucket="${bandpromoAdminEscapeHtml(pathType)}" data-media-type="${kind}">
                     <div class="visual-pool-card-main">
                         <label class="media-file-select-wrap visual-pool-card-select" title="${selectLabel}" onclick="event.stopPropagation()">
@@ -4749,7 +4757,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                         <button type="button" class="visual-pool-card-thumb" data-pool-open="${bandpromoAdminEscapeHtml(selectionKey)}" data-pool-panel="${bandpromoAdminEscapeHtml(panelType)}" aria-label="${openLabel}">
                             ${poolAssetThumbInnerHtml(panelType, file, pathType)}
                             ${statusHtml}
-                            <span class="visual-pool-type-badge">${typeLabel}</span>
+                            ${videoPlayOverlay}
                         </button>
                         ${titleHtml}
                         <span class="media-file-col media-file-col-campaign visual-pool-card-context" title="${bandpromoAdminEscapeHtml(contextLabel || '—')}">${contextCell}</span>
@@ -4758,13 +4766,13 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                         <div class="visual-pool-card-actions media-file-actions">
                             ${listenBtn}
                             ${detailsBtn}
-                            <button type="button" class="icon-btn media-action-btn media-action-good" title="Download" onclick="event.stopPropagation(); submitMediaDownloadRequest('${pathType}', 'original', ['${String(file.name).replace(/\\/g, '\\\\').replace(/'/g, "\\'")}'])">⬇</button>
+                            <button type="button" class="icon-btn media-action-btn" title="Download" onclick="event.stopPropagation(); submitMediaDownloadRequest('${pathType}', 'original', ['${String(file.name).replace(/\\/g, '\\\\').replace(/'/g, "\\'")}'])">⬇</button>
                             ${deleteBtn}
                         </div>
                     </div>
                     <div class="visual-pool-card-grid-caption">
                         <span class="visual-pool-card-meta-title"><strong class="media-file-name-text">${bandpromoAdminEscapeHtml(headline)}</strong></span>
-                        <span class="visual-pool-card-meta-sub">${typeLabel} · ${bandpromoAdminEscapeHtml(sizeLabel)}</span>
+                        <span class="visual-pool-card-meta-sub">${gridMetaSub}</span>
                         ${panelType === 'visual' || panelType === 'audio'
                             ? `<span class="visual-pool-card-meta-campaign">${bandpromoAdminEscapeHtml(contextLabel || 'Orphan')}</span>`
                             : ''}
@@ -5155,7 +5163,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     pruneMediaSelection(type, allFiles);
                     const selection = getMediaSelectionState(type);
                     if (countEl) {
-                        countEl.textContent = formatMediaCountSummary(files, type, {
+                        countEl.innerHTML = formatMediaCountSummary(files, type, {
                             totalCount: files.length !== allFiles.length ? allFiles.length : files.length,
                         });
                     }

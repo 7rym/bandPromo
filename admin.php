@@ -23,15 +23,6 @@ require_once 'biblioteca/playlist-storage.php';
 require_once 'biblioteca/gallery-storage.php';
 require_once 'biblioteca/player-markdown.php';
 
-function bandpromo_admin_files_permanent_warning_line(bool $include_metadata_edits = false): string
-{
-    if ($include_metadata_edits) {
-        return '<strong>⚠️ Metadata edits and file deletions are immediate and permanent. There is no undo!</strong>';
-    }
-
-    return '<strong>⚠️ File deletions are immediate and permanent. There is no undo!</strong>';
-}
-
 function bandpromo_admin_welcome_build_status(array $buildState): string {
     if (empty($buildState['required'])) {
         return 'No pending build work is currently recorded.';
@@ -1185,7 +1176,7 @@ if ($tab === 'analytics') {
                 <?php
                 $filePanels = [
                     'audio'   => ['🎵', 'Audio'],
-                    'visual'  => ['🎨', 'Visual'],
+                    'visual'  => ['🎞️', 'Visual'],
                     'sfx'     => ['🔊', 'Sound effects'],
                 ];
                 foreach ($filePanels as $fp => [$emoji, $label]):
@@ -1222,13 +1213,6 @@ if ($tab === 'analytics') {
 
             <!-- Audio -->
             <div class="media-panel card" id="panel-audio" <?php echo $filesPanel !== 'audio' ? 'style="display:none"' : ''; ?>>
-                <div class="media-panel-header">
-                    <div class="media-panel-summary">
-                        <span class="media-panel-intro">
-                            <?php echo bandpromo_admin_files_permanent_warning_line(true); ?>
-                        </span>
-                    </div>
-                </div>
                 <div class="media-pool-sticky-chrome">
                     <div class="audio-pool-toolbar" data-media-list-header="audio">
                         <div class="audio-pool-toolbar-main">
@@ -1245,109 +1229,123 @@ if ($tab === 'analytics') {
                             </label>
                         </div>
                         <div class="audio-pool-toolbar-actions media-file-actions">
-                            <button type="button" class="icon-btn media-action-btn media-action-good media-group-action-btn media-labeled-action-btn" onclick="openUploadModal('audio')" aria-label="Upload audio files" title="Upload audio files"><span class="media-labeled-action-icon" aria-hidden="true">＋</span><span>Upload</span></button>
-                            <button type="button" class="icon-btn media-action-btn media-action-good media-group-action-btn media-labeled-action-btn" id="audioUseInPlaylistBtn" data-use-in-playlist-target="audio" disabled aria-label="Use selected tracks in a playlist" title="Select one or more tracks to add to a playlist"><span class="media-labeled-action-icon" aria-hidden="true">🎶</span><span>Use in playlist</span></button>
-                            <button type="button" class="icon-btn media-action-btn media-action-good media-group-action-btn media-labeled-action-btn media-bulk-download-btn" data-bulk-download-target="audio" data-download-variant="master" disabled aria-label="Download selected audio files" title="Download selected audio files"><span class="media-labeled-action-icon" aria-hidden="true">⬇</span><span>Download</span></button>
-                            <button type="button" class="icon-btn media-action-btn media-action-danger media-group-action-btn media-labeled-action-btn media-bulk-delete-btn" data-bulk-delete-target="audio" disabled aria-label="Delete selected audio files" title="Delete selected audio files"><span class="media-labeled-action-icon" aria-hidden="true">🗑️</span><span>Delete</span></button>
+                            <span class="media-toolbar-cluster-label">Actions:</span>
+                            <div class="media-action-group" role="group" aria-label="Add files">
+                                <button type="button" class="icon-btn media-action-btn media-action-good media-group-action-btn media-labeled-action-btn" onclick="openUploadModal('audio')" aria-label="Upload audio files" title="Upload audio files"><span class="media-labeled-action-icon" aria-hidden="true">＋</span><span>Upload</span></button>
+                            </div>
+                            <div class="media-action-group" role="group" aria-label="Playlist membership">
+                                <button type="button" class="icon-btn media-action-btn media-action-good media-group-action-btn media-labeled-action-btn" id="audioUseInPlaylistBtn" data-use-in-playlist-target="audio" disabled aria-label="Use selected tracks in a playlist" title="Select one or more tracks to add to a playlist"><span class="media-labeled-action-icon" aria-hidden="true">🎵</span><span>Use in playlist</span></button>
+                            </div>
+                            <div class="media-action-group" role="group" aria-label="Export and delete">
+                                <button type="button" class="icon-btn media-action-btn media-group-action-btn media-labeled-action-btn media-bulk-download-btn" data-bulk-download-target="audio" data-download-variant="master" disabled aria-label="Download selected audio files" title="Download selected audio files"><span class="media-labeled-action-icon" aria-hidden="true">⬇</span><span>Download</span></button>
+                                <button type="button" class="icon-btn media-action-btn media-action-danger media-group-action-btn media-labeled-action-btn media-bulk-delete-btn" data-bulk-delete-target="audio" disabled aria-label="Delete selected audio files" title="Delete selected audio files"><span class="media-labeled-action-icon" aria-hidden="true">🗑️</span><span>Delete</span></button>
+                            </div>
                         </div>
                     </div>
-                    <div class="media-file-col-headers" data-audio-sort-headers role="row">
-                        <div class="media-file-select-toggle" role="group" aria-label="Select visible tracks">
-                            <button type="button" class="audio-select-chip" data-media-select-mode="all" data-target="audio" aria-pressed="false" title="Select all visible tracks" aria-label="Select all visible tracks">☑</button>
-                            <button type="button" class="audio-select-chip" data-media-select-mode="none" data-target="audio" aria-pressed="true" title="Clear selection" aria-label="Clear selection">☐</button>
+                    <div class="media-pool-headers-bar">
+                        <div class="media-file-col-headers" data-audio-sort-headers role="row">
+                            <div class="media-file-select-toggle" role="group" aria-label="Select visible tracks">
+                                <button type="button" class="audio-select-chip" data-media-select-mode="all" data-target="audio" aria-pressed="false" title="Select all visible tracks" aria-label="Select all visible tracks">☑</button>
+                                <button type="button" class="audio-select-chip" data-media-select-mode="none" data-target="audio" aria-pressed="true" title="Clear selection" aria-label="Clear selection">☐</button>
+                            </div>
+                            <button type="button" class="media-file-col-sort" data-audio-sort="track" aria-pressed="false">Track</button>
+                            <button type="button" class="media-file-col-sort" data-audio-sort="date" aria-pressed="true">Date</button>
+                            <button type="button" class="media-file-col-sort" data-audio-sort="campaign" aria-pressed="false">Campaign</button>
+                            <button type="button" class="media-file-col-sort media-file-col-sort--size" data-audio-sort="size" aria-pressed="false">Size</button>
+                            <span class="media-file-actions media-file-col-headers-actions" aria-hidden="true"></span>
                         </div>
-                        <button type="button" class="media-file-col-sort" data-audio-sort="track" aria-pressed="false">Track</button>
-                        <button type="button" class="media-file-col-sort" data-audio-sort="date" aria-pressed="true">Date</button>
-                        <button type="button" class="media-file-col-sort" data-audio-sort="campaign" aria-pressed="false">Campaign</button>
-                        <button type="button" class="media-file-col-sort media-file-col-sort--size" data-audio-sort="size" aria-pressed="false">Size</button>
-                        <span class="media-file-actions media-file-col-headers-actions" aria-hidden="true"></span>
+                        <span id="audio-count" class="media-count media-pool-summary" aria-live="polite"></span>
                     </div>
                 </div>
                 <div id="filelist-audio" class="media-file-list"><span class="text-muted">Loading…</span></div>
-                <div class="media-panel-footer"><span id="audio-count" class="media-count"></span></div>
             </div>
 
             <!-- Visual pool (images + video) -->
             <div class="media-panel card" id="panel-visual" data-pool-layout="grid" data-pool-thumb-size="medium" <?php echo $filesPanel !== 'visual' ? 'style="display:none"' : ''; ?>>
-                <div class="media-panel-header">
-                    <div class="media-panel-summary">
-                        <span class="media-panel-intro">
-                            <?php echo bandpromo_admin_files_permanent_warning_line(true); ?>
-                        </span>
-                    </div>
-                </div>
                 <div class="media-pool-sticky-chrome">
                 <div class="audio-pool-toolbar visual-pool-toolbar" data-media-list-header="visual">
                     <div class="audio-pool-toolbar-main visual-pool-toolbar-main">
-                        <div class="visual-filter-chip-group" role="group" aria-label="Filter by media type">
-                            <button type="button" class="visual-filter-chip is-active" data-pool-type-filter="all" data-pool-panel="visual" aria-pressed="true">All</button>
-                            <button type="button" class="visual-filter-chip visual-filter-chip--icon" data-pool-type-filter="image" data-pool-panel="visual" aria-pressed="false" title="Images" aria-label="Images"><span class="visual-filter-chip-icon" aria-hidden="true">🖼</span></button>
-                            <button type="button" class="visual-filter-chip visual-filter-chip--icon" data-pool-type-filter="video" data-pool-panel="visual" aria-pressed="false" title="Video" aria-label="Video"><span class="visual-filter-chip-icon" aria-hidden="true">🎬</span></button>
+                        <div class="media-toolbar-cluster" role="group" aria-label="View">
+                            <span class="media-toolbar-cluster-label">View:</span>
+                            <div class="visual-view-toggle" role="group" aria-label="Visual pool layout">
+                                <button type="button" class="visual-view-btn is-active" data-pool-view="grid" data-pool-panel="visual" aria-pressed="true" title="Grid view">Grid</button>
+                                <button type="button" class="visual-view-btn" data-pool-view="list" data-pool-panel="visual" aria-pressed="false" title="List view">List</button>
+                            </div>
+                            <div class="visual-view-toggle visual-thumb-size-toggle" role="group" aria-label="Thumbnail size">
+                                <button type="button" class="visual-view-btn" data-pool-thumb-size="small" aria-pressed="false" title="Small thumbnails (70×70 list / denser grid)">S</button>
+                                <button type="button" class="visual-view-btn is-active" data-pool-thumb-size="medium" aria-pressed="true" title="Medium thumbnails (100×100 list / default grid)">M</button>
+                                <button type="button" class="visual-view-btn" data-pool-thumb-size="large" aria-pressed="false" title="Large thumbnails (125×125 list / roomier grid)">L</button>
+                            </div>
                         </div>
-                        <label class="media-filter-label">
-                            <span class="visually-hidden">Filter by campaign</span>
-                            <select class="media-filter-select" data-media-campaign-filter aria-label="Filter by campaign">
-                                <option value="all">All campaigns</option>
-                                <option value="orphans">Orphans</option>
-                            </select>
-                        </label>
-                        <label class="media-filter-label">
-                            <span class="visually-hidden">Filter by brand library</span>
-                            <select class="media-filter-select" data-media-brand-filter aria-label="Filter by brand library">
-                                <option value="all">All brands</option>
-                                <option value="orphans">Not in a brand</option>
-                            </select>
-                        </label>
-                        <label class="media-filter-label audio-pool-toolbar-search">
-                            <span class="visually-hidden">Filter by title</span>
-                            <input type="search" class="media-filter-input" data-media-name-filter="visual" placeholder="Filter by title…" autocomplete="off" aria-label="Filter visual assets by title">
-                        </label>
-                        <div class="visual-view-toggle" role="group" aria-label="Visual pool layout">
-                            <button type="button" class="visual-view-btn is-active" data-pool-view="grid" data-pool-panel="visual" aria-pressed="true" title="Grid view">Grid</button>
-                            <button type="button" class="visual-view-btn" data-pool-view="list" data-pool-panel="visual" aria-pressed="false" title="List view">List</button>
-                        </div>
-                        <div class="visual-view-toggle visual-thumb-size-toggle" role="group" aria-label="Thumbnail size">
-                            <button type="button" class="visual-view-btn" data-pool-thumb-size="small" aria-pressed="false" title="Small thumbnails (70×70 list / denser grid)">S</button>
-                            <button type="button" class="visual-view-btn is-active" data-pool-thumb-size="medium" aria-pressed="true" title="Medium thumbnails (100×100 list / default grid)">M</button>
-                            <button type="button" class="visual-view-btn" data-pool-thumb-size="large" aria-pressed="false" title="Large thumbnails (125×125 list / roomier grid)">L</button>
+                        <div class="media-toolbar-cluster" role="group" aria-label="Filter">
+                            <span class="media-toolbar-cluster-label">Filter:</span>
+                            <div class="visual-filter-chip-group" role="group" aria-label="Filter by media type">
+                                <button type="button" class="visual-filter-chip is-active" data-pool-type-filter="all" data-pool-panel="visual" aria-pressed="true">All</button>
+                                <button type="button" class="visual-filter-chip visual-filter-chip--icon" data-pool-type-filter="image" data-pool-panel="visual" aria-pressed="false" title="Images" aria-label="Images"><span class="visual-filter-chip-icon" aria-hidden="true">🖼</span></button>
+                                <button type="button" class="visual-filter-chip visual-filter-chip--icon" data-pool-type-filter="video" data-pool-panel="visual" aria-pressed="false" title="Video" aria-label="Video"><span class="visual-filter-chip-icon" aria-hidden="true">🎬</span></button>
+                            </div>
+                            <label class="media-filter-label">
+                                <span class="visually-hidden">Filter by campaign</span>
+                                <select class="media-filter-select" data-media-campaign-filter aria-label="Filter by campaign">
+                                    <option value="all">All campaigns</option>
+                                    <option value="orphans">Orphans</option>
+                                </select>
+                            </label>
+                            <label class="media-filter-label">
+                                <span class="visually-hidden">Filter by brand library</span>
+                                <select class="media-filter-select" data-media-brand-filter aria-label="Filter by brand library">
+                                    <option value="all">All brands</option>
+                                    <option value="orphans">Not in a brand</option>
+                                </select>
+                            </label>
+                            <label class="media-filter-label audio-pool-toolbar-search">
+                                <span class="visually-hidden">Filter by title</span>
+                                <input type="search" class="media-filter-input" data-media-name-filter="visual" placeholder="Filter by title…" autocomplete="off" aria-label="Filter visual assets by title">
+                            </label>
                         </div>
                     </div>
                     <div class="audio-pool-toolbar-actions visual-pool-toolbar-actions media-file-actions">
-                        <button type="button" class="icon-btn media-action-btn media-action-good media-group-action-btn media-labeled-action-btn" onclick="openUploadModal('visual')" aria-label="Upload visual files" title="Upload images or videos"><span class="media-labeled-action-icon" aria-hidden="true">＋</span><span>Upload</span></button>
-                        <button type="button" class="icon-btn media-action-btn media-action-good media-group-action-btn media-labeled-action-btn" id="visualAssignCampaignBtn" data-visual-assign-campaign disabled aria-label="Assign selected visuals to a campaign" title="Select one or more files to assign"><span class="media-labeled-action-icon" aria-hidden="true">📁</span><span>Assign</span></button>
-                        <button type="button" class="icon-btn media-action-btn media-group-action-btn media-labeled-action-btn" id="visualRemoveCampaignBtn" data-visual-remove-campaign disabled aria-label="Remove selected visuals from campaign" title="Select files with a catalogue home to remove"><span class="media-labeled-action-icon" aria-hidden="true">⏏</span><span>Remove</span></button>
-                        <button type="button" class="icon-btn media-action-btn media-action-good media-group-action-btn media-labeled-action-btn" id="visualUseInBrandBtn" data-use-in-brand-target="visual" disabled aria-label="Use selected visuals in a brand" title="Select one or more files to add to a brand"><span class="media-labeled-action-icon" aria-hidden="true">✨</span><span>Use in brand</span></button>
-                        <button type="button" class="icon-btn media-action-btn media-action-good media-group-action-btn media-labeled-action-btn" id="visualUseInGalleryBtn" data-use-in-gallery-target="visual" disabled aria-label="Use selected visuals in a gallery" title="Select one or more files to add to a gallery"><span class="media-labeled-action-icon" aria-hidden="true">🖼</span><span>Use in gallery</span></button>
-                        <button type="button" class="icon-btn media-action-btn media-group-action-btn media-labeled-action-btn" id="visualRemoveFromBrandBtn" data-remove-from-brand-target="visual" disabled aria-label="Remove selected visuals from a brand library" title="Select files to remove from a brand library"><span class="media-labeled-action-icon" aria-hidden="true">−</span><span>From brand</span></button>
-                        <button type="button" class="icon-btn media-action-btn media-action-good media-group-action-btn media-labeled-action-btn media-bulk-download-btn" data-bulk-download-target="visual" data-download-variant="original" disabled aria-label="Download selected files" title="Download selected files"><span class="media-labeled-action-icon" aria-hidden="true">⬇</span><span>Download</span></button>
-                        <button type="button" class="icon-btn media-action-btn media-action-danger media-group-action-btn media-labeled-action-btn media-bulk-delete-btn" data-bulk-delete-target="visual" disabled aria-label="Delete selected files" title="Delete selected files"><span class="media-labeled-action-icon" aria-hidden="true">🗑️</span><span>Delete</span></button>
+                        <span class="media-toolbar-cluster-label">Actions:</span>
+                        <div class="media-action-group" role="group" aria-label="Add files">
+                            <button type="button" class="icon-btn media-action-btn media-action-good media-group-action-btn media-labeled-action-btn" onclick="openUploadModal('visual')" aria-label="Upload visual files" title="Upload images or videos"><span class="media-labeled-action-icon" aria-hidden="true">＋</span><span>Upload</span></button>
+                        </div>
+                        <div class="media-action-group" role="group" aria-label="Catalogue home">
+                            <button type="button" class="icon-btn media-action-btn media-action-good media-group-action-btn media-labeled-action-btn" id="visualAssignCampaignBtn" data-visual-assign-campaign disabled aria-label="Assign selected visuals to a campaign" title="Select one or more files to assign"><span class="media-labeled-action-icon" aria-hidden="true">💿</span><span>Assign</span></button>
+                            <button type="button" class="icon-btn media-action-btn media-group-action-btn media-labeled-action-btn" id="visualRemoveCampaignBtn" data-visual-remove-campaign disabled aria-label="Remove selected visuals from campaign" title="Select files with a catalogue home to remove"><span class="media-labeled-action-icon" aria-hidden="true">💿</span><span>Remove</span></button>
+                        </div>
+                        <div class="media-action-group" role="group" aria-label="Brand library">
+                            <button type="button" class="icon-btn media-action-btn media-action-good media-group-action-btn media-labeled-action-btn" id="visualUseInBrandBtn" data-use-in-brand-target="visual" disabled aria-label="Use selected visuals in a brand" title="Select one or more files to add to a brand"><span class="media-labeled-action-icon" aria-hidden="true">🎨</span><span>Use in brand</span></button>
+                            <button type="button" class="icon-btn media-action-btn media-group-action-btn media-labeled-action-btn" id="visualRemoveFromBrandBtn" data-remove-from-brand-target="visual" disabled aria-label="Remove selected visuals from a brand library" title="Select files to remove from a brand library"><span class="media-labeled-action-icon" aria-hidden="true">🎨</span><span>From brand</span></button>
+                        </div>
+                        <div class="media-action-group" role="group" aria-label="Gallery membership">
+                            <button type="button" class="icon-btn media-action-btn media-action-good media-group-action-btn media-labeled-action-btn" id="visualUseInGalleryBtn" data-use-in-gallery-target="visual" disabled aria-label="Use selected visuals in a gallery" title="Select one or more files to add to a gallery"><span class="media-labeled-action-icon" aria-hidden="true">🖼️</span><span>Use in gallery</span></button>
+                        </div>
+                        <div class="media-action-group" role="group" aria-label="Export and delete">
+                            <button type="button" class="icon-btn media-action-btn media-group-action-btn media-labeled-action-btn media-bulk-download-btn" data-bulk-download-target="visual" data-download-variant="original" disabled aria-label="Download selected files" title="Download selected files"><span class="media-labeled-action-icon" aria-hidden="true">⬇</span><span>Download</span></button>
+                            <button type="button" class="icon-btn media-action-btn media-action-danger media-group-action-btn media-labeled-action-btn media-bulk-delete-btn" data-bulk-delete-target="visual" disabled aria-label="Delete selected files" title="Delete selected files"><span class="media-labeled-action-icon" aria-hidden="true">🗑️</span><span>Delete</span></button>
+                        </div>
                     </div>
                 </div>
-                <div class="media-file-col-headers visual-pool-col-headers" data-pool-list-headers="visual" role="row">
-                    <div class="media-file-select-toggle" role="group" aria-label="Select visible visual assets">
-                        <button type="button" class="audio-select-chip" data-media-select-mode="all" data-target="visual" aria-pressed="false" title="Select all visible files" aria-label="Select all visible files">☑</button>
-                        <button type="button" class="audio-select-chip" data-media-select-mode="none" data-target="visual" aria-pressed="true" title="Clear selection" aria-label="Clear selection">☐</button>
+                <div class="media-pool-headers-bar">
+                    <div class="media-file-col-headers visual-pool-col-headers" data-pool-list-headers="visual" role="row">
+                        <div class="media-file-select-toggle" role="group" aria-label="Select visible visual assets">
+                            <button type="button" class="audio-select-chip" data-media-select-mode="all" data-target="visual" aria-pressed="false" title="Select all visible files" aria-label="Select all visible files">☑</button>
+                            <button type="button" class="audio-select-chip" data-media-select-mode="none" data-target="visual" aria-pressed="true" title="Clear selection" aria-label="Clear selection">☐</button>
+                        </div>
+                        <button type="button" class="media-file-col-sort visual-pool-col-head visual-pool-col-head--title" data-pool-sort="title" data-pool-panel="visual" aria-pressed="true">Title</button>
+                        <button type="button" class="media-file-col-sort visual-pool-col-head visual-pool-col-head--context" data-pool-sort="context" data-pool-panel="visual" aria-pressed="false">Catalogue</button>
+                        <button type="button" class="media-file-col-sort visual-pool-col-head visual-pool-col-head--dims" data-pool-sort="dims" data-pool-panel="visual" aria-pressed="false">Dimensions</button>
+                        <button type="button" class="media-file-col-sort media-file-col-sort--size visual-pool-col-head visual-pool-col-head--size" data-pool-sort="size" data-pool-panel="visual" aria-pressed="false">Size</button>
+                        <span class="media-file-actions media-file-col-headers-actions" aria-hidden="true"></span>
                     </div>
-                    <button type="button" class="media-file-col-sort visual-pool-col-head visual-pool-col-head--title" data-pool-sort="title" data-pool-panel="visual" aria-pressed="true">Title</button>
-                    <button type="button" class="media-file-col-sort visual-pool-col-head visual-pool-col-head--context" data-pool-sort="context" data-pool-panel="visual" aria-pressed="false">Catalogue</button>
-                    <button type="button" class="media-file-col-sort visual-pool-col-head visual-pool-col-head--dims" data-pool-sort="dims" data-pool-panel="visual" aria-pressed="false">Dimensions</button>
-                    <button type="button" class="media-file-col-sort media-file-col-sort--size visual-pool-col-head visual-pool-col-head--size" data-pool-sort="size" data-pool-panel="visual" aria-pressed="false">Size</button>
-                    <span class="media-file-actions media-file-col-headers-actions" aria-hidden="true"></span>
+                    <span id="visual-count" class="media-count media-pool-summary" aria-live="polite"></span>
                 </div>
                 </div>
                 <div id="filelist-visual" class="visual-pool-list visual-pool-list--grid" data-visual-layout="grid"><span class="text-muted">Loading…</span></div>
-                <div class="media-panel-footer"><span id="visual-count" class="media-count"></span></div>
             </div>
 
             <!-- Sound effects (brand UI audio) -->
             <div class="media-panel card" id="panel-sfx" data-pool-layout="list" data-pool-thumb-size="medium" <?php echo $filesPanel !== 'sfx' ? 'style="display:none"' : ''; ?>>
-                <div class="media-panel-header">
-                    <div class="media-panel-summary">
-                        <span class="media-panel-intro">
-                            <?php echo bandpromo_admin_files_permanent_warning_line(false); ?>
-                        </span>
-                    </div>
-                </div>
                 <div class="media-pool-sticky-chrome">
                 <div class="audio-pool-toolbar visual-pool-toolbar" data-media-list-header="sfx">
                     <div class="audio-pool-toolbar-main visual-pool-toolbar-main">
@@ -1364,26 +1362,35 @@ if ($tab === 'analytics') {
                         </label>
                     </div>
                     <div class="audio-pool-toolbar-actions visual-pool-toolbar-actions media-file-actions">
-                        <button type="button" class="icon-btn media-action-btn media-action-good media-group-action-btn media-labeled-action-btn" onclick="openUploadModal('sfx')" aria-label="Upload sound effects" title="Upload sound effects"><span class="media-labeled-action-icon" aria-hidden="true">＋</span><span>Upload</span></button>
-                        <button type="button" class="icon-btn media-action-btn media-action-good media-group-action-btn media-labeled-action-btn" id="sfxUseInBrandBtn" data-use-in-brand-target="sfx" disabled aria-label="Use selected sound effects in a brand" title="Select one or more files to add to a brand"><span class="media-labeled-action-icon" aria-hidden="true">✨</span><span>Use in brand</span></button>
-                        <button type="button" class="icon-btn media-action-btn media-group-action-btn media-labeled-action-btn" id="sfxRemoveFromBrandBtn" data-remove-from-brand-target="sfx" disabled aria-label="Remove selected sound effects from a brand library" title="Select files to remove from a brand library"><span class="media-labeled-action-icon" aria-hidden="true">−</span><span>From brand</span></button>
-                        <button type="button" class="icon-btn media-action-btn media-action-good media-group-action-btn media-labeled-action-btn media-bulk-download-btn" data-bulk-download-target="sfx" data-download-variant="original" disabled aria-label="Download selected sound effects" title="Download selected sound effects"><span class="media-labeled-action-icon" aria-hidden="true">⬇</span><span>Download</span></button>
-                        <button type="button" class="icon-btn media-action-btn media-action-danger media-group-action-btn media-labeled-action-btn media-bulk-delete-btn" data-bulk-delete-target="sfx" disabled aria-label="Delete selected sound effects" title="Delete selected sound effects"><span class="media-labeled-action-icon" aria-hidden="true">🗑️</span><span>Delete</span></button>
+                        <span class="media-toolbar-cluster-label">Actions:</span>
+                        <div class="media-action-group" role="group" aria-label="Add files">
+                            <button type="button" class="icon-btn media-action-btn media-action-good media-group-action-btn media-labeled-action-btn" onclick="openUploadModal('sfx')" aria-label="Upload sound effects" title="Upload sound effects"><span class="media-labeled-action-icon" aria-hidden="true">＋</span><span>Upload</span></button>
+                        </div>
+                        <div class="media-action-group" role="group" aria-label="Brand library">
+                            <button type="button" class="icon-btn media-action-btn media-action-good media-group-action-btn media-labeled-action-btn" id="sfxUseInBrandBtn" data-use-in-brand-target="sfx" disabled aria-label="Use selected sound effects in a brand" title="Select one or more files to add to a brand"><span class="media-labeled-action-icon" aria-hidden="true">🎨</span><span>Use in brand</span></button>
+                            <button type="button" class="icon-btn media-action-btn media-group-action-btn media-labeled-action-btn" id="sfxRemoveFromBrandBtn" data-remove-from-brand-target="sfx" disabled aria-label="Remove selected sound effects from a brand library" title="Select files to remove from a brand library"><span class="media-labeled-action-icon" aria-hidden="true">🎨</span><span>From brand</span></button>
+                        </div>
+                        <div class="media-action-group" role="group" aria-label="Export and delete">
+                            <button type="button" class="icon-btn media-action-btn media-group-action-btn media-labeled-action-btn media-bulk-download-btn" data-bulk-download-target="sfx" data-download-variant="original" disabled aria-label="Download selected sound effects" title="Download selected sound effects"><span class="media-labeled-action-icon" aria-hidden="true">⬇</span><span>Download</span></button>
+                            <button type="button" class="icon-btn media-action-btn media-action-danger media-group-action-btn media-labeled-action-btn media-bulk-delete-btn" data-bulk-delete-target="sfx" disabled aria-label="Delete selected sound effects" title="Delete selected sound effects"><span class="media-labeled-action-icon" aria-hidden="true">🗑️</span><span>Delete</span></button>
+                        </div>
                     </div>
                 </div>
-                <div class="media-file-col-headers visual-pool-col-headers" data-pool-list-headers="sfx" role="row">
-                    <div class="media-file-select-toggle" role="group" aria-label="Select visible sound effects">
-                        <button type="button" class="audio-select-chip" data-media-select-mode="all" data-target="sfx" aria-pressed="false" title="Select all visible files" aria-label="Select all visible files">☑</button>
-                        <button type="button" class="audio-select-chip" data-media-select-mode="none" data-target="sfx" aria-pressed="true" title="Clear selection" aria-label="Clear selection">☐</button>
+                <div class="media-pool-headers-bar">
+                    <div class="media-file-col-headers visual-pool-col-headers" data-pool-list-headers="sfx" role="row">
+                        <div class="media-file-select-toggle" role="group" aria-label="Select visible sound effects">
+                            <button type="button" class="audio-select-chip" data-media-select-mode="all" data-target="sfx" aria-pressed="false" title="Select all visible files" aria-label="Select all visible files">☑</button>
+                            <button type="button" class="audio-select-chip" data-media-select-mode="none" data-target="sfx" aria-pressed="true" title="Clear selection" aria-label="Clear selection">☐</button>
+                        </div>
+                        <button type="button" class="media-file-col-sort visual-pool-col-head visual-pool-col-head--title" data-pool-sort="title" data-pool-panel="sfx" aria-pressed="true">Title</button>
+                        <button type="button" class="media-file-col-sort visual-pool-col-head visual-pool-col-head--context" data-pool-sort="context" data-pool-panel="sfx" aria-pressed="false">Brand</button>
+                        <button type="button" class="media-file-col-sort media-file-col-sort--size visual-pool-col-head visual-pool-col-head--size" data-pool-sort="size" data-pool-panel="sfx" aria-pressed="false">Size</button>
+                        <span class="media-file-actions media-file-col-headers-actions" aria-hidden="true"></span>
                     </div>
-                    <button type="button" class="media-file-col-sort visual-pool-col-head visual-pool-col-head--title" data-pool-sort="title" data-pool-panel="sfx" aria-pressed="true">Title</button>
-                    <button type="button" class="media-file-col-sort visual-pool-col-head visual-pool-col-head--context" data-pool-sort="context" data-pool-panel="sfx" aria-pressed="false">Brand</button>
-                    <button type="button" class="media-file-col-sort media-file-col-sort--size visual-pool-col-head visual-pool-col-head--size" data-pool-sort="size" data-pool-panel="sfx" aria-pressed="false">Size</button>
-                    <span class="media-file-actions media-file-col-headers-actions" aria-hidden="true"></span>
+                    <span id="sfx-count" class="media-count media-pool-summary" aria-live="polite"></span>
                 </div>
                 </div>
                 <div id="filelist-sfx" class="visual-pool-list visual-pool-list--list" data-visual-layout="list"><span class="text-muted">Loading…</span></div>
-                <div class="media-panel-footer"><span id="sfx-count" class="media-count"></span></div>
             </div>
 
 <!-- Upload modal (shared) -->

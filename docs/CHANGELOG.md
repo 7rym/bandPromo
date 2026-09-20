@@ -2,6 +2,26 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-09-20 20:55 - Files pool headers: overlay the two-line summary on the actions track so List sort columns stay aligned with row cells.
+
+2026-09-20 20:50 - Files pool summary: stack count and size on two lines (`122 files` / `702.2 MB total`) so sort labels keep their width.
+
+2026-09-20 20:45 - Files pool summary: keep right-flush on the sort row, but outside the column grid (`.media-pool-headers-bar`) so Title/Catalogue/Dimensions no longer truncate.
+
+2026-09-20 20:40 - Files pools: move “(n files, x MB total)” onto the sort/header row, right-flush (sticky with column headers); drop the footer summary strip.
+
+2026-09-20 20:35 - Files → Visual / Sound effects toolbars: stack as two left-aligned rows (View/Filter then Actions) — drop right-flush actions when the chrome always wraps.
+
+2026-09-20 20:30 - Files toolbars: add **Actions:** label before the action button clusters (Audio / Visual / Sound effects), matching View:/Filter: chrome.
+
+2026-09-20 20:25 - Files → Visual toolbar: add inline **View:** / **Filter:** cluster labels (house `Label:` chrome).
+
+2026-09-20 20:20 - Files → Visual toolbar: view mode (Grid/List · S/M/L) before filters (type · campaign · brand · search).
+
+2026-09-20 20:15 - Files icons: Assign/Remove use Catalogue 💿; brand actions use Branding 🎨; gallery uses 🖼️; playlist uses 🎵. Visual tab 🎞️ (frees 🎨 for Branding). Drop IMAGE/VIDEO thumb pills — videos show a ▶ overlay that hides on hover.
+
+2026-09-20 20:05 - Files toolbars: group actions (Upload · catalogue · brand · gallery · Download/Delete) with hairline separators; drop the permanent “no undo” banner — Delete / Remove home already confirm; membership flows use a picker. Download is neutral (not green) beside Delete.
+
 2026-09-20 19:50 - ADMIN-UI preference: Content editors use **breadcrumb + inline entity title** (`.content-editor-name-input` in the left edit header). Canonical name is not a static `h3` or only a Title field in Base info; Files modals should prefer an editable header title when aligned. Cursor rule + AGENTS updated.
 
 2026-09-20 19:45 - ADMIN-UI compactness: layout padding locked to **0 / 4 / 8px max** (prefer none when a border already separates); gaps same cap; 12–24px insets are debt to clear opportunistically. Control hit-target padding may exceed 8px horizontally only.

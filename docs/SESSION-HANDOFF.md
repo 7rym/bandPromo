@@ -2,15 +2,15 @@
 
 ## Resume point
 
-Checkpointed ADMIN-UI policy + Files/brand-library/Site health work. **Next:** align Files → Visual / SFX drilldown to preferred patterns (track editor Close/Abort + Content-style header title; compact ≤8px; no coral Download beside Delete).
+Files pool chrome polish **published** (grouped actions, View/Filter/Actions labels, two-row Visual/SFX toolbar, two-line pool summary overlaid on the actions track, Content-matched icons, video ▶ overlay). **Next:** apply preferred editor chrome to Files → Visual / SFX drilldown (Close/Abort, header title, ≤8px compactness, no coral Download).
 
 ### Policy locked (do not reopen)
 
 - Same-factory editor chrome; save/status top-right
-- Close/Done = save-on-close; **Abort** / **Discard** required on mutating editors
-- Coral caution vs red (prefer amber Save / green Saved / grey secondary)
-- Compactness: layout padding **0 / 4 / 8px max**
-- Content: **breadcrumb + inline entity title**
+- Close/Done = save-on-close; **Abort** / **Discard** required
+- Coral caution; compactness **0 / 4 / 8px**
+- Content: breadcrumb + inline entity title
+- Files pool: grouped actions; Content-matched icons (💿/🎨/🖼️/🎵); no permanent no-undo banner; pool summary two-line overlay on sort row
 
 ### Local workspace
 
