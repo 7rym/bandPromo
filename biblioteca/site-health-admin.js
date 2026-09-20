@@ -33,6 +33,9 @@
     const crumbStatusLink = document.getElementById('siteHealthCrumbStatus');
     const crumbSepEl = document.getElementById('siteHealthCrumbSep');
     const crumbHomeBtn = document.getElementById('siteHealthCrumbHome');
+    const logCardEl = document.getElementById('site-health-log-card');
+    const checklistEl = document.getElementById('siteHealthRunChecklist');
+    const checklistListEl = document.getElementById('siteHealthRunChecklistList');
     const checkBtn = document.getElementById('siteHealthCheckBtn');
     const checkFullBtn = document.getElementById('siteHealthCheckFullBtn');
     const treatBtn = document.getElementById('siteHealthTreatBtn');
@@ -47,9 +50,11 @@
     }
 
     const EXAM_LABEL_KEY = 'bandpromo_site_health_exam_label';
-    /** @type {'status'|'hub'|'exam'|'review'|'result'} */
+    /** @type {'status'|'hub'|'running'|'diagnosis'|'review'|'result'} */
     let uiStage = 'status';
     let examLabel = 'Quick check';
+    /** @type {'check'|'check_full'|'force'|'treat'|''} */
+    let runModeKey = '';
     try {
         const storedExam = sessionStorage.getItem(EXAM_LABEL_KEY);
         if (storedExam) {
@@ -75,6 +80,33 @@
         site_chrome: 'Update share images and home-screen / install icons.',
         container_links: 'Refresh campaign links after site data changed.',
         sfx_delivery: 'Build missing or outdated sound-effect play files.',
+    };
+
+    /** Checklist presets keyed by job mode (operator-facing). */
+    const RUN_CHECKLIST = {
+        check: [
+            { id: 'triage', label: 'Triage', phases: ['check', 'triage'] },
+            { id: 'investigate', label: 'Investigate', phases: ['investigate'] },
+            { id: 'diagnose', label: 'Diagnose', phases: ['diagnose'] },
+        ],
+        check_full: [
+            { id: 'triage', label: 'Triage', phases: ['check_full', 'triage'] },
+            { id: 'investigate', label: 'Deep investigate', phases: ['investigate'] },
+            { id: 'diagnose', label: 'Diagnose', phases: ['diagnose'] },
+        ],
+        force: [
+            { id: 'check', label: 'Check', phases: ['force', 'check', 'check_full', 'triage', 'investigate', 'diagnose'] },
+            { id: 'delivery', label: 'Rebuild streams and artwork', phases: ['treat:delivery'] },
+            { id: 'video', label: 'Rebuild video', phases: ['treat:video'] },
+            { id: 'links', label: 'Refresh links and playlists', phases: ['treat:links', 'treat:playlists'] },
+            { id: 'chrome', label: 'Site icons', phases: ['treat:chrome'] },
+            { id: 'followup', label: 'Follow-up check', phases: ['followup'] },
+        ],
+        treat: [
+            { id: 'refresh', label: 'Refresh check', phases: ['treat', 'check', 'triage', 'investigate', 'diagnose'] },
+            { id: 'apply', label: 'Apply selected fixes', phases: ['treat:'] },
+            { id: 'followup', label: 'Follow-up check', phases: ['followup'] },
+        ],
     };
 
     const ACTION_BUTTONS = [
@@ -114,16 +146,113 @@
             check: 'Quick check',
             check_full: 'Full check',
             force: 'Force rebuild',
+            treat: 'Apply treatment',
         })[String(modeKey || '').trim().toLowerCase()] || '';
     }
 
     function setUiStage(stage) {
         const next = String(stage || '').trim();
-        if (next === 'status' || next === 'hub' || next === 'exam' || next === 'review' || next === 'result') {
-            uiStage = next;
+        // Legacy 'exam' maps to Diagnosis.
+        const normalised = next === 'exam' ? 'diagnosis' : next;
+        if (
+            normalised === 'status'
+            || normalised === 'hub'
+            || normalised === 'running'
+            || normalised === 'diagnosis'
+            || normalised === 'review'
+            || normalised === 'result'
+        ) {
+            uiStage = normalised;
         }
         syncBreadcrumb();
         syncStagePanels();
+    }
+
+    function collectHealthPhases(logText) {
+        const phases = [];
+        const lines = String(logText || '').split(/\r?\n/);
+        lines.forEach((line) => {
+            const body = stripLogStamp(line);
+            const match = body.match(/^HEALTH_PHASE:(.+)$/i);
+            if (match) {
+                phases.push(String(match[1] || '').trim().toLowerCase());
+            }
+        });
+        return phases;
+    }
+
+    function checklistPresetForMode(modeKey) {
+        const key = String(modeKey || '').trim().toLowerCase();
+        if (RUN_CHECKLIST[key]) {
+            return RUN_CHECKLIST[key];
+        }
+        return RUN_CHECKLIST.check;
+    }
+
+    function phaseMatchesStep(phase, step) {
+        const p = String(phase || '').toLowerCase();
+        const patterns = Array.isArray(step.phases) ? step.phases : [];
+        for (let i = 0; i < patterns.length; i += 1) {
+            const pat = String(patterns[i] || '').toLowerCase();
+            if (!pat) {
+                continue;
+            }
+            if (pat.endsWith(':')) {
+                if (p.indexOf(pat) === 0 || p === pat.slice(0, -1)) {
+                    return true;
+                }
+            } else if (p === pat || p.indexOf(pat + ':') === 0) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    function checklistStatesFromLog(modeKey, logText) {
+        const steps = checklistPresetForMode(modeKey);
+        const phases = collectHealthPhases(logText);
+        const states = steps.map(() => 'pending');
+        let cursor = 0;
+        phases.forEach((phase) => {
+            // Advance cursor to the matching step (or stay).
+            for (let i = cursor; i < steps.length; i += 1) {
+                if (phaseMatchesStep(phase, steps[i])) {
+                    cursor = i;
+                    break;
+                }
+            }
+            // Mark all before cursor done; current is active.
+            for (let i = 0; i < cursor; i += 1) {
+                states[i] = 'done';
+            }
+            if (cursor < states.length) {
+                states[cursor] = 'current';
+            }
+        });
+        // If diagnose/followup already seen as last, mark final done when job idle —
+        // caller may force all done.
+        return { steps: steps, states: states };
+    }
+
+    function renderRunChecklist(modeKey, logText, jobFinished) {
+        if (!checklistEl || !checklistListEl) {
+            return;
+        }
+        const parsed = checklistStatesFromLog(modeKey, logText);
+        let states = parsed.states.slice();
+        if (jobFinished) {
+            states = parsed.steps.map(() => 'done');
+        }
+        checklistListEl.innerHTML = parsed.steps.map((step, index) => {
+            const state = states[index] || 'pending';
+            const mark = state === 'done' ? '✓' : (state === 'current' ? '●' : '');
+            return (
+                '<li class="site-health-run-checklist-item is-' + escapeHtml(state) + '">' +
+                '<span class="site-health-run-checklist-mark" aria-hidden="true">' + mark + '</span>' +
+                '<span class="site-health-run-checklist-label">' + escapeHtml(step.label) + '</span>' +
+                '</li>'
+            );
+        }).join('');
     }
 
     function stripLogStamp(line) {
@@ -284,7 +413,7 @@
         let bodyLead = '';
         let summary = '';
         let continueLabel = 'Continue';
-        let continueAction = 'exam';
+        let continueAction = 'diagnosis';
         let panelTone = 'ok';
 
         if (running) {
@@ -314,7 +443,7 @@
                     '</p>'
                 );
                 continueLabel = findings.length ? 'Continue to remaining findings' : 'Continue';
-                continueAction = findings.length ? 'review' : 'exam';
+                continueAction = findings.length ? 'review' : 'diagnosis';
             } else if (ov === 'healthy' || logOutcome === 'healthy' || logOutcome === 'ok') {
                 panelTone = 'ok';
                 summary = (
@@ -323,7 +452,7 @@
                     '</p>'
                 );
                 continueLabel = 'Continue';
-                continueAction = 'exam';
+                continueAction = 'diagnosis';
             } else {
                 panelTone = 'ok';
                 summary = (
@@ -332,7 +461,7 @@
                     '</p>'
                 );
                 continueLabel = 'Continue';
-                continueAction = 'exam';
+                continueAction = 'diagnosis';
             }
         }
 
@@ -365,12 +494,12 @@
         const continueBtn = document.getElementById('siteHealthTreatContinueBtn');
         if (continueBtn) {
             continueBtn.addEventListener('click', () => {
-                const action = String(continueBtn.getAttribute('data-continue-action') || 'exam');
+                const action = String(continueBtn.getAttribute('data-continue-action') || 'diagnosis');
                 if (action === 'review') {
                     goBreadcrumb('review');
                     return;
                 }
-                goBreadcrumb('exam');
+                goBreadcrumb('diagnosis');
             });
         }
     }
@@ -387,13 +516,13 @@
         }
         const overall = String(plan.overall || '').toLowerCase();
         const findings = Array.isArray(plan.findings) ? plan.findings.length : 0;
-        let label = 'Open last results';
+        let label = 'Open last Diagnosis';
         let detail = 'Last check: ' + String(plan.checked_at) + ' UTC';
         if (overall === 'healthy' && findings === 0) {
             detail += ' — looked healthy.';
         } else if (findings > 0) {
             detail += ' — ' + findings + ' item' + (findings === 1 ? '' : 's') + ' still need attention.';
-            label = 'Open last results';
+            label = 'Open last Diagnosis';
         }
         hubResumeEl.hidden = false;
         hubResumeEl.innerHTML = (
@@ -405,7 +534,7 @@
         const openBtn = document.getElementById('siteHealthOpenLastResultsBtn');
         if (openBtn) {
             openBtn.addEventListener('click', () => {
-                goBreadcrumb('exam');
+                goBreadcrumb('diagnosis');
             });
         }
     }
@@ -441,36 +570,40 @@
     function syncStagePanels() {
         const showStatus = uiStage === 'status';
         const showHub = uiStage === 'hub';
-        const showExam = uiStage === 'exam';
+        const showRunning = uiStage === 'running';
+        const showDiagnosis = uiStage === 'diagnosis';
         const showReview = uiStage === 'review';
         const showResult = uiStage === 'result';
+        const showActivity = showDiagnosis || showReview || showResult;
 
         if (statusHomeEl) {
             statusHomeEl.hidden = !showStatus;
         }
         if (hubEl) {
+            // Hide Action hub guides while a checklist run is in progress.
             hubEl.hidden = !showHub;
             if (showHub) {
                 syncHubResume();
             }
         }
 
-        if (metaEl) {
-            // Hub / Status speak for themselves; exam keeps last-check meta from renderPlan.
-            metaEl.hidden = showStatus || showHub || showReview || showResult;
+        if (checklistEl) {
+            checklistEl.hidden = !showRunning;
         }
 
-        if (!showExam) {
+        if (logCardEl) {
+            logCardEl.hidden = !showActivity;
+        }
+
+        if (metaEl) {
+            // Diagnosis keeps last-check meta; Status / Action / running stay quiet.
+            metaEl.hidden = !showDiagnosis;
+        }
+
+        // Good / Bad / Ugly and findings only on Diagnosis (never Status / Action / running).
+        if (!showDiagnosis) {
             if (summaryEl) {
                 summaryEl.hidden = true;
-            }
-            if (findingsEl) {
-                findingsEl.hidden = true;
-            }
-        } else if (running) {
-            // Working notice only — never re-show Good/Bad/Ugly mid-job.
-            if (summaryEl && String(summaryEl.innerHTML || '').trim() !== '') {
-                summaryEl.hidden = false;
             }
             if (findingsEl) {
                 findingsEl.hidden = true;
@@ -490,15 +623,15 @@
             }
         }
 
-        // Hub hosts the check buttons inside the guide panels; exam uses the toolbar.
+        // Hub hosts the check buttons inside the guide panels; Diagnosis uses the toolbar.
         if (showHub && !running) {
             placeCheckActionButtons('hub');
         } else {
             placeCheckActionButtons('toolbar');
         }
 
-        const showExamToolbar = (showExam || running) && !showReview && !showResult;
-        const hideCheckButtons = (!showHub && !showExamToolbar) || running;
+        const showDiagnosisToolbar = showDiagnosis && !running;
+        const hideCheckButtons = !showHub || running || showRunning;
         if (checkBtn) {
             checkBtn.hidden = hideCheckButtons;
         }
@@ -509,19 +642,19 @@
             forceBtn.hidden = hideCheckButtons;
         }
         if (treatBtn) {
-            // Review only on exam results, never on the Site health hub alone.
-            if (!showExam || running) {
+            // Review treatment only on Diagnosis when findings exist.
+            if (!showDiagnosis || running) {
                 treatBtn.hidden = true;
             }
         }
         if (actionsEl) {
-            if (running) {
+            if (showRunning || running) {
+                // Stop only — checklist is the progress UI.
                 actionsEl.hidden = false;
-            } else if (showHub) {
-                // Check actions live in the hub panels; no duplicate toolbar row.
+            } else if (showHub || showStatus) {
                 actionsEl.hidden = true;
             } else {
-                actionsEl.hidden = !showExamToolbar;
+                actionsEl.hidden = !showDiagnosisToolbar;
             }
         }
         if (previewEl) {
@@ -568,6 +701,7 @@
             crumbSepEl.hidden = uiStage === 'status';
         }
         if (crumbHomeBtn) {
+            // Site health root link: visible once past the Action hub.
             crumbHomeBtn.hidden = uiStage === 'status' || uiStage === 'hub';
         }
 
@@ -581,20 +715,21 @@
             return;
         }
 
-        // exam / review / result — Site health button is visible; steps continue after it.
+        // running / diagnosis / review / result — Site health button is visible.
         const parts = [crumbSepHtml()];
-        if (uiStage === 'exam') {
-            parts.push(crumbCurrentHtml(examLabel));
-        } else {
-            parts.push(crumbButtonHtml('exam', examLabel, 'Back to ' + examLabel + ' results'));
+        if (uiStage === 'running') {
+            parts.push(crumbCurrentHtml(examLabel || 'Working'));
+        } else if (uiStage === 'diagnosis') {
+            parts.push(crumbCurrentHtml('Diagnosis'));
+        } else if (uiStage === 'review') {
+            parts.push(crumbButtonHtml('diagnosis', 'Diagnosis', 'Back to Diagnosis'));
             parts.push(crumbSepHtml());
-            if (uiStage === 'review') {
-                parts.push(crumbCurrentHtml('Proposed treatment'));
-            } else {
-                parts.push(crumbButtonHtml('review', 'Proposed treatment', 'Back to proposed treatment'));
-                parts.push(crumbSepHtml());
-                parts.push(crumbCurrentHtml('Treatment result'));
-            }
+            parts.push(crumbCurrentHtml('Proposed treatment'));
+        } else {
+            // Treatment result
+            parts.push(crumbButtonHtml('diagnosis', 'Diagnosis', 'Back to Diagnosis'));
+            parts.push(crumbSepHtml());
+            parts.push(crumbCurrentHtml('Treatment result'));
         }
         breadcrumbStepsEl.innerHTML = parts.join('');
     }
@@ -612,9 +747,9 @@
             setJobStatus('');
             return;
         }
-        if (action === 'exam') {
+        if (action === 'exam' || action === 'diagnosis') {
             setPreviewMode(false);
-            setUiStage('exam');
+            setUiStage('diagnosis');
             if (lastPlan) {
                 renderPlan(lastPlan);
             }
@@ -623,7 +758,7 @@
         }
         if (action === 'review') {
             if (!lastPlan || !Array.isArray(lastPlan.findings) || !lastPlan.findings.length) {
-                setUiStage('exam');
+                setUiStage('diagnosis');
                 if (lastPlan) {
                     renderPlan(lastPlan);
                 }
@@ -631,7 +766,7 @@
             }
             if (isPlanStale(lastPlan)) {
                 setPreviewMode(false);
-                setUiStage('exam');
+                setUiStage('diagnosis');
                 if (lastPlan) {
                     renderPlan(lastPlan);
                 }
@@ -828,8 +963,8 @@
             window.location.href = target;
             return;
         }
-        if (uiStage === 'status' || uiStage === 'hub') {
-            setUiStage('exam');
+        if (uiStage === 'status' || uiStage === 'hub' || uiStage === 'running') {
+            setUiStage('diagnosis');
         }
         const logCard = document.getElementById('site-health-log-card');
         if (logCard) {
@@ -1966,7 +2101,7 @@
             }
             if (uiStage === 'review') {
                 setUiStage(lastPlan && (lastPlan.checked_at || (Array.isArray(lastPlan.findings) && lastPlan.findings.length))
-                    ? 'exam'
+                    ? 'diagnosis'
                     : 'status');
             } else {
                 syncBreadcrumb();
@@ -2086,7 +2221,7 @@
                 return;
             }
             setPreviewMode(false);
-            if (uiStage !== 'status' && uiStage !== 'hub') {
+            if (uiStage !== 'status' && uiStage !== 'hub' && uiStage !== 'running') {
                 setUiStage('status');
             } else {
                 syncStagePanels();
@@ -2096,17 +2231,12 @@
 
         const stale = isPlanStale(plan);
 
-        // While a job is running, never present Good/Bad/Ugly from a previous or
-        // half-written plan — that reads as finished health. Activity carries progress.
-        if (running) {
+        // While a job is running, checklist is the only progress UI — never paint
+        // Good/Bad/Ugly or a working-notice paragraph on Action.
+        if (running || uiStage === 'running') {
             if (summaryEl) {
-                summaryEl.hidden = false;
-                summaryEl.classList.remove('is-stale');
-                summaryEl.innerHTML = (
-                    '<p class="publish-status-empty site-health-working-notice">' +
-                    'Check in progress — results appear when it finishes. Detail is in Activity.' +
-                    '</p>'
-                );
+                summaryEl.hidden = true;
+                summaryEl.innerHTML = '';
             }
             findingsEl.innerHTML = '';
             findingsEl.hidden = true;
@@ -2118,17 +2248,8 @@
             // Never present hour-old Good/Bad/Ugly as current health.
             findingsEl.innerHTML = '';
             findingsEl.hidden = true;
-            // Status landing may auto-start Quick; hub / exam must not claim that.
-            if (uiStage === 'status') {
-                if (summaryEl) {
-                    summaryEl.hidden = true;
-                    summaryEl.innerHTML = '';
-                }
-                syncStagePanels();
-                syncRecommendedAction();
-                return;
-            }
-            if (uiStage === 'hub') {
+            // Status / Action hubs must not claim Diagnosis content.
+            if (uiStage === 'status' || uiStage === 'hub' || uiStage === 'running') {
                 if (summaryEl) {
                     summaryEl.hidden = true;
                     summaryEl.innerHTML = '';
@@ -2147,7 +2268,7 @@
                 );
             }
         } else {
-            // Good / Bad / Ugly is the exam summary; findings detail lives under Bad & Ugly.
+            // Good / Bad / Ugly is the Diagnosis summary; findings detail lives under Bad & Ugly.
             renderSummary(plan);
             if (summaryEl && !summaryEl.hidden) {
                 summaryEl.classList.remove('is-stale');
@@ -2178,8 +2299,8 @@
             return;
         }
 
-        // Status / Site health hubs keep their stage; only refresh badge data underneath.
-        if (uiStage === 'status' || uiStage === 'hub') {
+        // Status / Action hubs keep their stage; only refresh badge data underneath.
+        if (uiStage === 'status' || uiStage === 'hub' || uiStage === 'running') {
             syncRecommendedAction();
             syncStagePanels();
             return;
@@ -2190,8 +2311,8 @@
             if (treatBtn) {
                 treatBtn.hidden = true;
             }
-            if (uiStage !== 'result') {
-                setUiStage('exam');
+            if (uiStage !== 'result' && uiStage !== 'review') {
+                setUiStage('diagnosis');
             }
             syncRecommendedAction();
             return;
@@ -2209,8 +2330,11 @@
                 previewEl.hidden = true;
             }
             syncRecommendedAction();
+        } else if (uiStage === 'review') {
+            setUiStage('review');
+            syncRecommendedAction();
         } else {
-            setUiStage('exam');
+            setUiStage('diagnosis');
             if (treatBtn) {
                 treatBtn.hidden = false;
                 treatBtn.disabled = false;
@@ -2229,7 +2353,7 @@
             spinnerEl.style.display = running ? '' : 'none';
         }
         // Busy: disable start / review / force; only Stop stays available.
-        // Visibility of exam actions is owned by syncStagePanels (hidden on review/result).
+        // Visibility of Diagnosis actions is owned by syncStagePanels.
         checkBtn.disabled = running;
         if (checkFullBtn) {
             checkFullBtn.disabled = running;
@@ -2245,8 +2369,6 @@
             treatCancelBtn.disabled = running;
         }
         if (previewEl && running && uiStage === 'review') {
-            // Keep stage as review in memory but hide the card while the job runs;
-            // treat advances to result explicitly.
             previewEl.hidden = true;
         }
         if (stopBtn) {
@@ -2260,6 +2382,25 @@
         }
         syncBreadcrumb();
         syncStagePanels();
+    }
+
+    /**
+     * After a finished check / Force → Diagnosis; Treat stays on Treatment result.
+     */
+    function advanceAfterJobFinished(jobMode) {
+        const mode = String(jobMode || '').trim().toLowerCase();
+        if (mode === 'treat' || mode === 'followup') {
+            if (uiStage !== 'result') {
+                setUiStage('result');
+            }
+            return;
+        }
+        // check / check_full / force (and unknown) → Diagnosis.
+        setPreviewMode(false);
+        setUiStage('diagnosis');
+        if (lastPlan) {
+            renderPlan(lastPlan);
+        }
     }
 
     async function refreshStatus() {
@@ -2277,14 +2418,36 @@
             // Set running before renderPlan so action buttons stay hidden while busy.
             // Do not clear local busy while a start request is still in flight — a
             // mid-start status paint can race the lock and open a second start.
+            const wasRunning = running;
             const isRunning = !!data.running || startInFlight;
             running = isRunning;
+            const liveMode = String((data.meta && data.meta.mode) || '').trim().toLowerCase();
+            if (liveMode) {
+                runModeKey = liveMode === 'followup' && runModeKey === 'treat' ? 'treat' : liveMode;
+            }
             if (isRunning) {
-                const liveMode = String((data.meta && data.meta.mode) || '').trim();
-                const liveLabel = examLabelFromMode(liveMode);
+                const liveLabel = examLabelFromMode(liveMode === 'followup' ? (runModeKey || liveMode) : liveMode);
                 if (liveLabel) {
                     saveExamLabel(liveLabel);
                 }
+                if (uiStage !== 'running' && uiStage !== 'result') {
+                    // Mid-job reload: resume Action checklist (Treat may already be on result).
+                    if (liveMode === 'treat' || liveMode === 'followup') {
+                        // Treat uses running checklist until finished, then result.
+                        setUiStage('running');
+                    } else if (liveMode === 'check' || liveMode === 'check_full' || liveMode === 'force') {
+                        setUiStage('running');
+                    }
+                } else if (liveMode === 'treat' || liveMode === 'followup') {
+                    // Prefer checklist while Apply is in flight.
+                    if (uiStage === 'result' || uiStage === 'review') {
+                        setUiStage('running');
+                    }
+                }
+            }
+            const checklistMode = runModeKey || liveMode || String(plan.mode || '').trim().toLowerCase();
+            if (uiStage === 'running' || isRunning) {
+                renderRunChecklist(checklistMode, typeof data.log === 'string' ? data.log : '', !isRunning && wasRunning);
             }
             renderPlan(plan);
             setRunningUi(isRunning);
@@ -2304,10 +2467,12 @@
                         const planMode = String(plan.mode || '').trim();
                         // Prefer the job that was launched (meta.mode). Follow-up overwrites
                         // plan.mode to "followup" / check — never call Force a Quick check.
-                        const jobMode = metaMode || planMode;
+                        const jobMode = metaMode || planMode || runModeKey;
+                        // Transition off Action checklist when the job just finished.
+                        if (wasRunning || uiStage === 'running') {
+                            advanceAfterJobFinished(jobMode);
+                        }
                         // Only keep Treatment result when already on that step.
-                        // Fresh Status loads must show the exam, even if the last
-                        // finished job was treat/followup.
                         if (uiStage === 'result') {
                             if (!lastTreatReport) {
                                 lastTreatReport = { labels: [], treats: [], notes: [], overall: '' };
@@ -2355,7 +2520,7 @@
                     } else if (data.exit_code !== null && data.exit_code !== undefined) {
                         const metaMode = String((data.meta && data.meta.mode) || '').trim();
                         const planMode = String(plan.mode || '').trim();
-                        const jobMode = metaMode || planMode;
+                        const jobMode = metaMode || planMode || runModeKey;
                         const logText = logEl ? String(logEl.textContent || '') : '';
                         const failed = countFailedFromLog(logText);
                         const announceKey = problemAnnounceKey(data.exit_code, jobMode, logText);
@@ -2363,6 +2528,9 @@
                         // surface attention so the badge matches the problem dialog.
                         if (failed > 0 && String(overall || '').toLowerCase() === 'healthy') {
                             setOverall('attention');
+                        }
+                        if (wasRunning || uiStage === 'running') {
+                            advanceAfterJobFinished(jobMode);
                         }
                         if (announceKey && announceKey !== lastAnnouncedProblemKey) {
                             rememberProblemKey(announceKey);
@@ -2377,23 +2545,6 @@
             } else {
                 const message = data.meta && data.meta.message ? String(data.meta.message) : 'Working…';
                 setJobStatus(message);
-                const liveMode = String((data.meta && data.meta.mode) || '').trim().toLowerCase();
-                // Mid-job reload: resume the matching stepped view.
-                if (liveMode === 'treat' || liveMode === 'followup') {
-                    if (uiStage !== 'result') {
-                        setUiStage('result');
-                    } else {
-                        renderTreatResultPanel('');
-                    }
-                } else if (
-                    (liveMode === 'check' || liveMode === 'check_full' || liveMode === 'force')
-                    && uiStage !== 'exam'
-                    && uiStage !== 'result'
-                ) {
-                    setUiStage('exam');
-                } else if (uiStage === 'result') {
-                    renderTreatResultPanel('');
-                }
             }
             return data;
         } catch (err) {
@@ -2434,21 +2585,27 @@
         rememberProblemKey('');
         setRunningUi(true);
         let starting = 'Starting…';
+        runModeKey = String(mode || '').trim().toLowerCase();
         if (mode === 'check') {
             starting = 'Starting quick health check…';
             saveExamLabel('Quick check');
-            setUiStage('exam');
+            setUiStage('running');
+            renderRunChecklist('check', '', false);
         } else if (mode === 'check_full') {
             starting = 'Starting full health check…';
             saveExamLabel('Full check');
-            setUiStage('exam');
+            setUiStage('running');
+            renderRunChecklist('check_full', '', false);
         } else if (mode === 'treat') {
             starting = 'Starting treatment…';
-            setUiStage('result');
+            saveExamLabel('Apply treatment');
+            setUiStage('running');
+            renderRunChecklist('treat', '', false);
         } else if (mode === 'force') {
             starting = 'Starting force rebuild…';
             saveExamLabel('Force rebuild');
-            setUiStage('exam');
+            setUiStage('running');
+            renderRunChecklist('force', '', false);
         }
         setJobStatus(starting);
         const body = { mode: mode, csrf_token: csrfToken };
@@ -2477,11 +2634,11 @@
                 if (previewEl) {
                     previewEl.hidden = true;
                 }
-                setUiStage('result');
+                // Stay on Action checklist until the job finishes → Treatment result.
+                setUiStage('running');
                 if (!lastTreatReport) {
                     lastTreatReport = { labels: [], treats: [], notes: [], overall: '' };
                 }
-                renderTreatResultPanel('');
             }
             beginPolling();
             await refreshStatus();
@@ -2507,7 +2664,6 @@
             return 'unavailable';
         }
         previewOpen = false;
-        setUiStage('exam');
         startMode('check');
         return 'started';
     };
@@ -2537,22 +2693,12 @@
         if (!isPlanStale(lastPlan)) {
             return;
         }
-        // Status landing only — hub / exam keep the operator’s choice (Quick vs Full).
+        // Status landing only — hub keeps the operator’s choice (Quick vs Full).
         if (uiStage !== 'status') {
             return;
         }
         staleAutoCheckStarted = true;
         setPreviewMode(false);
-        setUiStage('exam');
-        if (summaryEl) {
-            summaryEl.hidden = false;
-            summaryEl.classList.add('is-stale');
-            summaryEl.innerHTML = (
-                '<p class="publish-status-empty site-health-stale-notice">' +
-                'Last check is more than an hour old. Starting a fresh Quick health check…' +
-                '</p>'
-            );
-        }
         await startMode('check');
         // Allow a later retry if start failed (still idle + still out of date).
         if (!running && isPlanStale(lastPlan)) {
@@ -2596,14 +2742,12 @@
 
     checkBtn.addEventListener('click', () => {
         previewOpen = false;
-        setUiStage('exam');
         startMode('check');
     });
 
     if (checkFullBtn) {
         checkFullBtn.addEventListener('click', () => {
             previewOpen = false;
-            setUiStage('exam');
             startMode('check_full');
         });
     }
@@ -2616,7 +2760,7 @@
             }
             if (isPlanStale(lastPlan)) {
                 setPreviewMode(false);
-                setUiStage('exam');
+                setUiStage('diagnosis');
                 setJobStatus(staleCheckMessage(), 'attention');
                 syncRecommendedAction();
                 return;
@@ -2629,7 +2773,7 @@
     if (treatCancelBtn) {
         treatCancelBtn.addEventListener('click', () => {
             setPreviewMode(false);
-            setUiStage('exam');
+            setUiStage('diagnosis');
             setJobStatus('');
         });
     }
@@ -2638,7 +2782,7 @@
         treatApplyBtn.addEventListener('click', async () => {
             if (isPlanStale(lastPlan)) {
                 setPreviewMode(false);
-                setUiStage('exam');
+                setUiStage('diagnosis');
                 setJobStatus(staleCheckMessage(), 'attention');
                 syncRecommendedAction();
                 return;
@@ -2740,7 +2884,6 @@
             return;
         }
         previewOpen = false;
-        setUiStage('exam');
         startMode('force');
     });
 

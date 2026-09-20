@@ -2,11 +2,11 @@
 
 ## Resume point
 
-**Site health problem UX + Living background refs** just shipped. Next optional: dig into why `Looping_girls_on_Trampolines.mp4` remux/re-encode fails while Delivery still shows Ready (old stream left behind).
+**Site health Action vs Diagnosis** just shipped. Status / Action stay quiet (no Good/Bad/Ugly, no Activity while choosing or running). Finished Quick / Full / Force always open **Diagnosis**; Activity lives there (and on Review / Treatment result).
 
-### Operator note
+### Optional next
 
-Force failure on that video is **ffmpeg remux/re-encode**, not the ❤️ in the display title. An older player stream can still show Ready after a failed rebuild.
+Dig into why `Looping_girls_on_Trampolines.mp4` remux/re-encode fails while Delivery still shows Ready (old stream left behind). Heart in the display title is unrelated.
 
 ### Local workspace
 

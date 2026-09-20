@@ -2,6 +2,8 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-09-20 13:40 - Site health Action vs Diagnosis: Status/Action stay quiet (no Good/Bad/Ugly, no Activity). While Quick/Full/Force/Treat runs, Action shows a HEALTH_PHASE checklist + Stop only. Finished checks open Diagnosis for Good/Bad/Ugly and Review; Activity is visible on Diagnosis / Proposed treatment / Treatment result.
+
 2026-09-20 12:40 - Site health problem dialog: green **Open Activity** (lists failed filenames + next step); announce once per job so it does not follow you to Files; dismiss on tab navigation. Visual references: stop “Living background: … — Living background” / “(theme)” spam. Heart in titles is not the delivery failure cause.
 
 2026-09-20 12:15 - Site health video delivery: Activity now names each failed video, why the player stream failed, and the follow-up (Files → Visual, then Check → Review → Apply or Force again).

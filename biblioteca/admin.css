@@ -5424,6 +5424,81 @@ canvas { max-width: 100%; height: auto; }
     display: none !important;
 }
 
+.site-health-run-checklist {
+    margin-top: 0.85rem;
+    padding: 12px 14px;
+    border: 1px solid var(--border, rgba(255, 255, 255, 0.12));
+    border-radius: 8px;
+    background: var(--card, var(--surface));
+    max-width: 28rem;
+}
+
+.site-health-run-checklist[hidden] {
+    display: none !important;
+}
+
+.site-health-run-checklist-title {
+    margin: 0 0 10px;
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--text);
+}
+
+.site-health-run-checklist-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.site-health-run-checklist-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 13px;
+    line-height: 1.35;
+    color: var(--text-muted, #999);
+}
+
+.site-health-run-checklist-item.is-done {
+    color: var(--success, #4caf50);
+}
+
+.site-health-run-checklist-item.is-current {
+    color: var(--text);
+    font-weight: 600;
+}
+
+.site-health-run-checklist-mark {
+    flex: 0 0 auto;
+    width: 1.15rem;
+    height: 1.15rem;
+    border-radius: 999px;
+    border: 1.5px solid var(--border2, rgba(255, 255, 255, 0.28));
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    line-height: 1;
+}
+
+.site-health-run-checklist-item.is-done .site-health-run-checklist-mark {
+    border-color: var(--success, #4caf50);
+    background: rgba(76, 175, 80, 0.18);
+    color: var(--success, #4caf50);
+}
+
+.site-health-run-checklist-item.is-current .site-health-run-checklist-mark {
+    border-color: var(--accent, #ff6b6b);
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent, #ff6b6b) 28%, transparent);
+}
+
+#site-health-log-card[hidden] {
+    display: none !important;
+}
+
 .content-editor-breadcrumb-sep[hidden] {
     display: none !important;
 }

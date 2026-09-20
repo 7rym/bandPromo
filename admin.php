@@ -2924,6 +2924,11 @@ if ($tab === 'analytics') {
                     <p id="siteHealthHubResume" class="site-health-hub-resume" hidden></p>
                 </div>
 
+                <div id="siteHealthRunChecklist" class="site-health-run-checklist" hidden>
+                    <h3 class="site-health-run-checklist-title">In progress</h3>
+                    <ol id="siteHealthRunChecklistList" class="site-health-run-checklist-list"></ol>
+                </div>
+
                 <div id="siteHealthSummary" class="site-health-summary" hidden></div>
                 <div id="siteHealthFindings" class="publish-status-summary" hidden>
                     <p class="publish-status-empty">No check yet — start with Quick health check.</p>
@@ -2946,7 +2951,7 @@ if ($tab === 'analytics') {
                 </div>
             </div>
 
-            <details id="site-health-log-card" class="card deliverables-log-card" open>
+            <details id="site-health-log-card" class="card deliverables-log-card" open hidden>
                 <summary class="deliverables-log-summary">
                     <span class="deliverables-log-title">Activity</span>
                     <span class="build-log-meta">
