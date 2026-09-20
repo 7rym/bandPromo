@@ -60,7 +60,9 @@ Stop using inline for global outcomes (“Building in background”, “Backup d
 
 ### Voice (operator-friendly copy)
 
-Confirms, Status blurbs, and toasts explain the **outcome for the install** in plain UK English. Avoid internal jargon in primary copy (e.g. “listener rebuild”, “deliverables”, “fingerprint”). Say what will happen, how long it might take when that matters, and what to prefer instead (often Check → Review → Apply). See house style in [AGENTS.md](AGENTS.md).
+**Default audience:** operators who are not especially tech-savvy. Confirms, Status blurbs, toasts, and similar UI must make it easy to understand **what their action will do** to the install — outcome, time when it matters, and what to prefer instead (often Check → Review → Apply). Use plain UK English; avoid internal jargon in primary copy (e.g. “listener rebuild”, “deliverables”, “fingerprint”). See house style in [AGENTS.md](AGENTS.md).
+
+**Developer role:** when the signed-in account is `developer` (`is_developer()` / `isDeveloperUser`), add a second layer of detail only when it helps that person act — internals, host facts, job names, paths. Keep the primary title/body readable without it; put extras in a secondary line, expandable note, or an existing developer-only surface (System → Environment / Audit). Do not make everyday confirms and hub blurbs developer-jargon for everyone.
 
 ## Confirm dialogs — one reusable component (shipped v0.8)
 

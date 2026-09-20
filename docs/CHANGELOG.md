@@ -2,6 +2,8 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-09-20 11:35 - Operator messaging voice: default copy assumes a non-tech-savvy operator (plain “what will this do?”); developer role may get additive detail when useful. Preference + OPERATOR-MESSAGING / AGENTS updated.
+
 2026-09-20 11:32 - SESSION-HANDOFF: resume after operator-friendly Force copy (build 560).
 
 2026-09-20 11:30 - Operator-friendly Force copy: drop “listener rebuild”; confirm and hub text explain a full player-ready rebuild that turns every stone, may take time on large catalogues, and stays blocked on critical findings. Preference registered (local Cursor rule + OPERATOR-MESSAGING voice note).
