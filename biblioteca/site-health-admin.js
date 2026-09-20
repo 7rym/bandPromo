@@ -694,11 +694,61 @@
                     body: message,
                     confirmLabel: 'OK',
                     cancelLabel: 'Close',
+                    tone: 'quiet',
                 });
             } else {
                 window.alert(message);
             }
         }
+    }
+
+    function countFailedFromLog(logText) {
+        const log = String(logText || '');
+        let failed = 0;
+        const re = /done:\s*[^\n]*?(\d+)\s+failed/gi;
+        let match = re.exec(log);
+        while (match) {
+            failed += parseInt(match[1], 10) || 0;
+            match = re.exec(log);
+        }
+        return failed;
+    }
+
+    function healthJobProblemMessage(exitCode, overall, jobMode, logText) {
+        const mode = String(jobMode || '').trim().toLowerCase();
+        const ov = String(overall || '').trim().toLowerCase();
+        const failed = countFailedFromLog(logText);
+        let body = '';
+        if (failed > 0) {
+            const noun = failed === 1 ? 'file' : 'files';
+            if (mode === 'force') {
+                body = (
+                    'Force rebuild finished, but ' + failed + ' player-ready ' + noun +
+                    ' could not be built. Check Activity for which ones failed.'
+                );
+            } else if (mode === 'treat' || mode === 'followup') {
+                body = (
+                    'Treatment finished, but ' + failed + ' player-ready ' + noun +
+                    ' could not be built. Check Activity for details.'
+                );
+            } else {
+                body = (
+                    'Site health finished, but ' + failed + ' player-ready ' + noun +
+                    ' could not be built. Check Activity for details.'
+                );
+            }
+        } else if (ov === 'healthy') {
+            body = (
+                'Site health finished with a problem during the run. ' +
+                'The catalogue still looks healthy — check Activity for what went wrong.'
+            );
+        } else {
+            body = 'Site health could not finish cleanly. Check Activity for details.';
+        }
+        if (window.bandpromoIsDeveloper) {
+            body += '\n\nDeveloper: process exit code ' + String(exitCode) + '.';
+        }
+        return body;
     }
 
     function clearActionTones() {
@@ -2209,7 +2259,20 @@
                             setJobStatus('Health job finished.', 'success');
                         }
                     } else if (data.exit_code !== null && data.exit_code !== undefined) {
-                        setJobStatus('Health job exited with code ' + data.exit_code + '.', 'error');
+                        const metaMode = String((data.meta && data.meta.mode) || '').trim();
+                        const planMode = String(plan.mode || '').trim();
+                        const jobMode = metaMode || planMode;
+                        const logText = logEl ? String(logEl.textContent || '') : '';
+                        const failed = countFailedFromLog(logText);
+                        // Follow-up can still look healthy when a rebuild step failed —
+                        // surface attention so the badge matches the problem dialog.
+                        if (failed > 0 && String(overall || '').toLowerCase() === 'healthy') {
+                            setOverall('attention');
+                        }
+                        setJobStatus(
+                            healthJobProblemMessage(data.exit_code, overall, jobMode, logText),
+                            'error'
+                        );
                     }
                     syncRecommendedAction();
                 }

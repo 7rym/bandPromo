@@ -2,6 +2,8 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-09-20 12:10 - Site health: replace “exited with code N” acknowledge with plain language when a rebuild step fails (e.g. Force video); developer sees exit code as an extra line. Partial delivery failure no longer leaves a Healthy badge while the dialog complains.
+
 2026-09-20 12:00 - Site health: hide Good/Bad/Ugly while a check is running; show a short working notice until the job finishes (results were looking finished mid-Full check).
 
 2026-09-20 11:55 - Fix `.btn-sm`: was 16px (larger than base `.btn` 13px); now 12px compact for dense toolbars / hub resume.
