@@ -63,12 +63,12 @@
     },
     "admin_thumb": {
       "where": "Admin Files Visual/SFX pool tiles and media picker tiles",
-      "variant": "card",
+      "variant": "grid",
       "prefer_alpha": false,
-      "notes": "Prefer card (720px) over thumb (150px) so Grid/List S–L and retina stay sharp; thumb remains for player playlist rows"
+      "notes": "Prefer grid (320px) when present; fall back to card then thumb. Site health Treat builds missing grid variants."
     },
     "grid": {
-      "where": "Page gallery block .page-gallery-item img",
+      "where": "Page gallery block .page-gallery-item img; admin Files grid/list tiles",
       "variant": "grid",
       "prefer_alpha": false
     },
@@ -100,16 +100,16 @@
     }
   },
   "role_variants": {
-    "track-cover": ["thumb", "card", "huge"],
-    "release-cover": ["thumb", "card", "huge"],
-    "gallery": ["thumb", "card", "huge"],
-    "page-illustration": ["thumb", "card", "picture", "huge"],
-    "brand-logo": ["logo", "thumb", "huge"],
-    "brand-portrait": ["thumb", "card", "huge"],
-    "shell-background-image": ["card", "huge"],
+    "track-cover": ["thumb", "grid", "card", "huge"],
+    "release-cover": ["thumb", "grid", "card", "huge"],
+    "gallery": ["thumb", "grid", "card", "huge"],
+    "page-illustration": ["thumb", "grid", "card", "picture", "huge"],
+    "brand-logo": ["logo", "thumb", "grid", "huge"],
+    "brand-portrait": ["thumb", "grid", "card", "huge"],
+    "shell-background-image": ["grid", "card", "huge"],
     "shell-background-video": ["poster", "standard-stream"],
-    "unassigned": ["thumb", "card", "huge"],
-    "default_image": ["thumb", "card", "huge"],
+    "unassigned": ["thumb", "grid", "card", "huge"],
+    "default_image": ["thumb", "grid", "card", "huge"],
     "default_video": ["poster", "standard-stream"]
   }
 }

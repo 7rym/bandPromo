@@ -1404,7 +1404,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
 
             function buildVideoPickerMarkup(file) {
                 const poster = videoPosterUrl(file)
-                    || String(file?.card_url || file?.thumb_url || '').trim();
+                    || String(file?.grid_url || file?.card_url || file?.thumb_url || '').trim();
                 const previewSrc = videoPreviewUrl(file);
                 if (poster) {
                     return `<img src="${poster}" alt="" loading="lazy"><span class="media-picker-tile-badge" aria-hidden="true">▶</span>`;
@@ -4424,7 +4424,8 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 if (!id) {
                     return '';
                 }
-                const variant = prefer === 'huge' ? 'huge' : (prefer === 'thumb' ? 'thumb' : 'card');
+                const allowed = ['thumb', 'grid', 'card', 'huge'];
+                const variant = allowed.includes(prefer) ? prefer : 'card';
                 const extRaw = String(extHint || 'jpg').toLowerCase().replace(/^\./, '');
                 const ext = ['jpg', 'jpeg', 'png', 'webp'].includes(extRaw) ? extRaw : 'jpg';
                 return `/media/visual/delivery/${encodeURIComponent(id)}/${variant}.${ext}`;
@@ -4447,28 +4448,35 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
 
             function poolAssetStillPreviewUrl(file, prefer = 'card') {
                 const card = String(file?.card_url || '').trim();
+                const grid = String(file?.grid_url || '').trim();
                 const thumb = String(file?.thumb_url || '').trim();
                 const assetId = String(file?.asset_id || '').trim() || visualAssetIdFromRef(file?.name || '');
-                const source = card || thumb;
+                const source = grid || card || thumb;
                 const extMatch = source.match(/\.([a-z0-9]+)(?:\?|#|$)/i);
                 const extHint = extMatch ? String(extMatch[1] || '') : 'jpg';
                 if (prefer === 'huge') {
                     if (assetId) {
                         return visualDeliveryStillUrl(assetId, 'huge', extHint);
                     }
-                    return card || thumb;
+                    return card || grid || thumb;
                 }
                 if (prefer === 'thumb') {
-                    return thumb || card || visualDeliveryStillUrl(assetId, 'thumb', extHint);
+                    return thumb || grid || card || visualDeliveryStillUrl(assetId, 'thumb', extHint);
                 }
-                return card || thumb || visualDeliveryStillUrl(assetId, 'card', extHint);
+                if (prefer === 'grid') {
+                    return grid || card || thumb
+                        || visualDeliveryStillUrl(assetId, 'grid', extHint)
+                        || visualDeliveryStillUrl(assetId, 'card', extHint);
+                }
+                return card || grid || thumb || visualDeliveryStillUrl(assetId, 'card', extHint);
             }
 
             function poolAssetThumbInnerHtml(panelType, file, pathType) {
                 const kind = poolAssetKind(panelType, file);
-                // Prefer card (720px) over thumb (150px): Grid/List S–L and retina
-                // CSS boxes outgrow thumb and looked soft to testers.
-                const deliveryStill = poolAssetStillPreviewUrl(file, 'card')
+                // Prefer grid (320px) when built — sized for admin tiles + retina.
+                // Fall back to card then thumb until Site health Treat emits grid.
+                const deliveryStill = poolAssetStillPreviewUrl(file, 'grid')
+                    || poolAssetStillPreviewUrl(file, 'card')
                     || poolAssetStillPreviewUrl(file, 'thumb');
                 const url = deliveryStill || buildMediaUrl(pathType, file.name);
                 const poster = videoPosterUrl(file);
@@ -5771,7 +5779,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                                 ? poolAssetHeadline(target, file)
                                 : 'Asset');
                         const safeLabel = bandpromoAdminEscapeHtml(label);
-                        const deliveryThumb = String(file.card_url || file.thumb_url || '').trim();
+                        const deliveryThumb = String(file.grid_url || file.card_url || file.thumb_url || '').trim();
                         const url = deliveryThumb || buildMediaUrl(pathType, file.name);
                         const assetId = String(file.asset_id || '').trim();
                         const notReady = target === 'visual' && file.pool_ready === false;

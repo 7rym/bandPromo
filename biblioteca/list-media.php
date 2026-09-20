@@ -498,9 +498,13 @@ function bandpromo_list_media_build_entry(
                 }
             } else {
                 $thumbResolved = bandpromo_visual_registry_variant_url($visualAsset, 'thumb');
+                $gridResolved = bandpromo_visual_registry_variant_url($visualAsset, 'grid');
                 $cardResolved = bandpromo_visual_registry_variant_url($visualAsset, 'card');
                 if ($thumbResolved !== '') {
                     $entry['thumb_url'] = $thumbResolved;
+                }
+                if ($gridResolved !== '') {
+                    $entry['grid_url'] = $gridResolved;
                 }
                 if ($cardResolved !== '') {
                     $entry['card_url'] = $cardResolved;

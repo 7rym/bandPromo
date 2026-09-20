@@ -2,20 +2,18 @@
 
 ## Resume point
 
-**Brand-assets Phase A/B cleanup shipped** — dead `special` admin UI paths removed; thin remaps kept.
+**Visual grid delivery wired** — admin pool prefers 320px `grid` when built.
 
-### Shipped (this session)
+### Shipped recently
 
-1. Page/campaign picker defaults: `'illustrations,photos,special'` / `'video,special'` → `'visual'`.
-2. `admin.css`: all `#panel-special` rules removed.
-3. `admin.js`: strip Brand-assets panel state, helpers (`openBrandLibraryPicker`, remove-from-library bulk, etc.), and `loadMediaList('special')` paths. Keep `normalizeFilesPanel` / `SUBTAB_ALIASES` / `normalizeMediaPickerTargets` remaps and Visual+SFX Use in brand / From brand.
-4. Docs: FEATURES / MEDIA-HANDLING no longer describe Brand assets as a live Files tab.
-5. Backend `list-media` / upload / delete `target=special` dual-read left intact for disk leftovers.
+1. Sticky chrome definition (stick only when leaving viewport) + Branding preview fix.
+2. Visual Grid S/M/L size controls.
+3. Admin thumbs: prefer **grid** (320) → card → thumb; role_variants now emit `grid`.
+4. Use in brand / gallery / playlist; Brand assets tab retired.
 
-### Earlier (still true)
+### Operator note after update
 
-1. Files pools: Audio | Visual | Sound effects only; `fpanel=special` → Visual.
-2. Visual/SFX: **Use in brand** / **From brand**; Visual **Use in gallery**; Audio **Use in playlist**.
+Existing installs need **Status → Site health → Review → Apply** (image delivery) once so `grid.jpg` appears under each visual delivery folder. Until then admin falls back to card.
 
 ### Local workspace
 

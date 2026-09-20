@@ -75,15 +75,16 @@ def load_delivery_contexts():
     defaults = {
         'variants': {
             'thumb': {'max_edge': COVER_THUMB_MAX_EDGE},
+            'grid': {'max_edge': 320},
             'card': {'max_edge': COVER_OPTIMAL_MAX_EDGE},
             'huge': {'max_width': 1920, 'max_height': 1080},
             'logo': {'max_edge': 640},
             'poster': {'max_edge': COVER_OPTIMAL_MAX_EDGE},
         },
         'role_variants': {
-            'default_image': ['thumb', 'card', 'huge'],
-            'brand-logo': ['logo', 'thumb', 'huge'],
-            'unassigned': ['thumb', 'card', 'huge'],
+            'default_image': ['thumb', 'grid', 'card', 'huge'],
+            'brand-logo': ['logo', 'thumb', 'grid', 'huge'],
+            'unassigned': ['thumb', 'grid', 'card', 'huge'],
         },
     }
     if not DELIVERY_CONTEXTS_FILE.exists():

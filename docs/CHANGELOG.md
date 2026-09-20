@@ -2,6 +2,8 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-09-20 11:20 - Visual delivery: start building the **grid** variant (320px) for image roles; admin Files/picker prefer grid → card → thumb. Run Site health Treat (or image delivery) once so existing assets gain `grid.jpg`.
+
 2026-09-20 11:15 - Files Visual/SFX pool + media picker thumbs prefer delivery **card** (720px) over **thumb** (150px) so Grid/List and retina tiles look sharp; no rebuild required when cards already exist.
 
 2026-09-20 11:10 - Files → Visual: **S / M / L** thumbnail size works in Grid as well as List (denser / default / roomier tile columns).
