@@ -1233,7 +1233,7 @@
                     window.openMediaPicker(
                         button.dataset.field || 'campaignSettingsPosterAssetId',
                         button.dataset.title || 'Choose campaign artwork',
-                        button.dataset.targets || 'illustrations,photos,special'
+                        button.dataset.targets || 'visual'
                     );
                 });
             });

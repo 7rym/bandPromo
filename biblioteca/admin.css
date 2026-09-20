@@ -3090,6 +3090,58 @@ canvas { max-width: 100%; height: auto; }
     flex-shrink: 0;
 }
 
+/* Sticky pool / editor chrome (see .cursor/rules/sticky-toolbars.mdc) */
+:root {
+    --admin-subtabs-sticky-top: 0px;
+    --admin-subtabs-offset: 38px;
+}
+
+#tab-files > .tabs.sub-tabs,
+#tab-content > .tabs.sub-tabs {
+    position: sticky;
+    top: var(--admin-subtabs-sticky-top);
+    z-index: 50;
+}
+
+.media-pool-sticky-chrome {
+    position: sticky;
+    top: var(--admin-subtabs-offset);
+    z-index: 40;
+    margin: 0 0 6px;
+    padding-bottom: 2px;
+    background: var(--card);
+    box-shadow: 0 8px 14px rgba(0, 0, 0, 0.22);
+}
+
+.media-pool-sticky-chrome .audio-pool-toolbar {
+    margin-bottom: 4px;
+}
+
+.media-pool-sticky-chrome .media-file-col-headers {
+    margin-bottom: 0;
+    background: var(--card);
+}
+
+.content-editor-card-head,
+.campaign-editor-card-head {
+    position: sticky;
+    top: var(--admin-subtabs-offset);
+    z-index: 42;
+    background: var(--card);
+    padding: 4px 0 6px;
+    margin-bottom: 4px;
+    box-shadow: 0 8px 14px rgba(0, 0, 0, 0.18);
+}
+
+.editor-card.is-editing .split-editor__header,
+.split-editor__header--pool,
+.split-editor__header--active {
+    position: sticky;
+    top: calc(var(--admin-subtabs-offset) + 38px);
+    z-index: 30;
+    background: var(--border2);
+}
+
 /* Audio pool: one compact filter row */
 .audio-pool-toolbar {
     display: flex;
@@ -3788,13 +3840,11 @@ canvas { max-width: 100%; height: auto; }
 }
 
 #panel-visual .audio-pool-toolbar,
-#panel-special .audio-pool-toolbar,
 #panel-sfx .audio-pool-toolbar {
     flex-wrap: wrap;
 }
 
 #panel-visual .audio-pool-toolbar-main,
-#panel-special .audio-pool-toolbar-main,
 #panel-sfx .audio-pool-toolbar-main {
     flex-wrap: wrap;
 }
@@ -3810,8 +3860,7 @@ canvas { max-width: 100%; height: auto; }
     border: 1px solid var(--border);
 }
 
-#panel-visual[data-pool-layout="grid"] .visual-thumb-size-toggle,
-#panel-special[data-pool-layout="grid"] .visual-thumb-size-toggle {
+#panel-visual[data-pool-layout="grid"] .visual-thumb-size-toggle {
     display: none;
 }
 
@@ -3859,7 +3908,6 @@ canvas { max-width: 100%; height: auto; }
 }
 
 #panel-visual,
-#panel-special,
 #panel-sfx {
     --pool-col-check: 1.15rem;
     --pool-col-thumb: 100px;
@@ -3871,13 +3919,11 @@ canvas { max-width: 100%; height: auto; }
 }
 
 #panel-visual[data-pool-thumb-size="small"],
-#panel-special[data-pool-thumb-size="small"],
 #panel-sfx[data-pool-thumb-size="small"] {
     --pool-col-thumb: 70px;
 }
 
 #panel-visual[data-pool-thumb-size="large"],
-#panel-special[data-pool-thumb-size="large"],
 #panel-sfx[data-pool-thumb-size="large"] {
     --pool-col-thumb: 125px;
 }
@@ -3886,15 +3932,9 @@ canvas { max-width: 100%; height: auto; }
     --pool-col-actions: 9.5rem;
 }
 
-#panel-special {
-    --pool-col-actions: 5.75rem;
-}
-
 #panel-visual .visual-pool-col-headers,
-#panel-special .visual-pool-col-headers,
 #panel-sfx .visual-pool-col-headers,
 #panel-visual[data-pool-layout="list"] .visual-pool-card-main,
-#panel-special[data-pool-layout="list"] .visual-pool-card-main,
 #panel-sfx .visual-pool-card-main {
     display: grid;
     grid-template-columns:
@@ -3911,9 +3951,7 @@ canvas { max-width: 100%; height: auto; }
 }
 
 #panel-visual .visual-pool-col-headers,
-#panel-special .visual-pool-col-headers,
-#panel-visual[data-pool-layout="list"] .visual-pool-card-main,
-#panel-special[data-pool-layout="list"] .visual-pool-card-main {
+#panel-visual[data-pool-layout="list"] .visual-pool-card-main {
     grid-template-columns:
         var(--pool-col-check)
         var(--pool-col-thumb)
@@ -3925,7 +3963,6 @@ canvas { max-width: 100%; height: auto; }
 }
 
 #panel-visual .visual-pool-col-headers,
-#panel-special .visual-pool-col-headers,
 #panel-sfx .visual-pool-col-headers {
     margin: 0 0 2px;
     padding: 2px 10px 4px;
@@ -3937,7 +3974,6 @@ canvas { max-width: 100%; height: auto; }
 }
 
 #panel-visual .visual-pool-col-headers > .media-file-select-toggle,
-#panel-special .visual-pool-col-headers > .media-file-select-toggle,
 #panel-sfx .visual-pool-col-headers > .media-file-select-toggle {
     grid-column: 1 / span 2;
     display: inline-flex;
@@ -3951,27 +3987,23 @@ canvas { max-width: 100%; height: auto; }
     border: 1px solid var(--border);
 }
 
-#panel-visual[data-pool-layout="grid"] .visual-pool-col-headers,
-#panel-special[data-pool-layout="grid"] .visual-pool-col-headers {
+#panel-visual[data-pool-layout="grid"] .visual-pool-col-headers {
     display: flex;
     align-items: center;
     gap: 8px;
     padding: 2px 2px 6px;
 }
 
-#panel-visual[data-pool-layout="grid"] .visual-pool-col-headers > .media-file-select-toggle,
-#panel-special[data-pool-layout="grid"] .visual-pool-col-headers > .media-file-select-toggle {
+#panel-visual[data-pool-layout="grid"] .visual-pool-col-headers > .media-file-select-toggle {
     grid-column: auto;
     width: auto;
 }
 
-#panel-visual[data-pool-layout="grid"] .visual-pool-col-headers > .media-file-actions,
-#panel-special[data-pool-layout="grid"] .visual-pool-col-headers > .media-file-actions {
+#panel-visual[data-pool-layout="grid"] .visual-pool-col-headers > .media-file-actions {
     display: none;
 }
 
-#panel-visual[data-pool-layout="grid"] .visual-pool-col-headers .media-file-col-sort,
-#panel-special[data-pool-layout="grid"] .visual-pool-col-headers .media-file-col-sort {
+#panel-visual[data-pool-layout="grid"] .visual-pool-col-headers .media-file-col-sort {
     flex: 0 1 auto;
 }
 
@@ -3994,7 +4026,6 @@ canvas { max-width: 100%; height: auto; }
 }
 
 #panel-visual .visual-pool-col-headers > .media-file-actions,
-#panel-special .visual-pool-col-headers > .media-file-actions,
 #panel-sfx .visual-pool-col-headers > .media-file-actions {
     width: 100%;
     justify-content: flex-end;
@@ -4346,11 +4377,6 @@ canvas { max-width: 100%; height: auto; }
     width: 100%;
     flex-shrink: 0;
     flex-wrap: nowrap;
-}
-
-#panel-special .visual-pool-card.is-brand-slot-assigned {
-    border-color: rgba(240, 180, 41, 0.62);
-    box-shadow: inset 3px 0 0 rgba(240, 180, 41, 0.9);
 }
 
 .visual-pool-card-meta-copy {

@@ -1229,37 +1229,39 @@ if ($tab === 'analytics') {
                         </span>
                     </div>
                 </div>
-                <div class="audio-pool-toolbar" data-media-list-header="audio">
-                    <div class="audio-pool-toolbar-main">
-                        <label class="media-filter-label">
-                            <span class="visually-hidden">Filter by campaign</span>
-                            <select class="media-filter-select" data-media-campaign-filter aria-label="Filter by campaign">
-                                <option value="all">All campaigns</option>
-                                <option value="orphans">Orphans</option>
-                            </select>
-                        </label>
-                        <label class="media-filter-label audio-pool-toolbar-search">
-                            <span class="visually-hidden">Filter by title</span>
-                            <input type="search" class="media-filter-input" data-media-name-filter="audio" placeholder="Filter by title…" autocomplete="off" aria-label="Filter audio by title">
-                        </label>
+                <div class="media-pool-sticky-chrome">
+                    <div class="audio-pool-toolbar" data-media-list-header="audio">
+                        <div class="audio-pool-toolbar-main">
+                            <label class="media-filter-label">
+                                <span class="visually-hidden">Filter by campaign</span>
+                                <select class="media-filter-select" data-media-campaign-filter aria-label="Filter by campaign">
+                                    <option value="all">All campaigns</option>
+                                    <option value="orphans">Orphans</option>
+                                </select>
+                            </label>
+                            <label class="media-filter-label audio-pool-toolbar-search">
+                                <span class="visually-hidden">Filter by title</span>
+                                <input type="search" class="media-filter-input" data-media-name-filter="audio" placeholder="Filter by title…" autocomplete="off" aria-label="Filter audio by title">
+                            </label>
+                        </div>
+                        <div class="audio-pool-toolbar-actions media-file-actions">
+                            <button type="button" class="icon-btn media-action-btn media-action-good media-group-action-btn media-labeled-action-btn" onclick="openUploadModal('audio')" aria-label="Upload audio files" title="Upload audio files"><span class="media-labeled-action-icon" aria-hidden="true">＋</span><span>Upload</span></button>
+                            <button type="button" class="icon-btn media-action-btn media-action-good media-group-action-btn media-labeled-action-btn" id="audioUseInPlaylistBtn" data-use-in-playlist-target="audio" disabled aria-label="Use selected tracks in a playlist" title="Select one or more tracks to add to a playlist"><span class="media-labeled-action-icon" aria-hidden="true">🎶</span><span>Use in playlist</span></button>
+                            <button type="button" class="icon-btn media-action-btn media-action-good media-group-action-btn media-labeled-action-btn media-bulk-download-btn" data-bulk-download-target="audio" data-download-variant="master" disabled aria-label="Download selected audio files" title="Download selected audio files"><span class="media-labeled-action-icon" aria-hidden="true">⬇</span><span>Download</span></button>
+                            <button type="button" class="icon-btn media-action-btn media-action-danger media-group-action-btn media-labeled-action-btn media-bulk-delete-btn" data-bulk-delete-target="audio" disabled aria-label="Delete selected audio files" title="Delete selected audio files"><span class="media-labeled-action-icon" aria-hidden="true">🗑️</span><span>Delete</span></button>
+                        </div>
                     </div>
-                    <div class="audio-pool-toolbar-actions media-file-actions">
-                        <button type="button" class="icon-btn media-action-btn media-action-good media-group-action-btn media-labeled-action-btn" onclick="openUploadModal('audio')" aria-label="Upload audio files" title="Upload audio files"><span class="media-labeled-action-icon" aria-hidden="true">＋</span><span>Upload</span></button>
-                        <button type="button" class="icon-btn media-action-btn media-action-good media-group-action-btn media-labeled-action-btn" id="audioUseInPlaylistBtn" data-use-in-playlist-target="audio" disabled aria-label="Use selected tracks in a playlist" title="Select one or more tracks to add to a playlist"><span class="media-labeled-action-icon" aria-hidden="true">🎶</span><span>Use in playlist</span></button>
-                        <button type="button" class="icon-btn media-action-btn media-action-good media-group-action-btn media-labeled-action-btn media-bulk-download-btn" data-bulk-download-target="audio" data-download-variant="master" disabled aria-label="Download selected audio files" title="Download selected audio files"><span class="media-labeled-action-icon" aria-hidden="true">⬇</span><span>Download</span></button>
-                        <button type="button" class="icon-btn media-action-btn media-action-danger media-group-action-btn media-labeled-action-btn media-bulk-delete-btn" data-bulk-delete-target="audio" disabled aria-label="Delete selected audio files" title="Delete selected audio files"><span class="media-labeled-action-icon" aria-hidden="true">🗑️</span><span>Delete</span></button>
+                    <div class="media-file-col-headers" data-audio-sort-headers role="row">
+                        <div class="media-file-select-toggle" role="group" aria-label="Select visible tracks">
+                            <button type="button" class="audio-select-chip" data-media-select-mode="all" data-target="audio" aria-pressed="false" title="Select all visible tracks" aria-label="Select all visible tracks">☑</button>
+                            <button type="button" class="audio-select-chip" data-media-select-mode="none" data-target="audio" aria-pressed="true" title="Clear selection" aria-label="Clear selection">☐</button>
+                        </div>
+                        <button type="button" class="media-file-col-sort" data-audio-sort="track" aria-pressed="false">Track</button>
+                        <button type="button" class="media-file-col-sort" data-audio-sort="date" aria-pressed="true">Date</button>
+                        <button type="button" class="media-file-col-sort" data-audio-sort="campaign" aria-pressed="false">Campaign</button>
+                        <button type="button" class="media-file-col-sort media-file-col-sort--size" data-audio-sort="size" aria-pressed="false">Size</button>
+                        <span class="media-file-actions media-file-col-headers-actions" aria-hidden="true"></span>
                     </div>
-                </div>
-                <div class="media-file-col-headers" data-audio-sort-headers role="row">
-                    <div class="media-file-select-toggle" role="group" aria-label="Select visible tracks">
-                        <button type="button" class="audio-select-chip" data-media-select-mode="all" data-target="audio" aria-pressed="false" title="Select all visible tracks" aria-label="Select all visible tracks">☑</button>
-                        <button type="button" class="audio-select-chip" data-media-select-mode="none" data-target="audio" aria-pressed="true" title="Clear selection" aria-label="Clear selection">☐</button>
-                    </div>
-                    <button type="button" class="media-file-col-sort" data-audio-sort="track" aria-pressed="false">Track</button>
-                    <button type="button" class="media-file-col-sort" data-audio-sort="date" aria-pressed="true">Date</button>
-                    <button type="button" class="media-file-col-sort" data-audio-sort="campaign" aria-pressed="false">Campaign</button>
-                    <button type="button" class="media-file-col-sort media-file-col-sort--size" data-audio-sort="size" aria-pressed="false">Size</button>
-                    <span class="media-file-actions media-file-col-headers-actions" aria-hidden="true"></span>
                 </div>
                 <div id="filelist-audio" class="media-file-list"><span class="text-muted">Loading…</span></div>
                 <div class="media-panel-footer"><span id="audio-count" class="media-count"></span></div>
@@ -1274,6 +1276,7 @@ if ($tab === 'analytics') {
                         </span>
                     </div>
                 </div>
+                <div class="media-pool-sticky-chrome">
                 <div class="audio-pool-toolbar visual-pool-toolbar" data-media-list-header="visual">
                     <div class="audio-pool-toolbar-main visual-pool-toolbar-main">
                         <div class="visual-filter-chip-group" role="group" aria-label="Filter by media type">
@@ -1331,6 +1334,7 @@ if ($tab === 'analytics') {
                     <button type="button" class="media-file-col-sort media-file-col-sort--size visual-pool-col-head visual-pool-col-head--size" data-pool-sort="size" data-pool-panel="visual" aria-pressed="false">Size</button>
                     <span class="media-file-actions media-file-col-headers-actions" aria-hidden="true"></span>
                 </div>
+                </div>
                 <div id="filelist-visual" class="visual-pool-list visual-pool-list--grid" data-visual-layout="grid"><span class="text-muted">Loading…</span></div>
                 <div class="media-panel-footer"><span id="visual-count" class="media-count"></span></div>
             </div>
@@ -1344,6 +1348,7 @@ if ($tab === 'analytics') {
                         </span>
                     </div>
                 </div>
+                <div class="media-pool-sticky-chrome">
                 <div class="audio-pool-toolbar visual-pool-toolbar" data-media-list-header="sfx">
                     <div class="audio-pool-toolbar-main visual-pool-toolbar-main">
                         <label class="media-filter-label">
@@ -1375,6 +1380,7 @@ if ($tab === 'analytics') {
                     <button type="button" class="media-file-col-sort visual-pool-col-head visual-pool-col-head--context" data-pool-sort="context" data-pool-panel="sfx" aria-pressed="false">Brand</button>
                     <button type="button" class="media-file-col-sort media-file-col-sort--size visual-pool-col-head visual-pool-col-head--size" data-pool-sort="size" data-pool-panel="sfx" aria-pressed="false">Size</button>
                     <span class="media-file-actions media-file-col-headers-actions" aria-hidden="true"></span>
+                </div>
                 </div>
                 <div id="filelist-sfx" class="visual-pool-list visual-pool-list--list" data-visual-layout="list"><span class="text-muted">Loading…</span></div>
                 <div class="media-panel-footer"><span id="sfx-count" class="media-count"></span></div>
@@ -1540,7 +1546,7 @@ if ($tab === 'analytics') {
         </div>
 
         <!-- ===================== CONTENT TAB ===================== -->
-        <div class="tab-content <?php echo $tab === 'content' ? 'active' : ''; ?>">
+        <div id="tab-content" class="tab-content <?php echo $tab === 'content' ? 'active' : ''; ?>">
 
             <!-- Content sub-tab navigation -->
             <div class="tabs sub-tabs">

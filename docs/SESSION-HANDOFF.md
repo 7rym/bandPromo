@@ -2,20 +2,20 @@
 
 ## Resume point
 
-**Files pool verbs shipped** — Brand assets retired; Use in brand / gallery / playlist available.
+**Brand-assets Phase A/B cleanup shipped** — dead `special` admin UI paths removed; thin remaps kept.
 
-### Shipped
+### Shipped (this session)
 
-1. Remove Brand assets Files tab; `fpanel=special` → Visual.
-2. Visual: brand-library filter + **Use in brand** / **From brand**.
-3. SFX: **Use in brand** / **From brand**.
-4. Branding shell pickers → Visual / SFX.
-5. Visual **Use in gallery** (select → pick gallery → append delivery-ready items).
-6. Audio **Use in playlist** (select → pick playlist → append masters via order save).
+1. Page/campaign picker defaults: `'illustrations,photos,special'` / `'video,special'` → `'visual'`.
+2. `admin.css`: all `#panel-special` rules removed.
+3. `admin.js`: strip Brand-assets panel state, helpers (`openBrandLibraryPicker`, remove-from-library bulk, etc.), and `loadMediaList('special')` paths. Keep `normalizeFilesPanel` / `SUBTAB_ALIASES` / `normalizeMediaPickerTargets` remaps and Visual+SFX Use in brand / From brand.
+4. Docs: FEATURES / MEDIA-HANDLING no longer describe Brand assets as a live Files tab.
+5. Backend `list-media` / upload / delete `target=special` dual-read left intact for disk leftovers.
 
-### Still open (optional later)
+### Earlier (still true)
 
-1. Drop unused `target=special` list-media / dead Brand-assets JS paths entirely once confirmed idle.
+1. Files pools: Audio | Visual | Sound effects only; `fpanel=special` → Visual.
+2. Visual/SFX: **Use in brand** / **From brand**; Visual **Use in gallery**; Audio **Use in playlist**.
 
 ### Local workspace
 

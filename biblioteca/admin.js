@@ -812,7 +812,6 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 illustrations:  { accept: '.png,.jpg,.jpeg',               target: 'illustrations' },
                 photos:         { accept: '.png,.jpg,.jpeg,.webp',         target: 'photos'        },
                 visual:         { accept: '.png,.jpg,.jpeg,.webp,.mp4,.webm,.mov', target: 'visual' },
-                special:        { accept: '.mp4,.webm,.mov,.png,.jpg,.jpeg,.webp,.svg,.gif', target: 'special' },
                 sfx:            { accept: '.flac,.mp3,.wav,.ogg,.m4a', target: 'sfx' },
             };
             const VISUAL_INTAKE_BUCKETS = ['illustrations', 'photos', 'video'];
@@ -859,7 +858,6 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
             let poolNameFilters = {
                 audio: '',
                 visual: '',
-                special: '',
                 sfx: '',
             };
             let campaignsCatalog = [];
@@ -871,12 +869,10 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
             }
             let poolTypeFilters = {
                 visual: 'all',
-                special: 'all',
                 sfx: 'all',
             };
             let poolBrandFilters = {
                 visual: 'all',
-                special: 'all',
                 sfx: 'all',
             };
             let brandFilterCatalog = [];
@@ -885,14 +881,6 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 visual: (() => {
                     try {
                         const stored = String(window.localStorage.getItem('bandpromo_visual_pool_view') || '').trim();
-                        return stored === 'list' ? 'list' : 'grid';
-                    } catch (error) {
-                        return 'grid';
-                    }
-                })(),
-                special: (() => {
-                    try {
-                        const stored = String(window.localStorage.getItem('bandpromo_brand_pool_view') || '').trim();
                         return stored === 'list' ? 'list' : 'grid';
                     } catch (error) {
                         return 'grid';
@@ -914,13 +902,12 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
             let activePoolAsset = { panel: null, key: null };
             const mediaReferenceFilters = {
                 visual: 'all',
-                special: 'all',
                 sfx: 'all',
                 photos: 'all',
                 video: 'all',
             };
             const mediaReferenceFilterTypes = new Set(['visual', 'illustrations', 'photos', 'video']);
-            const poolPanelTypes = new Set(['visual', 'special', 'sfx']);
+            const poolPanelTypes = new Set(['visual', 'sfx']);
             let audioDisplayMode = 'master';
             let expandedAudioFile = null;
             const mediaSelectionState = new Map();
@@ -965,7 +952,6 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 visual: 'Visual',
                 illustrations: 'Illustrations',
                 photos: 'Photos',
-                special: 'Brand assets',
                 sfx: 'Sound effects',
             };
             const mediaPathMap = {
@@ -973,6 +959,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 video: '/media/visual/original',
                 illustrations: '/media/visual/original',
                 photos: '/media/visual/original',
+                // Legacy special intake dual-read still resolves under Visual originals.
                 special: '/media/visual/original',
                 sfx: '/media/sfx/original',
                 // Registry intake aliases (visual pool / asset.intake_bucket).
@@ -1039,7 +1026,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
             function resolveFileIntakeBucket(file, panelType = '') {
                 const bucket = String(file?.intake_bucket || '').trim();
                 const normalized = normalizeMediaPathType(bucket);
-                if (panelType === 'visual' || VISUAL_INTAKE_BUCKETS.includes(panelType) || panelType === 'special') {
+                if (panelType === 'visual' || VISUAL_INTAKE_BUCKETS.includes(panelType)) {
                     if (VISUAL_INTAKE_BUCKETS.includes(bucket)) {
                         return bucket;
                     }
@@ -1047,23 +1034,9 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     if (VISUAL_INTAKE_BUCKETS.includes(normalized)) {
                         return normalized;
                     }
-                    if (panelType === 'special') {
-                        if (bucket === 'sfx' || normalized === 'sfx') {
-                            return 'sfx';
-                        }
-                        if (bucket === 'special' || normalized === 'special') {
-                            return 'special';
-                        }
-                        if (isAudio(file?.name)) {
-                            return 'sfx';
-                        }
-                        if (isVideo(file?.name)) {
-                            return 'video';
-                        }
-                        if (isImage(file?.name)) {
-                            return 'illustrations';
-                        }
-                        return 'special';
+                    // Leftover special intake still lists under Visual.
+                    if (bucket === 'special' || normalized === 'special') {
+                        return isVideo(file?.name) ? 'video' : 'illustrations';
                     }
                     return isVideo(file?.name) ? 'video' : 'illustrations';
                 }
@@ -1071,7 +1044,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
             }
 
             function mediaFileSelectionKey(panelType, fileOrName, intakeBucket = '') {
-                if (panelType !== 'visual' && panelType !== 'special') {
+                if (panelType !== 'visual') {
                     return typeof fileOrName === 'string'
                         ? String(fileOrName || '')
                         : String(fileOrName?.name || '');
@@ -1086,7 +1059,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
 
             function parseMediaSelectionKey(panelType, key) {
                 const raw = String(key || '');
-                if (panelType !== 'visual' && panelType !== 'special') {
+                if (panelType !== 'visual') {
                     return { bucket: panelType, name: raw };
                 }
                 const sep = raw.indexOf('::');
@@ -1129,7 +1102,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     if (file) {
                         return poolAssetHeadline(panelType, file);
                     }
-                    return panelType === 'special' ? 'Brand asset' : (panelType === 'sfx' ? 'Sound effect' : 'Visual asset');
+                    return panelType === 'sfx' ? 'Sound effect' : 'Visual asset';
                 }
                 return rawName;
             }
@@ -2586,7 +2559,6 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
             function setPoolBrandFilter(nextValue) {
                 poolBrandFilter = normalizePoolBrandFilter(nextValue);
                 // Keep legacy per-panel map in sync for any remaining callers.
-                poolBrandFilters.special = poolBrandFilter;
                 poolBrandFilters.sfx = poolBrandFilter;
                 poolBrandFilters.visual = poolBrandFilter;
                 syncBrandFilterUi();
@@ -2677,14 +2649,6 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 return titles.join('\n');
             }
 
-            function poolAssetWarehouseLabel(file) {
-                const bucket = String(file?.intake_bucket || '').trim();
-                if (bucket === 'sfx' || poolAssetKind('special', file) === 'audio') {
-                    return 'Sound effects';
-                }
-                return 'Visual';
-            }
-
             function visualCatalogueTitles(file) {
                 if (file?.release_orphan === true) {
                     return [];
@@ -2697,9 +2661,6 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
             }
 
             function poolAssetContextPlain(panelType, file) {
-                if (panelType === 'special') {
-                    return poolAssetWarehouseLabel(file);
-                }
                 if (panelType === 'sfx') {
                     return formatBrandContextPlain(file);
                 }
@@ -2716,10 +2677,6 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                         return bandpromoAdminEscapeHtml('Orphan');
                     }
                     return titles.map((title) => bandpromoAdminEscapeHtml(title)).join('<br>');
-                }
-                if (panelType === 'special') {
-                    const label = poolAssetContextPlain(panelType, file);
-                    return label !== '' ? bandpromoAdminEscapeHtml(label) : '';
                 }
                 if (file?.release_orphan === true) {
                     return bandpromoAdminEscapeHtml('Orphan');
@@ -2904,12 +2861,11 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
 
             const poolListSortState = {
                 visual: { key: 'title', dir: 'asc' },
-                special: { key: 'title', dir: 'asc' },
                 sfx: { key: 'title', dir: 'asc' },
             };
 
             function syncPoolListSortHeaders(panelType = null) {
-                const panels = panelType ? [panelType] : ['visual', 'special', 'sfx'];
+                const panels = panelType ? [panelType] : ['visual', 'sfx'];
                 panels.forEach((panel) => {
                     const sortState = poolListSortState[panel] || { key: 'title', dir: 'asc' };
                     document.querySelectorAll(`[data-pool-sort][data-pool-panel="${panel}"]`).forEach((button) => {
@@ -3404,7 +3360,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 if (appliedMediaFocusFromQuery || !pendingMediaFocusFromQuery) {
                     return;
                 }
-                if (type !== 'audio' && type !== 'visual' && type !== 'special' && type !== 'sfx') {
+                if (type !== 'audio' && type !== 'visual' && type !== 'sfx') {
                     return;
                 }
                 const listEl = document.getElementById('filelist-' + type);
@@ -3433,7 +3389,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 targetRow.classList.add('media-file-row-focus');
                 targetRow.classList.add('visual-pool-card-focus');
                 targetRow.scrollIntoView({ block: 'center', behavior: 'smooth' });
-                if (type === 'visual' || type === 'special' || type === 'sfx') {
+                if (type === 'visual' || type === 'sfx') {
                     openPoolAssetModal(type, String(targetRow.dataset.file || ''));
                 }
             }
@@ -3485,7 +3441,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 const params = new URLSearchParams();
                 params.set('target', type);
 
-                if (type === 'special' || type === 'sfx') {
+                if (type === 'sfx') {
                     const brand = String(options.brand || poolBrandFilter || 'all').trim();
                     if (brand && brand !== 'all') {
                         params.set('brand', brand);
@@ -4048,7 +4004,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     return;
                 }
 
-                if (type === 'visual' || type === 'special') {
+                if (type === 'visual') {
                     const groups = groupSelectionKeysByBucket(type, selectedFiles);
                     for (const [bucket, names] of groups.entries()) {
                         await submitMediaDownloadRequestForBucket(bucket, variant, names);
@@ -4149,14 +4105,6 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     bulkDeleteBtn.title = count < 1
                         ? 'Select one or more files to delete'
                         : 'Delete selected files';
-                }
-                const bulkRemoveBtn = document.querySelector(`[data-bulk-remove-target="${type}"]`);
-                if (bulkRemoveBtn) {
-                    const count = state.selected.size;
-                    bulkRemoveBtn.disabled = count < 1;
-                    bulkRemoveBtn.title = count < 1
-                        ? 'Select one or more assets to remove'
-                        : 'Remove selected assets from this Brand library';
                 }
 
                 if (type === 'visual') {
@@ -4280,7 +4228,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 if (isImage(file?.name)) {
                     return 'image';
                 }
-                return panelType === 'special' ? 'other' : 'image';
+                return 'image';
             }
 
             function visualAssetKind(file) {
@@ -4288,12 +4236,6 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
             }
 
             function poolAssetKindLabel(kind, panelType = '') {
-                if (panelType === 'special') {
-                    if (kind === 'video') return 'Living';
-                    if (kind === 'audio') return 'Audio';
-                    if (kind === 'image') return 'Still';
-                    return 'File';
-                }
                 if (kind === 'video') return 'Video';
                 if (kind === 'audio') return 'Audio';
                 if (kind === 'image') return 'Image';
@@ -4302,12 +4244,12 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
 
             function poolAssetHeadline(panelType, file) {
                 const humanTitle = String(file?.display_title || file?.display?.title || '').trim();
-                if (humanTitle !== '' && (panelType === 'visual' || panelType === 'special')) {
+                if (humanTitle !== '' && panelType === 'visual') {
                     return humanTitle;
                 }
 
                 const operatorTitle = String(file?.operator_title || '').trim();
-                if (operatorTitle !== '' && (panelType === 'visual' || panelType === 'special')) {
+                if (operatorTitle !== '' && panelType === 'visual') {
                     return operatorTitle;
                 }
 
@@ -4315,7 +4257,6 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 const info = getFileReferenceInfo(file);
                 const references = Array.isArray(info.references) ? info.references : [];
                 const kinds = new Set(references.map((reference) => String(reference.kind || '')));
-                const role = String(info.role || '').trim();
 
                 if (panelType === 'sfx') {
                     const humanTitle = String(file?.display_title || file?.display?.title || '').trim();
@@ -4341,28 +4282,6 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                         return 'Unused sound effect';
                     }
                     return 'Sound effect in use';
-                }
-
-                if (panelType === 'special') {
-                    if (role === 'brand-logo' || kinds.has('brand-logo')) {
-                        return 'Logo';
-                    }
-                    if (role === 'share-image' || kinds.has('share-image')) {
-                        return 'Share image';
-                    }
-                    if (role === 'theme-cover' || kinds.has('theme-cover')) {
-                        return 'Cover image';
-                    }
-                    if (role === 'theme-background' || kinds.has('theme-background')) {
-                        return 'Still background';
-                    }
-                    if (role === 'theme-background-video' || kinds.has('theme-background-video')) {
-                        return 'Living background';
-                    }
-                    if (!mediaFileIsInUse(file)) {
-                        return 'Unused brand asset';
-                    }
-                    return 'Brand asset in use';
                 }
 
                 if (info.role === 'track-cover' || kinds.has('track-cover')) {
@@ -4555,7 +4474,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     return `<img src="${url}" alt="" loading="lazy">`;
                 }
                 if (kind === 'audio') {
-                    return `<span class="visual-pool-card-thumb-placeholder is-audio" title="${panelType === 'sfx' ? 'Sound effect' : 'Audio brand asset'}">♪</span>`;
+                    return `<span class="visual-pool-card-thumb-placeholder is-audio" title="Sound effect">♪</span>`;
                 }
                 if (kind === 'video') {
                     if (file.delivery_running || (file.delivery_pending && !poster && !preview)) {
@@ -4569,10 +4488,6 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     }
                     if (poster) {
                         return `<img class="visual-pool-card-still" src="${poster}" alt="" loading="lazy">`;
-                    }
-                    // Brand video in special is served directly from media/special (no delivery pipeline).
-                    if (panelType === 'special') {
-                        return `<video class="visual-pool-card-video visual-pool-card-video--solo" src="${url}" muted loop playsinline preload="metadata"></video>`;
                     }
                     return `<span class="visual-pool-card-thumb-placeholder" title="Video waiting for preparation">▶</span>`;
                 }
@@ -4617,7 +4532,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
             }
 
             function syncPoolTypeFilterUi(panelType = null) {
-                const panels = panelType ? [panelType] : ['visual', 'special', 'sfx'];
+                const panels = panelType ? [panelType] : ['visual', 'sfx'];
                 panels.forEach((panel) => {
                     const current = poolTypeFilters[panel] || 'all';
                     document.querySelectorAll(`[data-pool-type-filter][data-pool-panel="${panel}"]`).forEach((el) => {
@@ -4634,7 +4549,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
             }
 
             function syncPoolViewUi(panelType = null) {
-                const panels = panelType ? [panelType] : ['visual', 'special', 'sfx'];
+                const panels = panelType ? [panelType] : ['visual', 'sfx'];
                 panels.forEach((panel) => {
                     if (panel === 'sfx') {
                         poolViewModes.sfx = 'list';
@@ -4668,12 +4583,9 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 poolViewModes[panelType] = panelType === 'sfx'
                     ? 'list'
                     : (nextValue === 'list' ? 'list' : 'grid');
-                if (panelType !== 'sfx') {
-                    const storageKey = panelType === 'special'
-                        ? 'bandpromo_brand_pool_view'
-                        : 'bandpromo_visual_pool_view';
+                if (panelType === 'visual') {
                     try {
-                        window.localStorage.setItem(storageKey, poolViewModes[panelType]);
+                        window.localStorage.setItem('bandpromo_visual_pool_view', poolViewModes[panelType]);
                     } catch (error) {
                         // Ignore storage failures; view still works for this session.
                     }
@@ -4692,7 +4604,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
             function syncPoolThumbSizeUi() {
                 const size = normalizePoolThumbSize(poolThumbSize);
                 poolThumbSize = size;
-                ['visual', 'special', 'sfx'].forEach((panel) => {
+                ['visual', 'sfx'].forEach((panel) => {
                     const panelEl = document.getElementById('panel-' + panel);
                     if (panelEl) {
                         panelEl.dataset.poolThumbSize = size;
@@ -4742,13 +4654,10 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     throw new Error(data.error || 'Could not update the Brand library.');
                 }
                 if (options.refresh !== false) {
-                    mediaFilesState.delete('special');
                     mediaFilesState.delete('sfx');
                     mediaFilesState.delete('visual');
                     if (activeMediaPanel === 'sfx' || activeMediaPanel === 'visual') {
                         await loadMediaList(activeMediaPanel);
-                    } else if (activeMediaPanel === 'special') {
-                        await loadMediaList('visual');
                     }
                 }
                 if (options.notify !== false) {
@@ -4772,104 +4681,6 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 const entry = (brandFilterCatalog || []).find((row) => String(row?.id || '') === id);
                 const title = String(entry?.title || entry?.name || '').trim();
                 return title || id;
-            }
-
-            function currentBrandLibraryAssetIdSet() {
-                const ids = new Set();
-                (getMediaFileState('special') || []).forEach((file) => {
-                    const assetId = String(file?.asset_id || '').trim();
-                    if (assetId) {
-                        ids.add(assetId);
-                    }
-                });
-                return ids;
-            }
-
-            window.openBrandLibraryPicker = function() {
-                const brandId = normalizePoolBrandFilter(poolBrandFilter);
-                if (brandId === 'all' || brandId === 'orphans') {
-                    showAdminToast('Select one Brand before adding existing assets.', 'error');
-                    return;
-                }
-                window.openMediaPicker(
-                    'brandLibraryPickerField',
-                    'Add existing Visual or Sound effect',
-                    'visual,sfx',
-                    {
-                        brandFilter: 'all',
-                        campaignFilter: 'all',
-                        multiSelect: true,
-                        ownedAssetIds: currentBrandLibraryAssetIdSet(),
-                        async onSelectMany(selections) {
-                            const ids = (Array.isArray(selections) ? selections : [])
-                                .map((item) => String(item?.assetId || '').trim())
-                                .filter(Boolean);
-                            if (!ids.length) {
-                                return;
-                            }
-                            await changeBrandLibraryMembership('add', ids, { refresh: true });
-                            if (!mediaPickerState || !mediaPickerState.ownedAssetIds) {
-                                return;
-                            }
-                            ids.forEach((id) => mediaPickerState.ownedAssetIds.add(id));
-                            mediaPickerState.selectedAssetIds = new Set();
-                            await renderMediaPickerList(mediaPickerState.activeTarget);
-                        },
-                    }
-                );
-            };
-
-            window.removeBrandLibraryAsset = function(assetId) {
-                changeBrandLibraryMembership('remove', assetId).catch((error) => {
-                    showAdminToast(error.message || 'Could not remove that asset.', 'error');
-                });
-            };
-
-            async function removeSelectedBrandLibraryAssets() {
-                const selected = getSelectedMediaDetails('special');
-                const removable = selected.filter((file) => file?.brand_slot_assigned !== true);
-                const blocked = selected.filter((file) => file?.brand_slot_assigned === true);
-                if (!removable.length && !blocked.length) {
-                    return;
-                }
-                let removedCount = 0;
-                for (const file of removable) {
-                    const assetId = String(file?.asset_id || '').trim();
-                    if (!assetId) {
-                        continue;
-                    }
-                    try {
-                        await changeBrandLibraryMembership('remove', assetId, {
-                            refresh: false,
-                            notify: false,
-                        });
-                        removedCount++;
-                    } catch (error) {
-                        blocked.push(file);
-                    }
-                }
-                const selection = getMediaSelectionState('special');
-                selection.selected.clear();
-                blocked.forEach((file) => {
-                    selection.selected.add(mediaFileSelectionKey('special', file));
-                });
-                mediaFilesState.delete('special');
-                mediaFilesState.delete('sfx');
-                mediaFilesState.delete('visual');
-                if (activeMediaPanel === 'sfx' || activeMediaPanel === 'visual') {
-                    await loadMediaList(activeMediaPanel);
-                } else {
-                    await loadMediaList('visual');
-                }
-                if (blocked.length) {
-                    showAdminToast(
-                        `${removedCount} asset${removedCount === 1 ? '' : 's'} removed. `
-                        + `${blocked.length} assigned asset${blocked.length === 1 ? ' was' : 's were'} kept and marked.`,
-                        'warning'
-                    );
-                } else {
-                    showAdminToast(`${removedCount} asset${removedCount === 1 ? '' : 's'} removed from the Brand library.`);
-                }
             }
 
             function buildPoolCardMarkup(panelType, file, selection) {
@@ -4896,7 +4707,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 const typeLabel = poolAssetKindLabel(kind, panelType);
                 const selectLabel = `Select ${typeLabel.toLowerCase()}`;
                 const openLabel = `Open ${typeLabel.toLowerCase()} details`;
-                const listenBtn = (panelType === 'sfx' || (panelType === 'special' && kind === 'audio')) && sfxAdminListenUrl(file)
+                const listenBtn = panelType === 'sfx' && sfxAdminListenUrl(file)
                     ? `<button type="button" class="icon-btn media-action-btn media-action-good" title="Listen" onclick="event.stopPropagation(); toggleSfxFileListen('${safeKey}', '${panelType}')">▶</button>`
                     : '';
                 const dimsCell = panelType === 'sfx'
@@ -4904,26 +4715,9 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     : (kind === 'audio'
                         ? `<span class="media-file-col media-file-col-dims visual-pool-card-dims visual-pool-card-dims--listen">${listenBtn || '—'}</span>`
                         : `<span class="media-file-col media-file-col-dims visual-pool-card-dims" title="${bandpromoAdminEscapeHtml(dimsLabel)}">${bandpromoAdminEscapeHtml(dimsLabel)}</span>`);
-                const assetId = String(file.asset_id || '').trim();
-                const assignedToBrandSlot = panelType === 'special' && file.brand_slot_assigned === true;
-                const assignedLabels = Array.isArray(file.brand_slot_labels)
-                    ? file.brand_slot_labels.filter(Boolean)
-                    : [];
-                const removeFromBrandBtn = panelType === 'special'
-                    && assetId
-                    && poolBrandFilter !== 'all'
-                    && poolBrandFilter !== 'orphans'
-                    ? (assignedToBrandSlot
-                        ? `<button type="button" class="icon-btn media-action-btn" disabled title="Assigned to ${bandpromoAdminEscapeHtml(assignedLabels.join(', ') || 'a Brand shell slot')}; clear the slot before removing">🔒</button>`
-                        : `<button type="button" class="icon-btn media-action-btn media-action-danger" title="Remove from this Brand library" onclick="event.stopPropagation(); removeBrandLibraryAsset('${assetId.replace(/\\/g, '\\\\').replace(/'/g, "\\'")}')">−</button>`)
-                    : '';
-                const detailsBtn = panelType !== 'special'
-                    ? `<button type="button" class="icon-btn media-action-btn media-action-good" title="Open details" onclick="event.stopPropagation(); openPoolAssetModal('${panelType}', '${safeKey}')">✎</button>`
-                    : '';
-                const deleteBtn = panelType !== 'special'
-                    ? `<button type="button" class="icon-btn media-action-btn media-action-danger" title="Delete" onclick="event.stopPropagation(); openDeleteModal('${panelType}', '${safeKey}')">🗑️</button>`
-                    : '';
-                return `<article class="visual-pool-card${selected ? ' media-file-row-selected visual-pool-card-selected' : ''}${assignedToBrandSlot ? ' is-brand-slot-assigned' : ''}" data-file="${bandpromoAdminEscapeHtml(selectionKey)}" data-intake-bucket="${bandpromoAdminEscapeHtml(pathType)}" data-media-type="${kind}">
+                const detailsBtn = `<button type="button" class="icon-btn media-action-btn media-action-good" title="Open details" onclick="event.stopPropagation(); openPoolAssetModal('${panelType}', '${safeKey}')">✎</button>`;
+                const deleteBtn = `<button type="button" class="icon-btn media-action-btn media-action-danger" title="Delete" onclick="event.stopPropagation(); openDeleteModal('${panelType}', '${safeKey}')">🗑️</button>`;
+                return `<article class="visual-pool-card${selected ? ' media-file-row-selected visual-pool-card-selected' : ''}" data-file="${bandpromoAdminEscapeHtml(selectionKey)}" data-intake-bucket="${bandpromoAdminEscapeHtml(pathType)}" data-media-type="${kind}">
                     <div class="visual-pool-card-main">
                         <label class="media-file-select-wrap visual-pool-card-select" title="${selectLabel}" onclick="event.stopPropagation()">
                             <input type="checkbox" class="media-file-select" data-target="${bandpromoAdminEscapeHtml(panelType)}" data-file="${bandpromoAdminEscapeHtml(selectionKey)}" ${selected ? 'checked' : ''} aria-label="${selectLabel}">
@@ -4938,10 +4732,9 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                         ${dimsCell}
                         <span class="media-file-col media-file-col-size media-file-size visual-pool-card-size">${bandpromoAdminEscapeHtml(sizeLabel)}</span>
                         <div class="visual-pool-card-actions media-file-actions">
-                            ${panelType === 'special' ? '' : listenBtn}
+                            ${listenBtn}
                             ${detailsBtn}
                             <button type="button" class="icon-btn media-action-btn media-action-good" title="Download" onclick="event.stopPropagation(); submitMediaDownloadRequest('${pathType}', 'original', ['${String(file.name).replace(/\\/g, '\\\\').replace(/'/g, "\\'")}'])">⬇</button>
-                            ${removeFromBrandBtn}
                             ${deleteBtn}
                         </div>
                     </div>
@@ -5039,9 +4832,9 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     previewEl.classList.remove('visual-asset-modal-preview--video');
                     const listenUrl = sfxAdminListenUrl(file);
                     if (listenUrl) {
-                        previewEl.innerHTML = `<div class="visual-pool-card-thumb-placeholder is-audio is-modal" title="Audio brand asset">♪</div><audio controls src="${bandpromoAdminEscapeHtml(listenUrl)}" preload="metadata"></audio>`;
+                        previewEl.innerHTML = `<div class="visual-pool-card-thumb-placeholder is-audio is-modal" title="Sound effect">♪</div><audio controls src="${bandpromoAdminEscapeHtml(listenUrl)}" preload="metadata"></audio>`;
                     } else {
-                        previewEl.innerHTML = `<div class="visual-pool-card-thumb-placeholder is-audio is-modal" title="Audio brand asset">♪</div><span class="text-muted">${file.delivery_running || file.delivery_pending ? 'Audio is still preparing for preview.' : 'No playable preview is ready yet.'}</span>`;
+                        previewEl.innerHTML = `<div class="visual-pool-card-thumb-placeholder is-audio is-modal" title="Sound effect">♪</div><span class="text-muted">${file.delivery_running || file.delivery_pending ? 'Audio is still preparing for preview.' : 'No playable preview is ready yet.'}</span>`;
                     }
                 } else if (kind === 'image') {
                     previewEl.classList.remove('visual-asset-modal-preview--video');
@@ -5056,7 +4849,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     previewEl.innerHTML = `<span class="text-muted">No preview for this file type.</span>`;
                 }
 
-                const canEditDisplay = (panelType === 'visual' || panelType === 'special' || panelType === 'sfx')
+                const canEditDisplay = (panelType === 'visual' || panelType === 'sfx')
                     && String(file.asset_id || '').trim() !== '';
                 if (displayForm) {
                     displayForm.hidden = !canEditDisplay;
@@ -5081,20 +4874,16 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     }
                     detailRows.push(['Alpha', alphaLabel]);
                 }
-                if (panelType === 'special') {
-                    detailRows.push(['Warehouse', poolAssetWarehouseLabel(file)]);
-                } else {
-                    detailRows.push(
-                        [panelType === 'sfx' ? 'Brand' : 'Catalogue',
-                            panelType === 'sfx'
-                                ? (file.brand_orphan === true || brandLibraryTitles(file).length === 0
-                                    ? 'Orphan'
-                                    : brandLibraryTitles(file).map((title) => bandpromoAdminEscapeHtml(title)).join('<br>'))
-                                : (file.release_orphan === true
-                                    ? 'Orphan'
-                                    : (visualCatalogueTitles(file).map((title) => bandpromoAdminEscapeHtml(title)).join('<br>') || 'Linked campaign'))],
-                    );
-                }
+                detailRows.push(
+                    [panelType === 'sfx' ? 'Brand' : 'Catalogue',
+                        panelType === 'sfx'
+                            ? (file.brand_orphan === true || brandLibraryTitles(file).length === 0
+                                ? 'Orphan'
+                                : brandLibraryTitles(file).map((title) => bandpromoAdminEscapeHtml(title)).join('<br>'))
+                            : (file.release_orphan === true
+                                ? 'Orphan'
+                                : (visualCatalogueTitles(file).map((title) => bandpromoAdminEscapeHtml(title)).join('<br>') || 'Linked campaign'))],
+                );
                 detailRows.push(
                     ['Usage', mediaFileIsInUse(file) ? 'In use' : 'Not referenced'],
                 );
@@ -5123,34 +4912,14 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     };
                 }
                 if (deleteBtn) {
-                    if (panelType === 'special') {
-                        const canRemove = String(file.asset_id || '').trim() !== ''
-                            && poolBrandFilter !== 'all'
-                            && poolBrandFilter !== 'orphans'
-                            && file.brand_slot_assigned !== true;
-                        deleteBtn.textContent = 'Remove';
-                        deleteBtn.hidden = !canRemove;
-                        deleteBtn.disabled = !canRemove;
-                        deleteBtn.title = canRemove
-                            ? 'Remove from this Brand library'
-                            : 'Assigned shell assets stay in the library until the slot is cleared.';
-                        deleteBtn.onclick = () => {
-                            if (!canRemove) {
-                                return;
-                            }
-                            closePoolAssetModal();
-                            window.removeBrandLibraryAsset(String(file.asset_id || '').trim());
-                        };
-                    } else {
-                        deleteBtn.textContent = 'Delete';
-                        deleteBtn.hidden = false;
-                        deleteBtn.disabled = false;
-                        deleteBtn.title = 'Delete this file';
-                        deleteBtn.onclick = () => {
-                            closePoolAssetModal();
-                            openDeleteModal(panelType, selectionKey);
-                        };
-                    }
+                    deleteBtn.textContent = 'Delete';
+                    deleteBtn.hidden = false;
+                    deleteBtn.disabled = false;
+                    deleteBtn.title = 'Delete this file';
+                    deleteBtn.onclick = () => {
+                        closePoolAssetModal();
+                        openDeleteModal(panelType, selectionKey);
+                    };
                 }
 
                 modal.style.display = 'flex';
@@ -5196,7 +4965,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 }
                 const panelType = activePoolAsset.panel;
                 const selectionKey = activePoolAsset.key;
-                if ((panelType !== 'visual' && panelType !== 'special' && panelType !== 'sfx') || !selectionKey) {
+                if ((panelType !== 'visual' && panelType !== 'sfx') || !selectionKey) {
                     return;
                 }
                 const file = findPoolAssetByKey(panelType, selectionKey);
@@ -5372,10 +5141,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                         return;
                     }
                     if (!files.length) {
-                        const livingFilter = type === 'special' && (poolTypeFilters.special || 'all') === 'video';
-                        listEl.innerHTML = livingFilter
-                            ? '<span class="text-muted">No living Brand assets yet. Upload a video here, or assign living video from <a href="?tab=files&amp;fpanel=visual">Files → Visual</a> in Content → Branding → Shell media.</span>'
-                            : '<span class="text-muted">No files match the current filter.</span>';
+                        listEl.innerHTML = '<span class="text-muted">No files match the current filter.</span>';
                         syncMediaSelectionUi(type);
                         return;
                     }
@@ -5528,9 +5294,9 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 if (!poolPanelTypes.has(panelType)) {
                     return;
                 }
-                const allowed = panelType === 'special'
-                    ? new Set(['all', 'image', 'video', 'audio'])
-                    : (panelType === 'sfx' ? new Set(['all', 'audio']) : new Set(['all', 'image', 'video']));
+                const allowed = panelType === 'sfx'
+                    ? new Set(['all', 'audio'])
+                    : new Set(['all', 'image', 'video']);
                 poolTypeFilters[panelType] = allowed.has(nextValue) ? nextValue : 'all';
                 syncPoolTypeFilterUi(panelType);
                 if (activeMediaPanel === panelType) {
@@ -5835,9 +5601,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
             }
 
             window.openUploadModal = async function(type) {
-                if (type === 'special') {
-                    type = 'visual';
-                }
+                type = normalizeFilesPanel(type);
                 modalTarget = type;
                 const labels = {
                     audio: 'Add Audio',
@@ -7823,16 +7587,6 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 });
             });
 
-            document.querySelectorAll('[data-bulk-remove-target]').forEach((button) => {
-                const target = String(button.dataset.bulkRemoveTarget || '').trim();
-                syncMediaSelectionUi(target);
-                button.addEventListener('click', () => {
-                    removeSelectedBrandLibraryAssets().catch((error) => {
-                        showAdminToast(error.message || 'Could not remove the selected assets.', 'error');
-                    });
-                });
-            });
-
             async function saveVisualCampaignHomes(assetIds, campaignId) {
                 const ids = (Array.isArray(assetIds) ? assetIds : [])
                     .map((id) => String(id || '').trim())
@@ -8738,21 +8492,15 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 if (deleteTitleEl) {
                     deleteTitleEl.textContent = deleteFiles.length > 1
                         ? (poolFriendly
-                            ? (deleteTarget === 'special'
-                                ? 'Delete selected brand assets?'
-                                : (deleteTarget === 'sfx' ? 'Delete selected sound effects?' : 'Delete selected visuals?'))
+                            ? (deleteTarget === 'sfx' ? 'Delete selected sound effects?' : 'Delete selected visuals?')
                             : 'Delete selected files?')
                         : (poolFriendly
-                            ? (deleteTarget === 'special'
-                                ? 'Delete this brand asset?'
-                                : (deleteTarget === 'sfx' ? 'Delete this sound effect?' : 'Delete this visual?'))
+                            ? (deleteTarget === 'sfx' ? 'Delete this sound effect?' : 'Delete this visual?')
                             : 'Delete file?');
                 }
                 if (deleteNameEl) {
                     if (poolFriendly) {
-                        const plural = deleteTarget === 'special'
-                            ? 'brand assets'
-                            : (deleteTarget === 'sfx' ? 'sound effects' : 'visuals');
+                        const plural = deleteTarget === 'sfx' ? 'sound effects' : 'visuals';
                         deleteNameEl.textContent = deleteFiles.length > 1
                             ? `${deleteFiles.length} ${plural} selected`
                             : poolAssetHeadline(deleteTarget, findPoolAssetByKey(deleteTarget, deleteFiles[0]) || { media_type: deleteTarget === 'sfx' ? 'audio' : 'image' });
@@ -8770,7 +8518,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                         deleteListEl.style.display = 'block';
                         deleteListEl.innerHTML = deleteFiles.map((key, index) => {
                             const file = findPoolAssetByKey(deleteTarget, key);
-                            const label = file ? poolAssetHeadline(deleteTarget, file) : (deleteTarget === 'special' ? 'Brand asset' : 'Visual asset');
+                            const label = file ? poolAssetHeadline(deleteTarget, file) : 'Visual asset';
                             const kind = file ? poolAssetKind(deleteTarget, file) : 'image';
                             return `<div class="modal-file-row">${index + 1}. ${bandpromoAdminEscapeHtml(label)} <span class="text-muted">(${bandpromoAdminEscapeHtml(poolAssetKindLabel(kind, deleteTarget).toLowerCase())})</span></div>`;
                         }).join('');
@@ -8957,13 +8705,6 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                                 const pct = Math.round((fi + p) / modalFiles.length * 100);
                                 modalStatus.textContent = `⏳ ${file.name} — ${pct}%`;
                             });
-                            if (modalTarget === 'special' && String(uploadData?.asset_id || '').trim()) {
-                                await changeBrandLibraryMembership(
-                                    'add',
-                                    String(uploadData.asset_id).trim(),
-                                    { refresh: false, notify: false }
-                                );
-                            }
                             if (uploadData && uploadData.build_required_state) {
                                 latestBuildState = uploadData.build_required_state;
                             }

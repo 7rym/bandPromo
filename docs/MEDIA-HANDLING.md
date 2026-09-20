@@ -31,7 +31,7 @@ bandPromo should use three explicit media tiers:
 - `master`: a bandPromo-authored canonical asset (`ast_{ULID}`) — **the working copy**
 - `delivery`: publish-ready derivatives generated **from the master** for playback and display
 
-This applies to **audio, Visual, Sound effects, and Brand assets**. Findings and the completion plan: [MASTER-TIER-AUDIT.md](MASTER-TIER-AUDIT.md).
+This applies to **audio, Visual, and Sound effects**. Findings and the completion plan: [MASTER-TIER-AUDIT.md](MASTER-TIER-AUDIT.md).
 
 bandPromo should also distinguish media by role and scope, not only by file type or storage folder.
 
@@ -58,7 +58,7 @@ Assets that belong to the whole install or **base brand**:
 - welcome audio / logged-in audio
 - style reference and portrait assets curated for the brand
 
-These live in the global **Visual** (images/video) or **Sound effects** (brand UI audio) warehouses. Each Brand document curates a cross-media `library_asset_ids` list; that list (plus shell slots) is membership SoT. Registry `brand_id` is a best-effort stamp kept loosely in sync on library add/remove — Files → Sound effects Brand column lists library brands, not the stamp alone. Files → Brand assets **Orphans** lists only brand-eligible warehouse rows (shell roles, special/SFX intake, or library-eligible) that are not in any Brand library — not every track cover in Visual.
+These live in the global **Visual** (images/video) or **Sound effects** (brand UI audio) warehouses. Each Brand document curates a cross-media `library_asset_ids` list; that list (plus shell slots) is membership SoT. Registry `brand_id` is a best-effort stamp kept loosely in sync on library add/remove — Files → Sound effects Brand column lists library brands, not the stamp alone. Brand-library membership is a filter on Visual / Sound effects (Use in brand / From brand); the old Files → Brand assets tab is retired.
 
 ### Release scope
 
@@ -761,7 +761,7 @@ The current `bandPromo_*` naming convention may be used as a temporary implement
 
 - Unused demo campaign files leave Files → Audio / Visual and pickers (including demo Brand library members).
 - Demo assets still referenced by a non-demo playlist, gallery, page, or campaign stay visible (`kept_visible` soft warning on save).
-- Demo Brand shell (Files → Brand assets / Sound effects, and logo / poster / still / living slots) stay visible while the **Base** brand or another non-demo brand references them. Operator-uploaded brand media is untouched.
+- Demo Brand shell (Visual/SFX library members and logo / poster / still / living slots) stay visible while the **Base** brand or another non-demo brand references them. Operator-uploaded brand media is untouched.
 - Filename prefixes such as `bandPromo_*` are **not** the hide gate.
 
 **Locked demo delete:** deleting campaign media that belongs to the locked demo campaign is denied until the demo campaign is unlocked on localhost.
@@ -980,7 +980,7 @@ Seed matrix from current CSS (to be verified on real devices and updated in this
 | `thumb` | Playlist row `.playlist-track-cover`, cover-flow, bio track list | 70–100px (delivery max edge **100px**) | Square-ish; shipped |
 | `card` / `optimal` | Player flip cover `.cover-art` inside `--card-size` (max 600px) | delivery max edge **720px** | Shipped |
 | `huge` | Player lightbox fullscreen stills; login/player shell still backgrounds | contain inside **1920×1080px** | Shipped; lightbox + shell still prefer `huge`, fall back to `card` |
-| `card` | Admin/media file list `.media-file-thumb` | list 70 / 100 / 125 px (S / M / L; default **M** 100px, matching delivery `thumb`) | Admin Files → Visual / Brand assets list; Grid view uses larger cards |
+| `card` | Admin/media file list `.media-file-thumb` | list 70 / 100 / 125 px (S / M / L; default **M** 100px, matching delivery `thumb`) | Admin Files → Visual / Sound effects list; Grid view uses larger cards |
 | `grid` | Page gallery block `.page-gallery-item img` | Grid: natural ratio, column cap 2–6; Carousel: ~78% pane width, max-height ~520px contain; Animated: frame sized to the photo (contain, no crop) | List thumbs 168px square |
 | `picture` | Page picture blocks | fraction of content column (½, ¾, full) | Derive max from page layout + viewport |
 | `lightbox` | Player/page lightbox enlarged view | aliases **`huge`** (≈96vw / 94vh frame) | Falls back to `card` when huge is missing |
@@ -1174,7 +1174,7 @@ This matrix defines the preferred future behavior.
 
 ### Naming guidance for admin UI
 
-Files → **Brand assets** manages the selected Brand document's `library_asset_ids`, spanning registered Visual and SFX assets. Upload adds directly to that library; **Add existing** is a multi-select picker from the global Visual/SFX warehouses and hides members already in that Brand library. The picker Visual tab filters by campaign catalogue; Sound effects filters by Brand; search matches titles. Those filters are picker-local and do not change the Files toolbar. Removing membership never deletes the global asset. **All brands** / a specific Brand show library members only. **Orphans** shows brand-eligible non-members (shell roles / special / SFX / brand-owned), not the whole Visual warehouse. Empty libraries are healed on seed/build from shell slots and brand-eligible ownership; Branding save keeps slot `asset_ids` when a delivery path is temporarily empty. In **Content → Branding**, **Shell media** holds assignment slots only and strict pickers show compatible assets from that Brand library. A pick writes the public Visual `card` / stream or SFX optimal URL into `assets[]` (with `asset_ids[]`); living background picks require the video `standard-stream` URL (still posters are not stored). Loading a brand document resolves those delivery URLs again when ids are set. Saving the base brand syncs resolved delivery URLs into `web-config.json` (`media.*`, `release.theme.*`, share image keys). Settings → Theme has been retired; Sharing keeps SEO/social text and points poster edits to Branding.
+Files → Visual and Sound effects manage brand-library membership via **Use in brand** / **From brand** (the selected Brand document's `library_asset_ids`). Removing membership never deletes the global asset. The old Files → **Brand assets** tab is retired (`fpanel=special` → Visual). In **Content → Branding**, **Shell media** holds assignment slots only and strict pickers show compatible assets from Visual/SFX. A pick writes the public Visual `card` / stream or SFX optimal URL into `assets[]` (with `asset_ids[]`); living background picks require the video `standard-stream` URL (still posters are not stored). Loading a brand document resolves those delivery URLs again when ids are set. Saving the base brand syncs resolved delivery URLs into `web-config.json` (`media.*`, `release.theme.*`, share image keys). Settings → Theme has been retired; Sharing keeps SEO/social text and points poster edits to Branding.
 
 ### Nondestructive naming policy
 

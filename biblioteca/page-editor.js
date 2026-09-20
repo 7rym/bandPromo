@@ -2121,7 +2121,7 @@
             window.openMediaPicker(
                 'pagePicturePickerField',
                 current?.src ? 'Change picture' : 'Choose picture',
-                'illustrations,photos,special',
+                'visual',
                 {
                     acceptKinds: ['image'],
                     onSelect(selection) {
@@ -2147,7 +2147,7 @@
             window.openMediaPicker(
                 'pagePicturePickerField',
                 current?.src ? 'Change video' : 'Choose video',
-                'video,special',
+                'visual',
                 {
                     acceptKinds: ['video'],
                     onSelect(selection) {

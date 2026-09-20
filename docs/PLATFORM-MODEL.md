@@ -395,7 +395,7 @@ Registry **`tags`**, **`brand_id`**, and derived facets replace folder location 
 - **Bulk upload** to Visual pool: `role: unassigned`, `brand_id` = install base brand until operator retags.
 - Uploads never require role selection up front; Notifications may nudge when assets remain `unassigned`.
 
-**Legacy intake:** on-disk folders `media/img/`, `media/photo/`, `media/video/`, and `media/special/` remain the storage buckets under Files → Visual and Files → Brand assets. They are **legacy intake paths**, not product categories. Migration registers existing files, assigns provisional roles, and retires folder-based mental models. **`special` is not a brand role** — Brand assets is only the operator label for that workaround path.
+**Legacy intake:** on-disk folders `media/img/`, `media/photo/`, `media/video/`, and leftover `media/special/` remain storage buckets under Files → Visual (and Sound effects for shell audio). They are **legacy intake paths**, not product categories. Migration registers existing files, assigns provisional roles, and retires folder-based mental models. The Files → Brand assets tab is retired; brand libraries are managed via Visual/SFX **Use in brand**.
 
 ### Picker and admin filter contract
 
