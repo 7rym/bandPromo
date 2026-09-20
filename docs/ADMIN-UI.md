@@ -38,16 +38,16 @@ Do not invent a second under-nav title pattern for new Content editors unless th
 
 ## Sticky toolbars
 
-While a Files pool list or Content editor body scrolls, chrome stays on screen:
+**Sticky** means: stay in normal flow while visible; pin only when scroll would push the chrome off the top of the viewport. Not permanently floating chrome.
 
-| Surface | Sticky |
-|---------|--------|
-| Files / Content sub-tab bars | Top of the viewport |
-| Files pool filter/actions + column headers (`.media-pool-sticky-chrome`) | Just under the Files sub-tab bar |
-| Content breadcrumb head (`.content-editor-card-head`) | Just under the Content sub-tab bar |
-| Split-editor column headers / gallery picker toolbar | Under the breadcrumb head |
+| Surface | When it sticks |
+|---------|----------------|
+| Files / Content sub-tab bars | Page scroll would hide them (`top: 0`) |
+| Files pool filter/actions + column headers (`.media-pool-sticky-chrome`) | Would leave the viewport under the Files sub-tab bar |
+| Content breadcrumb head (`.content-editor-card-head`) | Would leave under the Content sub-tab bar |
+| Split-editor column headers / gallery picker toolbar | Would leave under the breadcrumb head |
 
-Page builder and Branding Live preview keep their existing sticky patterns. New pool or editor toolbars should join this chrome, not scroll away with the list.
+Do not nest sticky headers inside an already-sticky column (Branding Live preview sticks as a column; its title stays in normal flow). Page builder keeps its own sticky section / richtext pattern. New pool or editor toolbars follow the same “stick only when leaving the viewport” rule.
 
 ## System tab and roles (2026-08-31)
 
@@ -195,7 +195,7 @@ Same operator patterns as Audio, plus Grid/List on Visual:
 
 | Pattern | Behavior |
 |---------|----------|
-| Toolbar | Shared `.audio-pool-toolbar` density; Visual: type chips + **campaign** filter + **brand library** filter (**All brands** / **Not in a brand** / each brand) + title search + Grid/List + S/M/L thumbs. Sound effects: brand filter + title search. **Use in brand** adds selected Visual/SFX to a brand library; **From brand** appears when a concrete brand filter is set. Visual **Use in gallery** appends selected delivery-ready visuals to a gallery. Visual **Assign** / **Remove** still set or clear catalogue home. Audio **Use in playlist** appends selected masters to a playlist. Filter/action toolbar + column headers stay sticky while the list scrolls (under the Files sub-tab bar). |
+| Toolbar | Shared `.audio-pool-toolbar` density; Visual: type chips + **campaign** filter + **brand library** filter (**All brands** / **Not in a brand** / each brand) + title search + Grid/List + S/M/L thumbs. Sound effects: brand filter + title search. **Use in brand** adds selected Visual/SFX to a brand library; **From brand** appears when a concrete brand filter is set. Visual **Use in gallery** appends selected delivery-ready visuals to a gallery. Visual **Assign** / **Remove** still set or clear catalogue home. Audio **Use in playlist** appends selected masters to a playlist. Filter/action toolbar + column headers use classic sticky (pin only when scroll would hide them under the Files sub-tab bar). |
 | Selection | All/None `.audio-select-chip` in `.visual-pool-col-headers`; checkbox click updates selection |
 | List mode | Title / Catalogue\|Brand / Dimensions / Size. Visual **Catalogue** is campaign home. Brand-library members with no home list that Brand, not Orphan. In use / Unused is live assignment (cover, gallery, page, poster, or brand shell slot). |
 | Grid mode | Thumbnails + caption under each card; column labels hidden, All/None kept |

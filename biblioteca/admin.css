@@ -3110,7 +3110,6 @@ canvas { max-width: 100%; height: auto; }
     margin: 0 0 6px;
     padding-bottom: 2px;
     background: var(--card);
-    box-shadow: 0 8px 14px rgba(0, 0, 0, 0.22);
 }
 
 .media-pool-sticky-chrome .audio-pool-toolbar {
@@ -3130,7 +3129,6 @@ canvas { max-width: 100%; height: auto; }
     background: var(--card);
     padding: 4px 0 6px;
     margin-bottom: 4px;
-    box-shadow: 0 8px 14px rgba(0, 0, 0, 0.18);
 }
 
 .editor-card.is-editing .split-editor__header,
@@ -3142,8 +3140,8 @@ canvas { max-width: 100%; height: auto; }
     background: var(--border2);
 }
 
-/* Branding Live preview already sticks as a column — do not also stick its
-   "Live preview" header (that pulled the cover up over the title). */
+/* Branding Live preview is already a sticky column — keep its title in normal
+   flow (nested sticky made the cover paint over “Live preview”). */
 #brandEditorLayout .split-editor__header,
 #brandEditorLayout .split-editor__header--active,
 #brandEditorLayout .split-editor__header--pool {
