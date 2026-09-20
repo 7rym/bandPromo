@@ -69,8 +69,8 @@ def _add_content_dedupe_findings(plan, registry):
                 'Duplicate master check could not run', 1,
                 '',
                 body=(
-                    'xxhash is not available to Site health, so Full cannot '
-                    'fingerprint masters. Repair scripts/vendor or re-run dependency bootstrap.'
+                    'A helper library Site health needs for duplicate checks is missing on this host. '
+                    'Ask a developer to repair the scripts vendor bundle.'
                 ),
             )
         return
@@ -136,9 +136,8 @@ def _add_content_dedupe_findings(plan, registry):
             'dedupe_retarget_and_remove',
             sample=dedupe.cluster_sample_lines(safe),
             body=(
-                '{0} cluster(s) share the same demuxed audio/video stream prefix '
-                'or decoded still image (tags ignored). Treat keeps the '
-                'campaign/playlist-linked asset and removes {1} unreferenced clone(s).'
+                '{0} group(s) of files sound or look the same (tags ignored). '
+                'Apply keeps the campaign-linked copy and removes {1} unused clone(s).'
             ).format(len(safe), remove_count),
         )
         log.items(

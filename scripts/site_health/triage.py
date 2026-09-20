@@ -142,16 +142,16 @@ def run_triage(plan, deep=False, suppress_json_drift=False):
             plan, 'ffmpeg_missing', 'attention',
             'ffmpeg not found', 1,
             '',
-            body='Delivery treatments need ffmpeg. Use Environment to locate or install it.',
+            body='Player-ready file builds need ffmpeg. Open System → Environment to locate or install it.',
         )
 
     registry, status = reg.load_registry()
     if status == 'missing':
         plan_mod.add_finding(
             plan, 'registry_missing', 'critical',
-            'Asset registry is missing', 1,
+            'The Files catalogue index is missing', 1,
             'audio_register_in_place',
-            body='data/assets/registry.json was not found.',
+            body='Site health cannot see which songs and visuals belong in Files.',
         )
         log.info('Registry: missing')
         disk_audio_ast = [
@@ -164,14 +164,14 @@ def run_triage(plan, deep=False, suppress_json_drift=False):
                 'Songs on disk are not in Files yet', len(disk_audio_ast),
                 'audio_register_in_place',
                 sample=disk_audio_ast,
-                body='Registry missing while {0} audio master(s) exist on disk.'.format(
-                    len(disk_audio_ast)
-                ),
+                body=(
+                    '{0} song file(s) are on the server but not listed in Files yet.'
+                ).format(len(disk_audio_ast)),
             )
     elif status != 'ok':
         plan_mod.add_finding(
             plan, 'registry_unreadable', 'critical',
-            'Asset registry could not be read', 1,
+            'The Files catalogue index could not be read', 1,
             '',
             body=status,
         )
@@ -213,12 +213,12 @@ def run_triage(plan, deep=False, suppress_json_drift=False):
             log.info('Non-ast_* audio masters on disk: {0}'.format(len(disk_audio_other)))
             plan_mod.add_finding(
                 plan, 'non_ast_audio_masters', 'attention',
-                'Some audio masters are not named as asset ids', len(disk_audio_other),
+                'Some audio files are not named in the usual way', len(disk_audio_other),
                 '',
                 sample=disk_audio_other[:12],
                 body=(
-                    '{0} file(s) under media/audio/master are not ast_* masters. '
-                    'Register-in-place cannot claim them automatically — see Activity.'
+                    '{0} song file(s) on the server use an unexpected name, so Site health '
+                    'cannot add them to Files automatically — see Activity for the list.'
                 ).format(len(disk_audio_other)),
             )
 
@@ -235,8 +235,8 @@ def run_triage(plan, deep=False, suppress_json_drift=False):
                 'audio_register_in_place',
                 sample=disk_audio[:12],
                 body=(
-                    'Registry has 0 audio assets but {0} master file(s) exist under '
-                    'media/audio/master. Files → Audio will look empty.'
+                    '{0} song file(s) are on the server but Files → Audio shows none. '
+                    'Add them into Files so the catalogue matches the disk.'
                 ).format(len(disk_audio)),
             )
 
@@ -248,8 +248,8 @@ def run_triage(plan, deep=False, suppress_json_drift=False):
                 'audio_register_in_place',
                 sample=[p['master_filename'] for p in pending_audio],
                 body=(
-                    '{0} audio master(s) on disk are missing from the registry. '
-                    'Files → Audio will look empty until they are registered in place.'
+                    '{0} song file(s) are on the server but not listed in Files yet. '
+                    'Files → Audio will look empty until they are added.'
                 ).format(len(pending_audio)),
             )
 
@@ -268,9 +268,8 @@ def run_triage(plan, deep=False, suppress_json_drift=False):
                     'audio_fill_display_from_tags',
                     sample=[p.get('master_filename') for p in bare],
                     body=(
-                        '{0} registered audio asset(s) have empty or Untitled display. '
-                        'Treat reads embedded master tags into the registry '
-                        '(registry ← master only; master tags are not rewritten).'
+                        '{0} track(s) in Files have no useful title or artist yet. '
+                        'Apply can fill those from the file\'s own tags (the original file is not rewritten).'
                     ).format(len(bare)),
                 )
 
@@ -290,16 +289,15 @@ def run_triage(plan, deep=False, suppress_json_drift=False):
                     'audio_extract_covers',
                     sample=[p.get('master_filename') for p in cover_pending],
                     body=(
-                        '{0} track(s) carry embedded cover art on the master but '
-                        'Files has no cover link yet. Treat extracts into Visual '
-                        '(hash-match reuse when possible) and links display.cover.'
+                        '{0} track(s) already include cover art inside the audio file, '
+                        'but Files has no cover linked yet. Apply can extract and attach it.'
                     ).format(len(cover_pending)),
                 )
 
         if pending_visual:
             plan_mod.add_finding(
                 plan, 'uncatalogued_visual_masters', 'attention',
-                'Visual masters on disk are not registered', len(pending_visual),
+                'Pictures or videos on disk are not in Files yet', len(pending_visual),
                 'visual_register_in_place',
                 sample=[p['master_filename'] for p in pending_visual],
                 body=(
@@ -314,8 +312,7 @@ def run_triage(plan, deep=False, suppress_json_drift=False):
                 'sfx_register_in_place',
                 sample=disk_sfx[:12],
                 body=(
-                    'Registry has 0 sound-effect assets but {0} master file(s) exist under '
-                    'media/sfx/master. Files → Sound effects will look empty.'
+                    '{0} sound-effect file(s) are on the server but Files → Sound effects shows none.'
                 ).format(len(disk_sfx)),
             )
 
@@ -326,8 +323,7 @@ def run_triage(plan, deep=False, suppress_json_drift=False):
                 'sfx_register_in_place',
                 sample=[p['master_filename'] for p in pending_sfx],
                 body=(
-                    '{0} sound-effect master(s) on disk are missing from the registry. '
-                    'Files → Sound effects will look empty until they are registered in place.'
+                    '{0} sound-effect file(s) are on the server but not listed in Files yet.'
                 ).format(len(pending_sfx)),
             )
 
@@ -338,23 +334,22 @@ def run_triage(plan, deep=False, suppress_json_drift=False):
         if missing_audio:
             plan_mod.add_finding(
                 plan, 'missing_audio_delivery', 'attention',
-                'Some tracks are not stream-ready yet', len(missing_audio),
+                'Some tracks are not ready to stream yet', len(missing_audio),
                 'listener_delivery',
                 sample=[m.get('asset_id') or m.get('master_filename') for m in missing_audio],
                 body=(
-                    '{0} registered audio asset(s) lack an optimal MP3 under media/audio/optimal.'
+                    '{0} track(s) in Files still need a player-ready streaming file built.'
                 ).format(len(missing_audio)),
             )
         missing_visual = reg.missing_visual_deliveries(registry)
         if missing_visual:
             plan_mod.add_finding(
                 plan, 'missing_visual_delivery', 'attention',
-                'Some visuals are missing delivery files', len(missing_visual),
+                'Some pictures or videos are not player-ready yet', len(missing_visual),
                 'listener_delivery',
                 sample=[m.get('asset_id') for m in missing_visual],
                 body=(
-                    '{0} registered visual asset(s) lack required files under '
-                    'media/visual/delivery (folder alone is not enough).'
+                    '{0} visual item(s) in Files still need player-ready artwork or video files built.'
                 ).format(len(missing_visual)),
             )
         missing_sfx = reg.missing_sfx_deliverables(registry)
@@ -365,7 +360,7 @@ def run_triage(plan, deep=False, suppress_json_drift=False):
                 'sfx_delivery',
                 sample=[m.get('asset_id') or m.get('master_filename') for m in missing_sfx],
                 body=(
-                    '{0} registered sound-effect asset(s) lack an optimal MP3 under media/sfx/optimal.'
+                    '{0} sound effect(s) in Files still need a player-ready play file built.'
                 ).format(len(missing_sfx)),
             )
 
@@ -406,12 +401,12 @@ def run_triage(plan, deep=False, suppress_json_drift=False):
         if ephemeral:
             plan_mod.add_finding(
                 plan, 'data_janitor_ephemeral', 'attention',
-                'Leftover files under data/ can be cleaned up', len(ephemeral),
+                'Leftover temporary site-data files can be cleaned up', len(ephemeral),
                 'data_janitor_prune',
                 sample=[t.get('path') for t in ephemeral],
                 body=(
-                    '{0} leftover file(s) or empty folder(s) under data/ that are safe to clear. '
-                    'Catalogue documents, analytics, and install prefs stay put.'
+                    '{0} leftover temporary file(s) or empty folder(s) that are safe to clear. '
+                    'Your catalogue documents, analytics, and install settings stay put.'
                 ).format(len(ephemeral)),
             )
         relink_count = len(relinkable) + len(stubs)
@@ -424,13 +419,12 @@ def run_triage(plan, deep=False, suppress_json_drift=False):
             ]
             plan_mod.add_finding(
                 plan, 'data_container_unlinked', 'attention',
-                'Catalogue containers need a registry fix', relink_count,
+                'Catalogue items need reconnecting', relink_count,
                 'data_container_relink',
                 sample=sample,
                 body=(
-                    '{0} playlist/gallery/page item(s) are invisible or stubbed in the registry. '
-                    'Apply registers docs that already have a campaign home, and drops registry '
-                    'rows with no document.'
+                    '{0} playlist, gallery, or page item(s) are invisible or half-linked. '
+                    'Apply reconnects ones that already belong to a campaign, and clears empty stubs.'
                 ).format(relink_count),
             )
         if manual_containers:
@@ -506,10 +500,8 @@ def run_triage(plan, deep=False, suppress_json_drift=False):
                     'Duplicate master check could not run', 1,
                     '',
                     body=(
-                        'xxhash is not available to Site health, so Quick/Full cannot '
-                        'fingerprint masters. Delivery may still work if other stages '
-                        'bootstrapped vendor separately — repair scripts/vendor or re-run '
-                        'dependency bootstrap.'
+                        'A helper library Site health needs for duplicate checks is missing on this host. '
+                        'Streaming may still work. Ask a developer to repair the scripts vendor bundle.'
                     ),
                 )
             else:
@@ -560,9 +552,8 @@ def run_triage(plan, deep=False, suppress_json_drift=False):
                         'dedupe_retarget_and_remove',
                         sample=dedupe.cluster_sample_lines(safe_file),
                         body=(
-                            '{0} cluster(s) share the same file hash within a size bucket. '
-                            'Treat keeps the campaign/playlist-linked asset and removes '
-                            '{1} unreferenced clone(s).'
+                            '{0} group(s) of files look identical on disk. '
+                            'Apply keeps the campaign-linked copy and removes {1} unused clone(s).'
                         ).format(len(safe_file), remove_count),
                     )
                     log.items(
@@ -605,12 +596,12 @@ def run_triage(plan, deep=False, suppress_json_drift=False):
             if indexed >= 0 and indexed < len(audio):
                 plan_mod.add_finding(
                     plan, 'files_index_audio_undercount', 'attention',
-                    'Files → Audio index is behind the registry', len(audio) - indexed,
+                    'Files → Audio list is behind the catalogue', len(audio) - indexed,
                     'files_index_rebuild',
                     sample=[],
                     body=(
-                        'Files index has {0} audio row(s) but the registry lists {1}. '
-                        'Treat can rebuild the index without minting masters.'
+                        'Files → Audio shows {0} row(s) but the catalogue lists {1}. '
+                        'Apply can refresh the list without changing your masters.'
                     ).format(indexed, len(audio)),
                 )
                 log.info('Files index audio rows: {0} (registry {1})'.format(indexed, len(audio)))

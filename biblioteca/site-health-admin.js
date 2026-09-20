@@ -60,21 +60,21 @@
     }
 
     const TREATMENT_COPY = {
-        audio_register_in_place: 'Register audio masters already on disk into Files (no copy).',
-        visual_register_in_place: 'Add these files to Files so you can use them (no copy, no re-upload).',
-        sfx_register_in_place: 'Register sound-effect masters already on disk into Files (no copy).',
-        listener_delivery: 'Rebuild missing or stale stream deliverables (audio, stills, video, SFX).',
-        audio_fill_display_from_tags: 'Fill empty track title/artist from master tags.',
-        audio_extract_covers: 'Extract embedded artwork and link track covers.',
+        audio_register_in_place: 'Add songs already on the server into Files (no re-upload).',
+        visual_register_in_place: 'Add pictures or videos already on the server into Files (no re-upload).',
+        sfx_register_in_place: 'Add sound effects already on the server into Files (no re-upload).',
+        listener_delivery: 'Build missing or outdated streaming audio and artwork for the player.',
+        audio_fill_display_from_tags: 'Fill empty track title and artist from the file\'s own tags.',
+        audio_extract_covers: 'Pull embedded cover art from tracks and link it in Files.',
         media_janitor_prune: 'Clear the selected leftovers. Your originals and masters stay safe.',
-        data_janitor_prune: 'Clear leftover files under data/ (upload scratch, OS junk, empty folders).',
-        data_container_relink: 'Register invisible containers that already have a campaign home, and drop registry stubs.',
-        dedupe_retarget_and_remove: 'Retarget duplicates and remove unreferenced clone masters.',
-        files_index_rebuild: 'Rebuild the Files → Audio index from the registry.',
-        playlists: 'Republish player playlist payloads.',
-        site_chrome: 'Update share images and PWA manifest.',
-        container_links: 'Refresh container links and related site chrome.',
-        sfx_delivery: 'Rebuild missing or stale sound-effect deliverables.',
+        data_janitor_prune: 'Clear leftover temporary and junk files from site data storage.',
+        data_container_relink: 'Reconnect playlists, galleries, and pages that already belong to a campaign.',
+        dedupe_retarget_and_remove: 'Keep one copy of duplicate masters and remove unused clones.',
+        files_index_rebuild: 'Refresh the Files → Audio list so it matches what is catalogued.',
+        playlists: 'Refresh player playlists so they match the catalogue.',
+        site_chrome: 'Update share images and home-screen / install icons.',
+        container_links: 'Refresh campaign links after site data changed.',
+        sfx_delivery: 'Build missing or outdated sound-effect play files.',
     };
 
     const ACTION_BUTTONS = [
@@ -139,7 +139,7 @@
             return TREATMENT_COPY[id];
         }
         if (id === 'orphan_home_stamp') {
-            return 'Stamp catalogue homes for orphan media used in campaigns.';
+            return 'Set a campaign home for orphan media already used in campaigns.';
         }
         return id.replace(/_/g, ' ');
     }
@@ -392,7 +392,7 @@
         if (overall === 'healthy' && findings === 0) {
             detail += ' — looked healthy.';
         } else if (findings > 0) {
-            detail += ' — ' + findings + ' finding' + (findings === 1 ? '' : 's') + ' still open.';
+            detail += ' — ' + findings + ' item' + (findings === 1 ? '' : 's') + ' still need attention.';
             label = 'Open last results';
         }
         hubResumeEl.hidden = false;
@@ -1045,7 +1045,7 @@
     function dataContainerClassLabel(className) {
         const key = String(className || '').trim().toLowerCase();
         if (key === 'invisible') {
-            return 'Not in registry';
+            return 'Not listed yet';
         }
         if (key === 'unowned') {
             return 'No campaign home';
@@ -1850,7 +1850,7 @@
             }
             metaEl.innerHTML = bits.length
                 ? escapeHtml(bits.join(' · '))
-                : 'Run <strong>Quick health check</strong> for a routine exam, or <strong>Full health check</strong> for a deeper read-only verify. Nothing is changed until you Apply treatment.';
+                : 'Run <strong>Quick health check</strong> for an everyday check, or <strong>Full health check</strong> for a slower, more thorough pass. Nothing changes until you Apply treatment.';
         }
 
         if (!findingsEl) {
@@ -1947,7 +1947,7 @@
                 findingsEl.hidden = true;
             } else if (findings.length === 0) {
                 findingsEl.hidden = false;
-                findingsEl.innerHTML = '<p class="publish-status-empty">Nothing needs treatment. Listener catalogue looks healthy.</p>';
+                findingsEl.innerHTML = '<p class="publish-status-empty">Nothing needs treatment. The catalogue looks healthy.</p>';
             } else {
                 findingsEl.hidden = false;
                 findingsEl.innerHTML = (
@@ -2491,24 +2491,23 @@
     }
 
     forceBtn.addEventListener('click', async () => {
+        let body = (
+            'Rebuild every player-ready stream, artwork file, and playlist for this install so nothing is skipped.\n\n'
+            + 'On a large catalogue this can take a while. Prefer Check → Review → Apply when artwork or streaming files are missing. '
+            + 'Force stays unavailable while a health check still shows serious problems.'
+        );
+        if (window.bandpromoIsDeveloper) {
+            body += '\n\nDeveloper: rebuilds all delivery variants and share / install icons end to end.';
+        }
         const confirmed = typeof window.bandpromoConfirm === 'function'
             ? await window.bandpromoConfirm({
                 title: 'Force full rebuild?',
-                body: (
-                    'Rebuild every player-ready file and playlist for this install — streams, artwork, and site chrome — so nothing is skipped.\n\n'
-                    + 'On a large catalogue this can take a while. Prefer Check → Review → Apply when Files rows or delivery are missing; '
-                    + 'Force stays blocked while critical catalogue findings remain.'
-                ),
+                body: body,
                 confirmLabel: 'Force full rebuild',
                 cancelLabel: 'Cancel',
                 tone: 'quiet',
             })
-            : window.confirm(
-                'Force full rebuild?\n\n'
-                + 'Rebuild every player-ready file and playlist for this install — streams, artwork, and site chrome — so nothing is skipped.\n\n'
-                + 'On a large catalogue this can take a while. Prefer Check → Review → Apply when Files rows or delivery are missing; '
-                + 'Force stays blocked while critical catalogue findings remain.'
-            );
+            : window.confirm('Force full rebuild?\n\n' + body);
         if (!confirmed) {
             return;
         }

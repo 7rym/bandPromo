@@ -149,7 +149,7 @@ def _good_rows(registry, registry_status):
             'total': int(total),
         }
         if status != 'ok':
-            row['note'] = 'registry {0}'.format(status)
+            row['note'] = 'catalogue {0}'.format(status)
         rows.append(row)
     return rows
 

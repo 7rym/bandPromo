@@ -2874,7 +2874,7 @@ if ($tab === 'analytics') {
 
             <?php if ($systemTab === 'deliverables'): ?>
             <div class="admin-help-box collapsed" id="help-build">
-                <strong>Status</strong> is the install health desk. Open <strong>Site health</strong> for catalogue checks (Quick or Full), then Review → Apply when something needs fixing. <strong>Force full rebuild</strong> rebuilds every player-ready file so the whole install is checked end to end; it is blocked while critical findings remain. Detail stays in Activity.
+                <strong>Status</strong> is the install health desk. Open <strong>Site health</strong> for catalogue checks (Quick or Full), then Review → Apply when something needs fixing. <strong>Force full rebuild</strong> rebuilds every player-ready file so the whole install is checked end to end; it stays unavailable while a check still shows serious problems. Detail stays in Activity.
             </div>
 
             <div id="siteHealthCard" class="card publish-status-card">
@@ -2895,7 +2895,7 @@ if ($tab === 'analytics') {
                     <div class="site-health-tool-list">
                         <button type="button" class="site-health-tool-card" id="siteHealthEnterHubBtn">
                             <span class="site-health-tool-card-title">Site health</span>
-                            <span class="site-health-tool-card-body">Exam masters, containers, and deliverables — then Review and Apply when something needs fixing.</span>
+                            <span class="site-health-tool-card-body">Check the catalogue and player-ready files, then Review and Apply when something needs fixing.</span>
                         </button>
                     </div>
                 </div>
@@ -2906,19 +2906,19 @@ if ($tab === 'analytics') {
                             <div class="site-health-hub-guide-heading" id="siteHealthHubSlotQuick">
                                 <button type="button" id="siteHealthCheckBtn" class="btn btn-good">Quick health check</button>
                             </div>
-                            <p class="site-health-hub-guide-body">Routine exam; may trust the last fingerprint baseline.</p>
+                            <p class="site-health-hub-guide-body">Everyday check — faster when nothing major has changed since last time.<?php if ($currentUserRole === 'developer'): ?> <span class="site-health-hub-guide-dev">Developer: may reuse the last host/content baseline.</span><?php endif; ?></p>
                         </article>
                         <article class="site-health-hub-guide-item">
                             <div class="site-health-hub-guide-heading" id="siteHealthHubSlotFull">
                                 <button type="button" id="siteHealthCheckFullBtn" class="btn">Full health check</button>
                             </div>
-                            <p class="site-health-hub-guide-body">Ignores the fingerprint cache and runs deeper probes.</p>
+                            <p class="site-health-hub-guide-body">Slower, more thorough check — does not skip steps the everyday check may trust.<?php if ($currentUserRole === 'developer'): ?> <span class="site-health-hub-guide-dev">Developer: ignores the baseline cache and runs deeper duplicate probes.</span><?php endif; ?></p>
                         </article>
                         <article class="site-health-hub-guide-item">
                             <div class="site-health-hub-guide-heading" id="siteHealthHubSlotForce">
                                 <button type="button" id="siteHealthForceBtn" class="btn">Force full rebuild</button>
                             </div>
-                            <p class="site-health-hub-guide-body">Rebuild every player-ready file end to end. May take a while on large catalogues. Blocked while critical findings remain.</p>
+                            <p class="site-health-hub-guide-body">Rebuild every player-ready file end to end. May take a while on large catalogues. Unavailable while a check still shows serious problems.<?php if ($currentUserRole === 'developer'): ?> <span class="site-health-hub-guide-dev">Developer: rebuilds all delivery variants and share/install icons.</span><?php endif; ?></p>
                         </article>
                     </div>
                     <p id="siteHealthHubResume" class="site-health-hub-resume" hidden></p>
@@ -3763,6 +3763,7 @@ if ($tab === 'analytics') {
         window.bandpromoDemoCatalogVisible = <?php echo json_encode((bool) $demoCatalogVisible); ?>;
         window.bandpromoDemoCatalogHidden = <?php echo json_encode((bool) $demoCatalogHidden); ?>;
         window.bandpromoDemoCampaignId = <?php echo json_encode((string) $demoCampaignId); ?>;
+        window.bandpromoIsDeveloper = <?php echo json_encode($currentUserRole === 'developer'); ?>;
         window.BANDPROMO_LOCAL_DEV = <?php echo json_encode(bandpromo_is_local_dev_host()); ?>;
         window.BANDPROMO_SITE_SHARING = <?php
             $sharePlaylistId = (string) ($contentPlaylist ?? '');

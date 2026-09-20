@@ -404,7 +404,7 @@ def run_force():
         )
     ]
     if critical_catalog:
-        log.info('Force blocked: critical catalogue findings must be Treated first.')
+        log.info('Force unavailable: serious catalogue problems must be fixed with Review → Apply first.')
         for finding in critical_catalog:
             log.info('  - {0}'.format(finding.get('title') or finding.get('id')))
         log.result('needs_treatment')

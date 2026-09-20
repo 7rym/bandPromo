@@ -2,6 +2,8 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-09-20 11:40 - Status / Site health operator copy audit: plain language across hub, Force confirm, treatment labels, and finding titles/bodies (no fingerprint / deliverables / site chrome in primary UI). Developer role gets short additive notes on hub + Force. Activity log stays detailed.
+
 2026-09-20 11:35 - Operator messaging voice: default copy assumes a non-tech-savvy operator (plain “what will this do?”); developer role may get additive detail when useful. Preference + OPERATOR-MESSAGING / AGENTS updated.
 
 2026-09-20 11:32 - SESSION-HANDOFF: resume after operator-friendly Force copy (build 560).
