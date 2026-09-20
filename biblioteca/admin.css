@@ -3142,6 +3142,17 @@ canvas { max-width: 100%; height: auto; }
     background: var(--border2);
 }
 
+/* Branding Live preview already sticks as a column — do not also stick its
+   "Live preview" header (that pulled the cover up over the title). */
+#brandEditorLayout .split-editor__header,
+#brandEditorLayout .split-editor__header--active,
+#brandEditorLayout .split-editor__header--pool {
+    position: static;
+    top: auto;
+    z-index: auto;
+    box-shadow: none;
+}
+
 /* Audio pool: one compact filter row */
 .audio-pool-toolbar {
     display: flex;

@@ -23,13 +23,15 @@
     flex-direction: column;
     width: 100%;
     min-height: 0;
-    /* Sticky column: fill viewport under top:12px with a matching bottom gap. */
-    height: calc(100vh - 24px);
-    max-height: calc(100vh - 24px);
+    /* Sticky column under Content sub-tabs + Branding breadcrumb head. */
+    --brand-preview-sticky-top: calc(var(--admin-subtabs-offset, 38px) + 42px);
+    height: calc(100vh - var(--brand-preview-sticky-top) - 12px);
+    max-height: calc(100vh - var(--brand-preview-sticky-top) - 12px);
     overflow: hidden;
     position: sticky;
-    top: 12px;
+    top: var(--brand-preview-sticky-top);
     align-self: flex-start;
+    z-index: 20;
 }
 
 .brand-editor-preview-body {
@@ -397,8 +399,8 @@
 }
 
 #brandEditorLayout .split-editor__col--active .split-editor__panel.brand-editor-preview-panel {
-    height: calc(100vh - 24px);
-    max-height: calc(100vh - 24px);
+    height: calc(100vh - var(--brand-preview-sticky-top, 80px) - 12px);
+    max-height: calc(100vh - var(--brand-preview-sticky-top, 80px) - 12px);
     overflow: hidden;
 }
 

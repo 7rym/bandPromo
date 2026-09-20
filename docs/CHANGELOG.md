@@ -2,7 +2,7 @@
 
 All notable changes to this project will be documented in this file.
 
-2026-09-20 10:50 - Admin sticky toolbars: Files/Content sub-tabs, pool filter+header chrome, Content breadcrumb heads, and split-editor headers stay visible while lists/forms scroll. Strip dead Brand-assets panel JS/CSS; page/campaign pickers target Visual directly (thin `special` remaps kept for bookmarks / leftover intake). FEATURES / MEDIA-HANDLING note Brand assets tab retired (Use in brand on Visual+SFX).
+2026-09-20 11:00 - Branding Live preview: global sticky split-header rule no longer sticks the preview title inside the already-sticky preview column (cover was painting over “Live preview”). Preview column top/height clear the sticky Content sub-tabs + breadcrumb. FEATURES / MEDIA-HANDLING note Brand assets tab retired (Use in brand on Visual+SFX).
 
 2026-09-20 10:35 - Files: Visual **Use in gallery** and Audio **Use in playlist** — select pool rows, pick a gallery/playlist, append (delivery-ready visuals; audio masters via playlist order save). Leftover Brand-assets picker defaults map to Visual.
 
