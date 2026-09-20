@@ -475,25 +475,25 @@ function bandpromo_media_reference_config_entries(string $target): array
 {
     if ($target === 'photos') {
         return [
-            ['path' => 'release.theme.background_image', 'legacy' => ['media.background_image'], 'prefix' => 'media/photo/original', 'kind' => 'theme-background', 'label' => 'Still background (theme)'],
-            ['path' => 'release.theme.cover', 'legacy' => ['media.cover'], 'prefix' => 'media/photo/original', 'kind' => 'theme-cover', 'label' => 'Primary cover (theme)'],
-            ['path' => 'release.social.share_image', 'legacy' => ['social.share_image'], 'prefix' => 'media/photo/original', 'kind' => 'share-image', 'label' => 'Share image (social)'],
+            ['path' => 'release.theme.background_image', 'legacy' => ['media.background_image'], 'prefix' => 'media/photo/original', 'kind' => 'theme-background', 'label' => 'Site settings'],
+            ['path' => 'release.theme.cover', 'legacy' => ['media.cover'], 'prefix' => 'media/photo/original', 'kind' => 'theme-cover', 'label' => 'Site settings'],
+            ['path' => 'release.social.share_image', 'legacy' => ['social.share_image'], 'prefix' => 'media/photo/original', 'kind' => 'share-image', 'label' => 'Site settings'],
         ];
     }
 
     if ($target === 'video') {
         return [
-            ['path' => 'release.theme.background_video', 'legacy' => ['media.background_video'], 'prefix' => 'media/video/original', 'kind' => 'theme-background-video', 'label' => 'Living background (theme)'],
+            ['path' => 'release.theme.background_video', 'legacy' => ['media.background_video'], 'prefix' => 'media/video/original', 'kind' => 'theme-background-video', 'label' => 'Site settings'],
         ];
     }
 
     if ($target === 'special') {
         return [
-            ['path' => 'install.brand.logo', 'legacy' => ['install.theme.logo', 'media.logo', 'release.brand.logo', 'release.theme.logo'], 'prefix' => 'media/special', 'kind' => 'brand-logo', 'label' => 'Logo'],
-            ['path' => 'release.brand.poster', 'legacy' => ['release.social.share_image', 'social.share_image', 'install.brand.poster'], 'prefix' => 'media/special', 'kind' => 'share-image', 'label' => 'Share image'],
-            ['path' => 'release.theme.cover', 'legacy' => ['media.cover'], 'prefix' => 'media/special', 'kind' => 'theme-cover', 'label' => 'Primary cover'],
-            ['path' => 'release.theme.background_image', 'legacy' => ['media.background_image'], 'prefix' => 'media/special', 'kind' => 'theme-background', 'label' => 'Still background'],
-            ['path' => 'release.theme.background_video', 'legacy' => ['media.background_video'], 'prefix' => 'media/special', 'kind' => 'theme-background-video', 'label' => 'Living background'],
+            ['path' => 'install.brand.logo', 'legacy' => ['install.theme.logo', 'media.logo', 'release.brand.logo', 'release.theme.logo'], 'prefix' => 'media/special', 'kind' => 'brand-logo', 'label' => 'Site settings'],
+            ['path' => 'release.brand.poster', 'legacy' => ['release.social.share_image', 'social.share_image', 'install.brand.poster'], 'prefix' => 'media/special', 'kind' => 'share-image', 'label' => 'Site settings'],
+            ['path' => 'release.theme.cover', 'legacy' => ['media.cover'], 'prefix' => 'media/special', 'kind' => 'theme-cover', 'label' => 'Site settings'],
+            ['path' => 'release.theme.background_image', 'legacy' => ['media.background_image'], 'prefix' => 'media/special', 'kind' => 'theme-background', 'label' => 'Site settings'],
+            ['path' => 'release.theme.background_video', 'legacy' => ['media.background_video'], 'prefix' => 'media/special', 'kind' => 'theme-background-video', 'label' => 'Site settings'],
             // Legacy shell audio paths (pre–Sound effects pool).
             ['path' => 'install.theme.welcome_audio', 'legacy' => ['media.welcome_audio'], 'prefix' => 'media/special', 'kind' => 'welcome-audio', 'label' => 'Welcome audio'],
             ['path' => 'install.theme.loggedin_audio', 'legacy' => ['media.loggedin_audio'], 'prefix' => 'media/special', 'kind' => 'loggedin-audio', 'label' => 'Logged-in audio'],
@@ -638,7 +638,8 @@ function bandpromo_media_reference_build_brand_slot_index(string $root): array
                 $ref = [
                     'scope' => 'brand',
                     'kind' => $meta['kind'],
-                    'label' => ($brandTitle !== '' ? $brandTitle : $brandId) . ' — ' . $meta['label'],
+                    // Kind supplies the role name in the UI — label is only the brand title.
+                    'label' => $brandTitle !== '' ? $brandTitle : $brandId,
                     'brand_id' => $brandId,
                 ];
                 $names = [];

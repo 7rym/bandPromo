@@ -2,6 +2,8 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-09-20 12:40 - Site health problem dialog: green **Open Activity** (lists failed filenames + next step); announce once per job so it does not follow you to Files; dismiss on tab navigation. Visual references: stop “Living background: … — Living background” / “(theme)” spam. Heart in titles is not the delivery failure cause.
+
 2026-09-20 12:15 - Site health video delivery: Activity now names each failed video, why the player stream failed, and the follow-up (Files → Visual, then Check → Review → Apply or Force again).
 
 2026-09-20 12:10 - Site health: replace “exited with code N” acknowledge with plain language when a rebuild step fails (e.g. Force video); developer sees exit code as an extra line. Partial delivery failure no longer leaves a Healthy badge while the dialog complains.

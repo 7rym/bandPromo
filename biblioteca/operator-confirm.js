@@ -8,6 +8,7 @@
     let cancelBtn = null;
     let pendingResolve = null;
     let bound = false;
+    let navDismissBound = false;
 
     const CONFIRM_TONE_CLASSES = ['btn-primary', 'btn-danger', 'btn-good'];
 
@@ -44,6 +45,28 @@
                 closeModal(false);
             }
         });
+        if (!navDismissBound) {
+            navDismissBound = true;
+            // Do not carry an acknowledge dialog onto Files / other tabs.
+            document.addEventListener('click', (event) => {
+                if (!modalEl || modalEl.style.display !== 'flex') {
+                    return;
+                }
+                const target = event.target;
+                if (!(target instanceof Element)) {
+                    return;
+                }
+                const nav = target.closest(
+                    '.tabs a.tab-link, .tabs .tab-link, a[href*="tab="], #adminConfirmModal'
+                );
+                if (!nav || nav.closest('#adminConfirmModal')) {
+                    return;
+                }
+                if (nav.matches('a[href*="tab="], .tabs a.tab-link, .tabs .tab-link')) {
+                    closeModal(false);
+                }
+            }, true);
+        }
     }
 
     function closeModal(result) {
@@ -86,6 +109,7 @@
      * @param {string} [options.body]
      * @param {string} [options.confirmLabel]
      * @param {string} [options.cancelLabel]
+     * @param {boolean} [options.hideCancel]
      * @param {'default'|'danger'|'good'|'quiet'} [options.tone]
      * @returns {Promise<boolean>}
      */
@@ -95,6 +119,7 @@
         const body = String(opts.body || '');
         const confirmLabel = String(opts.confirmLabel || 'Confirm');
         const cancelLabel = String(opts.cancelLabel || 'Cancel');
+        const hideCancel = !!opts.hideCancel;
         const rawTone = String(opts.tone || 'default').trim().toLowerCase();
         const tone = (
             rawTone === 'danger' || rawTone === 'good' || rawTone === 'quiet'
@@ -124,6 +149,8 @@
             applyConfirmTone(confirmBtn, tone);
             if (cancelBtn) {
                 cancelBtn.textContent = cancelLabel;
+                cancelBtn.hidden = hideCancel;
+                cancelBtn.style.display = hideCancel ? 'none' : '';
             }
             modalEl.style.display = 'flex';
             modalEl.setAttribute('aria-hidden', 'false');

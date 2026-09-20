@@ -4533,9 +4533,24 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 };
                 return references.slice(0, 8).map((reference) => {
                     const kind = kindLabels[String(reference.kind || '')] || String(reference.kind || 'Reference');
-                    const label = String(reference.label || '').trim();
-                    return label ? `${kind}: ${label}` : kind;
-                });
+                    let label = String(reference.label || '').trim();
+                    if (!label) {
+                        return kind;
+                    }
+                    // Strip legacy "Brand — Living background" suffixes so we do not
+                    // render "Living background: HITZ — Living background".
+                    const dashKind = ' — ' + kind;
+                    if (label.endsWith(dashKind)) {
+                        label = label.slice(0, -dashKind.length).trim();
+                    }
+                    if (label.toLowerCase() === kind.toLowerCase()) {
+                        return kind;
+                    }
+                    if (/^living background\s*\(/i.test(label) || /^still background\s*\(/i.test(label)) {
+                        return kind + ': Site settings';
+                    }
+                    return kind + ': ' + label;
+                }).filter((line, index, all) => line && all.indexOf(line) === index);
             }
 
             function visualAssetReferenceLines(file) {

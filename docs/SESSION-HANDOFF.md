@@ -2,18 +2,11 @@
 
 ## Resume point
 
-**Status layout prefs audit** — Include: Yes|Skip toggles; System sub-tabs sticky under Status breadcrumb. Copy audit already shipped (build 563).
+**Site health problem UX + Living background refs** just shipped. Next optional: dig into why `Looping_girls_on_Trampolines.mp4` remux/re-encode fails while Delivery still shows Ready (old stream left behind).
 
-### Shipped recently
+### Operator note
 
-1. Operator-friendly Status copy (hub / Force / findings).
-2. Status layout: Include toggles + System sticky stack.
-3. Sticky chrome; Visual Grid S/M/L; grid delivery; confirm tones.
-4. Use in brand / gallery / playlist; Brand assets tab retired.
-
-### Operator note after update
-
-Existing installs need **Status → Site health → Review → Apply** (image delivery) once so `grid.jpg` appears under each visual delivery folder. Until then admin falls back to card.
+Force failure on that video is **ffmpeg remux/re-encode**, not the ❤️ in the display title. An older player stream can still show Ready after a failed rebuild.
 
 ### Local workspace
 

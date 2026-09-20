@@ -680,6 +680,14 @@
         return 'This health check is over an hour old. Run a fresh Quick health check before reviewing or applying treatment.';
     }
 
+    /** Avoid re-showing the same finished-job problem dialog on every status poll. */
+    let lastAnnouncedProblemKey = '';
+    try {
+        lastAnnouncedProblemKey = String(sessionStorage.getItem('bandpromoSiteHealthProblemKey') || '');
+    } catch (err) {
+        lastAnnouncedProblemKey = '';
+    }
+
     function setJobStatus(text, tone) {
         // Status line removed — Healthy/attention badge + summary + Activity carry the story.
         // Hard errors use the shared in-app confirm (acknowledge), not window.alert.
@@ -688,17 +696,7 @@
             return;
         }
         if (tone === 'error') {
-            if (typeof window.bandpromoConfirm === 'function') {
-                window.bandpromoConfirm({
-                    title: 'Site health',
-                    body: message,
-                    confirmLabel: 'OK',
-                    cancelLabel: 'Close',
-                    tone: 'quiet',
-                });
-            } else {
-                window.alert(message);
-            }
+            void acknowledgeSiteHealthProblem(message);
         }
     }
 
@@ -714,41 +712,137 @@
         return failed;
     }
 
+    function parseFailedMediaFromLog(logText) {
+        const rows = [];
+        const seen = {};
+        const log = String(logText || '');
+        const patterns = [
+            /FAILED video:\s*(.+?)\s+[—\-]\s*(.+?)\s*$/gim,
+            /^\[[^\]]+\]\s+-\s+(.+?\.(?:mp4|mov|mkv|webm))\s+[—\-]\s*(.+?)\s*$/gim,
+        ];
+        patterns.forEach((re) => {
+            let match = re.exec(log);
+            while (match) {
+                const name = String(match[1] || '').trim();
+                const reason = String(match[2] || '').trim();
+                if (name && !seen[name.toLowerCase()]) {
+                    seen[name.toLowerCase()] = true;
+                    rows.push({ name: name, reason: reason });
+                }
+                match = re.exec(log);
+            }
+        });
+        return rows;
+    }
+
     function healthJobProblemMessage(exitCode, overall, jobMode, logText) {
         const mode = String(jobMode || '').trim().toLowerCase();
         const ov = String(overall || '').trim().toLowerCase();
-        const failed = countFailedFromLog(logText);
-        let body = '';
+        const failedRows = parseFailedMediaFromLog(logText);
+        const failed = Math.max(countFailedFromLog(logText), failedRows.length);
+        const lines = [];
         if (failed > 0) {
             const noun = failed === 1 ? 'file' : 'files';
             if (mode === 'force') {
-                body = (
+                lines.push(
                     'Force rebuild finished, but ' + failed + ' player-ready ' + noun +
-                    ' could not be built. Check Activity for which ones failed.'
+                    ' could not be built.'
                 );
             } else if (mode === 'treat' || mode === 'followup') {
-                body = (
+                lines.push(
                     'Treatment finished, but ' + failed + ' player-ready ' + noun +
-                    ' could not be built. Check Activity for details.'
+                    ' could not be built.'
                 );
             } else {
-                body = (
+                lines.push(
                     'Site health finished, but ' + failed + ' player-ready ' + noun +
-                    ' could not be built. Check Activity for details.'
+                    ' could not be built.'
                 );
             }
+            failedRows.slice(0, 5).forEach((row) => {
+                lines.push('• ' + row.name + (row.reason ? (' — ' + row.reason) : ''));
+            });
+            if (failedRows.length > 5) {
+                lines.push('• …and ' + (failedRows.length - 5) + ' more (see Activity).');
+            }
+            lines.push('');
+            lines.push(
+                'Next: Open Activity for the full story, or open Files → Visual and search for the filename. '
+                + 'An older player stream may still show as Ready even when a rebuild failed. '
+                + 'Display-title symbols (for example a heart) do not cause this.'
+            );
         } else if (ov === 'healthy') {
-            body = (
-                'Site health finished with a problem during the run. ' +
-                'The catalogue still looks healthy — check Activity for what went wrong.'
+            lines.push(
+                'Site health finished with a problem during the run. '
+                + 'The catalogue still looks healthy — open Activity for what went wrong.'
             );
         } else {
-            body = 'Site health could not finish cleanly. Check Activity for details.';
+            lines.push('Site health could not finish cleanly. Open Activity for details.');
         }
         if (window.bandpromoIsDeveloper) {
-            body += '\n\nDeveloper: process exit code ' + String(exitCode) + '.';
+            lines.push('');
+            lines.push('Developer: process exit code ' + String(exitCode) + '.');
         }
-        return body;
+        return lines.join('\n');
+    }
+
+    function problemAnnounceKey(exitCode, jobMode, logText) {
+        const failedRows = parseFailedMediaFromLog(logText);
+        const names = failedRows.map((row) => row.name).join(',');
+        return [
+            String(jobMode || ''),
+            String(exitCode),
+            String(countFailedFromLog(logText)),
+            names,
+        ].join('|');
+    }
+
+    function rememberProblemKey(key) {
+        lastAnnouncedProblemKey = String(key || '');
+        try {
+            sessionStorage.setItem('bandpromoSiteHealthProblemKey', lastAnnouncedProblemKey);
+        } catch (err) {
+            // Ignore storage failures.
+        }
+    }
+
+    async function acknowledgeSiteHealthProblem(message) {
+        if (typeof window.bandpromoConfirm !== 'function') {
+            window.alert(message);
+            return;
+        }
+        const confirmed = await window.bandpromoConfirm({
+            title: 'Site health',
+            body: message,
+            confirmLabel: 'Open Activity',
+            cancelLabel: 'Dismiss',
+            tone: 'good',
+        });
+        if (!confirmed) {
+            return;
+        }
+        const target = '/admin.php?tab=system&stab=deliverables#site-health-log-card';
+        const here = window.location.pathname + window.location.search;
+        const onStatus = /tab=system/i.test(here) && /stab=deliverables/i.test(here);
+        if (!onStatus) {
+            window.location.href = target;
+            return;
+        }
+        if (uiStage === 'status' || uiStage === 'hub') {
+            setUiStage('exam');
+        }
+        const logCard = document.getElementById('site-health-log-card');
+        if (logCard) {
+            try {
+                logCard.open = true;
+            } catch (err) {
+                // Ignore <details> quirks.
+            }
+            logCard.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+        if (logEl) {
+            logEl.scrollTop = logEl.scrollHeight;
+        }
     }
 
     function clearActionTones() {
@@ -2264,15 +2358,19 @@
                         const jobMode = metaMode || planMode;
                         const logText = logEl ? String(logEl.textContent || '') : '';
                         const failed = countFailedFromLog(logText);
+                        const announceKey = problemAnnounceKey(data.exit_code, jobMode, logText);
                         // Follow-up can still look healthy when a rebuild step failed —
                         // surface attention so the badge matches the problem dialog.
                         if (failed > 0 && String(overall || '').toLowerCase() === 'healthy') {
                             setOverall('attention');
                         }
-                        setJobStatus(
-                            healthJobProblemMessage(data.exit_code, overall, jobMode, logText),
-                            'error'
-                        );
+                        if (announceKey && announceKey !== lastAnnouncedProblemKey) {
+                            rememberProblemKey(announceKey);
+                            setJobStatus(
+                                healthJobProblemMessage(data.exit_code, overall, jobMode, logText),
+                                'error'
+                            );
+                        }
                     }
                     syncRecommendedAction();
                 }
@@ -2333,6 +2431,7 @@
             csrfToken = '';
         }
         startInFlight = true;
+        rememberProblemKey('');
         setRunningUi(true);
         let starting = 'Starting…';
         if (mode === 'check') {
