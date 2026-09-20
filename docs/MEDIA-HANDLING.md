@@ -980,7 +980,7 @@ Seed matrix from current CSS (to be verified on real devices and updated in this
 | `thumb` | Playlist row `.playlist-track-cover`, cover-flow, bio track list | 70–100px (delivery max edge **100px**) | Square-ish; shipped |
 | `card` / `optimal` | Player flip cover `.cover-art` inside `--card-size` (max 600px) | delivery max edge **720px** | Shipped |
 | `huge` | Player lightbox fullscreen stills; login/player shell still backgrounds | contain inside **1920×1080px** | Shipped; lightbox + shell still prefer `huge`, fall back to `card` |
-| `card` | Admin/media file list `.media-file-thumb` | list 70 / 100 / 125 px (S / M / L; default **M** 100px, matching delivery `thumb`) | Admin Files → Visual / Sound effects list; Grid view uses larger cards |
+| `card` | Admin Files → Visual / Sound effects pool + media picker tiles | Grid/List S–L CSS boxes (~70–188px, often 2× retina) | Prefer **card** (720px) in admin so tiles stay sharp; player playlist rows still use **thumb** (150px) |
 | `grid` | Page gallery block `.page-gallery-item img` | Grid: natural ratio, column cap 2–6; Carousel: ~78% pane width, max-height ~520px contain; Animated: frame sized to the photo (contain, no crop) | List thumbs 168px square |
 | `picture` | Page picture blocks | fraction of content column (½, ¾, full) | Derive max from page layout + viewport |
 | `lightbox` | Player/page lightbox enlarged view | aliases **`huge`** (≈96vw / 94vh frame) | Falls back to `card` when huge is missing |

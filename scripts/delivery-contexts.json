@@ -62,9 +62,10 @@
       "prefer_alpha": false
     },
     "admin_thumb": {
-      "where": "Admin media file list .media-file-thumb",
-      "variant": "thumb",
-      "prefer_alpha": false
+      "where": "Admin Files Visual/SFX pool tiles and media picker tiles",
+      "variant": "card",
+      "prefer_alpha": false,
+      "notes": "Prefer card (720px) over thumb (150px) so Grid/List S–L and retina stay sharp; thumb remains for player playlist rows"
     },
     "grid": {
       "where": "Page gallery block .page-gallery-item img",

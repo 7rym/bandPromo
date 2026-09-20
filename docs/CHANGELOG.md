@@ -2,6 +2,8 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-09-20 11:15 - Files Visual/SFX pool + media picker thumbs prefer delivery **card** (720px) over **thumb** (150px) so Grid/List and retina tiles look sharp; no rebuild required when cards already exist.
+
 2026-09-20 11:10 - Files → Visual: **S / M / L** thumbnail size works in Grid as well as List (denser / default / roomier tile columns).
 
 2026-09-20 11:05 - Sticky chrome preference clarified: pin only when scroll would push the bar off the viewport; while still on-screen it stays in normal flow. Drop always-on sticky shadows that made bars look permanently floating. Branding Live preview keeps nested-sticky exemption.

@@ -1404,7 +1404,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
 
             function buildVideoPickerMarkup(file) {
                 const poster = videoPosterUrl(file)
-                    || String(file?.thumb_url || file?.card_url || '').trim();
+                    || String(file?.card_url || file?.thumb_url || '').trim();
                 const previewSrc = videoPreviewUrl(file);
                 if (poster) {
                     return `<img src="${poster}" alt="" loading="lazy"><span class="media-picker-tile-badge" aria-hidden="true">▶</span>`;
@@ -4466,12 +4466,15 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
 
             function poolAssetThumbInnerHtml(panelType, file, pathType) {
                 const kind = poolAssetKind(panelType, file);
-                const deliveryThumb = poolAssetStillPreviewUrl(file, 'thumb');
-                const url = deliveryThumb || buildMediaUrl(pathType, file.name);
+                // Prefer card (720px) over thumb (150px): Grid/List S–L and retina
+                // CSS boxes outgrow thumb and looked soft to testers.
+                const deliveryStill = poolAssetStillPreviewUrl(file, 'card')
+                    || poolAssetStillPreviewUrl(file, 'thumb');
+                const url = deliveryStill || buildMediaUrl(pathType, file.name);
                 const poster = videoPosterUrl(file);
                 const preview = videoPreviewUrl(file);
                 if (kind === 'image') {
-                    return `<img src="${url}" alt="" loading="lazy">`;
+                    return `<img src="${url}" alt="" loading="lazy" decoding="async">`;
                 }
                 if (kind === 'audio') {
                     return `<span class="visual-pool-card-thumb-placeholder is-audio" title="Sound effect">♪</span>`;
@@ -4482,12 +4485,12 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     }
                     if (preview) {
                         if (poster) {
-                            return `<img class="visual-pool-card-still" src="${poster}" alt="" loading="lazy"><video class="visual-pool-card-video" data-src="${preview}" poster="${poster}" muted loop playsinline preload="none"></video>`;
+                            return `<img class="visual-pool-card-still" src="${poster}" alt="" loading="lazy" decoding="async"><video class="visual-pool-card-video" data-src="${preview}" poster="${poster}" muted loop playsinline preload="none"></video>`;
                         }
                         return `<video class="visual-pool-card-video visual-pool-card-video--solo" src="${preview}" muted loop playsinline preload="metadata"></video>`;
                     }
                     if (poster) {
-                        return `<img class="visual-pool-card-still" src="${poster}" alt="" loading="lazy">`;
+                        return `<img class="visual-pool-card-still" src="${poster}" alt="" loading="lazy" decoding="async">`;
                     }
                     return `<span class="visual-pool-card-thumb-placeholder" title="Video waiting for preparation">▶</span>`;
                 }
@@ -5768,7 +5771,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                                 ? poolAssetHeadline(target, file)
                                 : 'Asset');
                         const safeLabel = bandpromoAdminEscapeHtml(label);
-                        const deliveryThumb = String(file.thumb_url || file.card_url || '').trim();
+                        const deliveryThumb = String(file.card_url || file.thumb_url || '').trim();
                         const url = deliveryThumb || buildMediaUrl(pathType, file.name);
                         const assetId = String(file.asset_id || '').trim();
                         const notReady = target === 'visual' && file.pool_ready === false;
