@@ -467,6 +467,14 @@
             if (findingsEl) {
                 findingsEl.hidden = true;
             }
+        } else if (running) {
+            // Working notice only — never re-show Good/Bad/Ugly mid-job.
+            if (summaryEl && String(summaryEl.innerHTML || '').trim() !== '') {
+                summaryEl.hidden = false;
+            }
+            if (findingsEl) {
+                findingsEl.hidden = true;
+            }
         } else {
             if (summaryEl && String(summaryEl.innerHTML || '').trim() !== '') {
                 summaryEl.hidden = false;
@@ -1944,27 +1952,20 @@
 
         const stale = isPlanStale(plan);
 
-        // While a job is running, never present the stale-plan / auto-Quick story —
-        // the operator (or auto-start) already launched a fresh check.
+        // While a job is running, never present Good/Bad/Ugly from a previous or
+        // half-written plan — that reads as finished health. Activity carries progress.
         if (running) {
-            if (stale) {
-                if (summaryEl) {
-                    summaryEl.hidden = true;
-                    summaryEl.classList.remove('is-stale');
-                    summaryEl.innerHTML = '';
-                }
-                findingsEl.innerHTML = '';
-                findingsEl.hidden = true;
-            } else {
-                renderSummary(plan);
-                if (summaryEl && !summaryEl.hidden) {
-                    summaryEl.classList.remove('is-stale');
-                }
-                if (plan.summary) {
-                    findingsEl.innerHTML = '';
-                    findingsEl.hidden = true;
-                }
+            if (summaryEl) {
+                summaryEl.hidden = false;
+                summaryEl.classList.remove('is-stale');
+                summaryEl.innerHTML = (
+                    '<p class="publish-status-empty site-health-working-notice">' +
+                    'Check in progress — results appear when it finishes. Detail is in Activity.' +
+                    '</p>'
+                );
             }
+            findingsEl.innerHTML = '';
+            findingsEl.hidden = true;
             syncBreadcrumb();
             return;
         }

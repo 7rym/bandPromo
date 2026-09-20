@@ -2,6 +2,8 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-09-20 12:00 - Site health: hide Good/Bad/Ugly while a check is running; show a short working notice until the job finishes (results were looking finished mid-Full check).
+
 2026-09-20 11:55 - Fix `.btn-sm`: was 16px (larger than base `.btn` 13px); now 12px compact for dense toolbars / hub resume.
 
 2026-09-20 11:50 - Status layout audit: Proposed treatment Include checkboxes → Include: Yes|Skip toggles; System sub-tabs sticky with Status breadcrumb stack; review detail labels use trailing colons.

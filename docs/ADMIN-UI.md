@@ -14,7 +14,7 @@ For admin surfaces that sit under the main tab / Content sub-nav (especially Con
 |------|--------|
 | Pool / list | `{emoji} {Section} > Pool` |
 | Editor | `{emoji} {Section} > Editor` |
-| System Status | Default: `📊 Status` landing (Site health tool card). Open Site health → hub with Quick / Full / Force explanations + actions. A check advances to `… > Quick check` (or Full / Force rebuild) with Good/Bad/Ugly. **Review** → `… > Proposed treatment`. **Apply** → `… > Treatment result` (live while running; Summary + Continue when done). Post–Site update / stale auto-start opens Quick check directly. Intermediate crumbs step back. Activity stays visible with a plain **Activity** heading. |
+| System Status | Default: `📊 Status` landing (Site health tool card). Open Site health → hub with Quick / Full / Force explanations + actions. While a check runs, show a short working notice (not Good/Bad/Ugly). When finished, exam shows Good/Bad/Ugly. **Review** → `… > Proposed treatment`. **Apply** → `… > Treatment result` (live while running; Summary + Continue when done). Post–Site update / stale auto-start opens Quick check directly. Intermediate crumbs step back. Activity stays visible with a plain **Activity** heading. |
 
 ### Breadcrumb line layout
 
@@ -120,8 +120,8 @@ Legacy standalone `.btn-primary` (without `.btn`) remains for older markup; new 
 On **System → Status**:
 
 0. **Status** landing → enter **Site health** (only Status tool for now).  
-1. **Site health** hub → each guide panel is headed by its action button (Quick / Full / Force); **Quick health check** is the single green recommended step; Full and Force stay grey. No duplicate toolbar under the panels.  
-2. After a check with findings → **Review treatment** becomes the single green step; Quick/Full/Force stay grey.  
+1. **Site health** hub → each guide panel is headed by its action button (Quick / Full / Force); **Quick health check** is the single green recommended step; Full and Force stay grey. No duplicate toolbar under the panels. While Check / Force / Treat is running, hide Good/Bad/Ugly and show a short working notice; Activity carries progress.  
+2. After a finished check with findings → **Review treatment** becomes the single green step; Quick/Full/Force stay grey.  
 3. Review open → auto-fixable findings are **ticked by default** (Apply only those selected); **Apply treatment** (green) + **Not now** + **Back up first…** sit under the panel. Amber assurance carries the how-to line; the grey note under it is backup-only (no duplicate guidance). Multi-campaign orphan homes and data-container orphans stay Manual: each row shows a choice strip (campaign chips, or a dropdown when there are more than five). The selected chip keeps a clear green border; peers stay muted. Container rows end with **or Delete** in the same strip (no separate Adopt/Set row buttons). Once every row has a choice, the finding’s **Include** checkbox enables (same greenlit pattern as autofix); Apply runs the chosen adopts / deletes / catalogue-home stamps, then any ticked autofix treatments. Manual findings omit the “Suggested treatment” footer (Found this + choices are enough). Row cards use hairline separators only — not amber-nested. Ephemeral `data/` leftovers and unambiguous container registry fixes stay ticked for Apply.  
 4. Checks older than **1 hour** are out of date: do not show Healthy or Good/Bad/Ugly from that plan — badge is **Out of date**, summary is replaced with a short notice, and Status **auto-starts Quick health check** (opens the exam directly). Review/Apply stay refused until the fresh check finishes.  
 5. After **Site update**, Status also auto-starts Quick health check directly (skips the Status / Site health hubs). Stale auto-start runs only from the **Status** landing — not while the operator is on the Site health hub choosing Full/Force, and never as a banner over an already-running job.  
