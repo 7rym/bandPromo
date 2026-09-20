@@ -1129,7 +1129,7 @@
                 emptyLabel: 'No logo selected',
                 accept: ['image'],
                 clearable: false,
-                pickerTargets: 'special',
+                pickerTargets: 'visual',
                 pickerTitle: 'Choose logo',
                 note: 'Shown on login and in the player header.',
             },
@@ -1139,7 +1139,7 @@
                 emptyLabel: 'No poster selected',
                 accept: ['image'],
                 clearable: false,
-                pickerTargets: 'special',
+                pickerTargets: 'visual',
                 pickerTitle: 'Choose poster / share cover',
                 note: 'Share cards and shell presentation cover.',
             },
@@ -1149,7 +1149,7 @@
                 emptyLabel: 'No still background',
                 accept: ['image'],
                 clearable: true,
-                pickerTargets: 'special',
+                pickerTargets: 'visual',
                 pickerTitle: 'Choose still background',
                 note: 'Still backdrop on login and player.',
             },
@@ -1159,7 +1159,7 @@
                 emptyLabel: 'No living background',
                 accept: ['video'],
                 clearable: true,
-                pickerTargets: 'special',
+                pickerTargets: 'visual',
                 pickerTitle: 'Choose living background',
                 note: 'Video backdrop (falls back to still when needed).',
             },
@@ -1262,7 +1262,7 @@
 
             const slotHint = locked
                 ? 'bandPromo Default is locked — shell media cannot be changed here.'
-                : 'Click ✎ on a slot to choose compatible media already curated under Files → Brand assets.';
+                : 'Click ✎ on a slot to choose from Files → Visual or Sound effects. Picked files join this brand’s library automatically.';
 
             return renderEditorSection('Media', `
                     <p class="brand-field-hint">${slotHint}</p>

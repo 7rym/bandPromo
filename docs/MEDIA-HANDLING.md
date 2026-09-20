@@ -118,7 +118,7 @@ The intended product concepts are expressed as **explicit role tags** on registr
 
 **Brand container** holds tokens (colours, typography), narrative fields, and `asset_id` refs into the Visual pool — it does not replace per-release covers.
 
-Storage folders do not match these roles. The admin UI, validation rules, and build logic use registry identity and explicit references, not folder tabs. **Shipped operator surface:** Files → Audio (catalogue music), Files → Visual (global image/video warehouse), Files → **Sound effects** (global brand UI audio warehouse), and Files → Brand assets (the selected Brand's curated Visual + SFX library).
+Storage folders do not match these roles. The admin UI, validation rules, and build logic use registry identity and explicit references, not folder tabs. **Shipped operator surface:** Files → Audio (catalogue music), Files → Visual (global image/video warehouse), Files → **Sound effects** (global brand UI audio). Brand library membership is curated via **Use in brand** / Branding slots (`library_asset_ids`), not a fourth Files tab.
 
 ### Current exposed model vs prepared internal model
 
@@ -138,7 +138,7 @@ The practical distinction is:
 - prepared / planned: hard content-pool scoping
 - do **not** plan “many releases share one era brand” as peer Releases — use playlists under one Release
 
-Legacy **`media/special/`** may still exist on disk for migration lookup. Files → **Brand assets** is a **filter/role** on Visual (and Brand-tab audio → Sound effects), not a product intake tree.
+Legacy **`media/special/`** may still exist on disk for migration lookup. Brand-library membership is a filter on Visual / Sound effects (and Branding), not a product intake tree.
 
 ## Inheritance model
 

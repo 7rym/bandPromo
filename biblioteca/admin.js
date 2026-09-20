@@ -641,14 +641,14 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
     const STORAGE_KEY = 'bandpromo_admin_nav_memory';
     const SUBTAB_KEYS = {
         analytics: { key: 'atab', allowed: ['dashboard', 'tracks', 'user-activities', 'listening-patterns', 'log'] },
-        files: { key: 'fpanel', allowed: ['audio', 'visual', 'sfx', 'special'] },
+        files: { key: 'fpanel', allowed: ['audio', 'visual', 'sfx'] },
         content: { key: 'cntab', allowed: ['campaign', 'playlist', 'gallery', 'pages', 'branding'] },
         settings: { key: 'ctab', allowed: ['basics', 'support', 'sharing'] },
         system: { key: 'stab', allowed: ['deliverables', 'audit', 'backup', 'security'] },
         docs: { key: 'doc_scope', allowed: ['operator', 'developer', 'all'] },
     };
     const SUBTAB_ALIASES = {
-        fpanel: { photos: 'visual', video: 'visual', illustrations: 'visual' },
+        fpanel: { photos: 'visual', video: 'visual', illustrations: 'visual', special: 'visual' },
         cntab: { bio: 'pages', player: 'campaign' },
         stab: { publish: 'deliverables', status: 'deliverables', activity: 'backup' },
         atab: { quality: 'dashboard' },
@@ -818,7 +818,10 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
             const VISUAL_INTAKE_BUCKETS = ['illustrations', 'photos', 'video'];
             function normalizeFilesPanel(panel) {
                 const value = String(panel || '').trim();
-                return VISUAL_INTAKE_BUCKETS.includes(value) ? 'visual' : (value || 'audio');
+                if (VISUAL_INTAKE_BUCKETS.includes(value) || value === 'special') {
+                    return 'visual';
+                }
+                return value || 'audio';
             }
             window.activeMediaPanel = normalizeFilesPanel(adminActivePanel);
             function isDeliverablesViewActive() {
@@ -2440,6 +2443,23 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                         filtered = filtered.filter((file) => poolAssetKind(type, file) === typeFilter);
                     }
                 }
+                if (type === 'visual') {
+                    const brand = normalizePoolBrandFilter(poolBrandFilter);
+                    if (brand === 'orphans') {
+                        filtered = filtered.filter((file) => {
+                            if (file?.brand_orphan === true) {
+                                return true;
+                            }
+                            const ids = Array.isArray(file?.brand_ids) ? file.brand_ids : [];
+                            return ids.length === 0;
+                        });
+                    } else if (brand !== 'all') {
+                        filtered = filtered.filter((file) => {
+                            const ids = Array.isArray(file?.brand_ids) ? file.brand_ids : [];
+                            return ids.map((id) => String(id || '')).includes(brand);
+                        });
+                    }
+                }
                 filtered = filtered.filter((file) => matchesMediaNameFilter(type, file));
                 return filtered;
             }
@@ -2491,7 +2511,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
             function brandFilterOptionsHtml() {
                 const options = [
                     '<option value="all">All brands</option>',
-                    '<option value="orphans">Orphans</option>',
+                    '<option value="orphans">Not in a brand</option>',
                 ];
                 const brands = Array.isArray(brandFilterCatalog) ? brandFilterCatalog.slice() : [];
                 brands.sort((left, right) => String(left?.title || left?.name || left?.id || '').localeCompare(
@@ -2540,14 +2560,27 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
             }
 
             function syncBrandLibraryAddExistingUi() {
-                const button = document.getElementById('brandLibraryAddExistingBtn');
-                if (!button) {
-                    return;
-                }
+                // Brand assets tab retired — Add existing replaced by Use in brand.
+                syncUseInBrandToolbarUi();
+            }
+
+            function concreteBrandFilterSelected() {
                 const brandId = normalizePoolBrandFilter(poolBrandFilter);
-                const enabled = brandId !== 'all' && brandId !== 'orphans';
-                button.hidden = !enabled;
-                button.disabled = !enabled;
+                return brandId !== 'all' && brandId !== 'orphans' ? brandId : '';
+            }
+
+            function syncUseInBrandToolbarUi() {
+                const brandId = concreteBrandFilterSelected();
+                ['visual', 'sfx'].forEach((target) => {
+                    const removeBtn = document.querySelector(`[data-remove-from-brand-target="${target}"]`);
+                    if (!removeBtn) {
+                        return;
+                    }
+                    removeBtn.hidden = !brandId;
+                    if (!brandId) {
+                        removeBtn.disabled = true;
+                    }
+                });
             }
 
             function setPoolBrandFilter(nextValue) {
@@ -2555,9 +2588,13 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 // Keep legacy per-panel map in sync for any remaining callers.
                 poolBrandFilters.special = poolBrandFilter;
                 poolBrandFilters.sfx = poolBrandFilter;
+                poolBrandFilters.visual = poolBrandFilter;
                 syncBrandFilterUi();
-                if (activeMediaPanel === 'special' || activeMediaPanel === 'sfx') {
-                    loadMediaList(activeMediaPanel);
+                if (activeMediaPanel === 'sfx') {
+                    loadMediaList('sfx');
+                } else if (activeMediaPanel === 'visual') {
+                    // Visual brand filter is client-side over the loaded warehouse list.
+                    loadMediaList('visual');
                 }
             }
 
@@ -3418,7 +3455,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     }
                 }
                 const match = targets.find((target) => raw.startsWith(getMediaBasePath(target) + '/'));
-                return match || targets[0] || 'special';
+                return match || targets[0] || 'visual';
             }
 
             function updatePickerFieldLabel(fieldId) {
@@ -4144,6 +4181,28 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     }
                 }
 
+                if (type === 'visual' || type === 'sfx') {
+                    const selectedDetails = getSelectedMediaDetails(type);
+                    const useBtn = document.querySelector(`[data-use-in-brand-target="${type}"]`);
+                    const removeBrandBtn = document.querySelector(`[data-remove-from-brand-target="${type}"]`);
+                    const brandId = concreteBrandFilterSelected();
+                    if (useBtn) {
+                        useBtn.disabled = selectedDetails.length < 1;
+                        useBtn.title = selectedDetails.length < 1
+                            ? 'Select one or more files to add to a brand'
+                            : 'Add selected files to a brand library';
+                    }
+                    if (removeBrandBtn) {
+                        removeBrandBtn.hidden = !brandId;
+                        removeBrandBtn.disabled = !brandId || selectedDetails.length < 1;
+                        removeBrandBtn.title = !brandId
+                            ? 'Filter by one brand to remove files from its library'
+                            : (selectedDetails.length < 1
+                                ? 'Select files to remove from this brand library'
+                                : 'Remove selected files from this brand library');
+                    }
+                }
+
                 const selectedDetails = getSelectedMediaDetails(type);
                 document.querySelectorAll(`[data-bulk-download-target="${type}"]`).forEach((button) => {
                     const variant = resolveBulkDownloadVariant(type, String(button.dataset.downloadVariant || 'original').trim());
@@ -4635,8 +4694,8 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
             }
 
             async function changeBrandLibraryMembership(action, assetIdOrIds, options = {}) {
-                const brandId = normalizePoolBrandFilter(poolBrandFilter);
-                if (brandId === 'all' || brandId === 'orphans') {
+                const brandId = normalizePoolBrandFilter(options.brandId || poolBrandFilter);
+                if (brandId === 'all' || brandId === 'orphans' || brandId === '') {
                     throw new Error('Select one Brand before changing library membership.');
                 }
                 const assetIds = (Array.isArray(assetIdOrIds) ? assetIdOrIds : [assetIdOrIds])
@@ -4663,24 +4722,34 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 if (options.refresh !== false) {
                     mediaFilesState.delete('special');
                     mediaFilesState.delete('sfx');
-                    if (activeMediaPanel === 'sfx') {
-                        await loadMediaList('sfx');
-                    } else {
-                        await loadMediaList('special');
+                    mediaFilesState.delete('visual');
+                    if (activeMediaPanel === 'sfx' || activeMediaPanel === 'visual') {
+                        await loadMediaList(activeMediaPanel);
+                    } else if (activeMediaPanel === 'special') {
+                        await loadMediaList('visual');
                     }
                 }
                 if (options.notify !== false) {
                     const count = assetIds.length;
+                    const brandTitle = brandTitleForId(brandId);
                     if (action === 'add') {
                         showAdminToast(count === 1
-                            ? 'Asset added to the Brand library.'
-                            : `${count} assets added to the Brand library.`);
+                            ? `Added to brand “${brandTitle}”.`
+                            : `${count} files added to brand “${brandTitle}”.`);
                     } else {
                         showAdminToast(count === 1
-                            ? 'Asset removed from the Brand library.'
-                            : `${count} assets removed from the Brand library.`);
+                            ? `Removed from brand “${brandTitle}”.`
+                            : `${count} files removed from brand “${brandTitle}”.`);
                     }
                 }
+                return data;
+            }
+
+            function brandTitleForId(brandId) {
+                const id = String(brandId || '').trim();
+                const entry = (brandFilterCatalog || []).find((row) => String(row?.id || '') === id);
+                const title = String(entry?.title || entry?.name || '').trim();
+                return title || id;
             }
 
             function currentBrandLibraryAssetIdSet() {
@@ -5739,9 +5808,8 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
             }
 
             window.openUploadModal = async function(type) {
-                if (type === 'special' && ['all', 'orphans'].includes(normalizePoolBrandFilter(poolBrandFilter))) {
-                    showAdminToast('Select one Brand before uploading Brand assets.', 'error');
-                    return;
+                if (type === 'special') {
+                    type = 'visual';
                 }
                 modalTarget = type;
                 const labels = {
@@ -5750,7 +5818,6 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     visual: 'Add Visual Files',
                     illustrations: 'Add Illustrations',
                     photos: 'Add Photos',
-                    special: 'Add Brand Assets',
                     sfx: 'Add Sound Effects',
                 };
                 if (modalTitle)  modalTitle.textContent = labels[type] || 'Add Files';
@@ -5961,18 +6028,26 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
             }
 
             function normalizeMediaPickerTargets(targets) {
-                const allowedTargets = Array.isArray(targets) ? targets.filter(Boolean) : [];
-                const visualHits = allowedTargets.filter((target) => VISUAL_INTAKE_BUCKETS.includes(target));
-                const otherHits = allowedTargets.filter((target) => !VISUAL_INTAKE_BUCKETS.includes(target));
+                const allowedTargets = (Array.isArray(targets) ? targets.filter(Boolean) : [])
+                    .map((target) => (target === 'special' ? 'visual' : target));
+                const visualHits = allowedTargets.filter((target) => (
+                    VISUAL_INTAKE_BUCKETS.includes(target) || target === 'visual'
+                ));
+                const otherHits = allowedTargets.filter((target) => (
+                    !VISUAL_INTAKE_BUCKETS.includes(target) && target !== 'visual'
+                ));
                 if (!visualHits.length) {
                     return {
-                        targets: allowedTargets.length ? allowedTargets : ['special'],
+                        targets: allowedTargets.length ? [...new Set(allowedTargets)] : ['visual'],
                         visualBuckets: null,
                     };
                 }
                 return {
                     targets: ['visual', ...otherHits],
-                    visualBuckets: visualHits,
+                    visualBuckets: (() => {
+                        const buckets = visualHits.filter((target) => target !== 'visual');
+                        return buckets.length ? buckets : null;
+                    })(),
                 };
             }
 
@@ -7941,6 +8016,130 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     });
                 });
             }
+
+            let useInBrandTarget = 'visual';
+
+            function closeUseInBrandModal() {
+                const modal = document.getElementById('useInBrandModal');
+                if (!modal) {
+                    return;
+                }
+                modal.style.display = 'none';
+                modal.setAttribute('aria-hidden', 'true');
+            }
+
+            window.closeUseInBrandModal = closeUseInBrandModal;
+
+            async function openUseInBrandModal(target) {
+                useInBrandTarget = target === 'sfx' ? 'sfx' : 'visual';
+                const selected = getSelectedMediaDetails(useInBrandTarget);
+                const assetIds = selected
+                    .map((file) => String(file?.asset_id || '').trim())
+                    .filter(Boolean);
+                if (!assetIds.length) {
+                    showAdminToast('Select one or more files first.', 'error');
+                    return;
+                }
+                await ensureBrandFilterCatalog();
+                const brands = (brandFilterCatalog || []).filter((entry) => String(entry?.id || '').trim() !== '');
+                if (!brands.length) {
+                    showAdminToast('No brands available. Create one under Content → Branding.', 'error');
+                    return;
+                }
+
+                const modal = document.getElementById('useInBrandModal');
+                const summaryEl = document.getElementById('useInBrandSummary');
+                const selectEl = document.getElementById('useInBrandSelect');
+                const confirmBtn = document.getElementById('useInBrandConfirmBtn');
+                if (!modal || !summaryEl || !selectEl || !confirmBtn) {
+                    showAdminToast('Use in brand dialog is missing. Reload the page.', 'error');
+                    return;
+                }
+
+                const kindLabel = useInBrandTarget === 'sfx' ? 'sound effect' : 'visual';
+                summaryEl.textContent = `Selected: ${assetIds.length} ${kindLabel}${assetIds.length === 1 ? '' : 's'}. Choose the brand library to add them to.`;
+
+                selectEl.innerHTML = brands.map((entry) => {
+                    const id = String(entry?.id || '').trim();
+                    const title = String(entry?.title || entry?.name || id).trim() || id;
+                    return `<option value="${bandpromoAdminEscapeHtml(id)}">${bandpromoAdminEscapeHtml(title)}</option>`;
+                }).join('');
+
+                const filter = concreteBrandFilterSelected();
+                if (filter) {
+                    selectEl.value = filter;
+                }
+                if (!selectEl.value && selectEl.options.length) {
+                    selectEl.selectedIndex = 0;
+                }
+
+                confirmBtn.onclick = () => {
+                    const brandId = String(selectEl.value || '').trim();
+                    if (!brandId) {
+                        showAdminToast('Choose a brand.', 'error');
+                        return;
+                    }
+                    confirmBtn.disabled = true;
+                    changeBrandLibraryMembership('add', assetIds, { brandId, refresh: true })
+                        .then(() => {
+                            closeUseInBrandModal();
+                            clearMediaSelection(useInBrandTarget);
+                        })
+                        .catch((error) => {
+                            showAdminToast(error.message || 'Could not add to brand.', 'error');
+                        })
+                        .finally(() => {
+                            confirmBtn.disabled = false;
+                        });
+                };
+
+                modal.style.display = 'flex';
+                modal.setAttribute('aria-hidden', 'false');
+                selectEl.focus();
+            }
+
+            async function removeSelectedFromBrandLibrary(target) {
+                const panel = target === 'sfx' ? 'sfx' : 'visual';
+                const brandId = concreteBrandFilterSelected();
+                if (!brandId) {
+                    showAdminToast('Filter by one brand first, then select files to remove.', 'error');
+                    return;
+                }
+                const selected = getSelectedMediaDetails(panel);
+                const removable = selected.filter((file) => file?.brand_slot_assigned !== true);
+                const assetIds = removable
+                    .map((file) => String(file?.asset_id || '').trim())
+                    .filter(Boolean);
+                if (!assetIds.length) {
+                    const slotted = selected.some((file) => file?.brand_slot_assigned === true);
+                    showAdminToast(
+                        slotted
+                            ? 'Those files are assigned to a shell slot. Clear the slot in Branding first.'
+                            : 'Select files that belong to this brand library.',
+                        'error'
+                    );
+                    return;
+                }
+                await changeBrandLibraryMembership('remove', assetIds, { brandId, refresh: true });
+                clearMediaSelection(panel);
+            }
+
+            document.querySelectorAll('[data-use-in-brand-target]').forEach((button) => {
+                button.addEventListener('click', () => {
+                    const target = String(button.getAttribute('data-use-in-brand-target') || 'visual');
+                    openUseInBrandModal(target).catch((error) => {
+                        showAdminToast(error.message || 'Could not open Use in brand.', 'error');
+                    });
+                });
+            });
+            document.querySelectorAll('[data-remove-from-brand-target]').forEach((button) => {
+                button.addEventListener('click', () => {
+                    const target = String(button.getAttribute('data-remove-from-brand-target') || 'visual');
+                    removeSelectedFromBrandLibrary(target).catch((error) => {
+                        showAdminToast(error.message || 'Could not remove from brand.', 'error');
+                    });
+                });
+            });
 
             document.querySelectorAll('[data-bulk-download-target]').forEach((button) => {
                 const target = String(button.dataset.bulkDownloadTarget || '').trim();

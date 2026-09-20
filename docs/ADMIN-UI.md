@@ -176,17 +176,19 @@ Shares Content/Visual chrome without the pool → preview layout:
 
 Edits stay local until close. Validation or save errors keep the modal open.
 
-## Visual / Brand assets lists (Files → Visual, Brand assets)
+## Visual / Sound effects lists (Files → Visual, Sound effects)
 
-Same operator patterns as Audio, plus Grid/List:
+Same operator patterns as Audio, plus Grid/List on Visual:
 
 | Pattern | Behavior |
 |---------|----------|
-| Toolbar | Shared `.audio-pool-toolbar` density; type chips (Visual: All + Images/Video icons; Brand assets: All + Still/Living/Sound-effects icons) + catalogue/brand filter (**All campaigns** / **All brands** / **Orphans**) + title search + Grid/List. Brand assets **Orphans** is brand-eligible non-members only (shell roles, special/SFX intake, brand provenance) — not every Visual track cover. Brand assets **Add existing** is hidden until a Brand is selected. The Add-existing picker has its own **Campaign** filter on Visual and **Brand** filter on Sound effects (not the Files toolbar). List view adds an **S / M / L** thumbnail-size toggle (70 / 100 / 125 px; default M). Preference is stored in `localStorage` (`bandpromo_pool_thumb_size`). List rows keep title, In use/Unused, and row actions on one line. |
-| Selection | All/None `.audio-select-chip` in `.visual-pool-col-headers` (not a toolbar checkbox); checkbox click updates selection on Visual, Brand assets, and Sound effects pools |
-| List mode | Title / Catalogue\|Brand\|Warehouse / Dimensions / Size. Visual **Catalogue** is the asset’s catalogue home (Campaign). Brand-library members with no home list that Brand, not Orphan. The In use / Unused pill is live assignment (track cover, gallery, page, poster, or brand shell slot), not Catalogue. Usage identity is the Visual `ast_*` id after resolving stored refs; titles and filename stems never match. Toolbar **Assign** / **Remove** set or clear catalogue home. Brand assets Warehouse is Visual or Sound effects (the global pool the file lives in), not Brand membership — library members are never listed as Orphan. Dimensions are the master pixel size; audio Brand-asset rows put Listen in that column. Preview pane uses Visual `card`/`thumb` (or video poster/stream / SFX play URL). Brand-asset modal footer is Download + Remove (membership), not permanent Delete. |
+| Toolbar | Shared `.audio-pool-toolbar` density; Visual: type chips + **campaign** filter + **brand library** filter (**All brands** / **Not in a brand** / each brand) + title search + Grid/List + S/M/L thumbs. Sound effects: brand filter + title search. **Use in brand** adds selected Visual/SFX to a brand library; **From brand** appears when a concrete brand filter is set. Visual **Assign** / **Remove** still set or clear catalogue home. |
+| Selection | All/None `.audio-select-chip` in `.visual-pool-col-headers`; checkbox click updates selection |
+| List mode | Title / Catalogue\|Brand / Dimensions / Size. Visual **Catalogue** is campaign home. Brand-library members with no home list that Brand, not Orphan. In use / Unused is live assignment (cover, gallery, page, poster, or brand shell slot). |
 | Grid mode | Thumbnails + caption under each card; column labels hidden, All/None kept |
-| Search | “Filter by title…” (same haystack: display title, operator title, references) |
+| Search | “Filter by title…” |
+
+The Files → Brand assets tab is retired (`fpanel=special` → Visual). Branding shell pickers browse Visual / Sound effects.
 
 ## Markdown help (prose textareas)
 

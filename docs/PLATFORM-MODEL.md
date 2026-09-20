@@ -163,7 +163,7 @@ Worked examples: [USE-CASES.md](USE-CASES.md).
 |-------|------|
 | Install **base** brand (`install.pointers.active_brand_id` / legacy `active_theme_id`) | Login chrome; shell media paths synced into `web-config.json`; fallback when a playlist’s owning release has no valid `brand_id`. Operator UI label: **Base** (storage key unchanged). |
 | Release brand (`release.brand_id`) | Player **CSS tokens** for playlists owned by that release (`playlist.campaign_id` → release brand). Tracks do not carry player brand. |
-| Demo `bandpromo-default` / demo brand | Seeded from **`bandPromo-demo.pcf`** as install **base shell**; locked after import (localhost may edit for PCF authoring). Fresh installs keep this as Base until the operator **duplicates** it in Branding — setup does not auto-create “Your own brand”. Demo shell media under Files → Brand assets / Sound effects stays listable while Base (or another non-demo brand) references it; otherwise hides with **Hide bandPromo demo campaign**. |
+| Demo `bandpromo-default` / demo brand | Seeded from **`bandPromo-demo.pcf`** as install **base shell**; locked after import (localhost may edit for PCF authoring). Fresh installs keep this as Base until the operator **duplicates** it in Branding — setup does not auto-create “Your own brand”. Demo Brand shell media under Files → Visual / Sound effects stays listable while Base (or another non-demo brand) references it; otherwise hides with **Hide bandPromo demo campaign**. |
 
 Selecting a **campaign** (and its playlist) applies that campaign’s **CSS tokens and visual shell** (logo, still/living backgrounds). It does **not** rewrite the base brand or `web-config.json` unless the operator changes Base. Welcome/Logged-in SFX stay on the base brand (login).
 
@@ -412,7 +412,7 @@ Media pickers declare a **context**; the backend returns assets from the Visual 
 | Shell background video | `media_type=video`, `brand_id` match, role `shell-background-image` or `shell-background-video` |
 | Share / poster source | `media_type=image`, large enough for share variant |
 
-Admin **Files → Visual** exposes the image+video pool with type/usage/brand filters. **Files → Sound effects** holds brand UI audio (`role: sfx`); Branding slots pick any clip. **Files → Brand assets** remains a legacy tab for `media/special/` visuals until the Brand-assets fold (shell audio belongs in Sound effects).
+Admin **Files → Visual** exposes the image+video pool with type/usage filters, campaign home, brand-library filter, and **Use in brand**. **Files → Sound effects** holds brand UI audio (`role: sfx`) with the same brand filter / Use in brand. Branding shell slots pick from Visual or Sound effects (picked assets join `library_asset_ids`). The Files → Brand assets tab is retired (`fpanel=special` → Visual).
 
 `media/special/` and direct config paths migrate into the Visual pool as brand-scoped assets during v0.8; until then they remain a legacy workaround that bypasses the JPEG optimizer.
 

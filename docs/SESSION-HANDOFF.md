@@ -2,18 +2,19 @@
 
 ## Resume point
 
-**PBF download names use brand title** — not opaque `brd_*` ids.
+**Files → Brand assets tab retired** — Audio | Visual | SFX only. Use in brand shipped on Visual/SFX.
 
-### Clarified (operator model)
+### Shipped this session
 
-- Brands are **shared**: many campaigns may link one brand. `brand.campaign_id` is optional **first-claim provenance**, not exclusive ownership.
-- Local **HITZ by 7rym** stamps `twisted-chronicles` as that provenance; it is still free for other campaigns to use.
-- Storage ids stay internal; download filenames and pool labels should stay title-first.
+1. Remove Brand assets Files tab; `fpanel=special` → Visual.
+2. Visual: brand-library filter + **Use in brand** / **From brand**.
+3. SFX: **Use in brand** / **From brand** (brand filter already existed).
+4. Branding shell pickers → Visual / SFX (not Brand assets).
 
-### Next
+### Still open (later)
 
-1. Site update → re-export PBF; expect `bandPromo-brand-HITZ-by-7rym-….pbf`.
-2. Continue brand portability testing on HITZ.
+1. Pool verbs for gallery / playlist (same pattern as Use in brand).
+2. Optional: hide leftover `target=special` list-media paths entirely once no callers remain.
 
 ### Local workspace
 
