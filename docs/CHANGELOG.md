@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-09-20 23:50 - Registered canonical admin date look (Captured exemplar): left calendar, padding clearance, compact ISO width. Shared `.date-input-shell` styles, ADMIN-UI, and `.cursor/rules/iso-date-fields.mdc`.
+
+2026-09-20 22:00 - Files → Visual / SFX: title moves to the breadcrumb tail; Captured uses the shared ISO date picker; Done is green beside Delete. ADMIN-UI: leave vocabulary (Done vs Close vs Save vs Back), date-field contract, and modal colour rules clarified.
+
+2026-09-20 21:50 - Files → Visual / SFX drilldown: save only when dirty (drop “Close to save”); aspect-aware preview for portrait/square/landscape; File chips vs Details form vs Links.
+
+2026-09-20 21:35 - Files → Visual / SFX drilldown: breadcrumb + inline title; chips replace Type/Usage/Alpha/Delivery duals; Keywords/Captured inline; Done grey beside Delete.
+
+2026-09-20 21:25 - Content split-editor: drop nested sticky on Available/Active titles (list rows were sliding under headers); reuse `rgba(15, 23, 42, 0.55)` on Content breadcrumb, Files pool sticky chrome, and Files modal headers.
+
+2026-09-20 21:00 - Files → Visual / SFX drilldown: align with Audio track editor (header title + status, save-on-close Done/✕, Abort, grey Download, ≤8px chrome).
+
 2026-09-20 20:55 - Files pool headers: overlay the two-line summary on the actions track so List sort columns stay aligned with row cells.
 
 2026-09-20 20:50 - Files pool summary: stack count and size on two lines (`122 files` / `702.2 MB total`) so sort labels keep their width.

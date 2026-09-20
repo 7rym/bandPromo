@@ -191,12 +191,18 @@
 }
 
 .content-editor-field--inline > input[type="text"],
-.content-editor-field--inline > select,
-.content-editor-field--inline > .date-input-shell {
+.content-editor-field--inline > select {
     flex: 1 1 auto;
     width: auto;
     min-width: 0;
     max-width: 28rem;
+}
+
+.content-editor-field--inline > .date-input-shell {
+    flex: 0 0 auto;
+    width: auto;
+    min-width: 0;
+    max-width: none;
 }
 
 .content-editor-field--stacked > textarea {
@@ -285,7 +291,9 @@
 }
 
 .playlist-base-info.content-editor-field-stack .content-editor-field--inline > .date-input-shell {
-    max-width: 16rem;
+    flex: 0 0 auto;
+    width: auto;
+    max-width: none;
 }
 
 .playlist-base-artwork {
@@ -1647,7 +1655,9 @@
 }
 
 .campaign-editor-form-row .date-input-shell {
-    width: min(100%, 16rem);
+    flex: 0 0 auto;
+    width: auto;
+    max-width: none;
 }
 
 .campaign-editor-form-row select {
@@ -1791,7 +1801,9 @@
 }
 
 .playlist-settings-field .date-input-shell {
-    width: 100%;
+    flex: 0 0 auto;
+    width: auto;
+    max-width: none;
 }
 
 .playlist-settings-field .date-input-shell input[type="date"] {

@@ -10,7 +10,7 @@
     let bound = false;
     let navDismissBound = false;
 
-    const CONFIRM_TONE_CLASSES = ['btn-primary', 'btn-danger', 'btn-good'];
+    const CONFIRM_TONE_CLASSES = ['btn-primary', 'btn-danger', 'btn-good', 'btn-amber'];
 
     function bindModal() {
         if (bound) {
@@ -94,6 +94,10 @@
             button.classList.add('btn-good');
             return;
         }
+        if (tone === 'warn' || tone === 'amber') {
+            button.classList.add('btn-amber');
+            return;
+        }
         if (tone === 'quiet') {
             // Neutral .btn only — optional / Status alternate paths (e.g. Force).
             return;
@@ -110,7 +114,7 @@
      * @param {string} [options.confirmLabel]
      * @param {string} [options.cancelLabel]
      * @param {boolean} [options.hideCancel]
-     * @param {'default'|'danger'|'good'|'quiet'} [options.tone]
+     * @param {'default'|'danger'|'good'|'quiet'|'warn'|'amber'} [options.tone]
      * @returns {Promise<boolean>}
      */
     function bandpromoConfirm(options) {
@@ -123,6 +127,7 @@
         const rawTone = String(opts.tone || 'default').trim().toLowerCase();
         const tone = (
             rawTone === 'danger' || rawTone === 'good' || rawTone === 'quiet'
+                || rawTone === 'warn' || rawTone === 'amber'
                 ? rawTone
                 : 'default'
         );

@@ -900,6 +900,9 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 }
             })();
             let activePoolAsset = { panel: null, key: null };
+            let poolAssetClosing = false;
+            let poolAssetBaseline = null;
+            let poolAssetCanEditDisplay = false;
             const mediaReferenceFilters = {
                 visual: 'all',
                 sfx: 'all',
@@ -3011,6 +3014,37 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 return formatMediaDimensionLabel(pair.width, pair.height);
             }
 
+            function poolAssetPreviewAspectClass(file) {
+                const pair = poolAssetDimensionPair(file);
+                const width = Number(pair.width) || 0;
+                const height = Number(pair.height) || 0;
+                if (width <= 0 || height <= 0) {
+                    return 'landscape';
+                }
+                const ratio = width / height;
+                if (ratio < 0.85) {
+                    return 'portrait';
+                }
+                if (ratio > 1.15) {
+                    return 'landscape';
+                }
+                return 'square';
+            }
+
+            function applyPoolAssetPreviewAspect(previewEl, file) {
+                if (!previewEl) {
+                    return;
+                }
+                const aspect = poolAssetPreviewAspectClass(file);
+                previewEl.dataset.previewAr = aspect;
+                previewEl.classList.remove(
+                    'visual-asset-modal-preview--portrait',
+                    'visual-asset-modal-preview--square',
+                    'visual-asset-modal-preview--landscape'
+                );
+                previewEl.classList.add('visual-asset-modal-preview--' + aspect);
+            }
+
             function audioFileForDisplay(file) {
                 if (!file || typeof file !== 'object') {
                     return file;
@@ -3787,13 +3821,33 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 return `${mins}:${String(secs).padStart(2, '0')}`;
             }
 
-            function showAdminToast(message, type = 'success') {
+            function showAdminToast(message, type = 'success', durationOrOptions) {
                 if (!toastHost) return;
 
                 const kind = String(type || 'success').trim().toLowerCase() || 'success';
                 const text = String(message || '').trim();
                 if (text === '') {
                     return;
+                }
+
+                let manualClose = false;
+                let durationSeconds = null;
+                if (typeof durationOrOptions === 'number' && Number.isFinite(durationOrOptions)) {
+                    durationSeconds = Math.max(0, durationOrOptions);
+                } else if (durationOrOptions && typeof durationOrOptions === 'object') {
+                    if (durationOrOptions.manualClose === true) {
+                        manualClose = true;
+                    }
+                    if (typeof durationOrOptions.durationSeconds === 'number'
+                        && Number.isFinite(durationOrOptions.durationSeconds)) {
+                        durationSeconds = Math.max(0, durationOrOptions.durationSeconds);
+                    }
+                }
+                if (manualClose) {
+                    durationSeconds = 0;
+                } else if (durationSeconds === null) {
+                    // Success/info auto-dismiss; errors and warnings stay until dismissed.
+                    durationSeconds = (kind === 'error' || kind === 'warning') ? 0 : 10;
                 }
 
                 const toast = document.createElement('div');
@@ -3805,7 +3859,12 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 messageEl.textContent = text;
                 toast.appendChild(messageEl);
 
+                let dismissTimer = null;
                 const dismissToast = () => {
+                    if (dismissTimer !== null) {
+                        window.clearTimeout(dismissTimer);
+                        dismissTimer = null;
+                    }
                     toast.style.opacity = '0';
                     toast.style.transform = 'translateY(-4px)';
                     toast.style.transition = 'opacity 150ms ease, transform 150ms ease';
@@ -3823,6 +3882,10 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 toast.appendChild(dismissBtn);
 
                 toastHost.appendChild(toast);
+
+                if (durationSeconds > 0) {
+                    dismissTimer = window.setTimeout(dismissToast, durationSeconds * 1000);
+                }
             }
             window.bandpromoShowAdminToast = showAdminToast;
 
@@ -4742,7 +4805,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                         ? `<span class="media-file-col media-file-col-dims visual-pool-card-dims visual-pool-card-dims--listen">${listenBtn || '—'}</span>`
                         : `<span class="media-file-col media-file-col-dims visual-pool-card-dims" title="${bandpromoAdminEscapeHtml(dimsLabel)}">${bandpromoAdminEscapeHtml(dimsLabel)}</span>`);
                 const detailsBtn = `<button type="button" class="icon-btn media-action-btn media-action-good" title="Open details" onclick="event.stopPropagation(); openPoolAssetModal('${panelType}', '${safeKey}')">✎</button>`;
-                const deleteBtn = `<button type="button" class="icon-btn media-action-btn media-action-danger" title="Delete" onclick="event.stopPropagation(); openDeleteModal('${panelType}', '${safeKey}')">🗑️</button>`;
+                const deleteBtn = `<button type="button" class="icon-btn media-action-btn media-action-good" title="Delete" onclick="event.stopPropagation(); openDeleteModal('${panelType}', '${safeKey}')">🗑️</button>`;
                 const videoPlayOverlay = kind === 'video'
                     ? '<span class="visual-pool-card-play" aria-hidden="true">▶</span>'
                     : '';
@@ -4766,7 +4829,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                         <div class="visual-pool-card-actions media-file-actions">
                             ${listenBtn}
                             ${detailsBtn}
-                            <button type="button" class="icon-btn media-action-btn" title="Download" onclick="event.stopPropagation(); submitMediaDownloadRequest('${pathType}', 'original', ['${String(file.name).replace(/\\/g, '\\\\').replace(/'/g, "\\'")}'])">⬇</button>
+                            <button type="button" class="icon-btn media-action-btn media-action-good" title="Download" onclick="event.stopPropagation(); submitMediaDownloadRequest('${pathType}', 'original', ['${String(file.name).replace(/\\/g, '\\\\').replace(/'/g, "\\'")}'])">⬇</button>
                             ${deleteBtn}
                         </div>
                     </div>
@@ -4816,6 +4879,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 const modal = document.getElementById('poolAssetModal');
                 const previewEl = document.getElementById('poolAssetPreview');
                 const titleEl = document.getElementById('poolAssetTitle');
+                const titleInput = document.getElementById('poolAssetDisplayTitle');
                 const badgesEl = document.getElementById('poolAssetBadges');
                 const detailsEl = document.getElementById('poolAssetDetails');
                 const downloadBtn = document.getElementById('poolAssetDownloadBtn');
@@ -4829,18 +4893,54 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     panel: panelType,
                     key: mediaFileSelectionKey(panelType, file),
                 };
+                poolAssetClosing = false;
                 const pathType = resolveFileIntakeBucket(file, panelType) || (panelType === 'visual' ? 'illustrations' : panelType);
                 const kind = poolAssetKind(panelType, file);
-                const info = getFileReferenceInfo(file);
                 const referenceLines = poolAssetReferenceLines(file);
                 const typeLabel = poolAssetKindLabel(kind, panelType);
+                const headline = poolAssetHeadline(panelType, file);
+                const breadcrumbRoot = document.getElementById('poolAssetBreadcrumbRoot');
+                if (breadcrumbRoot) {
+                    breadcrumbRoot.textContent = panelType === 'sfx' ? '🔊 Sound effects' : '🎞️ Visual';
+                    breadcrumbRoot.title = panelType === 'sfx'
+                        ? 'Back to Sound effects pool'
+                        : 'Back to Visual pool';
+                }
 
-                titleEl.textContent = poolAssetHeadline(panelType, file);
-                badgesEl.innerHTML = [
+                titleEl.textContent = headline;
+                const dimsLabel = (kind === 'image' || kind === 'video')
+                    ? poolAssetMasterDimensions(file)
+                    : '';
+                const sizeLabel = fmtSize(Number(file.size) || 0);
+                const badgeParts = [
                     `<span class="badge audit-status-badge status-neutral media-file-badge">${typeLabel}</span>`,
-                    formatMediaReferenceBadges(panelType, file),
-                ].filter(Boolean).join(' ');
+                ];
+                if (sizeLabel) {
+                    badgeParts.push(`<span class="badge audit-status-badge status-neutral media-file-badge" title="File size">${bandpromoAdminEscapeHtml(sizeLabel)}</span>`);
+                }
+                if (dimsLabel) {
+                    badgeParts.push(`<span class="badge audit-status-badge status-neutral media-file-badge" title="Master dimensions">${bandpromoAdminEscapeHtml(dimsLabel)}</span>`);
+                }
+                if (kind === 'image' && file.has_alpha === true) {
+                    badgeParts.push('<span class="badge audit-status-badge status-neutral media-file-badge" title="Master has an alpha channel">Alpha</span>');
+                }
+                if (kind === 'video' && panelType === 'visual') {
+                    let deliveryChip = '';
+                    if (file.delivery_running) {
+                        deliveryChip = '<span class="badge audit-status-badge status-warning media-file-badge" title="Delivery still running">Preparing</span>';
+                    } else if (file.delivery_pending) {
+                        deliveryChip = '<span class="badge audit-status-badge status-warning media-file-badge" title="Queued for preparation">Queued</span>';
+                    } else if (!videoPreviewUrl(file) && !videoPosterUrl(file)) {
+                        deliveryChip = '<span class="badge audit-status-badge status-warning media-file-badge" title="Waiting for preparation">Waiting</span>';
+                    }
+                    if (deliveryChip) {
+                        badgeParts.push(deliveryChip);
+                    }
+                }
+                badgeParts.push(formatMediaReferenceBadges(panelType, file));
+                badgesEl.innerHTML = badgeParts.filter(Boolean).join(' ');
 
+                applyPoolAssetPreviewAspect(previewEl, file);
                 if (kind === 'video') {
                     const previewUrl = videoPreviewUrl(file);
                     const posterUrl = videoPosterUrl(file);
@@ -4862,6 +4962,9 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     }
                 } else if (kind === 'audio') {
                     previewEl.classList.remove('visual-asset-modal-preview--video');
+                    previewEl.dataset.previewAr = 'landscape';
+                    previewEl.classList.remove('visual-asset-modal-preview--portrait', 'visual-asset-modal-preview--square');
+                    previewEl.classList.add('visual-asset-modal-preview--landscape');
                     const listenUrl = sfxAdminListenUrl(file);
                     if (listenUrl) {
                         previewEl.innerHTML = `<div class="visual-pool-card-thumb-placeholder is-audio is-modal" title="Sound effect">♪</div><audio controls src="${bandpromoAdminEscapeHtml(listenUrl)}" preload="metadata"></audio>`;
@@ -4881,32 +4984,49 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     previewEl.innerHTML = `<span class="text-muted">No preview for this file type.</span>`;
                 }
 
-                const canEditDisplay = (panelType === 'visual' || panelType === 'sfx')
+                poolAssetCanEditDisplay = (panelType === 'visual' || panelType === 'sfx')
                     && String(file.asset_id || '').trim() !== '';
+                const dynamicSection = document.getElementById('poolAssetDynamicSection');
+                const crumbCurrent = document.getElementById('poolAssetBreadcrumbCurrent');
+                const crumbTitleSep = document.getElementById('poolAssetBreadcrumbTitleSep');
                 if (displayForm) {
-                    displayForm.hidden = !canEditDisplay;
-                    if (canEditDisplay) {
-                        fillPoolAssetDisplayForm(file);
+                    displayForm.hidden = !poolAssetCanEditDisplay;
+                }
+                if (dynamicSection) {
+                    dynamicSection.hidden = !poolAssetCanEditDisplay;
+                }
+                // Breadcrumb: Files > Visual|SFX > Editor > [title]
+                if (crumbCurrent) {
+                    crumbCurrent.hidden = false;
+                    crumbCurrent.textContent = 'Editor';
+                }
+                if (crumbTitleSep) {
+                    crumbTitleSep.hidden = false;
+                }
+                if (poolAssetCanEditDisplay) {
+                    fillPoolAssetDisplayForm(file);
+                    if (titleEl) {
+                        titleEl.hidden = true;
                     }
+                    if (titleInput) {
+                        titleInput.hidden = false;
+                    }
+                    poolAssetBaseline = readPoolAssetFormValues();
+                    setPoolAssetStatus('');
+                } else {
+                    if (titleEl) {
+                        titleEl.hidden = false;
+                    }
+                    if (titleInput) {
+                        titleInput.hidden = true;
+                        titleInput.value = '';
+                    }
+                    poolAssetBaseline = null;
+                    setPoolAssetStatus('');
                 }
 
-                const detailRows = [
-                    ['Type', typeLabel],
-                    ['Size', fmtSize(Number(file.size) || 0)],
-                ];
-                if (kind === 'image' || kind === 'video') {
-                    detailRows.push(['Dimensions', poolAssetMasterDimensions(file) || '—']);
-                }
-                if (kind === 'image') {
-                    let alphaLabel = '—';
-                    if (file.has_alpha === true) {
-                        alphaLabel = 'Yes';
-                    } else if (file.has_alpha === false) {
-                        alphaLabel = 'No';
-                    }
-                    detailRows.push(['Alpha', alphaLabel]);
-                }
-                detailRows.push(
+                const linkRows = [];
+                linkRows.push(
                     [panelType === 'sfx' ? 'Brand' : 'Catalogue',
                         panelType === 'sfx'
                             ? (file.brand_orphan === true || brandLibraryTitles(file).length === 0
@@ -4916,27 +5036,23 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                                 ? 'Orphan'
                                 : (visualCatalogueTitles(file).map((title) => bandpromoAdminEscapeHtml(title)).join('<br>') || 'Linked campaign'))],
                 );
-                detailRows.push(
-                    ['Usage', mediaFileIsInUse(file) ? 'In use' : 'Not referenced'],
-                );
-                if (String(file.operator_title || '').trim() !== '' && String(file.display_title || '') !== String(file.operator_title || '')) {
-                    detailRows.push(['Role address', String(file.operator_title)]);
-                }
-                if (kind === 'video' && panelType === 'visual') {
-                    let delivery = 'Ready';
-                    if (file.delivery_running) delivery = 'Preparing in background';
-                    else if (file.delivery_pending) delivery = 'Queued for preparation';
-                    else if (!videoPreviewUrl(file) && !videoPosterUrl(file)) delivery = 'Waiting for preparation';
-                    detailRows.push(['Delivery', delivery]);
+                const roleAddress = String(file.operator_title || '').trim();
+                const displayTitle = String(file.display_title || '').trim();
+                if (roleAddress !== '' && roleAddress.toLowerCase() !== 'unassigned' && roleAddress !== displayTitle) {
+                    linkRows.push(['Role address', roleAddress]);
                 }
                 if (referenceLines.length) {
-                    detailRows.push(['References', referenceLines.join('<br>')]);
+                    linkRows.push(['References', referenceLines.join('<br>')]);
                 }
 
-                detailsEl.innerHTML = detailRows.map(([label, value]) => {
+                const linksSection = document.getElementById('poolAssetLinksSection');
+                detailsEl.innerHTML = linkRows.map(([label, value]) => {
                     const isHtml = label === 'References' || label === 'Catalogue' || label === 'Brand';
                     return `<dt>${bandpromoAdminEscapeHtml(label)}</dt><dd>${isHtml ? value : bandpromoAdminEscapeHtml(String(value))}</dd>`;
                 }).join('');
+                if (linksSection) {
+                    linksSection.hidden = linkRows.length === 0;
+                }
 
                 if (downloadBtn) {
                     downloadBtn.onclick = () => {
@@ -4949,12 +5065,65 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     deleteBtn.disabled = false;
                     deleteBtn.title = 'Delete this file';
                     deleteBtn.onclick = () => {
-                        closePoolAssetModal();
-                        openDeleteModal(panelType, selectionKey);
+                        void closePoolAssetModal({ discard: true }).then(() => {
+                            openDeleteModal(panelType, selectionKey);
+                        });
                     };
                 }
 
                 modal.style.display = 'flex';
+            }
+
+            function readPoolAssetFormValues() {
+                const rawCaptured = String(document.getElementById('poolAssetDisplayCapturedAt')?.value || '').trim();
+                const capturedAt = (typeof window.bandpromoNormalizeIsoDateInput === 'function')
+                    ? (window.bandpromoNormalizeIsoDateInput(rawCaptured) || rawCaptured)
+                    : rawCaptured;
+                return {
+                    title: String(document.getElementById('poolAssetDisplayTitle')?.value || '').trim(),
+                    description: String(document.getElementById('poolAssetDisplayDescription')?.value || '').trim(),
+                    keywords: String(document.getElementById('poolAssetDisplayKeywords')?.value || '').trim(),
+                    captured_at: capturedAt,
+                };
+            }
+
+            function poolAssetFormIsDirty() {
+                if (!poolAssetCanEditDisplay || !poolAssetBaseline) {
+                    return false;
+                }
+                const current = readPoolAssetFormValues();
+                return current.title !== poolAssetBaseline.title
+                    || current.description !== poolAssetBaseline.description
+                    || current.keywords !== poolAssetBaseline.keywords
+                    || current.captured_at !== poolAssetBaseline.captured_at;
+            }
+
+            function setPoolAssetStatus(message, kind) {
+                const statusEl = document.getElementById('poolAssetDisplayStatus');
+                if (!statusEl) {
+                    return;
+                }
+                const text = String(message || '').trim();
+                statusEl.classList.remove('is-error', 'is-success');
+                if (!text) {
+                    statusEl.hidden = true;
+                    statusEl.textContent = '';
+                    return;
+                }
+                statusEl.hidden = false;
+                statusEl.textContent = text;
+                if (kind === 'error') {
+                    statusEl.classList.add('is-error');
+                } else if (kind === 'success') {
+                    statusEl.classList.add('is-success');
+                }
+            }
+
+            function refreshPoolAssetDirtyStatus() {
+                // Idle chrome stays quiet — Done / ✕ save only when dirty.
+                if (!poolAssetCanEditDisplay) {
+                    setPoolAssetStatus('');
+                }
             }
 
             function fillPoolAssetDisplayForm(file) {
@@ -4962,7 +5131,6 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 const descriptionInput = document.getElementById('poolAssetDisplayDescription');
                 const keywordsInput = document.getElementById('poolAssetDisplayKeywords');
                 const capturedInput = document.getElementById('poolAssetDisplayCapturedAt');
-                const statusEl = document.getElementById('poolAssetDisplayStatus');
                 const display = (file && typeof file.display === 'object' && file.display) ? file.display : {};
                 if (titleInput) {
                     titleInput.value = String(display.title || file.display_title || '').trim();
@@ -4982,49 +5150,35 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     keywordsInput.value = keywords.join(', ');
                 }
                 if (capturedInput) {
-                    capturedInput.value = String(display.captured_at || file.display_captured_at || '').trim();
-                }
-                if (statusEl) {
-                    statusEl.hidden = true;
-                    statusEl.textContent = '';
-                    statusEl.classList.remove('is-error', 'is-success');
+                    const rawCaptured = String(display.captured_at || file.display_captured_at || '').trim();
+                    capturedInput.value = (typeof window.bandpromoNormalizeIsoDateInput === 'function')
+                        ? (window.bandpromoNormalizeIsoDateInput(rawCaptured) || rawCaptured)
+                        : rawCaptured;
+                    if (typeof window.bandpromoSyncIsoDateField === 'function') {
+                        window.bandpromoSyncIsoDateField(capturedInput);
+                    }
                 }
             }
 
-            async function savePoolAssetDisplay(event) {
-                if (event) {
-                    event.preventDefault();
-                }
+            async function savePoolAssetDisplay() {
                 const panelType = activePoolAsset.panel;
                 const selectionKey = activePoolAsset.key;
                 if ((panelType !== 'visual' && panelType !== 'sfx') || !selectionKey) {
-                    return;
+                    return true;
+                }
+                if (!poolAssetCanEditDisplay) {
+                    return true;
                 }
                 const file = findPoolAssetByKey(panelType, selectionKey);
                 const assetId = String(file?.asset_id || '').trim();
-                const statusEl = document.getElementById('poolAssetDisplayStatus');
                 if (!file || !assetId) {
-                    if (statusEl) {
-                        statusEl.hidden = false;
-                        statusEl.classList.remove('is-success');
-                        statusEl.classList.add('is-error');
-                        statusEl.textContent = 'This file is not in the media registry yet, so details cannot be saved.';
-                    }
-                    return;
+                    showAdminToast('This file is not in the media registry yet, so details cannot be saved.', 'error', {
+                        manualClose: true,
+                    });
+                    return null;
                 }
-                const saveBtn = document.getElementById('poolAssetDisplaySaveBtn');
-                const title = String(document.getElementById('poolAssetDisplayTitle')?.value || '').trim();
-                const description = String(document.getElementById('poolAssetDisplayDescription')?.value || '').trim();
-                const keywords = String(document.getElementById('poolAssetDisplayKeywords')?.value || '').trim();
-                const capturedAt = String(document.getElementById('poolAssetDisplayCapturedAt')?.value || '').trim();
-                if (statusEl) {
-                    statusEl.hidden = false;
-                    statusEl.classList.remove('is-error', 'is-success');
-                    statusEl.textContent = 'Saving…';
-                }
-                if (saveBtn) {
-                    saveBtn.disabled = true;
-                }
+                const values = readPoolAssetFormValues();
+                setPoolAssetStatus('');
                 try {
                     await refreshAdminCsrfToken();
                     const resp = await fetch('/biblioteca/save-visual-display.php', {
@@ -5035,10 +5189,10 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                             csrf_token: adminCsrf,
                             asset_id: assetId,
                             fields: {
-                                title,
-                                description,
-                                keywords,
-                                captured_at: capturedAt,
+                                title: values.title,
+                                description: values.description,
+                                keywords: values.keywords,
+                                captured_at: values.captured_at,
                             },
                         }),
                     });
@@ -5047,10 +5201,10 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                         throw new Error((data && (data.error || data.warning)) || 'Could not save asset details');
                     }
                     const display = data.display && typeof data.display === 'object' ? data.display : {
-                        title,
-                        description,
-                        keywords: keywords.split(/[,;]+/).map((part) => part.trim()).filter(Boolean),
-                        captured_at: capturedAt,
+                        title: values.title,
+                        description: values.description,
+                        keywords: values.keywords.split(/[,;]+/).map((part) => part.trim()).filter(Boolean),
+                        captured_at: values.captured_at,
                     };
                     file.display = display;
                     file.display_title = String(data.display_title || display.title || file.display_title || '').trim();
@@ -5067,50 +5221,43 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     if (titleEl) {
                         titleEl.textContent = poolAssetHeadline(panelType, file);
                     }
-                    if (statusEl) {
-                        statusEl.classList.add(data.embed_ok === false ? 'is-error' : 'is-success');
-                        if (panelType === 'sfx') {
-                            statusEl.textContent = 'Saved.';
-                        } else if (data.embed_ok === false) {
-                            statusEl.textContent = `Saved in registry. Master embed warning: ${String(data.embed_error || data.warning || 'write failed')}`;
-                        } else {
-                            statusEl.textContent = 'Saved (registry + master metadata).';
-                        }
+                    poolAssetBaseline = readPoolAssetFormValues();
+                    setPoolAssetStatus('');
+                    if (panelType !== 'sfx' && data.embed_ok === false) {
+                        showAdminToast(
+                            `Saved. Master embed warning: ${String(data.embed_error || data.warning || 'write failed')}`,
+                            'warning',
+                            { manualClose: true }
+                        );
+                    } else {
+                        showAdminToast('Changes saved.', 'success', { durationSeconds: 10 });
                     }
+                    return true;
                 } catch (error) {
-                    if (statusEl) {
-                        statusEl.classList.add('is-error');
-                        statusEl.textContent = error && error.message ? error.message : 'Could not save asset details';
-                    }
-                } finally {
-                    if (saveBtn) {
-                        saveBtn.disabled = false;
-                    }
+                    setPoolAssetStatus('');
+                    showAdminToast(
+                        error && error.message ? error.message : 'Could not save asset details',
+                        'error',
+                        { manualClose: true }
+                    );
+                    return null;
                 }
             }
 
-            (function bindPoolAssetDisplayForm() {
-                const form = document.getElementById('poolAssetDisplayForm');
-                if (!form || form.dataset.bound === '1') {
-                    return;
-                }
-                form.dataset.bound = '1';
-                form.addEventListener('submit', savePoolAssetDisplay);
-            }());
-
-            function openVisualAssetModal(selectionKey) {
-                openPoolAssetModal('visual', selectionKey);
-            }
-
-            window.openPoolAssetModal = openPoolAssetModal;
-            window.openVisualAssetModal = openVisualAssetModal;
-
-            window.closePoolAssetModal = function() {
+            function teardownPoolAssetModal() {
                 const modal = document.getElementById('poolAssetModal');
                 const previewEl = document.getElementById('poolAssetPreview');
+                const titleEl = document.getElementById('poolAssetTitle');
+                const titleInput = document.getElementById('poolAssetDisplayTitle');
                 if (previewEl) {
                     setVisualHoverPreviewActive(previewEl, false);
-                    previewEl.classList.remove('visual-asset-modal-preview--video');
+                    previewEl.classList.remove(
+                        'visual-asset-modal-preview--video',
+                        'visual-asset-modal-preview--portrait',
+                        'visual-asset-modal-preview--square',
+                        'visual-asset-modal-preview--landscape'
+                    );
+                    previewEl.dataset.previewAr = 'landscape';
                     previewEl.querySelectorAll('video').forEach((video) => {
                         stopVisualHoverVideo(video);
                     });
@@ -5123,10 +5270,127 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     });
                     previewEl.innerHTML = '';
                 }
+                const crumbCurrent = document.getElementById('poolAssetBreadcrumbCurrent');
+                const crumbTitleSep = document.getElementById('poolAssetBreadcrumbTitleSep');
+                if (crumbCurrent) {
+                    crumbCurrent.hidden = false;
+                    crumbCurrent.textContent = 'Editor';
+                }
+                if (crumbTitleSep) {
+                    crumbTitleSep.hidden = false;
+                }
+                if (titleEl) {
+                    titleEl.hidden = true;
+                }
+                if (titleInput) {
+                    titleInput.hidden = true;
+                    titleInput.value = '';
+                }
+                setPoolAssetStatus('');
+                poolAssetBaseline = null;
+                poolAssetCanEditDisplay = false;
                 if (modal) {
                     modal.style.display = 'none';
                 }
                 activePoolAsset = { panel: null, key: null };
+                poolAssetClosing = false;
+            }
+
+            (function bindPoolAssetDisplayForm() {
+                const form = document.getElementById('poolAssetDisplayForm');
+                const titleInput = document.getElementById('poolAssetDisplayTitle');
+                const saveBtn = document.getElementById('poolAssetDoneBtn');
+                const abortBtn = document.getElementById('poolAssetAbortBtn');
+                const crumbFiles = document.getElementById('poolAssetBreadcrumbFiles');
+                const crumbRoot = document.getElementById('poolAssetBreadcrumbRoot');
+                if (form && form.dataset.bound !== '1') {
+                    form.dataset.bound = '1';
+                    form.addEventListener('submit', (event) => {
+                        event.preventDefault();
+                        void closePoolAssetModal({ forceSave: true });
+                    });
+                    form.addEventListener('input', refreshPoolAssetDirtyStatus);
+                    form.addEventListener('change', refreshPoolAssetDirtyStatus);
+                }
+                if (titleInput && titleInput.dataset.bound !== '1') {
+                    titleInput.dataset.bound = '1';
+                    titleInput.addEventListener('input', refreshPoolAssetDirtyStatus);
+                    titleInput.addEventListener('change', refreshPoolAssetDirtyStatus);
+                }
+                if (saveBtn && saveBtn.dataset.bound !== '1') {
+                    saveBtn.dataset.bound = '1';
+                    saveBtn.addEventListener('click', () => {
+                        void closePoolAssetModal({ forceSave: true });
+                    });
+                }
+                if (abortBtn && abortBtn.dataset.bound !== '1') {
+                    abortBtn.dataset.bound = '1';
+                    abortBtn.addEventListener('click', () => {
+                        void abortPoolAssetModal();
+                    });
+                }
+                if (crumbFiles && crumbFiles.dataset.bound !== '1') {
+                    crumbFiles.dataset.bound = '1';
+                    crumbFiles.addEventListener('click', () => {
+                        void closePoolAssetModal();
+                    });
+                }
+                if (crumbRoot && crumbRoot.dataset.bound !== '1') {
+                    crumbRoot.dataset.bound = '1';
+                    crumbRoot.addEventListener('click', () => {
+                        void closePoolAssetModal();
+                    });
+                }
+            }());
+
+            function openVisualAssetModal(selectionKey) {
+                openPoolAssetModal('visual', selectionKey);
+            }
+
+            window.openPoolAssetModal = openPoolAssetModal;
+            window.openVisualAssetModal = openVisualAssetModal;
+
+            window.closePoolAssetModal = async function(options = {}) {
+                if (poolAssetClosing) {
+                    return;
+                }
+                const discard = options.discard === true;
+                const forceSave = options.forceSave === true;
+                poolAssetClosing = true;
+                try {
+                    if (!discard && poolAssetCanEditDisplay && (forceSave || poolAssetFormIsDirty())) {
+                        const saved = await savePoolAssetDisplay();
+                        if (saved === null) {
+                            poolAssetClosing = false;
+                            return;
+                        }
+                    }
+                    teardownPoolAssetModal();
+                } catch (error) {
+                    poolAssetClosing = false;
+                    showAdminToast(
+                        error && error.message ? error.message : 'Could not close asset editor',
+                        'error',
+                        { manualClose: true }
+                    );
+                }
+            };
+
+            window.abortPoolAssetModal = async function() {
+                if (poolAssetCanEditDisplay && poolAssetFormIsDirty()) {
+                    const confirmed = typeof window.bandpromoConfirm === 'function'
+                        ? await window.bandpromoConfirm({
+                            title: 'Discard changes?',
+                            body: 'You have unsaved changes. Abort closes without saving.',
+                            confirmLabel: 'Discard',
+                            tone: 'warn',
+                        })
+                        : window.confirm('Discard unsaved changes?');
+                    if (!confirmed) {
+                        return;
+                    }
+                }
+                void closePoolAssetModal({ discard: true });
             };
             window.closeVisualAssetModal = window.closePoolAssetModal;
 
@@ -5263,7 +5527,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                                 ${dateCell}
                                 ${campaignCell}
                                 ${sizeCell}
-                                <span class="media-file-actions">${listenAction}${preview}${editAction}${downloadAction}<button class="icon-btn media-action-btn media-action-danger" title="Delete" onclick="event.stopPropagation(); openDeleteModal('${type}', '${safeKey}')">🗑️</button></span>
+                                <span class="media-file-actions">${listenAction}${preview}${editAction}${downloadAction}<button class="icon-btn media-action-btn media-action-good" title="Delete" onclick="event.stopPropagation(); openDeleteModal('${type}', '${safeKey}')">🗑️</button></span>
                             </div>
                             ${expandedMarkup}
                         </div>`;
@@ -7219,7 +7483,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
 
                 const signature = audioMasterSaveSignature(fields);
                 if (signature === audioMasterLastSavedSignature) {
-                    setAudioMasterStatus('Close to save');
+                    setAudioMasterStatus('');
                     return { ok: true, no_change: true, detail: activeAudioMasterDetail || {} };
                 }
 
@@ -7264,7 +7528,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 }
                 const signature = audioMasterSaveSignature();
                 if (signature === audioMasterLastSavedSignature) {
-                    setAudioMasterStatus('Close to save');
+                    setAudioMasterStatus('');
                     return;
                 }
                 setAudioMasterStatus('Unsaved changes');
@@ -7294,7 +7558,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     audioMasterListenBar.hidden = true;
                 }
                 setAudioMasterSummary({});
-                setAudioMasterStatus('Close to save');
+                setAudioMasterStatus('');
                 audioMasterClosing = false;
                 audioMasterLastSavedSignature = '';
                 if (shouldRefreshPool) {
@@ -7337,7 +7601,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                         audioMasterSyncingForm = false;
                     }
                     audioMasterLastSavedSignature = audioMasterSaveSignature();
-                    setAudioMasterStatus('Close to save');
+                    setAudioMasterStatus('');
                     if (audioMasterSaveBtn) audioMasterSaveBtn.disabled = false;
                     if (audioMasterDoneBtn) audioMasterDoneBtn.disabled = false;
                     if (audioMasterAbortBtn) audioMasterAbortBtn.disabled = false;
@@ -7392,12 +7656,17 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                         while (audioMasterSaveInFlight) {
                             await new Promise((resolve) => window.setTimeout(resolve, 40));
                         }
+                        const dirtyBeforeSave = (typeof audioMasterSaveSignature === 'function')
+                            && audioMasterSaveSignature() !== audioMasterLastSavedSignature;
                         const saved = await saveAudioMasterFromModal({ force: true, showToast: false });
                         if (saved === null) {
                             // Validation or save error — keep the editor open.
                             audioMasterClosing = false;
                             audioMasterAutosaveReady = true;
                             return;
+                        }
+                        if (dirtyBeforeSave || options.forceSave === true) {
+                            showAdminToast('Changes saved.', 'success', { durationSeconds: 10 });
                         }
                     } else {
                         audioMasterSaveQueued = false;
@@ -7410,7 +7679,24 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 }
             };
 
-            window.abortAudioMasterModal = function() {
+            window.abortAudioMasterModal = async function() {
+                const dirty = !!(activeAudioMasterFile
+                    && typeof audioMasterSaveSignature === 'function'
+                    && typeof audioMasterLastSavedSignature !== 'undefined'
+                    && audioMasterSaveSignature() !== audioMasterLastSavedSignature);
+                if (dirty) {
+                    const confirmed = typeof window.bandpromoConfirm === 'function'
+                        ? await window.bandpromoConfirm({
+                            title: 'Discard changes?',
+                            body: 'You have unsaved changes. Abort closes without saving.',
+                            confirmLabel: 'Discard',
+                            tone: 'warn',
+                        })
+                        : window.confirm('Discard unsaved changes?');
+                    if (!confirmed) {
+                        return;
+                    }
+                }
                 void closeAudioMasterModal({ discard: true });
             };
 
@@ -8819,12 +9105,26 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
 
             if (audioMasterDoneBtn) {
                 audioMasterDoneBtn.addEventListener('click', () => {
-                    void closeAudioMasterModal();
+                    void closeAudioMasterModal({ forceSave: true });
                 });
             }
             if (audioMasterAbortBtn) {
                 audioMasterAbortBtn.addEventListener('click', () => {
-                    abortAudioMasterModal();
+                    void abortAudioMasterModal();
+                });
+            }
+            const audioMasterCrumbFiles = document.getElementById('audioMasterBreadcrumbFiles');
+            const audioMasterCrumbPanel = document.getElementById('audioMasterBreadcrumbPanel');
+            if (audioMasterCrumbFiles && audioMasterCrumbFiles.dataset.bound !== '1') {
+                audioMasterCrumbFiles.dataset.bound = '1';
+                audioMasterCrumbFiles.addEventListener('click', () => {
+                    void closeAudioMasterModal();
+                });
+            }
+            if (audioMasterCrumbPanel && audioMasterCrumbPanel.dataset.bound !== '1') {
+                audioMasterCrumbPanel.dataset.bound = '1';
+                audioMasterCrumbPanel.addEventListener('click', () => {
+                    void closeAudioMasterModal();
                 });
             }
             if (audioMasterSaveBtn) {

@@ -6,14 +6,20 @@ Operator chrome for `admin.php` (and shared Content editor CSS). Public player b
 
 Main tabs (Dashboard, Analytics, Users, Files, Content, Settings, System, Documentation) remember the last used **sub-tab** in `localStorage` (`bandpromo_admin_nav_memory`). Switching Files → Content → Files returns to Visual (or whichever Files panel you left), not always Audio. Deep links that already name a sub-tab (`fpanel`, `cntab`, `ctab`, `stab`, `atab`, `doc_scope`) are unchanged.
 
-## Page headings under the nav bar (preferred)
+## Page headings under the nav bar (required)
 
-For admin surfaces that sit under the main tab / Content sub-nav (especially Content **pool → editor** flows), prefer a **breadcrumb heading** plus an **inline-editable entity title** — not a plain `h2` and not a separate “Title:” field buried in Base info for the entity name.
+**Every operator page view** under the main tabs gets a **breadcrumb heading**. That includes Content and Files **pools**, System Status, and **mutating editor modals** (Audio track, Visual/SFX drilldown, and the same class of “edit this entity” dialogs).
+
+**Exempt:** info / help dialogs, confirmation prompts (`bandpromoConfirm`, unsaved-leave, delete confirms), and other non-editing overlays with no place in the nav hierarchy.
+
+Prefer breadcrumb + **inline-editable entity title** on editors — not a plain `h2` and not a separate “Title:” field buried in Base info for the entity name.
 
 | View | Crumb |
 |------|--------|
-| Pool / list | `{emoji} {Section} > Pool` |
-| Editor | `{emoji} {Section} > Editor` |
+| Files pool | `📁 Files > 🎵 Audio\|🎞️ Visual\|🔊 Sound effects > Pool` |
+| Files editor modal | `📁 Files > {panel} > Editor > [title]` (title input at the tail when editable) |
+| Content pool / list | `{emoji} {Section} > Pool` |
+| Content editor | `{emoji} {Section} > Editor` (+ section chips when needed) |
 | System Status | Default: `📊 Status` landing (Site health tool card only — **no Activity**). Open Site health → **Action** hub (Quick / Full / Force; no Activity). While a job runs → Action checklist + Stop (mode in the crumb) with **Activity** visible underneath; no Good/Bad/Ugly. When finished → **Diagnosis** (Good/Bad/Ugly + Review when findings exist; Activity). **Review** → `… > Diagnosis > Proposed treatment`. **Apply** → Action checklist + Activity, then `… > Treatment result`. Hub resume opens last Diagnosis. Post–Site update / stale auto-start opens the Quick check checklist directly. |
 
 ### Breadcrumb line layout
@@ -51,7 +57,67 @@ Do **not**:
 - Put the canonical entity name only inside Base info / settings while the header shows a non-editable label
 - Use a plain muted span for the breadcrumb root when a destination exists
 
-Files modals (track / visual drilldowns) are not breadcrumb surfaces; still prefer an **editable title in the modal header** over a static heading plus a redundant Title field in the body when aligning those editors.
+Files modals (Visual / SFX drilldowns) use a full **Files > panel > Editor > [title]** breadcrumb. Files pools must show **Files > panel > Pool** (same factory). Files / panel crumbs leave via the same save-if-dirty path as ✕. Footer affirmative leave is **Save** (always write). Do not put a second Title field in the Details body.
+
+## Action colour model (intent × emphasis)
+
+Operator actions use **two axes**. Hue says *what kind* of act at the moment it **matters**; fill weight says *how hard we push*.
+
+**Warn at commitment, not on every trigger.** Delete and Abort are normal viable actions in working chrome — we always confirm before irreversible delete, and we confirm discard when there are unsaved changes. Do not paint every Delete/Abort as danger/caution just because a later confirm might.
+
+### Intent (hue) — mostly on confirms
+
+| Intent | Hue | Where it belongs |
+|--------|-----|------------------|
+| **Constructive** | Green | Working chrome: upload, assign, download, play, edit, save, delete trigger, abort trigger |
+| **Caution** | Amber | **Confirm** discard when dirty; dirty head Save; attention chips / findings — not the idle Abort control |
+| **Danger** | Red | **Confirm** irreversible delete / hard commit — not every Delete trigger in a toolbar or footer |
+| **Unavailable** | Grey | Disabled only |
+
+### Emphasis (fill)
+
+| Emphasis | Fill | Meaning |
+|----------|------|---------|
+| **Proposed** | **Solid** green | The suggested next step — **at most one** solid green on the surface |
+| **Available** | **Muted** green + light outline | Viable actions (including Delete and Abort triggers); **several OK** |
+| **Unavailable** | Muted grey | Disabled — not “secondary but clickable” |
+| **Caution commit** | **Solid** amber | Discard / leave-without-save **confirm** when there are changes |
+| **Danger commit** | **Solid** red | Delete **confirm** (and similar irreversible commits) |
+
+**Grey means unavailable.** Enabled Download / Delete / Abort / Assign stay **available green** (muted). Do not grey them to “soften” the UI.
+
+### Combined roles (canonical)
+
+| Role | Look | Examples |
+|------|------|----------|
+| **Proposed** | Solid green | Footer **Save**; Status **Quick health check** / **Apply treatment**; when nothing is selected in a Files pool, **Upload** is often the only available action and may keep today’s muted-green look (or solid if we want it proposed) |
+| **Available** | Muted green | Assign, Use in brand, Download, Listen, Edit, **Delete** trigger, **Abort** trigger, Full/Force beside a solid proposed step |
+| **Unavailable** | Muted grey | Toolbar actions that need a selection (disabled Download / Delete / Assign…) |
+| **Caution commit** | Solid amber | Unsaved-leave **Discard**; dirty-abort confirm |
+| **Danger commit** | Solid red | Delete confirm dialog |
+
+Status ladder: one **proposed** solid green; alternates are **available** muted green when enabled.
+
+### Files pool with no selection
+
+You are not wrong: with an empty selection, **Upload** is the only enabled action in the Actions cluster. Assign / Use in … / Download / Delete stay **unavailable** (grey). Upload already reads as the path forward in muted green — that is correct. When a selection exists, those peers flip to **available** muted green; Upload stays available too (several muted greens OK). Only promote one control to **solid** proposed when the surface has a single suggested commit (e.g. modal **Save**, Status **Apply**).
+
+### Class mapping (current → target)
+
+| Role | Prefer today | Notes |
+|------|--------------|-------|
+| Proposed green | `.btn.btn-good` | Strengthen toward solid when implementing the solid tier |
+| Available green | `.media-action-good` | Dimmed green + outline — includes Delete/Abort triggers |
+| Unavailable | `[disabled]` + grey muted | Only when the action cannot run |
+| Caution commit | `.btn.btn-amber` on **confirms** | Not the idle Abort button |
+| Danger commit | `.btn.btn-danger` on **confirms** | Not every trash icon |
+| Idle Abort | Available muted green (or neutral available) | Not solid amber |
+| Idle Delete | Available muted green | Not muted red / not grey-when-enabled |
+| `.media-action-danger` (grey quiet delete) | Retire for enabled deletes | Grey = unavailable only |
+
+### Colour caution (coral vs red)
+
+`--accent` / `--primary` (`#FF6B6B`) sits next to `--error` (`#f44336`). Operators (including colourblind ones) easily read coral as “danger.” **Do not** use coral as a general “important button” colour beside Delete, and do not rely on hue alone to separate safe vs destructive.
 
 ## Sticky toolbars
 
@@ -60,11 +126,11 @@ Files modals (track / visual drilldowns) are not breadcrumb surfaces; still pref
 | Surface | When it sticks |
 |---------|----------------|
 | Files / Content / System sub-tab bars | Page scroll would hide them (`top: 0`) |
-| Files pool filter/actions + column headers (`.media-pool-sticky-chrome`) | Would leave the viewport under the Files sub-tab bar |
+| Files pool breadcrumb + filter/actions + column headers (`.media-pool-sticky-chrome`) | Would leave the viewport under the Files sub-tab bar |
 | Content / Status breadcrumb head (`.content-editor-card-head`) | Would leave under the section sub-tab bar |
-| Split-editor column headers / gallery picker toolbar | Would leave under the breadcrumb head |
+| Split-editor column titles (Available / Active) | **Not sticky** — stay in normal flow (nesting under the breadcrumb + `overflow: hidden` panels pulled list rows under the titles) |
 
-Do not nest sticky headers inside an already-sticky column (Branding Live preview sticks as a column; its title stays in normal flow). Page builder keeps its own sticky section / richtext pattern. New pool or editor toolbars follow the same “stick only when leaving the viewport” rule.
+Do not nest sticky headers under another sticky on the same scroll axis (Content breadcrumb, Branding Live preview column). Page builder keeps its own sticky section / richtext pattern. Files pool sticky chrome and Content breadcrumb use `rgba(15, 23, 42, 0.55)` (same slate wash as split-editor headers). Files track / Visual / SFX modal headers share that wash.
 
 ## System tab and roles (2026-08-31)
 
@@ -89,6 +155,22 @@ Check results use a three-panel summary:
 
 Operator feedback uses toasts today; unified toast → inbox is planned for v0.9 — [OPERATOR-MESSAGING.md](OPERATOR-MESSAGING.md).
 
+### Admin toasts (`showAdminToast`)
+
+```js
+showAdminToast(message, type /* success|warning|error */, durationOrOptions)
+// durationOrOptions: number (seconds) | { durationSeconds, manualClose }
+```
+
+| Default | Behaviour |
+|---------|-----------|
+| `success` (and other non-error) | Auto-dismiss after **10 seconds** (dismiss × still available) |
+| `error` / `warning` | Stay until the operator dismisses (`manualClose` equivalent) unless a duration is passed |
+| `{ durationSeconds: N }` | Auto-dismiss after N seconds (`0` = manual only) |
+| `{ manualClose: true }` | Never auto-dismiss |
+
+Use short lifetimes for routine save confirmations; keep errors manual so they are not missed.
+
 ## Palette (canonical)
 
 Defined on `:root` in `biblioteca/admin.css`:
@@ -102,23 +184,13 @@ Defined on `:root` in `biblioteca/admin.css`:
 | `--muted` | Secondary text and quiet controls |
 | `--intent-good-*` | Green constructive icon actions |
 | `--intent-warn-*` | Amber caution / preview icon actions |
-| `--intent-quiet-*` | Grey quiet dismiss/delete (not alarm red) |
+| `--intent-quiet-*` | Unavailable / muted grey shells (not “quiet delete”) |
 
 ### Colour caution (coral vs red)
 
 `--accent` / `--primary` (`#FF6B6B`) sits next to `--error` (`#f44336`). Operators (including colourblind ones) easily read coral as “danger.” **Do not** use coral as a general “important button” colour beside Delete, and do not rely on hue alone to separate safe vs destructive.
 
-Prefer:
-
-| Intent | Control |
-|--------|---------|
-| Dirty / needs save | Amber **Save** (`.btn-amber`) |
-| Saved / idle | Green disabled **Saved** (`.btn-saved`) |
-| Recommended next step | One green (`.btn-good`) — Status ladder |
-| Secondary / Download / Close | Grey (`.btn`) |
-| Irreversible | Red (`.btn-danger`) only |
-
-Legacy coral `.btn-primary` remains for older safe confirms until those screens are migrated; new editor chrome should not introduce more coral primaries next to danger actions.
+Legacy coral `.btn-primary` remains for older safe confirms until those screens are migrated; new chrome uses the **intent × emphasis** table above. Modal footers: solid green **Save** (proposed); muted-green **Download** / **Delete** / **Abort** when available; solid red / solid amber only on **confirms**.
 
 ### Compactness (spacing)
 
@@ -143,13 +215,16 @@ Optional future tokens on `:root` (when first refactoring a shared surface): `--
 
 ### Operator colour roles (toolbar / Status)
 
-| Colour | Use | Rule of thumb |
-|--------|-----|----------------|
-| **Green** | Suggested next step / constructive apply / saved | **At most one** green text button visible on a toolbar |
-| **Amber** | Needs attention (findings, dirty save, caution) | Catch the eye; not the click path |
-| **Red** | Errors and irreversible confirms | Critical findings, delete confirms |
-| **Grey** (`.btn`) | Optional alternate paths | Full check, Force, Not now, Copy log |
-| **Coral** (`.btn-primary`) | Legacy affirmative outside Status | Prefer amber Save / grey secondary; see Colour caution |
+See **Action colour model** above. Short form:
+
+| Colour + fill | Use |
+|---------------|-----|
+| **Solid green** | Exactly one **proposed** next step (Save, Apply, Quick check) |
+| **Muted green** | Any number of **available** actions — including Delete and Abort triggers |
+| **Solid amber** | Caution **commit** (discard confirm when dirty; dirty head Save) |
+| **Solid red** | Danger **commit** (delete confirm) |
+| **Muted grey** | **Unavailable** only |
+| **Coral** | Legacy — do not extend |
 
 ## Text buttons
 
@@ -157,14 +232,15 @@ Prefer **one class ladder**. Unstyled `button` elements without a `class` keep t
 
 | Class | Meaning | When to use |
 |-------|---------|-------------|
-| `.btn` | Neutral secondary | Cancel, alternate / optional actions |
+| `.btn` | Neutral shell (prefer intent classes) | Rare — prefer available green / muted red / amber |
 | `.btn.btn-secondary` | Alias of `.btn` | Legacy markup |
-| `.btn.btn-primary` | Affirmative coral (legacy) | Prefer amber Save / grey secondary on new chrome; see Colour caution |
-| `.btn.btn-good` | Recommended next step | Exactly one on Site health (and similar toolbars) |
-| `.btn.btn-amber` | Dirty / needs attention | Save controls while unsaved (`content-save-ui.js`) |
-| `.btn.btn-saved` | Saved / idle success | Save controls after successful save |
-| `.btn.btn-danger` | Destructive confirm | Delete / irreversible confirms |
-| `.btn.btn-danger-outline` | Soft destructive / discard | Leave without saving |
+| `.btn.btn-primary` | Affirmative coral (legacy) | Do not extend; see Colour caution |
+| `.btn.btn-available` | **Available** muted green | Download / Delete / Abort triggers; several OK |
+| `.btn.btn-good` | **Proposed** constructive (solid green tier) | Exactly one proposed step (Save, Apply, Quick check) |
+| `.btn.btn-amber` | **Caution commit** | Discard confirm when dirty; dirty head Save — not idle Abort |
+| `.btn.btn-saved` | Saved / idle success | After successful save |
+| `.btn.btn-danger` | **Danger commit** (solid red) | Confirm dialogs only |
+| `.btn.btn-danger-outline` | Legacy soft danger | Prefer available muted green for idle Delete; keep outline only if a surface still needs a red hint |
 | `.btn-sm` | Compact size (12px; base `.btn` is 13px) | Dense toolbars, inline resume / secondary actions |
 
 Legacy standalone `.btn-primary` (without `.btn`) remains for older markup; new code should use `.btn.btn-primary`.
@@ -208,48 +284,94 @@ While the operator is editing, **status and save state live on the right edge of
 | Slot | Placement | Contents |
 |------|-----------|----------|
 | Head **actions** (right) | Breadcrumb `.content-editor-card-head-actions`, or the equivalent modal/header actions row | ← Back (page editors) · **Save \| Saved** via `content-save-ui.js` · ★ Set as default/base when present · Status health badge on System → Status |
-| Head **status** (near actions) | Same row or immediately beside it | Short working line when useful (“Close to save”, “Unsaved changes”, “Saving…”) — not a second Save button in the form body |
+| Head **status** (near actions) | Same row or immediately beside it | Short working line when useful (“Unsaved changes”, “Saving…”) — not a second Save button in the form body |
 
 Do **not** bury the only Save control halfway down a form while Download / Delete / Close live in a disconnected footer. Form fields stay in the body; chrome owns leave/save.
 
 ### Footer / modal action row
 
-Footer `.modal-actions` (and track-editor `.audio-master-modal-actions`) hold **leave and secondary** actions, left-to-right preference:
+Footer `.modal-actions` (and track-editor `.audio-master-modal-actions`) hold leave and secondary actions. **Visual / SFX reference order** (left → right):
 
-1. **Abort** (or soft destructive discard) — discard without writing (`.btn-danger-outline` or quiet grey when not alarming)
-2. Neutral secondaries — **Download**, optional tools (`.btn`)
-3. Affirmative leave — **Done** / **Close** when that path saves (see Close vs Abort)
-4. Hard **Delete** when the surface owns irreversible remove (`.btn-danger`) — keep visually distinct from Abort/Done
+1. **Download** — available muted green when enabled; grey only when disabled
+2. **Delete** — available muted green (confirm is solid red)
+3. **Abort** — available muted green (dirty discard confirm is solid amber)
+4. **Save** — proposed solid green — always write then close (even when clean)
 
-Page editors use ← Back on the head instead of Done; destructive pool deletes stay on list toolbars / confirm modals, not mixed into Save chrome.
+Page editors use ← **Back** on the head instead of Save-in-footer.
+
+## Leave control vocabulary (canonical)
+
+Use one label per intent. Do not invent synonyms on new screens.
+
+| Label | Where | Meaning |
+|-------|-------|---------|
+| **Save** / **Saved** | Content page editor head (amber → green disabled) | Write while **staying** in the editor |
+| **Save** | Files → Visual / SFX / Audio modal footer (green) | Always write (even if clean), then leave |
+| ← **Back** | Content page editor head / breadcrumb root | Leave the page editor (may open unsaved modal) |
+| **Abort** | Mutating modal footers (available muted green) | Leave **without** writing; if dirty, confirm with solid amber |
+| **Discard** | Shared unsaved-leave modal only (`#contentUnsavedModal`) | Same as Abort — page-editor wording |
+| **Cancel** | Unsaved-leave modal only | Stay — neither save nor leave |
+| **Close** / **Got it** | Read-only or non-mutating dialogs only | Dismiss with **no** write path |
+
+Rules of thumb:
+
+1. Mutating Visual/SFX modals → solid green **Save** + available muted-green **Abort** / **Delete** (confirms: solid amber discard if dirty, solid red delete).
+2. Page editors → head **Save\|Saved** + ← **Back**; leave prompt uses **Save** / **Discard** / **Cancel**.
+3. Help, pickers, confirms with no pending write → **Close** or **Got it**.
+4. Do **not** label a write-then-leave control **Close**. Prefer **Save** on Files mutating modals (explicit write).
+5. ✕ / backdrop / crumb leave on Visual/SFX stay **save-if-dirty** (no forced empty write); the footer **Save** button always writes.
 
 ## Close vs Abort (every mutating editor)
 
-Any surface that can modify registry, masters, containers, brands, or config must make **leave-with-save** and **leave-without-save** obvious. Prefer **save on close** so routine Done / ✕ / backdrop / ← Back does not strand dirty work — but never without an explicit discard path.
+Any surface that can modify registry, masters, containers, brands, or config must make **leave-with-save** and **leave-without-save** obvious. Prefer **save on close** so routine leave does not strand dirty work — but never without an explicit discard path.
 
 | Control | Meaning | Must write? |
 |---------|---------|-------------|
-| **Done** / **Close** / ✕ / backdrop / ← Back (clean or after save-on-close) | Leave the editor; **persist** dirty edits (save-on-close or flush queued autosave) | Yes, when dirty |
-| **Abort** | Leave **without** writing. Local edits discarded. Synonym on page leave prompts: **Discard** (`#contentUnsavedModal`) | No |
-| **Cancel** (on the unsaved leave modal only) | Stay in the editor — neither save nor leave | No |
-| Explicit **Save** / **Saved** (head) | Manual flush while staying; still use the amber→Saved machine | Yes |
+| **Save** (Visual/SFX footer) | Leave after writing | Always (when editable) |
+| ✕ / backdrop / crumb / **Done** (Audio) | Leave; persist dirty edits | Yes, when dirty |
+| **Abort** | Leave **without** writing. Synonym on page leave prompts: **Discard** | No |
+| **Cancel** (unsaved leave modal only) | Stay — neither save nor leave | No |
+| Explicit head **Save** / **Saved** | Manual flush while staying | Yes |
 
 Rules:
 
-1. **If it can modify, it must offer Abort (or Discard on leave).** A lone **Close** that always saves (or never saves) without a discard path is not allowed.
-2. **Save-on-close is preferred** for modal editors (reference: Files → Audio track editor — Done / ✕ / backdrop save; **Abort** discards). Status may say “Close to save” / “Unsaved changes.”
-3. **Page editors** (Catalogue, Playlists, Galleries, Pages, Branding): ← Back / root crumb use `#contentUnsavedModal` — **Save** / **Discard** / **Cancel**. Field-level blur autosave is optional for settings; membership drops may autosave immediately — still expose Discard when a dirty batch exists.
-4. **Vocabulary:** use **Abort** on modal footers; use **Discard** on the shared unsaved-leave modal. Same intent (no write). Do not label a save-on-close control “Abort.”
-5. Validation or save errors keep the editor open; do not silently discard on failed close-save.
-6. Read-only or non-mutating dialogs (help, pickers with no pending write) may use plain **Close** / **Got it** without Abort.
+1. **If it can modify, it must offer Abort (or Discard on leave).**
+2. **Save-on-close / save-if-dirty** for passive leave (✕, backdrop, crumb). Visual/SFX footer **Save** always writes.
+3. **Page editors:** ← Back / root crumb use `#contentUnsavedModal` — **Save** / **Discard** / **Cancel**.
+4. **Vocabulary:** **Abort** on modal footers; **Discard** on the unsaved-leave modal. Affirmative Visual/SFX leave is **Save**, not **Close**.
+5. Validation or save errors keep the editor open.
+6. Read-only dialogs may use **Close** / **Got it** without Abort.
 
 ### Compliance snapshot
 
-| Surface | Save-on-close / head Save | Abort / Discard | Notes |
-|---------|---------------------------|-----------------|-------|
-| Files → Audio track editor | Done / ✕ / backdrop | **Abort** | Reference modal |
-| Content editors | Head Save\|Saved + leave modal | **Discard** on leave | `#contentUnsavedModal` |
-| Files → Visual / SFX drilldown | Mid-form Save today | Missing Abort; Close does not save-on-close | **Target:** align with track editor (head Save\|Saved or save-on-close + Abort; footer Download grey · Delete danger · Done/Close) |
+| Surface | Affirmative leave | Abort / Discard | Notes |
+|---------|-------------------|-----------------|-------|
+| Files → Audio track editor | Footer **Save** (force write) / ✕ / backdrop / crumb | Available **Abort** (dirty → warn confirm) | Full crumb; Save label aligned with Visual/SFX |
+| Content editors | Head Save\|Saved + leave modal | **Discard** on leave (amber commit) | `#contentUnsavedModal` |
+| Files → Visual / SFX drilldown | Footer **Save** (always write); ✕ / crumb = save-if-dirty | Available **Abort** (dirty → amber confirm) | Full crumb; available Delete; Captured ISO picker |
+
+## Date fields (ISO picker)
+
+Every admin field that stores a calendar date uses the shared **ISO date** control — not a bare `<input type="text">`, not a decorative calendar icon without a picker, and not a locale-dependent free-text box.
+
+| Piece | Contract |
+|-------|----------|
+| Markup | `.iso-date-field` (filter bars) or `.date-input-shell.iso-date-field` (forms) via `bandpromo_admin_render_iso_date_field()` when rendering from PHP |
+| Script | `biblioteca/iso-date.js` — auto-binds; call `bandpromoSyncIsoDateField()` after setting the value from JS |
+| Value | Canonical `YYYY-MM-DD`; year-only `YYYY` allowed when the field opts in (`allow_year_only` / form variant — track Release date, Visual **Captured**, etc.) |
+| Chrome | Text input + 📅 button that opens the native date picker |
+| Layout | Prefer inline `Label:` + control (same row) when the panel width allows |
+
+### Canonical look (forms / editors)
+
+Locked operator preference — **Files → Visual / SFX Captured** is the exemplar. All form/editor dates should match:
+
+1. **Calendar on the left** of the field (not the right).
+2. **Padding clears the icon** — left padding (~44px) so `YYYY-MM-DD` never sits under the 📅 button.
+3. **Compact width** — sized to icon + ISO string (`calc(44px + 12ch)`), not stretched to the full column or a wide shell when inline with `Label:`.
+4. Monospace ISO digits; placeholder / validation stay ISO.
+
+Shared styles live on `.date-input-shell` in `biblioteca/admin.css`. Do not invent a second date widget. Analytics filters, Catalogue/Playlist publish dates, track Release date, and Visual Captured all share this contract. Dense filter-bar dates may stay slightly smaller, but keep the same value/script rules; prefer left-calendar clearance when reshaping them.
 
 ## Confirmation modals (`bandpromoConfirm`)
 
@@ -258,9 +380,10 @@ Shared markup: `#adminConfirmModal` with `.modal-box`, body `.card-note`, and fo
 | Tone | Confirm button | Use |
 |------|----------------|-----|
 | `default` | `.btn.btn-primary` (coral) | Safe affirmative confirms outside the Status ladder |
-| `good` | `.btn.btn-good` (green) | Recommended Status step (e.g. Apply treatment) |
+| `good` | `.btn.btn-good` (solid green) | Recommended Status step (e.g. Apply treatment) |
+| `warn` / `amber` | `.btn.btn-amber` (solid amber) | Dirty discard / leave-without-save confirm |
 | `quiet` | `.btn` (grey) | Optional / alternate Status paths (e.g. Force full rebuild) |
-| `danger` | `.btn.btn-danger` (red) | Irreversible deletes |
+| `danger` | `.btn.btn-danger` (solid red) | Irreversible deletes |
 
 Cancel stays `.btn`. Keep clear space above the button row (`.modal-actions` top margin). Prefer UK English body copy; use → in “Check → Review → Apply”.
 
@@ -273,9 +396,9 @@ Cancel stays `.btn`. Keep clear space above the button row (`.modal-actions` top
 | `.icon-btn.icon-btn--pool` | 28×28 pool-row tool |
 | `.icon-btn.icon-btn--pool.icon-btn--danger` | Pool delete — red |
 | `.icon-btn.icon-btn--pool.icon-btn--active` | Active lock / selected tool |
-| `.media-action-btn.media-action-good` | Constructive (upload, apply) — green tokens |
-| `.media-action-btn.media-action-amber` | Caution / preview — amber tokens |
-| `.media-action-btn.media-action-danger` | Quiet remove/dismiss — **grey** tokens |
+| `.media-action-btn.media-action-good` | **Available** (muted green) — including Delete/Abort triggers when enabled |
+| `.media-action-btn.media-action-amber` | Caution / preview chips — not idle Abort |
+| `.media-action-btn.media-action-danger` | **Retire** for enabled deletes — grey is unavailable only |
 | `.player-layout-remove-btn` | In-row ✕ remove (muted → red on hover) |
 | `.gallery-remove-btn` | Alias of `.player-layout-remove-btn` |
 
@@ -285,11 +408,12 @@ Semantic hooks for event delegation (also carry the `icon-btn` classes above):
 
 ### Danger vs quiet delete
 
-- **Red** (`--error`, `.btn-danger`, `.icon-btn--danger`, pool delete): irreversible or registry deletes that need alarm.  
-- **Grey quiet** (`.media-action-danger`): remove from a working set / dismiss without “panic” colour.  
-- **In-row ✕** (`.player-layout-remove-btn`): muted until hover, then soft red.
+- **Solid red** (`.btn-danger`): delete **confirm** only.  
+- **Available muted green**: Delete **trigger** in toolbars / footers / rows / Content pool icons (confirm always follows for registry deletes).  
+- **Muted grey**: **unavailable** only (disabled), or non-destructive dismissals.  
+- **In-row ✕** (`.player-layout-remove-btn`): muted until hover — membership remove, not registry delete.
 
-Do not mix coral primary + `danger` on the same confirm button — use `.btn.btn-danger`.
+Do not warn with red/amber on every trigger. Modal footer: solid green **Save**, muted-green **Abort** / **Delete** / **Download**. Pool `.registry-btn--delete` / `.icon-btn--danger` triggers use available green tokens.
 
 ## Status chips
 
@@ -308,12 +432,30 @@ Shares Content/Visual chrome without the pool → preview layout:
 | Cover + meta | `.audio-master-cover-layout`, `.release-cover-meta`, shared `.audio-master-cover-preview` |
 | Field labels | `.playlist-settings-field` / `--wide` |
 | Lyrics / Notes | Compact pill `.audio-master-text-role-toggle` / `.audio-master-text-role-btn` |
-| Autosave status | Header `.playlist-settings-status--head` + `.visual-asset-display-status.is-success/.is-error` (“Close to save” / “Unsaved changes”) |
 | Listen preview | Compact `<audio>` under Master audio asset (`.audio-master-listen-bar`); Files rows use ▶ → `#adminAudioListenDock` via `audio.php` (`.media-action-good`) |
-| Save / Abort | Footer `.audio-master-modal-actions`: **Done** / ✕ / backdrop = save on close; **Abort** = discard (see Close vs Abort). Reference implementation for mutating Files modals. |
+| Save / Abort | Footer: **Abort** (available muted green; dirty → warn confirm) · **Save** (proposed solid green) / ✕ / backdrop / crumb = save on close |
+| Autosave status | Header status quiet when clean; “Unsaved changes” when dirty |
 | Audio list columns | Compact `.audio-pool-toolbar` + shared grid; All/None `.audio-select-chip` in header; `[data-audio-sort]` for client sort |
 
 Edits stay local until close (or Abort). Validation or save errors keep the modal open.
+
+## Visual / SFX asset drilldown (Files → Visual, Sound effects)
+
+Same leave factory as the Audio track editor (`#poolAssetModal`):
+
+| Pattern | Behaviour |
+|---------|-----------|
+| Breadcrumb | `📁 Files > 🎞️ Visual > Editor > [title]` / `… > 🔊 Sound effects > Editor > [title]` — title is the final segment; Files / panel crumbs leave (save-if-dirty) |
+| Title | `#poolAssetDisplayTitle` in the crumb when editable; otherwise static `#poolAssetTitle` after Editor (no Title field in Details) |
+| Head status | Quiet — save success uses toast (10s); failures toast until dismissed |
+| Preview | Aspect-aware stage (`portrait` / `square` / `landscape`) |
+| File (static) | Chips: type · size · dimensions · Alpha · Preparing/Queued/Waiting · In use / Unused |
+| Details (dynamic) | Description (stacked); Keywords inline; **Captured** = shared ISO date picker; shared `--card` field backgrounds |
+| Links | Catalogue\|Brand · Role address (when meaningful) · References |
+| Footer | **Download** · **Delete** · **Abort** (all available muted green when enabled) · **Save** (solid green proposed) |
+| Leave | Footer **Save** = always write then close; ✕ / backdrop / crumb = save-if-dirty; **Abort** discards |
+
+Compactness: layout gaps and chrome margins stay within **0 / 4 / 8px**.
 
 ## Visual / Sound effects lists (Files → Visual, Sound effects)
 

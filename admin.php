@@ -1214,6 +1214,23 @@ if ($tab === 'analytics') {
             <!-- Audio -->
             <div class="media-panel card" id="panel-audio" <?php echo $filesPanel !== 'audio' ? 'style="display:none"' : ''; ?>>
                 <div class="media-pool-sticky-chrome">
+                    <?php bandpromo_admin_render_content_breadcrumb([
+                        'id_prefix' => 'filesAudioPool',
+                        'emoji' => '📁',
+                        'label' => 'Files',
+                        'aria_label' => 'Files location',
+                        'pool_title' => 'Files',
+                        'root_href' => '?tab=files&fpanel=audio',
+                        'head_class' => 'content-editor-card-head media-pool-breadcrumb-head',
+                        'segments' => [
+                            [
+                                'text' => '🎵 Audio',
+                                'href' => '?tab=files&fpanel=audio',
+                                'title' => 'Audio pool',
+                            ],
+                        ],
+                        'current' => 'Pool',
+                    ]); ?>
                     <div class="audio-pool-toolbar" data-media-list-header="audio">
                         <div class="audio-pool-toolbar-main">
                             <label class="media-filter-label">
@@ -1237,8 +1254,8 @@ if ($tab === 'analytics') {
                                 <button type="button" class="icon-btn media-action-btn media-action-good media-group-action-btn media-labeled-action-btn" id="audioUseInPlaylistBtn" data-use-in-playlist-target="audio" disabled aria-label="Use selected tracks in a playlist" title="Select one or more tracks to add to a playlist"><span class="media-labeled-action-icon" aria-hidden="true">🎵</span><span>Use in playlist</span></button>
                             </div>
                             <div class="media-action-group" role="group" aria-label="Export and delete">
-                                <button type="button" class="icon-btn media-action-btn media-group-action-btn media-labeled-action-btn media-bulk-download-btn" data-bulk-download-target="audio" data-download-variant="master" disabled aria-label="Download selected audio files" title="Download selected audio files"><span class="media-labeled-action-icon" aria-hidden="true">⬇</span><span>Download</span></button>
-                                <button type="button" class="icon-btn media-action-btn media-action-danger media-group-action-btn media-labeled-action-btn media-bulk-delete-btn" data-bulk-delete-target="audio" disabled aria-label="Delete selected audio files" title="Delete selected audio files"><span class="media-labeled-action-icon" aria-hidden="true">🗑️</span><span>Delete</span></button>
+                                <button type="button" class="icon-btn media-action-btn media-action-good media-group-action-btn media-labeled-action-btn media-bulk-download-btn" data-bulk-download-target="audio" data-download-variant="master" disabled aria-label="Download selected audio files" title="Download selected audio files"><span class="media-labeled-action-icon" aria-hidden="true">⬇</span><span>Download</span></button>
+                                <button type="button" class="icon-btn media-action-btn media-action-good media-group-action-btn media-labeled-action-btn media-bulk-delete-btn" data-bulk-delete-target="audio" disabled aria-label="Delete selected audio files" title="Delete selected audio files"><span class="media-labeled-action-icon" aria-hidden="true">🗑️</span><span>Delete</span></button>
                             </div>
                         </div>
                     </div>
@@ -1263,6 +1280,23 @@ if ($tab === 'analytics') {
             <!-- Visual pool (images + video) -->
             <div class="media-panel card" id="panel-visual" data-pool-layout="grid" data-pool-thumb-size="medium" <?php echo $filesPanel !== 'visual' ? 'style="display:none"' : ''; ?>>
                 <div class="media-pool-sticky-chrome">
+                    <?php bandpromo_admin_render_content_breadcrumb([
+                        'id_prefix' => 'filesVisualPool',
+                        'emoji' => '📁',
+                        'label' => 'Files',
+                        'aria_label' => 'Files location',
+                        'pool_title' => 'Files',
+                        'root_href' => '?tab=files&fpanel=visual',
+                        'head_class' => 'content-editor-card-head media-pool-breadcrumb-head',
+                        'segments' => [
+                            [
+                                'text' => '🎞️ Visual',
+                                'href' => '?tab=files&fpanel=visual',
+                                'title' => 'Visual pool',
+                            ],
+                        ],
+                        'current' => 'Pool',
+                    ]); ?>
                 <div class="audio-pool-toolbar visual-pool-toolbar" data-media-list-header="visual">
                     <div class="audio-pool-toolbar-main visual-pool-toolbar-main">
                         <div class="media-toolbar-cluster" role="group" aria-label="View">
@@ -1311,18 +1345,18 @@ if ($tab === 'analytics') {
                         </div>
                         <div class="media-action-group" role="group" aria-label="Catalogue home">
                             <button type="button" class="icon-btn media-action-btn media-action-good media-group-action-btn media-labeled-action-btn" id="visualAssignCampaignBtn" data-visual-assign-campaign disabled aria-label="Assign selected visuals to a campaign" title="Select one or more files to assign"><span class="media-labeled-action-icon" aria-hidden="true">💿</span><span>Assign</span></button>
-                            <button type="button" class="icon-btn media-action-btn media-group-action-btn media-labeled-action-btn" id="visualRemoveCampaignBtn" data-visual-remove-campaign disabled aria-label="Remove selected visuals from campaign" title="Select files with a catalogue home to remove"><span class="media-labeled-action-icon" aria-hidden="true">💿</span><span>Remove</span></button>
+                            <button type="button" class="icon-btn media-action-btn media-action-good media-group-action-btn media-labeled-action-btn" id="visualRemoveCampaignBtn" data-visual-remove-campaign disabled aria-label="Remove selected visuals from campaign" title="Select files with a catalogue home to remove"><span class="media-labeled-action-icon" aria-hidden="true">💿</span><span>Remove</span></button>
                         </div>
                         <div class="media-action-group" role="group" aria-label="Brand library">
                             <button type="button" class="icon-btn media-action-btn media-action-good media-group-action-btn media-labeled-action-btn" id="visualUseInBrandBtn" data-use-in-brand-target="visual" disabled aria-label="Use selected visuals in a brand" title="Select one or more files to add to a brand"><span class="media-labeled-action-icon" aria-hidden="true">🎨</span><span>Use in brand</span></button>
-                            <button type="button" class="icon-btn media-action-btn media-group-action-btn media-labeled-action-btn" id="visualRemoveFromBrandBtn" data-remove-from-brand-target="visual" disabled aria-label="Remove selected visuals from a brand library" title="Select files to remove from a brand library"><span class="media-labeled-action-icon" aria-hidden="true">🎨</span><span>From brand</span></button>
+                            <button type="button" class="icon-btn media-action-btn media-action-good media-group-action-btn media-labeled-action-btn" id="visualRemoveFromBrandBtn" data-remove-from-brand-target="visual" disabled aria-label="Remove selected visuals from a brand library" title="Select files to remove from a brand library"><span class="media-labeled-action-icon" aria-hidden="true">🎨</span><span>From brand</span></button>
                         </div>
                         <div class="media-action-group" role="group" aria-label="Gallery membership">
                             <button type="button" class="icon-btn media-action-btn media-action-good media-group-action-btn media-labeled-action-btn" id="visualUseInGalleryBtn" data-use-in-gallery-target="visual" disabled aria-label="Use selected visuals in a gallery" title="Select one or more files to add to a gallery"><span class="media-labeled-action-icon" aria-hidden="true">🖼️</span><span>Use in gallery</span></button>
                         </div>
                         <div class="media-action-group" role="group" aria-label="Export and delete">
-                            <button type="button" class="icon-btn media-action-btn media-group-action-btn media-labeled-action-btn media-bulk-download-btn" data-bulk-download-target="visual" data-download-variant="original" disabled aria-label="Download selected files" title="Download selected files"><span class="media-labeled-action-icon" aria-hidden="true">⬇</span><span>Download</span></button>
-                            <button type="button" class="icon-btn media-action-btn media-action-danger media-group-action-btn media-labeled-action-btn media-bulk-delete-btn" data-bulk-delete-target="visual" disabled aria-label="Delete selected files" title="Delete selected files"><span class="media-labeled-action-icon" aria-hidden="true">🗑️</span><span>Delete</span></button>
+                            <button type="button" class="icon-btn media-action-btn media-action-good media-group-action-btn media-labeled-action-btn media-bulk-download-btn" data-bulk-download-target="visual" data-download-variant="original" disabled aria-label="Download selected files" title="Download selected files"><span class="media-labeled-action-icon" aria-hidden="true">⬇</span><span>Download</span></button>
+                            <button type="button" class="icon-btn media-action-btn media-action-good media-group-action-btn media-labeled-action-btn media-bulk-delete-btn" data-bulk-delete-target="visual" disabled aria-label="Delete selected files" title="Delete selected files"><span class="media-labeled-action-icon" aria-hidden="true">🗑️</span><span>Delete</span></button>
                         </div>
                     </div>
                 </div>
@@ -1347,6 +1381,23 @@ if ($tab === 'analytics') {
             <!-- Sound effects (brand UI audio) -->
             <div class="media-panel card" id="panel-sfx" data-pool-layout="list" data-pool-thumb-size="medium" <?php echo $filesPanel !== 'sfx' ? 'style="display:none"' : ''; ?>>
                 <div class="media-pool-sticky-chrome">
+                    <?php bandpromo_admin_render_content_breadcrumb([
+                        'id_prefix' => 'filesSfxPool',
+                        'emoji' => '📁',
+                        'label' => 'Files',
+                        'aria_label' => 'Files location',
+                        'pool_title' => 'Files',
+                        'root_href' => '?tab=files&fpanel=sfx',
+                        'head_class' => 'content-editor-card-head media-pool-breadcrumb-head',
+                        'segments' => [
+                            [
+                                'text' => '🔊 Sound effects',
+                                'href' => '?tab=files&fpanel=sfx',
+                                'title' => 'Sound effects pool',
+                            ],
+                        ],
+                        'current' => 'Pool',
+                    ]); ?>
                 <div class="audio-pool-toolbar visual-pool-toolbar" data-media-list-header="sfx">
                     <div class="audio-pool-toolbar-main visual-pool-toolbar-main">
                         <label class="media-filter-label">
@@ -1368,11 +1419,11 @@ if ($tab === 'analytics') {
                         </div>
                         <div class="media-action-group" role="group" aria-label="Brand library">
                             <button type="button" class="icon-btn media-action-btn media-action-good media-group-action-btn media-labeled-action-btn" id="sfxUseInBrandBtn" data-use-in-brand-target="sfx" disabled aria-label="Use selected sound effects in a brand" title="Select one or more files to add to a brand"><span class="media-labeled-action-icon" aria-hidden="true">🎨</span><span>Use in brand</span></button>
-                            <button type="button" class="icon-btn media-action-btn media-group-action-btn media-labeled-action-btn" id="sfxRemoveFromBrandBtn" data-remove-from-brand-target="sfx" disabled aria-label="Remove selected sound effects from a brand library" title="Select files to remove from a brand library"><span class="media-labeled-action-icon" aria-hidden="true">🎨</span><span>From brand</span></button>
+                            <button type="button" class="icon-btn media-action-btn media-action-good media-group-action-btn media-labeled-action-btn" id="sfxRemoveFromBrandBtn" data-remove-from-brand-target="sfx" disabled aria-label="Remove selected sound effects from a brand library" title="Select files to remove from a brand library"><span class="media-labeled-action-icon" aria-hidden="true">🎨</span><span>From brand</span></button>
                         </div>
                         <div class="media-action-group" role="group" aria-label="Export and delete">
-                            <button type="button" class="icon-btn media-action-btn media-group-action-btn media-labeled-action-btn media-bulk-download-btn" data-bulk-download-target="sfx" data-download-variant="original" disabled aria-label="Download selected sound effects" title="Download selected sound effects"><span class="media-labeled-action-icon" aria-hidden="true">⬇</span><span>Download</span></button>
-                            <button type="button" class="icon-btn media-action-btn media-action-danger media-group-action-btn media-labeled-action-btn media-bulk-delete-btn" data-bulk-delete-target="sfx" disabled aria-label="Delete selected sound effects" title="Delete selected sound effects"><span class="media-labeled-action-icon" aria-hidden="true">🗑️</span><span>Delete</span></button>
+                            <button type="button" class="icon-btn media-action-btn media-action-good media-group-action-btn media-labeled-action-btn media-bulk-download-btn" data-bulk-download-target="sfx" data-download-variant="original" disabled aria-label="Download selected sound effects" title="Download selected sound effects"><span class="media-labeled-action-icon" aria-hidden="true">⬇</span><span>Download</span></button>
+                            <button type="button" class="icon-btn media-action-btn media-action-good media-group-action-btn media-labeled-action-btn media-bulk-delete-btn" data-bulk-delete-target="sfx" disabled aria-label="Delete selected sound effects" title="Delete selected sound effects"><span class="media-labeled-action-icon" aria-hidden="true">🗑️</span><span>Delete</span></button>
                         </div>
                     </div>
                 </div>
@@ -1527,44 +1578,64 @@ if ($tab === 'analytics') {
                 </div>
             </div>
 
-            <!-- Shared Visual drilldown -->
+            <!-- Shared Visual / SFX drilldown (Audio track editor chrome) -->
             <div id="poolAssetModal" class="modal-overlay" style="display:none" onclick="if(event.target===this)closePoolAssetModal()">
                 <div class="modal-box visual-asset-modal-box">
                     <button type="button" class="modal-close" onclick="closePoolAssetModal()" aria-label="Close">✕</button>
-                    <div class="visual-asset-modal-layout">
-                        <div class="visual-asset-modal-preview" id="poolAssetPreview"></div>
-                        <div class="visual-asset-modal-side">
-                            <h3 id="poolAssetTitle">Asset</h3>
-                            <div id="poolAssetBadges" class="visual-asset-badges"></div>
-                            <form id="poolAssetDisplayForm" class="visual-asset-display-form" hidden>
-                                <label>
-                                    <span>Title</span>
-                                    <input type="text" id="poolAssetDisplayTitle" name="title" maxlength="200" autocomplete="off">
-                                </label>
-                                <label>
-                                    <span>Description</span>
-                                    <textarea id="poolAssetDisplayDescription" name="description" rows="3" maxlength="2000"></textarea>
-                                </label>
-                                <label>
-                                    <span>Keywords</span>
-                                    <input type="text" id="poolAssetDisplayKeywords" name="keywords" maxlength="500" placeholder="Comma-separated" autocomplete="off">
-                                </label>
-                                <label>
-                                    <span>Captured</span>
-                                    <input type="text" id="poolAssetDisplayCapturedAt" name="captured_at" maxlength="10" placeholder="YYYY-MM-DD" autocomplete="off">
-                                </label>
-                                <p id="poolAssetDisplayStatus" class="visual-asset-display-status text-muted" hidden></p>
-                                <div class="visual-asset-display-actions">
-                                    <button type="submit" class="btn btn-primary" id="poolAssetDisplaySaveBtn">Save details</button>
-                                </div>
-                            </form>
-                            <dl id="poolAssetDetails" class="visual-asset-details"></dl>
-                            <div class="modal-actions visual-asset-modal-actions">
-                                <button type="button" class="btn btn-primary" id="poolAssetDownloadBtn">Download</button>
-                                <button type="button" class="btn btn-danger" id="poolAssetDeleteBtn">Delete</button>
-                                <button type="button" class="btn" onclick="closePoolAssetModal()">Close</button>
-                            </div>
+                    <header class="visual-asset-modal-header">
+                        <div class="visual-asset-modal-crumb-row">
+                            <nav class="content-editor-breadcrumb" id="poolAssetBreadcrumb" aria-label="Files location">
+                                <button type="button" class="content-editor-breadcrumb-root content-editor-breadcrumb-link" id="poolAssetBreadcrumbFiles" title="Back to Files">📁 Files</button>
+                                <span class="content-editor-breadcrumb-sep" aria-hidden="true"> &gt; </span>
+                                <button type="button" class="content-editor-breadcrumb-link" id="poolAssetBreadcrumbRoot" title="Back to Files pool">🎞️ Visual</button>
+                                <span class="content-editor-breadcrumb-sep" aria-hidden="true"> &gt; </span>
+                                <span class="content-editor-breadcrumb-current" id="poolAssetBreadcrumbCurrent">Editor</span>
+                                <span class="content-editor-breadcrumb-sep" id="poolAssetBreadcrumbTitleSep" aria-hidden="true"> &gt; </span>
+                                <span id="poolAssetTitle" class="visual-asset-modal-title-readout content-editor-breadcrumb-current" hidden>Asset</span>
+                                <input type="text" id="poolAssetDisplayTitle" class="visual-asset-modal-title-input content-editor-name-input" maxlength="200" autocomplete="off" aria-label="Title" hidden>
+                            </nav>
+                            <span id="poolAssetDisplayStatus" class="status-text playlist-settings-status--head visual-asset-display-status" hidden></span>
                         </div>
+                    </header>
+                    <div class="visual-asset-modal-layout">
+                        <div class="visual-asset-modal-preview" id="poolAssetPreview" data-preview-ar="landscape"></div>
+                        <div class="visual-asset-modal-side">
+                            <section class="visual-asset-meta-block visual-asset-meta-static" aria-label="File facts">
+                                <h4 class="visual-asset-meta-heading">File</h4>
+                                <div id="poolAssetBadges" class="visual-asset-badges"></div>
+                            </section>
+                            <section class="visual-asset-meta-block visual-asset-meta-dynamic" aria-label="Editable details" id="poolAssetDynamicSection">
+                                <h4 class="visual-asset-meta-heading">Details</h4>
+                                <form id="poolAssetDisplayForm" class="visual-asset-display-form" hidden>
+                                    <label class="visual-asset-field">
+                                        <span>Description:</span>
+                                        <textarea id="poolAssetDisplayDescription" name="description" rows="3" maxlength="2000"></textarea>
+                                    </label>
+                                    <label class="visual-asset-field visual-asset-field--inline">
+                                        <span>Keywords:</span>
+                                        <input type="text" id="poolAssetDisplayKeywords" name="keywords" maxlength="500" placeholder="Comma-separated" autocomplete="off">
+                                    </label>
+                                    <label class="visual-asset-field visual-asset-field--inline" for="poolAssetDisplayCapturedAt">
+                                        <span>Captured:</span>
+                                        <span class="date-input-shell iso-date-field visual-asset-captured-field">
+                                            <input type="text" class="iso-date-input" id="poolAssetDisplayCapturedAt" name="captured_at" maxlength="10" placeholder="YYYY-MM-DD" inputmode="numeric" pattern="^\d{4}(-\d{2}-\d{2})?$" title="ISO date: YYYY or YYYY-MM-DD" autocomplete="off" spellcheck="false">
+                                            <input type="date" class="iso-date-picker-native" tabindex="-1" aria-hidden="true">
+                                            <button type="button" class="iso-date-picker-btn" title="Open calendar" aria-label="Pick date">📅</button>
+                                        </span>
+                                    </label>
+                                </form>
+                            </section>
+                            <section class="visual-asset-meta-block visual-asset-meta-links" aria-label="Links" id="poolAssetLinksSection" hidden>
+                                <h4 class="visual-asset-meta-heading">Links</h4>
+                                <dl id="poolAssetDetails" class="visual-asset-details"></dl>
+                            </section>
+                        </div>
+                    </div>
+                    <div class="modal-actions visual-asset-modal-actions">
+                        <button type="button" class="btn btn-available" id="poolAssetDownloadBtn">Download</button>
+                        <button type="button" class="btn btn-available" id="poolAssetDeleteBtn" title="Delete this file">Delete</button>
+                        <button type="button" class="btn btn-available" id="poolAssetAbortBtn" title="Close without saving">Abort</button>
+                        <button type="button" class="btn btn-good" id="poolAssetDoneBtn" title="Save and close">Save</button>
                     </div>
                 </div>
             </div>
@@ -2395,8 +2466,8 @@ if ($tab === 'analytics') {
                     <h3 id="pageUnsavedModalTitle">Unsaved changes</h3>
                     <p class="card-note">This page has changes that are not saved yet. What would you like to do?</p>
                     <div class="page-unsaved-actions">
-                        <button type="button" class="btn btn-primary" id="pageUnsavedSaveBtn">Save &amp; continue</button>
-                        <button type="button" class="btn btn-danger-outline" id="pageUnsavedDiscardBtn">Leave without saving</button>
+                        <button type="button" class="btn btn-good" id="pageUnsavedSaveBtn">Save &amp; continue</button>
+                        <button type="button" class="btn btn-amber" id="pageUnsavedDiscardBtn">Leave without saving</button>
                         <button type="button" class="btn" id="pageUnsavedCancelBtn">Keep editing</button>
                     </div>
                 </div>
@@ -2559,8 +2630,8 @@ if ($tab === 'analytics') {
                     <h3 id="contentUnsavedModalTitle">Unsaved changes</h3>
                     <p class="card-note" id="contentUnsavedModalMessage">You have unsaved changes. What would you like to do?</p>
                     <div class="page-unsaved-actions">
-                        <button type="button" class="btn btn-primary" id="contentUnsavedSaveBtn">Save &amp; continue</button>
-                        <button type="button" class="btn btn-danger-outline" id="contentUnsavedDiscardBtn">Leave without saving</button>
+                        <button type="button" class="btn btn-good" id="contentUnsavedSaveBtn">Save &amp; continue</button>
+                        <button type="button" class="btn btn-amber" id="contentUnsavedDiscardBtn">Leave without saving</button>
                         <button type="button" class="btn" id="contentUnsavedCancelBtn">Keep editing</button>
                     </div>
                 </div>
@@ -3574,8 +3645,18 @@ if ($tab === 'analytics') {
         <div class="modal-box modal-wide audio-master-modal">
             <button class="modal-close" onclick="closeAudioMasterModal()">✕</button>
             <header class="audio-master-modal-header">
-                <h3 id="audioMasterTitle">Track details</h3>
-                <span id="audioMasterStatus" class="status-text playlist-settings-status--head visual-asset-display-status">Close to save</span>
+                <div class="visual-asset-modal-crumb-row">
+                    <nav class="content-editor-breadcrumb" id="audioMasterBreadcrumb" aria-label="Files location">
+                        <button type="button" class="content-editor-breadcrumb-root content-editor-breadcrumb-link" id="audioMasterBreadcrumbFiles" title="Back to Files">📁 Files</button>
+                        <span class="content-editor-breadcrumb-sep" aria-hidden="true"> &gt; </span>
+                        <button type="button" class="content-editor-breadcrumb-link" id="audioMasterBreadcrumbPanel" title="Back to Audio pool">🎵 Audio</button>
+                        <span class="content-editor-breadcrumb-sep" aria-hidden="true"> &gt; </span>
+                        <span class="content-editor-breadcrumb-current">Editor</span>
+                        <span class="content-editor-breadcrumb-sep" aria-hidden="true"> &gt; </span>
+                        <span id="audioMasterTitle" class="visual-asset-modal-title-readout content-editor-breadcrumb-current">Track details</span>
+                    </nav>
+<span id="audioMasterStatus" class="status-text playlist-settings-status--head visual-asset-display-status"></span>
+                </div>
             </header>
 
             <div class="audio-master-modal-body">
@@ -3716,8 +3797,8 @@ if ($tab === 'analytics') {
                 </form>
             </div>
             <div class="modal-actions audio-master-modal-actions">
-                <button type="button" class="btn btn-danger-outline" id="audioMasterAbortBtn" title="Close without saving">Abort</button>
-                <button type="button" class="btn btn-primary" id="audioMasterDoneBtn" title="Save changes and close">Done</button>
+                <button type="button" class="btn btn-available" id="audioMasterAbortBtn" title="Close without saving">Abort</button>
+                <button type="button" class="btn btn-good" id="audioMasterDoneBtn" title="Save and close">Save</button>
             </div>
         </div>
     </div>

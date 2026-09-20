@@ -141,6 +141,15 @@ function bandpromo_admin_render_content_breadcrumb(array $options): void
     $currentId = $idPrefix . 'BreadcrumbCurrent';
     $trailing = $options['trailing'] ?? null;
     $actions = $options['actions'] ?? null;
+    $headClass = trim((string) ($options['head_class'] ?? 'content-editor-card-head'));
+    if ($headClass === '') {
+        $headClass = 'content-editor-card-head';
+    }
+    // Optional middle segment(s): [['text' => '🎵 Audio', 'href' => '?…', 'title' => '…'], …]
+    $segments = [];
+    if (isset($options['segments']) && is_array($options['segments'])) {
+        $segments = $options['segments'];
+    }
 
     $renderSlot = static function ($slot): void {
         if (is_callable($slot)) {
@@ -152,7 +161,7 @@ function bandpromo_admin_render_content_breadcrumb(array $options): void
         }
     };
     ?>
-    <div class="content-editor-card-head">
+    <div class="<?php echo htmlspecialchars($headClass); ?>">
         <h2 class="content-editor-breadcrumb" id="<?php echo htmlspecialchars($breadcrumbId); ?>" aria-label="<?php echo htmlspecialchars($ariaLabel); ?>">
             <?php if ($rootNavigable && $rootHref !== ''): ?>
             <a class="content-editor-breadcrumb-root content-editor-breadcrumb-link" id="<?php echo htmlspecialchars($poolLinkId); ?>" href="<?php echo htmlspecialchars($rootHref); ?>" title="<?php echo htmlspecialchars($poolTitle); ?>"><?php echo htmlspecialchars($rootText); ?></a>
@@ -161,6 +170,26 @@ function bandpromo_admin_render_content_breadcrumb(array $options): void
             <?php else: ?>
             <span class="content-editor-breadcrumb-root" id="<?php echo htmlspecialchars($poolLinkId); ?>"><?php echo htmlspecialchars($rootText); ?></span>
             <?php endif; ?>
+            <?php foreach ($segments as $index => $segment): ?>
+                <?php
+                if (!is_array($segment)) {
+                    continue;
+                }
+                $segText = trim((string) ($segment['text'] ?? ''));
+                if ($segText === '') {
+                    continue;
+                }
+                $segHref = trim((string) ($segment['href'] ?? ''));
+                $segTitle = trim((string) ($segment['title'] ?? $segText));
+                $segId = $idPrefix . 'BreadcrumbSeg' . (string) $index;
+                ?>
+            <span class="content-editor-breadcrumb-sep" aria-hidden="true"> &gt; </span>
+                <?php if ($segHref !== ''): ?>
+            <a class="content-editor-breadcrumb-link" id="<?php echo htmlspecialchars($segId); ?>" href="<?php echo htmlspecialchars($segHref); ?>" title="<?php echo htmlspecialchars($segTitle); ?>"><?php echo htmlspecialchars($segText); ?></a>
+                <?php else: ?>
+            <span class="content-editor-breadcrumb-link" id="<?php echo htmlspecialchars($segId); ?>"><?php echo htmlspecialchars($segText); ?></span>
+                <?php endif; ?>
+            <?php endforeach; ?>
             <span class="content-editor-breadcrumb-sep" aria-hidden="true"> &gt; </span>
             <span class="content-editor-breadcrumb-current" id="<?php echo htmlspecialchars($currentId); ?>"><?php echo htmlspecialchars($currentLabel); ?></span>
         </h2>
