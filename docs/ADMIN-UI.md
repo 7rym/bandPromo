@@ -138,6 +138,19 @@ On **System → Status**:
 
 Do **not** invent a second amber/green save pattern.
 
+## Confirmation modals (`bandpromoConfirm`)
+
+Shared markup: `#adminConfirmModal` with `.modal-box`, body `.card-note`, and footer `.modal-actions` (not page-unsaved helpers).
+
+| Tone | Confirm button | Use |
+|------|----------------|-----|
+| `default` | `.btn.btn-primary` (coral) | Safe affirmative confirms outside the Status ladder |
+| `good` | `.btn.btn-good` (green) | Recommended Status step (e.g. Apply treatment) |
+| `quiet` | `.btn` (grey) | Optional / alternate Status paths (e.g. Force full rebuild) |
+| `danger` | `.btn.btn-danger` (red) | Irreversible deletes |
+
+Cancel stays `.btn`. Keep clear space above the button row (`.modal-actions` top margin). Prefer UK English body copy; use → in “Check → Review → Apply”.
+
 ## Icon / compact actions
 
 | Class | Meaning |

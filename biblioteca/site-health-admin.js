@@ -2435,6 +2435,7 @@
                     ),
                     confirmLabel: 'Apply treatment',
                     cancelLabel: 'Not now',
+                    tone: 'good',
                 })
                 : window.confirm(
                     'Apply the selected treatment now?\n\n' +
@@ -2495,14 +2496,17 @@
                 title: 'Force full rebuild?',
                 body: (
                     'Force a full listener rebuild even if Check looks healthy?\n\n' +
-                    'This is blocked while critical catalogue findings remain. Prefer Check → Review → Apply for missing Files rows.'
+                    'Prefer Check → Review → Apply when Files rows or delivery are missing. '
+                    + 'Force stays blocked while critical catalogue findings remain.'
                 ),
                 confirmLabel: 'Force full rebuild',
                 cancelLabel: 'Cancel',
+                tone: 'quiet',
             })
             : window.confirm(
                 'Force a full listener rebuild even if Check looks healthy?\n\n' +
-                'This is blocked while critical catalogue findings remain. Prefer Check → Review → Apply for missing Files rows.'
+                'Prefer Check → Review → Apply when Files rows or delivery are missing. '
+                + 'Force stays blocked while critical catalogue findings remain.'
             );
         if (!confirmed) {
             return;

@@ -5021,7 +5021,14 @@ canvas { max-width: 100%; height: auto; }
     display: flex;
     align-items: center;
     gap: 12px;
-    margin-top: 14px;
+    margin-top: 1.25rem;
+    padding-top: 0.15rem;
+}
+
+#adminConfirmModal .modal-box > .card-note {
+    margin-top: 0.55rem;
+    margin-bottom: 0;
+    line-height: 1.45;
 }
 
 .markdown-help-modal {

@@ -2546,7 +2546,7 @@ if ($tab === 'analytics') {
             <div class="modal-box" role="dialog" aria-modal="true" aria-labelledby="adminConfirmModalTitle">
                 <h3 id="adminConfirmModalTitle">Please confirm</h3>
                 <p class="card-note" id="adminConfirmModalBody"></p>
-                <div class="page-unsaved-actions">
+                <div class="modal-actions">
                     <button type="button" class="btn btn-primary" id="adminConfirmModalConfirmBtn">Confirm</button>
                     <button type="button" class="btn" id="adminConfirmModalCancelBtn">Cancel</button>
                 </div>

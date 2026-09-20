@@ -9,6 +9,8 @@
     let pendingResolve = null;
     let bound = false;
 
+    const CONFIRM_TONE_CLASSES = ['btn-primary', 'btn-danger', 'btn-good'];
+
     function bindModal() {
         if (bound) {
             return;
@@ -56,6 +58,26 @@
         }
     }
 
+    function applyConfirmTone(button, tone) {
+        if (!button) {
+            return;
+        }
+        CONFIRM_TONE_CLASSES.forEach((className) => button.classList.remove(className));
+        if (tone === 'danger') {
+            button.classList.add('btn-danger');
+            return;
+        }
+        if (tone === 'good') {
+            button.classList.add('btn-good');
+            return;
+        }
+        if (tone === 'quiet') {
+            // Neutral .btn only — optional / Status alternate paths (e.g. Force).
+            return;
+        }
+        button.classList.add('btn-primary');
+    }
+
     /**
      * In-app confirm (replaces window.confirm for operator admin).
      *
@@ -64,7 +86,7 @@
      * @param {string} [options.body]
      * @param {string} [options.confirmLabel]
      * @param {string} [options.cancelLabel]
-     * @param {'default'|'danger'} [options.tone]
+     * @param {'default'|'danger'|'good'|'quiet'} [options.tone]
      * @returns {Promise<boolean>}
      */
     function bandpromoConfirm(options) {
@@ -73,7 +95,12 @@
         const body = String(opts.body || '');
         const confirmLabel = String(opts.confirmLabel || 'Confirm');
         const cancelLabel = String(opts.cancelLabel || 'Cancel');
-        const tone = opts.tone === 'danger' ? 'danger' : 'default';
+        const rawTone = String(opts.tone || 'default').trim().toLowerCase();
+        const tone = (
+            rawTone === 'danger' || rawTone === 'good' || rawTone === 'quiet'
+                ? rawTone
+                : 'default'
+        );
 
         bindModal();
         return new Promise((resolve) => {
@@ -94,8 +121,7 @@
                 bodyEl.textContent = body;
             }
             confirmBtn.textContent = confirmLabel;
-            confirmBtn.classList.remove('btn-primary', 'btn-danger');
-            confirmBtn.classList.add(tone === 'danger' ? 'btn-danger' : 'btn-primary');
+            applyConfirmTone(confirmBtn, tone);
             if (cancelBtn) {
                 cancelBtn.textContent = cancelLabel;
             }
