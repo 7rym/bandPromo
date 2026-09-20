@@ -2,6 +2,8 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-09-20 11:30 - Operator-friendly Force copy: drop “listener rebuild”; confirm and hub text explain a full player-ready rebuild that turns every stone, may take time on large catalogues, and stays blocked on critical findings. Preference registered (local Cursor rule + OPERATOR-MESSAGING voice note).
+
 2026-09-20 11:25 - Confirmation modals: more space above the button row; shared confirm uses `.modal-actions`. Site health Apply confirm is green (`tone: good`); Force confirm is grey (`tone: quiet`) per the Status ladder — not coral primary.
 
 2026-09-20 11:20 - Visual delivery: start building the **grid** variant (320px) for image roles; admin Files/picker prefer grid → card → thumb. Run Site health Treat (or image delivery) once so existing assets gain `grid.jpg`.

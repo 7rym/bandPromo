@@ -2874,7 +2874,7 @@ if ($tab === 'analytics') {
 
             <?php if ($systemTab === 'deliverables'): ?>
             <div class="admin-help-box collapsed" id="help-build">
-                <strong>Status</strong> is the install health desk. Open <strong>Site health</strong> for catalogue checks (Quick or Full), then Review → Apply when something needs fixing. <strong>Force full rebuild</strong> rebuilds listener deliverables and is blocked while critical findings remain. Detail stays in Activity.
+                <strong>Status</strong> is the install health desk. Open <strong>Site health</strong> for catalogue checks (Quick or Full), then Review → Apply when something needs fixing. <strong>Force full rebuild</strong> rebuilds every player-ready file so the whole install is checked end to end; it is blocked while critical findings remain. Detail stays in Activity.
             </div>
 
             <div id="siteHealthCard" class="card publish-status-card">
@@ -2918,7 +2918,7 @@ if ($tab === 'analytics') {
                             <div class="site-health-hub-guide-heading" id="siteHealthHubSlotForce">
                                 <button type="button" id="siteHealthForceBtn" class="btn">Force full rebuild</button>
                             </div>
-                            <p class="site-health-hub-guide-body">Rebuild listener deliverables. Blocked while critical findings remain.</p>
+                            <p class="site-health-hub-guide-body">Rebuild every player-ready file end to end. May take a while on large catalogues. Blocked while critical findings remain.</p>
                         </article>
                     </div>
                     <p id="siteHealthHubResume" class="site-health-hub-resume" hidden></p>

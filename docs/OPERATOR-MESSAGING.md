@@ -58,7 +58,11 @@ Keep inline text **only** for:
 
 Stop using inline for global outcomes (“Building in background”, “Backup deleted”) — those become toast → inbox.
 
-### Confirm dialogs — one reusable component (shipped v0.8)
+### Voice (operator-friendly copy)
+
+Confirms, Status blurbs, and toasts explain the **outcome for the install** in plain UK English. Avoid internal jargon in primary copy (e.g. “listener rebuild”, “deliverables”, “fingerprint”). Say what will happen, how long it might take when that matters, and what to prefer instead (often Check → Review → Apply). See house style in [AGENTS.md](AGENTS.md).
+
+## Confirm dialogs — one reusable component (shipped v0.8)
 
 Admin uses shared in-app confirms instead of native browser dialogs:
 

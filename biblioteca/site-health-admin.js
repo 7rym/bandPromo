@@ -2495,8 +2495,8 @@
             ? await window.bandpromoConfirm({
                 title: 'Force full rebuild?',
                 body: (
-                    'Force a full listener rebuild even if Check looks healthy?\n\n' +
-                    'Prefer Check → Review → Apply when Files rows or delivery are missing. '
+                    'Rebuild every player-ready file and playlist for this install — streams, artwork, and site chrome — so nothing is skipped.\n\n'
+                    + 'On a large catalogue this can take a while. Prefer Check → Review → Apply when Files rows or delivery are missing; '
                     + 'Force stays blocked while critical catalogue findings remain.'
                 ),
                 confirmLabel: 'Force full rebuild',
@@ -2504,8 +2504,9 @@
                 tone: 'quiet',
             })
             : window.confirm(
-                'Force a full listener rebuild even if Check looks healthy?\n\n' +
-                'Prefer Check → Review → Apply when Files rows or delivery are missing. '
+                'Force full rebuild?\n\n'
+                + 'Rebuild every player-ready file and playlist for this install — streams, artwork, and site chrome — so nothing is skipped.\n\n'
+                + 'On a large catalogue this can take a while. Prefer Check → Review → Apply when Files rows or delivery are missing; '
                 + 'Force stays blocked while critical catalogue findings remain.'
             );
         if (!confirmed) {
