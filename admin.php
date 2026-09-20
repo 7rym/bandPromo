@@ -1306,10 +1306,10 @@ if ($tab === 'analytics') {
                             <button type="button" class="visual-view-btn is-active" data-pool-view="grid" data-pool-panel="visual" aria-pressed="true" title="Grid view">Grid</button>
                             <button type="button" class="visual-view-btn" data-pool-view="list" data-pool-panel="visual" aria-pressed="false" title="List view">List</button>
                         </div>
-                        <div class="visual-view-toggle visual-thumb-size-toggle" role="group" aria-label="List thumbnail size">
-                            <button type="button" class="visual-view-btn" data-pool-thumb-size="small" aria-pressed="false" title="Small list thumbnails (70×70)">S</button>
-                            <button type="button" class="visual-view-btn is-active" data-pool-thumb-size="medium" aria-pressed="true" title="Medium list thumbnails (100×100)">M</button>
-                            <button type="button" class="visual-view-btn" data-pool-thumb-size="large" aria-pressed="false" title="Large list thumbnails (125×125)">L</button>
+                        <div class="visual-view-toggle visual-thumb-size-toggle" role="group" aria-label="Thumbnail size">
+                            <button type="button" class="visual-view-btn" data-pool-thumb-size="small" aria-pressed="false" title="Small thumbnails (70×70 list / denser grid)">S</button>
+                            <button type="button" class="visual-view-btn is-active" data-pool-thumb-size="medium" aria-pressed="true" title="Medium thumbnails (100×100 list / default grid)">M</button>
+                            <button type="button" class="visual-view-btn" data-pool-thumb-size="large" aria-pressed="false" title="Large thumbnails (125×125 list / roomier grid)">L</button>
                         </div>
                     </div>
                     <div class="audio-pool-toolbar-actions visual-pool-toolbar-actions media-file-actions">

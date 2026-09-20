@@ -2,6 +2,8 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-09-20 11:10 - Files → Visual: **S / M / L** thumbnail size works in Grid as well as List (denser / default / roomier tile columns).
+
 2026-09-20 11:05 - Sticky chrome preference clarified: pin only when scroll would push the bar off the viewport; while still on-screen it stays in normal flow. Drop always-on sticky shadows that made bars look permanently floating. Branding Live preview keeps nested-sticky exemption.
 
 2026-09-20 11:00 - Branding Live preview: global sticky split-header rule no longer sticks the preview title inside the already-sticky preview column (cover was painting over “Live preview”). Preview column top/height clear the sticky Content sub-tabs + breadcrumb. FEATURES / MEDIA-HANDLING note Brand assets tab retired (Use in brand on Visual+SFX).

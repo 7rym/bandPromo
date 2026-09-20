@@ -198,7 +198,7 @@ Same operator patterns as Audio, plus Grid/List on Visual:
 | Toolbar | Shared `.audio-pool-toolbar` density; Visual: type chips + **campaign** filter + **brand library** filter (**All brands** / **Not in a brand** / each brand) + title search + Grid/List + S/M/L thumbs. Sound effects: brand filter + title search. **Use in brand** adds selected Visual/SFX to a brand library; **From brand** appears when a concrete brand filter is set. Visual **Use in gallery** appends selected delivery-ready visuals to a gallery. Visual **Assign** / **Remove** still set or clear catalogue home. Audio **Use in playlist** appends selected masters to a playlist. Filter/action toolbar + column headers use classic sticky (pin only when scroll would hide them under the Files sub-tab bar). |
 | Selection | All/None `.audio-select-chip` in `.visual-pool-col-headers`; checkbox click updates selection |
 | List mode | Title / Catalogue\|Brand / Dimensions / Size. Visual **Catalogue** is campaign home. Brand-library members with no home list that Brand, not Orphan. In use / Unused is live assignment (cover, gallery, page, poster, or brand shell slot). |
-| Grid mode | Thumbnails + caption under each card; column labels hidden, All/None kept |
+| Grid mode | Thumbnails + caption under each card; column labels stay as sort chips with All/None; **S / M / L** scales grid tile density (same control as List) |
 | Search | “Filter by title…” |
 
 The Files → Brand assets tab is retired (`fpanel=special` → Visual). Branding shell pickers browse Visual / Sound effects.
