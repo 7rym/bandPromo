@@ -2,6 +2,8 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-09-21 16:20 - Docs: lock session admin UI lessons in ADMIN-UI / AGENTS / FEATURES — opaque sticky + page-builder stack; flat field grids; modal single-scroller autosize; Markdown hints trail labels; confirm z-index above Files editors; media picker `campaign` param; Audio quiet head + Featured/Remix / Show artist notes.
+
 2026-09-21 16:10 - Audio track editor: Lyrics|Notes textarea autosizes to content (same as blurb) so the modal is the only scroller.
 
 2026-09-21 16:00 - Audio track editor Details: Artist|Featured|Remix → Title|Version → Genre|BPM|Key → Release date; blurb autosizes; Markdown hints trail the blurb label and Lyrics|Notes toggler. Key allows up to 4 characters.

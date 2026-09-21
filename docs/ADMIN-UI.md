@@ -145,6 +145,24 @@ Do not nest sticky headers under another sticky on the same scroll axis (Content
 
 **Opaque sticky chrome (locked):** every sticky toolbar/header that sits over scrolling content uses `--admin-sticky-chrome-bg` (`#0f172a`) — Files pool (`.media-pool-sticky-chrome`), Content / Status breadcrumb heads (`.content-editor-card-head`), and the page-builder add-block head (`.page-editor-panel-head`, under `--page-builder-sticky-top`). Do **not** use the translucent slate wash on sticky chrome (list rows show through). In-flow (non-sticky) split-editor column headers, Files modal headers, and page rich-text formatting bars may keep wash / stay with their block. Sub-tab bars stay opaque `--accent`.
 
+**Page builder stack:** the add-block sticky head uses `--page-builder-sticky-top` (sub-tabs + breadcrumb height), never `top: 0` (that overlapped the coral Content bar). Rich-text formatting bars stay **in-flow with their block** — do not nest a second sticky under the add-block head.
+
+## Form field grids (locked lessons)
+
+Prefer **flat rows** of peer fields. Do **not** stack several fields inside one grid cell beside siblings (e.g. Artist + Featured + Remix as a vertical stack next to Title|Version) — that reads as chaos once labels sit above inputs.
+
+| Prefer | Avoid |
+|--------|--------|
+| One logical group per row (`Artist \| Featured \| Remix`) | Multi-field vertical stack in a single grid cell |
+| Narrow fixed-width inputs for short codes (BPM ≤3ch, Key ≤4ch) with a flex sibling filling the rest (Genre) | Stretching BPM/Key to fill leftover column width |
+| Compact ISO date on its own row when it is not part of a short inline pair | Parking Release date under BPM in a nested stack |
+
+Force `#audioMasterForm .playlist-settings-field` (and peers) to `display: flex; flex-direction: column` so every field keeps **Label:** above the control. Narrow fixed-width inputs otherwise sit **inline** with their label and misalign the row.
+
+## Modal long textareas (single scroller)
+
+Mutating Files modals (Audio track, and peers with long prose) autosize blurb / Lyrics|Notes (and similar) textareas to content (`overflow: hidden`, JS height from `scrollHeight`, schedule after layout). The **modal body** is the only vertical scroller — never nest a second scrollbar inside a textarea while the modal also scrolls.
+
 ## System tab and roles (2026-08-31)
 
 | Sub-tab | `admin` role | `developer` role |
@@ -390,6 +408,8 @@ Shared styles live on `.date-input-shell` in `biblioteca/admin.css`. Do not inve
 
 Shared markup: `#adminConfirmModal` with `.modal-box`, body `.card-note`, and footer `.modal-actions` (not page-unsaved helpers).
 
+**Stacking (locked):** `#adminConfirmModal` z-index sits **above** Files editors and the media picker (`#audioMasterModal` / `#poolAssetModal` / `#mediaPickerModal`) so Abort discard and delete confirms are never buried under the editor overlay.
+
 | Tone | Confirm button | Use |
 |------|----------------|-----|
 | `default` | `.btn.btn-primary` (coral) | Safe affirmative confirms outside the Status ladder |
@@ -451,8 +471,8 @@ Shares Content/Visual chrome without the pool → preview layout:
 | Blurb | Label trails Markdown hint; textarea autosizes to content |
 | Lyrics / Notes | Compact pill `.audio-master-text-role-toggle` / `.audio-master-text-role-btn`; Restricted Markdown hint trails the toggler; textarea autosizes (modal scrolls — no inner scrollbar) |
 | Listen preview | Compact `<audio>` under Master audio asset (`.audio-master-listen-bar`); Files rows use ▶ → `#adminAudioListenDock` via `audio.php` (`.media-action-good`) |
-| Save / Abort | Footer: **Abort** (available muted green; dirty → warn confirm) · **Save** (proposed solid green) / ✕ / backdrop / crumb = save on close |
-| Autosave status | Header status quiet when clean; “Unsaved changes” when dirty |
+| Save / Abort | Footer: **Abort** (available muted green; dirty → warn confirm) · **Save** (solid green — always write then leave) / ✕ / backdrop / crumb = save-if-dirty |
+| Head status | Quiet — no “Saving…” / “Saved” / “Unsaved changes” in the crumb; dirty shows as amber **Save**; errors only in the head when needed |
 | Audio list columns | Compact `.audio-pool-toolbar` + shared grid; All/None `.audio-select-chip` in header; `[data-audio-sort]` for client sort |
 
 Edits stay local until close (or Abort). Validation or save errors keep the modal open.
@@ -493,7 +513,13 @@ The Files → Brand assets tab is retired (`fpanel=special` → Visual). Brandin
 
 Long player-facing prose textareas (track description, lyrics/Notes, release/playlist long description) show **Markdown** plus a **?** control (`.markdown-help-open`) that opens `#markdownHelpModal`. Short descriptions, titles, and page richtext stay plain / toolbar HTML.
 
+**Placement (locked):** the Markdown hint **trails** its control’s label or toggler on the same line — e.g. `Track description / blurb: Markdown in playlist view (?)` and `Lyrics|Notes` toggler then `Restricted Markdown (?) …`. Do not park the hint under the textarea or above the toggler as a separate block.
+
 Helpers: `bandpromo_admin_markdown_help_trigger()` / `bandpromo_admin_markdown_help_note()` in `biblioteca/player-markdown.php`.
+
+## Media picker campaign filter
+
+Shared `#mediaPickerModal` filters by campaign with the query/body param **`campaign`** (not legacy `release`). Sending `release` is ignored and shows the unfiltered pool — a common foot-gun when wiring Pages / gallery / cover pickers.
 
 ## Content editor sections
 
