@@ -449,7 +449,7 @@ Shares Content/Visual chrome without the pool → preview layout:
 | Music row | Genre (flex) · BPM (3ch) · Key (4ch) (`.audio-master-form-grid-music`) |
 | Date row | Release date alone (`.audio-master-form-grid-date`) |
 | Blurb | Label trails Markdown hint; textarea autosizes to content |
-| Lyrics / Notes | Compact pill `.audio-master-text-role-toggle` / `.audio-master-text-role-btn`; Restricted Markdown hint trails the toggler |
+| Lyrics / Notes | Compact pill `.audio-master-text-role-toggle` / `.audio-master-text-role-btn`; Restricted Markdown hint trails the toggler; textarea autosizes (modal scrolls — no inner scrollbar) |
 | Listen preview | Compact `<audio>` under Master audio asset (`.audio-master-listen-bar`); Files rows use ▶ → `#adminAudioListenDock` via `audio.php` (`.media-action-good`) |
 | Save / Abort | Footer: **Abort** (available muted green; dirty → warn confirm) · **Save** (proposed solid green) / ✕ / backdrop / crumb = save on close |
 | Autosave status | Header status quiet when clean; “Unsaved changes” when dirty |

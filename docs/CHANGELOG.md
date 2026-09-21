@@ -2,6 +2,8 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-09-21 16:10 - Audio track editor: Lyrics|Notes textarea autosizes to content (same as blurb) so the modal is the only scroller.
+
 2026-09-21 16:00 - Audio track editor Details: Artist|Featured|Remix → Title|Version → Genre|BPM|Key → Release date; blurb autosizes; Markdown hints trail the blurb label and Lyrics|Notes toggler. Key allows up to 4 characters.
 
 2026-09-21 15:55 - Audio track editor: **Featured artist** and **Remix artist** under Artist; Release date moves under BPM. Registry + master tags (Vorbis `FEATUREDARTIST` / `REMIXER`, ID3 `TXXX:FEATURED ARTIST` / `TPE4`).

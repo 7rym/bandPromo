@@ -2611,24 +2611,25 @@ canvas { max-width: 100%; height: auto; }
     font-weight: 400;
 }
 
-.audio-master-description-group textarea {
+#audioMasterForm .audio-master-description-group textarea,
+#audioMasterForm .audio-master-text-panel textarea {
     resize: none;
     overflow: hidden;
-    min-height: 2.5rem;
     width: 100%;
     box-sizing: border-box;
     field-sizing: content;
+}
+
+#audioMasterForm .audio-master-description-group textarea {
+    min-height: 2.5rem;
 }
 
 .audio-master-text-panel {
     margin-bottom: 4px;
 }
 
-.audio-master-text-panel textarea {
-    resize: vertical;
-    min-height: 200px;
-    width: 100%;
-    box-sizing: border-box;
+#audioMasterForm .audio-master-text-panel textarea {
+    min-height: 6rem;
     font-size: 14px;
 }
 

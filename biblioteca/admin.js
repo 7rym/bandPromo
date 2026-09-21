@@ -7234,19 +7234,29 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 audioMasterDescriptionCount.textContent = String((audioMasterFields.comment.value || '').length);
             }
 
-            function autofitAudioMasterDescriptionField() {
-                const field = audioMasterFields.comment;
+            function autofitAudioMasterTextarea(field, minHeight) {
                 if (!(field instanceof HTMLTextAreaElement)) {
                     return;
                 }
                 field.style.height = 'auto';
-                const minHeight = 40;
                 field.style.height = `${Math.max(field.scrollHeight, minHeight)}px`;
+            }
+
+            function autofitAudioMasterDescriptionField() {
+                autofitAudioMasterTextarea(audioMasterFields.comment, 40);
+            }
+
+            function autofitAudioMasterLyricsField() {
+                autofitAudioMasterTextarea(audioMasterFields.lyrics, 96);
             }
 
             function syncAudioMasterDescriptionUi() {
                 updateAudioMasterDescriptionCounter();
                 autofitAudioMasterDescriptionField();
+            }
+
+            function syncAudioMasterLyricsUi() {
+                autofitAudioMasterLyricsField();
             }
 
             function buildAudioMetadataHealthFromDetail(detail, filename = '') {
@@ -7436,6 +7446,17 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 syncAudioMasterLivingCoverUi(detail);
             }
 
+            function scheduleAudioMasterTextareaAutofit() {
+                requestAnimationFrame(() => {
+                    syncAudioMasterDescriptionUi();
+                    syncAudioMasterLyricsUi();
+                    requestAnimationFrame(() => {
+                        syncAudioMasterDescriptionUi();
+                        syncAudioMasterLyricsUi();
+                    });
+                });
+            }
+
             function setAudioMasterFormValues(detail) {
                 const titleParts = audioMasterTitlePartsFromDetail(detail || {});
                 if (audioMasterFields.title) {
@@ -7469,7 +7490,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                         : '';
                 }
                 syncAudioMasterTextPanelUi();
-                syncAudioMasterDescriptionUi();
+                scheduleAudioMasterTextareaAutofit();
             }
 
             function collectAudioMasterFields() {
@@ -7883,11 +7904,15 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
             if (audioMasterFields.comment) {
                 audioMasterFields.comment.addEventListener('input', syncAudioMasterDescriptionUi);
             }
+            if (audioMasterFields.lyrics) {
+                audioMasterFields.lyrics.addEventListener('input', syncAudioMasterLyricsUi);
+            }
 
             audioMasterTextRoleButtons.forEach((btn) => {
                 btn.addEventListener('click', () => {
                     setAudioMasterTextRole(btn.getAttribute('data-text-role'), { clearLabel: true });
                     markAudioMasterDirty();
+                    requestAnimationFrame(syncAudioMasterLyricsUi);
                 });
             });
             syncAudioMasterTextPanelUi();
