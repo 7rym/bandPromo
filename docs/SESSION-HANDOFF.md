@@ -2,9 +2,9 @@
 
 ## Resume point
 
-Session ended **v0.8.93** checkpoint: From brand clears slots + membership-only brands + In brand chip; video MKV remux (drop data tracks) + Windows ffmpeg UTF-8 capture; sticky Notifications playlist-scan heal.
+Session ended and **published** **v0.8.93 build 578** (`v0.8.93-build-578`): From brand clears slots + membership-only brands + In brand chip; video MKV remux (drop data tracks) + Windows ffmpeg UTF-8 capture; sticky Notifications playlist-scan heal.
 
-**Next:** Optional publish for testers (`-Push -Publish`). Optional: Files pool compactness; featured/remix player display.
+**Next:** Optional: Files pool compactness; featured/remix player display. Testers: Dashboard → Site update.
 
 ### Policy locked (do not reopen)
 

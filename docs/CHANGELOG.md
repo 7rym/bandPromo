@@ -2,6 +2,8 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-09-21 23:50 - Published **v0.8.93 build 578** (`v0.8.93-build-578`): From brand slot clear + membership-only From brand + In brand chip; video remux/UTF-8 prep; sticky playlist-scan Notifications heal.
+
 2026-09-21 23:45 - Notifications: sticky “Saved changes are not live yet / Check the playlist order” after import no longer survives forever — opening the bell (full refresh) or starting Site health Check/Treat/Force heals playlist-scan and clears idle auto-delivery leftovers.
 
 2026-09-21 23:25 - Publish video stage: ffmpeg capture on Windows no longer dies on UTF-8 stderr (`charmap` / emoji titles). “MP4 remux” in the log means delivery conversion of a catalogue video master, not a mystery file outside Files.
