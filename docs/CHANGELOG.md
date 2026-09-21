@@ -2,6 +2,22 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-09-21 23:45 - Notifications: sticky “Saved changes are not live yet / Check the playlist order” after import no longer survives forever — opening the bell (full refresh) or starting Site health Check/Treat/Force heals playlist-scan and clears idle auto-delivery leftovers.
+
+2026-09-21 23:25 - Publish video stage: ffmpeg capture on Windows no longer dies on UTF-8 stderr (`charmap` / emoji titles). “MP4 remux” in the log means delivery conversion of a catalogue video master, not a mystery file outside Files.
+
+2026-09-21 23:10 - Video upload prep: MKV master remux no longer maps data/timecode tracks (`-map 0` → video + optional audio). Camera MP4/MOV uploads were registering, then failing forever with `source_video_master_not_found`. Delivery spawn also heals masters before encoding.
+
+2026-09-21 22:45 - Files → From brand: dropdown lists only brands the selection is actually in (plus “Every brand in this selection” when more than one); disabled when nothing is in a brand. Pool Status gains an In brand chip for library members.
+
+2026-09-21 22:35 - Files → From brand: removing a file from a brand library also clears shell slots on that brand (logo / poster / backgrounds / welcome audio). Amber confirm when the pool already shows slotted files; toast lists cleared slots. Same clear on Delete-with-detach via the shared library helper.
+
+2026-09-21 22:25 - Files → Visual upload: Campaign selector is now sent with the upload (was audio-only), so chosen catalogue home sticks instead of leaving new visuals as orphans.
+
+2026-09-21 22:20 - Video/audio background prep: toast when ready or failed instead of stuffing running/done cards into Notifications. Auto delivery tasks no longer inflate the “Saved changes are not live yet” nag; failed prep still offers Stop retrying there.
+
+2026-09-21 22:15 - Files upload toast: after a successful video upload, show a short success note (prep continues in Notifications) instead of a sticky warning that lists every pending Site health task.
+
 2026-09-21 22:00 - Catalogue Live preview: campaign artwork no longer bleeds onto other campaigns when switching rows. Pending cover matched every `card.jpg` basename; now resets per campaign and matches by asset id / full path only (same fix for playlist covers).
 
 2026-09-21 19:50 - Files → Visual Assign: uncatalogued orphans (no `asset_id`, e.g. leftover originals with no dimensions) can be assigned — Assign registers them first, then sets catalogue home. Toast no longer says “Select one or more visuals first” when a row is already selected.

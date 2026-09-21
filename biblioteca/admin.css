@@ -4567,6 +4567,10 @@ canvas { max-width: 100%; height: auto; }
     background: rgba(34, 120, 72, 0.88);
 }
 
+.visual-pool-status-pill.is-brand {
+    background: rgba(58, 106, 148, 0.88);
+}
+
 /* Grid: thumb + caption; hide list-only columns/actions on the main row */
 .visual-pool-list--grid .visual-pool-card-main > .media-file-name-wrap,
 .visual-pool-list--grid .visual-pool-card-main > .visual-pool-card-context,

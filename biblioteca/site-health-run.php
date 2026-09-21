@@ -12,6 +12,7 @@ require_once __DIR__ . '/csrf.php';
 require_once __DIR__ . '/build-launcher.php';
 require_once __DIR__ . '/build-required.php';
 require_once __DIR__ . '/light-build-tasks.php';
+require_once __DIR__ . '/auto-build-tasks.php';
 require_once __DIR__ . '/job-stop.php';
 
 header('Content-Type: application/json; charset=utf-8');
@@ -184,6 +185,11 @@ bandpromo_job_stop_clear($root, 'site_health');
 // Site update used to leave a package_update build-required nudge that told
 // operators to run Quick check — clear it when Check/Treat/Force actually starts.
 bandpromo_clear_build_required_reasons(['package_update']);
+// Quick/Full check is the Notifications CTA for “Saved changes are not live yet”.
+// Heal playlist-scan (and idle auto-delivery leftovers) so the nag can clear.
+if (in_array($mode, ['check', 'check_full', 'treat', 'force'], true)) {
+    bandpromo_heal_build_required_operator_nags();
+}
 $launch = bandpromo_build_launch_background($python, $script, $runnerLogFile, $lockFile, $runId, $isWindows, null);
 
 if (empty($launch['started'])) {

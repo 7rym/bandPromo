@@ -534,15 +534,19 @@ function bandpromo_visual_remux_video_master_to_mkv(string $root, string $source
     }
 
     $tmpPath = $destPath . '.tmp.' . bin2hex(random_bytes(4)) . '.mkv';
+    // Map video + optional audio only. Phone/camera MP4/MOV often include a data
+    // (timecode) track that Matroska rejects with "-map 0".
     $cmd = [
         $ffmpeg,
         '-y',
         '-hide_banner',
         '-loglevel', 'error',
         '-i', $sourcePath,
-        '-map', '0',
+        '-map', '0:v:0',
+        '-map', '0:a?',
         '-c', 'copy',
         '-sn',
+        '-dn',
         $tmpPath,
     ];
 

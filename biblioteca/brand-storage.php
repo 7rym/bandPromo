@@ -1386,10 +1386,63 @@ function bandpromo_brand_add_assets_to_library(string $root, string $brandId, ar
 }
 
 /**
- * Remove a Visual/SFX asset from every Brand library that lists it.
- * Brands that still assign the asset to a shell slot are left alone and reported.
+ * Clear shell slots that reference these asset ids (asset_ids + assets URL).
  *
- * @return array{removed:int, blocked:list<string>}
+ * @param array<string, mixed> $document
+ * @param list<string> $assetIds
+ * @return array{document: array<string, mixed>, cleared_slots: list<string>, cleared_labels: list<string>}
+ */
+function bandpromo_brand_clear_slots_for_asset_ids(array $document, array $assetIds): array
+{
+    $wanted = [];
+    foreach ($assetIds as $assetId) {
+        $assetId = trim((string) $assetId);
+        if ($assetId !== '') {
+            $wanted[$assetId] = true;
+        }
+    }
+
+    $slotLabels = [
+        'logo' => 'Logo',
+        'poster' => 'Poster',
+        'background_image' => 'Still background',
+        'background_video' => 'Living background',
+        'welcome_audio' => 'Welcome audio',
+        'loggedin_audio' => 'Logged-in audio',
+    ];
+
+    $slotIds = bandpromo_brand_normalize_asset_ids(
+        is_array($document['asset_ids'] ?? null) ? $document['asset_ids'] : []
+    );
+    $assets = is_array($document['assets'] ?? null) ? $document['assets'] : [];
+    $clearedSlots = [];
+    $clearedLabels = [];
+
+    foreach ($slotIds as $slot => $id) {
+        if ($id === '' || !isset($wanted[$id])) {
+            continue;
+        }
+        $slotIds[$slot] = '';
+        $assets[$slot] = '';
+        $clearedSlots[] = (string) $slot;
+        $clearedLabels[] = $slotLabels[$slot] ?? ucfirst(str_replace('_', ' ', (string) $slot));
+    }
+
+    $document['asset_ids'] = $slotIds;
+    $document['assets'] = $assets;
+
+    return [
+        'document' => $document,
+        'cleared_slots' => $clearedSlots,
+        'cleared_labels' => array_values(array_unique($clearedLabels)),
+    ];
+}
+
+/**
+ * Remove a Visual/SFX asset from every Brand library that lists it.
+ * Shell slots that used the asset are cleared on those brands.
+ *
+ * @return array{removed:int, blocked:list<string>, slots_cleared:int}
  */
 function bandpromo_brand_remove_asset_from_all_libraries(string $root, string $assetId): array
 {
@@ -1397,6 +1450,7 @@ function bandpromo_brand_remove_asset_from_all_libraries(string $root, string $a
     $result = [
         'removed' => 0,
         'blocked' => [],
+        'slots_cleared' => 0,
     ];
     if ($assetId === '') {
         return $result;
@@ -1408,6 +1462,8 @@ function bandpromo_brand_remove_asset_from_all_libraries(string $root, string $a
     } catch (Throwable $throwable) {
         return $result;
     }
+
+    $activeBrandId = bandpromo_brand_active_id($root);
 
     foreach (bandpromo_brand_registry_entries($root) as $registryEntry) {
         if (!is_array($registryEntry)) {
@@ -1426,30 +1482,39 @@ function bandpromo_brand_remove_asset_from_all_libraries(string $root, string $a
         $library = is_array($document['library_asset_ids'] ?? null)
             ? $document['library_asset_ids']
             : [];
-        if (!in_array($assetId, $library, true)) {
+        $inLibrary = in_array($assetId, $library, true);
+        $cleared = bandpromo_brand_clear_slots_for_asset_ids($document, [$assetId]);
+        $document = $cleared['document'];
+        $slotsClearedHere = count($cleared['cleared_slots']);
+        if (!$inLibrary && $slotsClearedHere === 0) {
             continue;
         }
 
-        foreach ((array) ($document['asset_ids'] ?? []) as $slotAssetId) {
-            if ((string) $slotAssetId === $assetId) {
-                $title = trim((string) ($document['title'] ?? $brandId)) ?: $brandId;
-                $result['blocked'][] = $title;
-                continue 2;
+        if ($inLibrary) {
+            $next = [];
+            foreach ($library as $memberId) {
+                if ((string) $memberId !== $assetId) {
+                    $next[] = $memberId;
+                }
             }
+            $document['library_asset_ids'] = bandpromo_brand_normalize_library_asset_ids($next);
+            $result['removed']++;
+        }
+        if ($slotsClearedHere > 0) {
+            $result['slots_cleared'] += $slotsClearedHere;
         }
 
-        $next = [];
-        foreach ($library as $memberId) {
-            if ((string) $memberId !== $assetId) {
-                $next[] = $memberId;
+        bandpromo_brand_write_document($root, $document, ['allow_locked' => true]);
+        if ($slotsClearedHere > 0 && $brandId === $activeBrandId) {
+            try {
+                bandpromo_brand_sync_assets_to_config($root, $document);
+            } catch (Throwable $throwable) {
+                // Library/slot write already succeeded; config sync is best-effort.
             }
         }
-        $document['library_asset_ids'] = bandpromo_brand_normalize_library_asset_ids($next);
-        bandpromo_brand_write_document($root, $document, ['allow_locked' => true]);
-        $result['removed']++;
     }
 
-    if ($result['removed'] > 0) {
+    if ($result['removed'] > 0 || $result['slots_cleared'] > 0) {
         bandpromo_brand_library_membership_index($root, true);
         try {
             $asset = bandpromo_asset_lookup_by_id($root, $assetId);
@@ -1468,7 +1533,7 @@ function bandpromo_brand_remove_asset_from_all_libraries(string $root, string $a
                 }
             }
         } catch (Throwable $throwable) {
-            // Registry stamp is display-only; library membership is source of truth.
+            // Stamp sync is best-effort.
         }
     }
 

@@ -491,7 +491,7 @@ Same leave factory as the Audio track editor (`#poolAssetModal`):
 | Title | `#poolAssetDisplayTitle` in the crumb when editable; otherwise static `#poolAssetTitle` after Editor (no Title field in Details) |
 | Head status | Quiet — save success uses toast (10s); failures toast until dismissed |
 | Preview | Aspect-aware stage (`portrait` / `square` / `landscape`) |
-| File (static) | Chips: type · size · dimensions · Alpha · Preparing/Queued/Waiting · In use / Unused |
+| File (static) | Chips: type · size · dimensions · Alpha · Preparing/Queued/Waiting · In use / Unused · In brand (library membership) |
 | Details (dynamic) | Description (stacked); Keywords inline; **Captured** = shared ISO date picker; shared `--card` field backgrounds |
 | Links | Catalogue\|Brand · Role address (when meaningful) · References |
 | Footer | **Download** · **Delete** · **Abort** (all available muted green when enabled) · **Save** (solid green proposed) |
@@ -507,7 +507,7 @@ Same operator patterns as Audio, plus Grid/List on Visual:
 |---------|----------|
 | Toolbar | Shared `.audio-pool-toolbar` density. Visual / SFX: two-row chrome, both rows **left-aligned** — **View:** / **Filter:** (Visual) or filters (SFX) on row 1; **Actions:** clusters on row 2 (not `margin-left: auto`). Visual View: Grid/List · S/M/L; Filter: type · campaign · brand · title. Actions: **Upload** · catalogue **Assign**/**Remove** (💿) · brand **Use in brand**/**From brand** (🎨) · **Use in gallery** (🖼️) · **Download**/**Delete**. Icons match Content → Catalogue / Branding / Galleries / Playlists (🎵). Audio keeps a single row with actions trailing when space allows. No permanent “no undo” banner. Visual thumbs: ▶ on videos (hides on hover). Files → Visual tab uses 🎞️. Sticky under the Files sub-tab bar. |
 | Selection | All/None `.audio-select-chip` in `.visual-pool-col-headers`; checkbox click updates selection. Pool summary is overlaid on the actions track of `.media-pool-headers-bar` (two lines: `n files` / `x MB total`) so List sort columns keep the same grid tracks as the rows. |
-| List mode | Title / Catalogue\|Brand / Dimensions / Size. Visual **Catalogue** is campaign home. Brand-library members with no home list that Brand, not Orphan. In use / Unused is live assignment (cover, gallery, page, poster, or brand shell slot). |
+| List mode | Title / Catalogue\|Brand / Dimensions / Size. Visual **Catalogue** is campaign home. Brand-library members with no home list that Brand, not Orphan. In use / Unused is live assignment (cover, gallery, page, poster, or brand shell slot). **In brand** marks library membership (separate from assignment). **From brand** lists only brands the selection belongs to (plus every brand in the selection when spanned). |
 | Grid mode | Thumbnails + caption under each card; column labels stay as sort chips with All/None; **S / M / L** scales grid tile density (same control as List) |
 | Search | “Filter by title…” |
 

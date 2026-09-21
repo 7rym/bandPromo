@@ -56,6 +56,7 @@ try {
         is_array($document['library_asset_ids'] ?? null) ? $document['library_asset_ids'] : [],
         true
     );
+    $clearedLabels = [];
     foreach ($assetIds as $assetId) {
         $asset = bandpromo_asset_lookup_by_id($root, $assetId);
         $kind = is_array($asset) ? (string) ($asset['kind'] ?? '') : '';
@@ -68,17 +69,26 @@ try {
             continue;
         }
 
-        foreach ((array) ($document['asset_ids'] ?? []) as $slotAssetId) {
-            if ((string) $slotAssetId === $assetId) {
-                throw new RuntimeException('Clear this asset from its Brand shell slot before removing it from the library.');
-            }
-        }
         unset($library[$assetId]);
+    }
+
+    if ($action === 'remove') {
+        $cleared = bandpromo_brand_clear_slots_for_asset_ids($document, $assetIds);
+        $document = $cleared['document'];
+        $clearedLabels = $cleared['cleared_labels'];
     }
 
     $document['library_asset_ids'] = array_keys($library);
     bandpromo_brand_write_document($root, $document, ['allow_locked' => true]);
     $document = bandpromo_brand_load_document($root, $brandId);
+
+    if ($action === 'remove' && $clearedLabels !== [] && bandpromo_brand_active_id($root) === $brandId) {
+        try {
+            bandpromo_brand_sync_assets_to_config($root, $document);
+        } catch (Throwable $throwable) {
+            // Library/slot write already succeeded; config sync is best-effort.
+        }
+    }
 
     // Keep registry brand_id stamp loosely aligned with library membership (display SoT is library).
     $membership = bandpromo_brand_library_membership_index($root, true);
@@ -111,6 +121,7 @@ try {
         'asset_id' => $assetIds[0],
         'asset_ids' => $assetIds,
         'count' => count($assetIds),
+        'cleared_slots' => $clearedLabels,
         'status' => 'ok',
     ]);
 
@@ -120,6 +131,7 @@ try {
         'asset_id' => $assetIds[0],
         'asset_ids' => $assetIds,
         'library_asset_ids' => $document['library_asset_ids'] ?? [],
+        'cleared_slots' => $clearedLabels,
     ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
 } catch (Throwable $throwable) {
     http_response_code(400);

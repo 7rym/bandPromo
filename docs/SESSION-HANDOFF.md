@@ -2,13 +2,9 @@
 
 ## Resume point
 
-Catalogue Live preview cover bleed fixed: switching campaigns no longer reuses the previous artwork (`pendingCampaignCoverPreviewUrl` matched every `card.jpg`). Data was never cross-written — each campaign’s `poster_asset_id` stayed distinct.
+Session ended **v0.8.93** checkpoint: From brand clears slots + membership-only brands + In brand chip; video MKV remux (drop data tracks) + Windows ffmpeg UTF-8 capture; sticky Notifications playlist-scan heal.
 
-Files → Visual **Assign** still registers uncatalogued orphans before setting catalogue home.
-
-Admin accent remains **deep steel blue** (`--accent: #3a6a94`, hover `#2f5780`).
-
-**Next (optional):** Files pool compactness debt; smoke save featured/remix round-trip; player display of featured/remix (not yet). Checkpoint/publish when ready.
+**Next:** Optional publish for testers (`-Push -Publish`). Optional: Files pool compactness; featured/remix player display.
 
 ### Policy locked (do not reopen)
 
@@ -26,6 +22,15 @@ Admin accent remains **deep steel blue** (`--accent: #3a6a94`, hover `#2f5780`).
 - Admin `--accent` is deep steel blue `#3a6a94` (not coral, not fluorescent sky)
 - Visual Assign may register-on-assign for orphan originals lacking `asset_id`
 - Catalogue/playlist cover pending preview must match by asset id or full path — never shared basenames like `card.jpg`
+- Upload toasts stay brief; do not dump Site health task lists into them
+- Background video/audio prep: toast on ready/failed; do not inbox running/done; auto-delivery tasks are not a Notifications nag
+- Visual upload Campaign field must post `campaign_id` like Audio
+- **From brand** / library detach clears shell slots on that brand; do not re-block “clear Branding first”
+- **From brand** dropdown = membership only (never every brand on the install); offer “Every brand in this selection” when the selection spans 2+ brands
+- Pool **In brand** chip = library membership (`brand_ids`), separate from In use / Unused assignment
+- Video MKV remux maps video + optional audio only (drop data/timecode tracks)
+- ffmpeg capture must decode stderr as UTF-8 with replace (Windows charmap)
+- Sticky playlist-scan Notifications heal on bell (full) or Site health Check start
 
 ### Local workspace
 

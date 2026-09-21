@@ -327,13 +327,12 @@ function bandpromo_delete_media_item(
         $references,
         static fn(array $reference): bool => (string) ($reference['kind'] ?? '') === 'brand-library'
     ));
-    // Brand library membership is soft — Delete with detach clears it.
-    // Shell slots (logo / poster / backgrounds) still block; clear those in Branding first.
+    // Brand library membership is soft — Delete with detach clears it and any shell slots.
     if ($brandLibraryReferences !== [] && !$detach_references) {
         return [
             'ok' => false,
             'filename' => $listingName,
-            'error' => 'This file is in one or more Brand libraries. Confirm Delete to remove those memberships, or use From brand first.',
+            'error' => 'This file is in one or more Brand libraries. Confirm Delete to remove those memberships (and clear shell slots), or use From brand first.',
             'references' => $references,
             'reference_summary' => $reference_summary,
         ];

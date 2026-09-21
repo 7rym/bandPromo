@@ -850,6 +850,9 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
             let packageUpdateInstallInProgress = false;
             let latestBackgroundTasks = null;
             let backgroundTaskPollTimer = null;
+            // Avoid re-toasting the same background delivery outcome on every poll.
+            const backgroundDeliveryOutcomeToastKeys = new Set();
+            let backgroundDeliveryOutcomeSeeded = false;
             let modalTarget = null;
             let modalFiles  = [];
             let mediaPickerState = null;
@@ -1499,26 +1502,6 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 return tasks.map(task => formatBuildTaskLabel(task));
             }
 
-            function formatBuildNextStep(state) {
-                const tasks = formatBuildTaskList(state);
-                if (latestWelcomeState && latestWelcomeState.setup_complete === true) {
-                    if (!tasks.length) {
-                        return 'Check Notifications for any remaining preparation issues.';
-                    }
-                    return `Some preparation could not finish automatically (${tasks.join(', ')}). Check Notifications.`;
-                }
-                const action = 'Quick health check';
-                if (!tasks.length) {
-                    return `Next: run ${action}.`;
-                }
-
-                if (tasks.length === 1) {
-                    return `Next: run ${action} to ${tasks[0].charAt(0).toLowerCase() + tasks[0].slice(1)}.`;
-                }
-
-                return `Next: run ${action} to finish ${tasks.length} pending tasks.`;
-            }
-
             function getBuildActionLabel() {
                 return 'Quick health check';
             }
@@ -1676,13 +1659,21 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 }
 
                 const setupComplete = !!(welcome && welcome.setup_complete === true);
-                const taskDetails = formatBuildTaskList(buildState);
+                // Auto delivery is handled by background prep + ready/failed toasts — not Notifications.
+                const autoPrepTasks = new Set(['audio-delivery', 'video-delivery', 'image-delivery']);
+                const allTasks = Array.isArray(buildState.tasks) ? buildState.tasks : [];
+                const operatorTasks = allTasks.filter((task) => !autoPrepTasks.has(String(task || '').trim()));
+                const lastError = String(buildState.last_error || '').trim();
+                if (operatorTasks.length === 0 && lastError === '') {
+                    return null;
+                }
+
+                const taskDetails = operatorTasks.map((task) => formatBuildTaskLabel(task));
                 const summaryDetails = taskDetails.length
                     ? taskDetails.map(text => ({ text }))
                     : [{ text: formatBuildTaskSummary(buildState) }];
                 const reasons = Array.isArray(buildState.reasons) ? buildState.reasons : [];
                 const afterPackageUpdate = reasons.includes('package_update');
-                const action = 'full';
                 const actionLabel = getBuildActionLabel();
 
                 // Site update auto-starts Quick health check — do not also nag
@@ -1695,7 +1686,6 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     const taskIntro = taskDetails.length
                         ? `Pending: ${taskDetails.join('; ')}.`
                         : formatBuildTaskSummary(buildState);
-                    const lastError = String(buildState.last_error || '').trim();
                     const details = [
                         { text: lastError !== ''
                             ? 'Automatic preparation after upload did not finish. Open Site health and run a Quick health check.'
@@ -1758,6 +1748,77 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 };
             }
 
+            function backgroundDeliveryDisplayName(item) {
+                const files = Array.isArray(item?.files) ? item.files.filter(Boolean) : [];
+                if (files.length === 1) {
+                    return String(files[0]);
+                }
+                if (files.length > 1) {
+                    return `${files.length} files`;
+                }
+                return String(item?.task || '') === 'audio-delivery' ? 'Your track' : 'Your video';
+            }
+
+            function maybeToastBackgroundDeliveryOutcomes(backgroundTasks) {
+                const items = backgroundTasks && Array.isArray(backgroundTasks.items) ? backgroundTasks.items : [];
+                if (!backgroundDeliveryOutcomeSeeded) {
+                    items.forEach((item) => {
+                        if (!item || typeof item !== 'object') {
+                            return;
+                        }
+                        const status = String(item.status || '').trim();
+                        if (status !== 'done' && status !== 'failed') {
+                            return;
+                        }
+                        const taskId = String(item.id || '').trim()
+                            || backgroundDeliveryDisplayName(item);
+                        const finishedAt = String(item.finished_at || item.updated_at || '').trim();
+                        backgroundDeliveryOutcomeToastKeys.add(`${taskId}:${status}:${finishedAt}`);
+                    });
+                    backgroundDeliveryOutcomeSeeded = true;
+                    return;
+                }
+
+                items.forEach((item) => {
+                    if (!item || typeof item !== 'object') {
+                        return;
+                    }
+                    const status = String(item.status || '').trim();
+                    if (status !== 'done' && status !== 'failed') {
+                        return;
+                    }
+                    const taskId = String(item.id || '').trim()
+                        || backgroundDeliveryDisplayName(item);
+                    const finishedAt = String(item.finished_at || item.updated_at || '').trim();
+                    const toastKey = `${taskId}:${status}:${finishedAt}`;
+                    if (backgroundDeliveryOutcomeToastKeys.has(toastKey)) {
+                        return;
+                    }
+                    backgroundDeliveryOutcomeToastKeys.add(toastKey);
+
+                    const isAudio = String(item.task || '').trim() === 'audio-delivery';
+                    const label = backgroundDeliveryDisplayName(item);
+                    if (status === 'done') {
+                        showAdminToast(
+                            isAudio
+                                ? `${label} is ready for listeners.`
+                                : `${label} is ready.`,
+                            'success'
+                        );
+                        return;
+                    }
+
+                    const forceStopped = item.force_stopped === true
+                        || /force-stopped|Force-stopped/i.test(String(item.error || ''));
+                    showAdminToast(
+                        forceStopped
+                            ? `${label}: preparation paused so Site update can continue.`
+                            : `${label}: preparation failed. Open Notifications if you need to stop retrying.`,
+                        'warning'
+                    );
+                });
+            }
+
             function buildNotificationsFromBackgroundTasks(backgroundTasks) {
                 const notifications = [];
                 const items = backgroundTasks && Array.isArray(backgroundTasks.items) ? backgroundTasks.items : [];
@@ -1768,91 +1829,41 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     }
 
                     const status = String(item.status || '').trim();
+                    // Running/done: toast only (see maybeToastBackgroundDeliveryOutcomes).
+                    // Keep failed here so Stop retrying / Dismiss stay available.
+                    if (status !== 'failed') {
+                        return;
+                    }
+
                     const files = Array.isArray(item.files) ? item.files.filter(Boolean) : [];
-                    const fileLine = files.length
-                        ? files.join(', ')
-                        : 'video files';
-
-                if (status === 'running') {
-                        const taskId = String(item.id || '').trim();
-                        const taskName = String(item.task || '').trim();
-                        const isAudio = taskName === 'audio-delivery';
-                        notifications.push({
-                            severity: 'background-running',
-                            title: isAudio
-                                ? 'Your track is preparing'
-                                : 'Your video is preparing',
-                            file: '',
-                            taskId,
-                            checkedAt: String(item.started_at || item.updated_at || '').trim(),
-                            details: [
-                                {
-                                    text: isAudio
-                                        ? `bandPromo is preparing streaming files for ${fileLine}. You can keep working — no action needed.`
-                                        : `bandPromo is preparing ${fileLine} for the website. You can keep working — no action needed.`,
-                                },
-                                { text: 'If this never finishes and Site update stays stuck, stop retrying to unlock updates.' },
-                            ],
-                            actions: [
-                                { label: 'Stop retrying (unlock updates)', action: 'force-stop-video-delivery' },
-                            ],
-                        });
-                        return;
-                    }
-
-                    if (status === 'done') {
-                        const taskName = String(item.task || '').trim();
-                        const isAudio = taskName === 'audio-delivery';
-                        notifications.push({
-                            severity: 'background-done',
-                            title: isAudio ? 'Track preparation finished' : 'Video preparation finished',
-                            file: '',
-                            checkedAt: String(item.finished_at || item.updated_at || '').trim(),
-                            details: [
-                                {
-                                    text: isAudio
-                                        ? `${fileLine} ${files.length === 1 ? 'is' : 'are'} ready for listeners.`
-                                        : `${fileLine} ${files.length === 1 ? 'is' : 'are'} ready for preview and gallery use.`,
-                                },
-                            ],
-                            actions: [
-                                {
-                                    label: isAudio ? 'Open Files' : 'Open Files',
-                                    href: isAudio ? '?tab=files&fpanel=audio' : '?tab=files&fpanel=visual',
-                                },
-                            ],
-                        });
-                        return;
-                    }
-
-                    if (status === 'failed') {
-                        const focusFile = files[0] || '';
-                        const taskId = String(item.id || '').trim();
-                        const forceStopped = item.force_stopped === true
-                            || /force-stopped|Force-stopped/i.test(String(item.error || ''));
-                        notifications.push({
-                            severity: 'recommended-fix',
-                            title: forceStopped ? 'Video preparation paused' : 'Video preparation needs attention',
-                            file: focusFile,
-                            taskId,
-                            checkedAt: String(item.finished_at || item.started_at || item.updated_at || '').trim(),
-                            details: [
-                                { text: String(item.error || 'bandPromo could not prepare the video file in the background.').trim() },
-                                {
-                                    text: forceStopped
-                                        ? 'Auto-retry is paused for about an hour so you can install Site updates or Publish. It will resume later, or after a host refresh of stuck videos.'
-                                        : 'bandPromo pauses auto-retry briefly after failures. If the loop returns, use Stop retrying to unlock Site update.',
-                                },
-                            ],
-                            actions: [
-                                ...(focusFile
-                                    ? [{ label: 'Open video in Files', href: buildAdminUrl({ tab: 'files', fpanel: 'visual', focus_file: focusFile }) }]
-                                    : [{ label: 'Open Files', href: '?tab=files&fpanel=visual' }]),
-                                ...(taskId ? [{ label: 'Stop retrying', action: 'force-stop-video-delivery', taskId }] : []),
-                                ...(taskId ? [{ label: 'Dismiss', action: 'dismiss-background-task', taskId }] : []),
-                            ],
-                        });
-                    }
+                    const focusFile = files[0] || '';
+                    const taskId = String(item.id || '').trim();
+                    const forceStopped = item.force_stopped === true
+                        || /force-stopped|Force-stopped/i.test(String(item.error || ''));
+                    const briefError = String(item.error || '').trim();
+                    notifications.push({
+                        severity: 'recommended-fix',
+                        title: forceStopped ? 'Video preparation paused' : 'Video preparation failed',
+                        file: focusFile,
+                        taskId,
+                        checkedAt: String(item.finished_at || item.started_at || item.updated_at || '').trim(),
+                        details: [
+                            {
+                                text: forceStopped
+                                    ? 'Auto-retry is paused so you can install Site updates. It will resume later.'
+                                    : (briefError !== ''
+                                        ? briefError
+                                        : 'bandPromo could not prepare this video. You can stop retrying or try again from Site health.'),
+                            },
+                        ],
+                        actions: [
+                            ...(focusFile
+                                ? [{ label: 'Open video in Files', href: buildAdminUrl({ tab: 'files', fpanel: 'visual', focus_file: focusFile }) }]
+                                : [{ label: 'Open Files', href: '?tab=files&fpanel=visual' }]),
+                            ...(taskId ? [{ label: 'Stop retrying', action: 'force-stop-video-delivery', taskId }] : []),
+                            ...(taskId ? [{ label: 'Dismiss', action: 'dismiss-background-task', taskId }] : []),
+                        ],
+                    });
                 });
 
                 return notifications;
@@ -2337,15 +2348,22 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     const label = assignedLabels.length
                         ? assignedLabels.join(', ')
                         : 'Assigned';
-                    badges.push(`<span class="badge audit-status-badge status-ok media-file-badge" title="Clear this Brand shell assignment before removing the asset">${bandpromoAdminEscapeHtml(label)}</span>`);
-                    return badges.join(' ');
-                }
-                const inUse = mediaFileIsInUse(file);
-
-                if (inUse) {
-                    badges.push('<span class="badge audit-status-badge status-ok media-file-badge" title="Used on a track, gallery, page, or brand slot">In use</span>');
+                    badges.push(`<span class="badge audit-status-badge status-ok media-file-badge" title="Used as a Brand shell slot">${bandpromoAdminEscapeHtml(label)}</span>`);
                 } else {
-                    badges.push('<span class="badge audit-status-badge status-warning media-file-badge" title="Not used — safe to delete if you do not need it">Unused</span>');
+                    const inUse = mediaFileIsInUse(file);
+
+                    if (inUse) {
+                        badges.push('<span class="badge audit-status-badge status-ok media-file-badge" title="Used on a track, gallery, page, or brand slot">In use</span>');
+                    } else {
+                        badges.push('<span class="badge audit-status-badge status-warning media-file-badge" title="Not used — safe to delete if you do not need it">Unused</span>');
+                    }
+                }
+                if (fileIsInBrandLibrary(file)) {
+                    const titles = brandLibraryTitles(file);
+                    const titleAttr = titles.length
+                        ? `In brand library: ${titles.join(', ')}`
+                        : 'In a brand library';
+                    badges.push(`<span class="badge audit-status-badge status-neutral media-file-badge" title="${bandpromoAdminEscapeHtml(titleAttr)}">In brand</span>`);
                 }
 
                 return badges.join(' ');
@@ -2545,6 +2563,14 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 return brandId !== 'all' && brandId !== 'orphans' ? brandId : '';
             }
 
+            function fileIsInBrandLibrary(file) {
+                if (file?.brand_orphan === true) {
+                    return false;
+                }
+                const ids = Array.isArray(file?.brand_ids) ? file.brand_ids : [];
+                return ids.some((id) => String(id || '').trim() !== '');
+            }
+
             function syncUseInBrandToolbarUi() {
                 ['visual', 'sfx'].forEach((target) => {
                     const removeBtn = document.querySelector(`[data-remove-from-brand-target="${target}"]`);
@@ -2553,10 +2579,15 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     }
                     removeBtn.hidden = false;
                     const selected = getSelectedMediaDetails(target);
-                    removeBtn.disabled = selected.length < 1;
-                    removeBtn.title = selected.length < 1
-                        ? 'Select files to remove from a brand library'
-                        : 'Remove selected files from a brand library';
+                    const inBrand = selected.some((file) => fileIsInBrandLibrary(file));
+                    removeBtn.disabled = selected.length < 1 || !inBrand;
+                    if (selected.length < 1) {
+                        removeBtn.title = 'Select files to remove from a brand library';
+                    } else if (!inBrand) {
+                        removeBtn.title = 'Selected files are not in a brand library';
+                    } else {
+                        removeBtn.title = 'Remove selected files from a brand library';
+                    }
                 });
             }
 
@@ -3748,6 +3779,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     }
                     latestBackgroundTasks = data.background_tasks || null;
                     setBuildRequiredNudge(data.build_required === true, state.reasons || [], state.action || 'none', state.tasks || []);
+                    maybeToastBackgroundDeliveryOutcomes(latestBackgroundTasks);
                     renderOperatorNotifications(state, latestBuildValidation, latestWelcomeState, latestPackageUpdate, latestBackgroundTasks, data.uncatalogued_audio_failures || []);
                     updateBackgroundTaskPolling(latestBackgroundTasks);
                     if (Object.prototype.hasOwnProperty.call(data, 'publish_status') || Object.prototype.hasOwnProperty.call(data, 'catalog_repair')) {
@@ -4387,9 +4419,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                         text: labels.length ? labels.join(', ') : 'Assigned',
                         className: 'is-ok',
                     });
-                    return pills;
-                }
-                if (file.delivery_running) {
+                } else if (file.delivery_running) {
                     pills.push({ text: 'Preparing', className: 'is-warning' });
                 } else if (file.delivery_pending) {
                     pills.push({ text: 'Queued', className: 'is-warning' });
@@ -4398,6 +4428,9 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 } else {
                     // Catalogue "Orphans" means no release — never reuse that word for unused assets.
                     pills.push({ text: 'Unused', className: 'is-warning' });
+                }
+                if (fileIsInBrandLibrary(file)) {
+                    pills.push({ text: 'In brand', className: 'is-brand' });
                 }
                 return pills;
             }
@@ -4765,9 +4798,15 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                             ? `Added to brand “${brandTitle}”.`
                             : `${count} files added to brand “${brandTitle}”.`);
                     } else {
-                        showAdminToast(count === 1
+                        const cleared = Array.isArray(data.cleared_slots)
+                            ? data.cleared_slots.map((label) => String(label || '').trim()).filter(Boolean)
+                            : [];
+                        const base = count === 1
                             ? `Removed from brand “${brandTitle}”.`
-                            : `${count} files removed from brand “${brandTitle}”.`);
+                            : `${count} files removed from brand “${brandTitle}”.`;
+                        showAdminToast(cleared.length
+                            ? `${base} Cleared: ${cleared.join(', ')}.`
+                            : base);
                     }
                 }
                 return data;
@@ -8381,18 +8420,8 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     return;
                 }
 
-                const slottedOnly = selected.every((file) => file?.brand_slot_assigned === true);
-                if (slottedOnly) {
-                    showAdminToast(
-                        'Those files are assigned to a shell slot. Clear the slot in Content → Branding first.',
-                        'error'
-                    );
-                    return;
-                }
-
-                const removable = selected.filter((file) => file?.brand_slot_assigned !== true);
                 const membershipIds = new Set();
-                removable.forEach((file) => {
+                selected.forEach((file) => {
                     const ids = Array.isArray(file?.brand_ids) ? file.brand_ids : [];
                     ids.forEach((id) => {
                         const brandId = String(id || '').trim();
@@ -8402,6 +8431,11 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     });
                 });
 
+                if (membershipIds.size === 0) {
+                    showAdminToast('None of the selected files are in a brand library.', 'error');
+                    return;
+                }
+
                 await ensureBrandFilterCatalog();
                 const allBrands = (brandFilterCatalog || []).filter((entry) => String(entry?.id || '').trim() !== '');
                 if (!allBrands.length) {
@@ -8409,10 +8443,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     return;
                 }
 
-                let brands = allBrands;
-                if (membershipIds.size > 0) {
-                    brands = allBrands.filter((entry) => membershipIds.has(String(entry?.id || '').trim()));
-                }
+                const brands = allBrands.filter((entry) => membershipIds.has(String(entry?.id || '').trim()));
                 if (!brands.length) {
                     showAdminToast('None of the selected files are in a brand library.', 'error');
                     return;
@@ -8428,14 +8459,31 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 }
 
                 const kindLabel = useInBrandTarget === 'sfx' ? 'sound effect' : 'visual';
-                const count = removable.length;
-                summaryEl.textContent = `Selected: ${count} ${kindLabel}${count === 1 ? '' : 's'}. Choose the brand library to remove them from.`;
+                const count = selected.filter((file) => fileIsInBrandLibrary(file)).length;
+                const slottedCount = selected.filter((file) => file?.brand_slot_assigned === true).length;
+                const brandCount = brands.length;
+                let summary = `Selected: ${count} ${kindLabel}${count === 1 ? '' : 's'} in ${brandCount} brand${brandCount === 1 ? '' : 's'}.`;
+                if (slottedCount > 0) {
+                    summary += ` (${slottedCount} in a shell slot.)`;
+                }
+                summary += brandCount > 1
+                    ? ' Choose one brand, or every brand they are in.'
+                    : ' Choose the brand library to remove them from.';
+                summaryEl.textContent = summary;
 
-                selectEl.innerHTML = brands.map((entry) => {
+                const FROM_BRAND_ALL = '__all__';
+                const options = [];
+                if (brandCount > 1) {
+                    options.push(
+                        `<option value="${FROM_BRAND_ALL}">Every brand in this selection (${brandCount})</option>`
+                    );
+                }
+                brands.forEach((entry) => {
                     const id = String(entry?.id || '').trim();
                     const title = String(entry?.title || entry?.name || id).trim() || id;
-                    return `<option value="${bandpromoAdminEscapeHtml(id)}">${bandpromoAdminEscapeHtml(title)}</option>`;
-                }).join('');
+                    options.push(`<option value="${bandpromoAdminEscapeHtml(id)}">${bandpromoAdminEscapeHtml(title)}</option>`);
+                });
+                selectEl.innerHTML = options.join('');
 
                 const filter = concreteBrandFilterSelected();
                 if (filter && membershipIds.has(filter)) {
@@ -8445,35 +8493,126 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     selectEl.selectedIndex = 0;
                 }
 
-                confirmBtn.onclick = () => {
-                    const brandId = String(selectEl.value || '').trim();
-                    if (!brandId) {
+                confirmBtn.onclick = async () => {
+                    const choice = String(selectEl.value || '').trim();
+                    if (!choice) {
                         showAdminToast('Choose a brand.', 'error');
                         return;
                     }
-                    const assetIds = removable
-                        .filter((file) => {
-                            const ids = Array.isArray(file?.brand_ids) ? file.brand_ids : [];
-                            return ids.some((id) => String(id || '').trim() === brandId);
-                        })
-                        .map((file) => String(file?.asset_id || '').trim())
-                        .filter(Boolean);
-                    if (!assetIds.length) {
+
+                    const targetBrandIds = choice === FROM_BRAND_ALL
+                        ? Array.from(membershipIds)
+                        : [choice];
+
+                    const removals = [];
+                    targetBrandIds.forEach((brandId) => {
+                        const assetIds = selected
+                            .filter((file) => {
+                                const ids = Array.isArray(file?.brand_ids) ? file.brand_ids : [];
+                                return ids.some((id) => String(id || '').trim() === brandId);
+                            })
+                            .map((file) => String(file?.asset_id || '').trim())
+                            .filter(Boolean);
+                        if (assetIds.length) {
+                            removals.push({ brandId, assetIds });
+                        }
+                    });
+                    if (!removals.length) {
                         showAdminToast('None of the selected files belong to that brand library.', 'error');
                         return;
                     }
-                    confirmBtn.disabled = true;
-                    changeBrandLibraryMembership('remove', assetIds, { brandId, refresh: true })
-                        .then(() => {
-                            closeFromBrandModal();
-                            clearMediaSelection(useInBrandTarget);
-                        })
-                        .catch((error) => {
-                            showAdminToast(error.message || 'Could not remove from brand.', 'error');
-                        })
-                        .finally(() => {
-                            confirmBtn.disabled = false;
+
+                    const filterBrand = concreteBrandFilterSelected();
+                    const slotted = selected.filter((file) => {
+                        if (file?.brand_slot_assigned !== true) {
+                            return false;
+                        }
+                        if (choice === FROM_BRAND_ALL) {
+                            return fileIsInBrandLibrary(file);
+                        }
+                        if (filterBrand && filterBrand === choice) {
+                            return true;
+                        }
+                        const ids = Array.isArray(file?.brand_ids) ? file.brand_ids : [];
+                        return ids.some((id) => String(id || '').trim() === choice);
+                    });
+                    if (slotted.length > 0) {
+                        const slotLabels = [];
+                        slotted.forEach((file) => {
+                            const labels = Array.isArray(file?.brand_slot_labels) ? file.brand_slot_labels : [];
+                            labels.forEach((label) => {
+                                const text = String(label || '').trim();
+                                if (text && !slotLabels.includes(text)) {
+                                    slotLabels.push(text);
+                                }
+                            });
                         });
+                        const slotText = slotLabels.length
+                            ? slotLabels.join(', ')
+                            : 'logo / poster / background / welcome audio';
+                        const scopeLabel = choice === FROM_BRAND_ALL
+                            ? 'those brands'
+                            : `“${brandTitleForId(choice)}”`;
+                        const confirmFn = typeof window.bandpromoConfirm === 'function'
+                            ? window.bandpromoConfirm
+                            : null;
+                        let confirmed = true;
+                        if (confirmFn) {
+                            confirmed = await confirmFn({
+                                title: 'Clear shell slots too?',
+                                body: `Removing from ${scopeLabel} will also clear these slots: ${slotText}. The files stay in Files until you Delete.`,
+                                confirmLabel: 'Remove and clear slots',
+                                cancelLabel: 'Cancel',
+                                tone: 'amber',
+                            });
+                        } else {
+                            confirmed = window.confirm(
+                                `Remove from ${scopeLabel} and clear these slots (${slotText})? Files stay until you Delete.`
+                            );
+                        }
+                        if (!confirmed) {
+                            return;
+                        }
+                    }
+
+                    confirmBtn.disabled = true;
+                    try {
+                        const clearedLabels = [];
+                        const uniqueAssets = new Set();
+                        for (let index = 0; index < removals.length; index += 1) {
+                            const removal = removals[index];
+                            removal.assetIds.forEach((assetId) => uniqueAssets.add(assetId));
+                            const isLast = index === removals.length - 1;
+                            const data = await changeBrandLibraryMembership('remove', removal.assetIds, {
+                                brandId: removal.brandId,
+                                refresh: isLast,
+                                notify: false,
+                            });
+                            const cleared = Array.isArray(data?.cleared_slots) ? data.cleared_slots : [];
+                            cleared.forEach((label) => {
+                                const text = String(label || '').trim();
+                                if (text && !clearedLabels.includes(text)) {
+                                    clearedLabels.push(text);
+                                }
+                            });
+                        }
+                        const removedCount = uniqueAssets.size;
+                        const brandLabel = choice === FROM_BRAND_ALL
+                            ? `${removals.length} brands`
+                            : `brand “${brandTitleForId(choice)}”`;
+                        const base = removedCount === 1
+                            ? `Removed from ${brandLabel}.`
+                            : `${removedCount} files removed from ${brandLabel}.`;
+                        showAdminToast(clearedLabels.length
+                            ? `${base} Cleared: ${clearedLabels.join(', ')}.`
+                            : base);
+                        closeFromBrandModal();
+                        clearMediaSelection(useInBrandTarget);
+                    } catch (error) {
+                        showAdminToast(error.message || 'Could not remove from brand.', 'error');
+                    } finally {
+                        confirmBtn.disabled = false;
+                    }
                 };
 
                 modal.style.display = 'flex';
@@ -8980,13 +9119,9 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 const allRefs = refsFromFiles.length ? refsFromFiles : topRefs;
 
                 const hasThemeRefs = allRefs.some((reference) => themeKinds.has(String(reference.kind || '')));
-                if (hasThemeRefs) {
-                    extras.push('Branding or share-image slots still point at this file and will not be cleared automatically. Edit under Content → Branding (Base brand also syncs site chrome).');
-                }
-
                 const hasBrandLibraryRefs = allRefs.some((reference) => String(reference.kind || '') === 'brand-library');
-                if (hasBrandLibraryRefs && !hasThemeRefs) {
-                    extras.push('Confirming Delete removes those brand library memberships automatically. Shell slots (logo / poster / backgrounds) are not cleared this way.');
+                if (hasThemeRefs || hasBrandLibraryRefs) {
+                    extras.push('Confirming Delete removes brand library memberships and clears Branding shell slots that use this file (logo / poster / backgrounds / welcome audio).');
                 }
 
                 const regenerableOrphans = selectedFiles.filter((entry) => {
@@ -9320,7 +9455,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     ? await refreshAdminCsrfToken()
                     : (typeof adminCsrfToken === 'string' ? adminCsrfToken : '');
                 const fields = { target };
-                if (target === 'audio' && mediaUploadCampaignSelect) {
+                if ((target === 'audio' || target === 'visual') && mediaUploadCampaignSelect) {
                     const campaignId = String(mediaUploadCampaignSelect.value || '').trim();
                     if (campaignId !== '') {
                         fields.campaign_id = campaignId;
@@ -9382,7 +9517,6 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                             }
                             if (uploadData && typeof uploadData.warning === 'string' && uploadData.warning.trim() !== '') {
                                 uploadWarnings.push(uploadData.warning.trim());
-                                autoDeliveryFailed = true;
                             }
                             if (uploadData && typeof uploadData.cover_warning === 'string' && uploadData.cover_warning.trim() !== '') {
                                 coverWarnings.push(uploadData.cover_warning.trim());
@@ -9393,11 +9527,16 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                             if (Array.isArray(uploadData?.auto_tasks) && uploadData.auto_tasks.includes('audio-delivery')) {
                                 autoDeliveryRan = true;
                             }
-                            if (Array.isArray(uploadData?.delivery_missing) && uploadData.delivery_missing.length) {
-                                autoDeliveryFailed = true;
-                            }
                             if (Array.isArray(uploadData?.background_tasks) && uploadData.background_tasks.some((task) => task && task.status === 'running')) {
                                 backgroundVideoStarted = true;
+                            }
+                            // Pending delivery variants / auto warnings are normal while video prep runs in the background.
+                            if (
+                                !backgroundVideoStarted
+                                && Array.isArray(uploadData?.delivery_missing)
+                                && uploadData.delivery_missing.length
+                            ) {
+                                autoDeliveryFailed = true;
                             }
                             done++;
                         } catch(e) {
@@ -9417,32 +9556,40 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                             await refreshBuildRequiredState({ full: true });
                         }
 
-                        const masterNote = masterPreparedCount > 0 ? ` Prepared ${masterPreparedCount} audio master ${masterPreparedCount === 1 ? 'copy' : 'copies'}.` : '';
+                        const masterNote = masterPreparedCount > 0
+                            ? ` Prepared ${masterPreparedCount} audio master ${masterPreparedCount === 1 ? 'copy' : 'copies'}.`
+                            : '';
                         const replacedNote = replacedCount > 0
-                            ? ` Replaced ${replacedCount} existing file${replacedCount === 1 ? '' : 's'} with the same name (not a second pool entry).`
+                            ? ` Replaced ${replacedCount} existing file${replacedCount === 1 ? '' : 's'} with the same name.`
                             : '';
                         const coverNote = coverLinkedCount > 0
                             ? ` Linked cover art for ${coverLinkedCount} track${coverLinkedCount === 1 ? '' : 's'}.`
                             : '';
                         const deliveryNote = backgroundVideoStarted
-                            ? ' Video delivery started in the background.'
+                            ? ' We’ll let you know when the video is ready.'
                             : (autoDeliveryRan
-                                ? ' Delivery files prepared automatically.'
+                                ? ' Player-ready files prepared.'
                                 : (autoDeliveryFailed
-                                    ? ' Automatic delivery did not finish — check Notifications.'
+                                    ? ' Automatic preparation needs a look — open Notifications.'
                                     : ''));
                         const uniqueUploadWarnings = [...new Set(uploadWarnings)];
                         const uniqueCoverWarnings = [...new Set(coverWarnings)];
-                        if (latestBuildState && latestBuildState.required) {
-                            const next = formatBuildNextStep(latestBuildState);
-                            const toastKind = autoDeliveryFailed || masterWarnings.length || uniqueCoverWarnings.length ? 'warning' : 'success';
-                            showAdminToast(`Upload complete.${masterNote}${replacedNote}${coverNote}${deliveryNote} ${next}`, toastKind);
-                        } else {
-                            const toastKind = autoDeliveryFailed || masterWarnings.length || uniqueCoverWarnings.length ? 'warning' : 'success';
-                            showAdminToast(`Upload complete.${masterNote}${replacedNote}${coverNote}${deliveryNote}`, toastKind);
-                        }
-                        if (masterWarnings.length || uniqueUploadWarnings.length || uniqueCoverWarnings.length) {
+                        // Site health detail stays in Notifications — do not dump task lists into the toast.
+                        const uploadNeedsAttention = backgroundVideoStarted
+                            ? (masterWarnings.length > 0 || uniqueCoverWarnings.length > 0)
+                            : (autoDeliveryFailed
+                                || masterWarnings.length > 0
+                                || uniqueCoverWarnings.length > 0
+                                || uniqueUploadWarnings.length > 0);
+                        showAdminToast(
+                            `Upload complete.${masterNote}${replacedNote}${coverNote}${deliveryNote}`.trim(),
+                            uploadNeedsAttention ? 'warning' : 'success'
+                        );
+                        if (!backgroundVideoStarted && (masterWarnings.length || uniqueUploadWarnings.length || uniqueCoverWarnings.length)) {
                             const combined = [...masterWarnings, ...uniqueUploadWarnings, ...uniqueCoverWarnings];
+                            modalStatus.innerHTML += `<br><span class="upload-status-warning">⚠️ ${bandpromoAdminEscapeHtml(combined.join(' | '))}</span>`;
+                        } else if (masterWarnings.length || uniqueCoverWarnings.length) {
+                            const combined = [...masterWarnings, ...uniqueCoverWarnings];
                             modalStatus.innerHTML += `<br><span class="upload-status-warning">⚠️ ${bandpromoAdminEscapeHtml(combined.join(' | '))}</span>`;
                         }
                     } else {

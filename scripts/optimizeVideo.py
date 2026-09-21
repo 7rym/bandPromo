@@ -279,11 +279,16 @@ def copy_mp4(source_path: Path, target_path: Path) -> bool:
 
 
 def _run_ffmpeg_capture(command):
+    # Windows hosts often use a legacy charmap for universal_newlines; ffmpeg
+    # stderr can include UTF-8 (titles with emoji, smart quotes). Never crash
+    # the build on decode — replace undecodable bytes.
     return subprocess.run(
         command,
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,
         universal_newlines=True,
+        encoding='utf-8',
+        errors='replace',
     )
 
 
@@ -618,6 +623,8 @@ def video_master_pixel_size(source_path):
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             universal_newlines=True,
+            encoding='utf-8',
+            errors='replace',
             check=False,
         )
     except (FileNotFoundError, OSError):

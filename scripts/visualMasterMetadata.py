@@ -481,8 +481,11 @@ def write_video_display(path: Path, display: Dict[str, Any]) -> None:
         cmd = [
             ffmpeg, '-y', '-hide_banner', '-loglevel', 'error',
             '-i', str(path),
-            '-map', '0',
+            '-map', '0:v:0',
+            '-map', '0:a?',
             '-c', 'copy',
+            '-sn',
+            '-dn',
             '-metadata', f'title={title}',
             '-metadata', f'description={description}',
             '-metadata', f'COMMENT={keywords}',

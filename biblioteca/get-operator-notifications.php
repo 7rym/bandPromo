@@ -95,6 +95,14 @@ function bandpromo_notifications_catalog_repair_snapshot(string $root): array
 $buildState = bandpromo_get_build_required_state();
 // Finalize/prune only — never auto-spawn video jobs from Notifications polling.
 $backgroundTasks = bandpromo_reconcile_background_tasks(false);
+// Full (bell open) may heal sticky playlist-scan leftovers; lite polls stay cheap.
+if ($scope === 'full') {
+    $pendingTasks = isset($buildState['tasks']) && is_array($buildState['tasks']) ? $buildState['tasks'] : [];
+    if (in_array('playlist-scan', $pendingTasks, true) || array_intersect($pendingTasks, ['audio-delivery', 'image-delivery', 'video-delivery']) !== []) {
+        $buildState = bandpromo_heal_build_required_operator_nags();
+        $backgroundTasks = bandpromo_reconcile_background_tasks(false);
+    }
+}
 $packageForceRefresh = isset($_GET['force_package']) && (string) $_GET['force_package'] === '1';
 // Package/GitHub status is Welcome-only. Other tabs must not pay for remote checks.
 $includePackage = $packageForceRefresh

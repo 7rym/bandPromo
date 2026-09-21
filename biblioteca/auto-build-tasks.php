@@ -789,6 +789,26 @@ function bandpromo_spawn_async_video_delivery(array $filenames): array
     }
 
     $root = dirname(__DIR__);
+
+    // Delivery reads master-only paths. Heal MKV masters before spawning so camera
+    // uploads with data/timecode tracks are not left as source_video_master_not_found.
+    require_once __DIR__ . '/asset-registry.php';
+    require_once __DIR__ . '/visual-master-helpers.php';
+    foreach ($requested as $filename) {
+        $asset = bandpromo_asset_lookup_by_original_filename($root, $filename);
+        if (!is_array($asset)) {
+            $asset = bandpromo_asset_lookup_by_id($root, $filename);
+        }
+        if (!is_array($asset) || strtolower(trim((string) ($asset['media_type'] ?? ''))) !== 'video') {
+            continue;
+        }
+        $assetId = trim((string) ($asset['id'] ?? ''));
+        if ($assetId === '') {
+            continue;
+        }
+        bandpromo_visual_ensure_tiers_for_asset($root, $assetId);
+    }
+
     $jobsDir = bandpromo_video_delivery_job_dir();
     if (!is_dir($jobsDir) && !mkdir($jobsDir, 0750, true)) {
         return [
@@ -1088,6 +1108,52 @@ function bandpromo_run_playlist_validation_scan(): array
     ]);
 }
 
+/**
+ * Clear sticky playlist-scan (and idle auto-delivery leftovers) so Notifications
+ * do not nag forever after import/upload when Quick health check is the CTA.
+ *
+ * @return array build-required state after heal
+ */
+function bandpromo_heal_build_required_operator_nags(): array
+{
+    $state = bandpromo_get_build_required_state();
+    $tasks = isset($state['tasks']) && is_array($state['tasks']) ? $state['tasks'] : [];
+    if ($tasks === []) {
+        return $state;
+    }
+
+    if (in_array('playlist-scan', $tasks, true)) {
+        $scan = bandpromo_run_playlist_validation_scan();
+        if (!empty($scan['ok'])) {
+            $state = bandpromo_clear_build_required_tasks(['playlist-scan']);
+            $tasks = isset($state['tasks']) && is_array($state['tasks']) ? $state['tasks'] : [];
+        }
+    }
+
+    // Auto delivery is toast/background-owned. When nothing is running or failed,
+    // drop leftover delivery chores so required can go false (Notifications already
+    // ignores these task ids).
+    $autoDelivery = ['audio-delivery', 'image-delivery', 'video-delivery'];
+    $pendingAuto = array_values(array_intersect($tasks, $autoDelivery));
+    if ($pendingAuto === []) {
+        return bandpromo_get_build_required_state();
+    }
+
+    $background = bandpromo_reconcile_background_tasks(false);
+    $items = isset($background['items']) && is_array($background['items']) ? $background['items'] : [];
+    foreach ($items as $item) {
+        if (!is_array($item)) {
+            continue;
+        }
+        $status = strtolower(trim((string) ($item['status'] ?? '')));
+        if ($status === 'running' || $status === 'failed') {
+            return bandpromo_get_build_required_state();
+        }
+    }
+
+    return bandpromo_clear_build_required_tasks($pendingAuto);
+}
+
 function bandpromo_maybe_run_auto_image_delivery(array $reasons, ?array $state): array
 {
     $hasImageWork = in_array('media_image_upload', $reasons, true) || in_array('media_cover_upload', $reasons, true);
@@ -1361,7 +1427,7 @@ function bandpromo_maybe_run_auto_video_upload_tasks(array $reasons, array $uplo
         ];
     }
 
-    $requested = bandpromo_filter_uploaded_filenames($uploadedFilenames, ['mp4', 'mov', 'webm']);
+    $requested = bandpromo_filter_uploaded_filenames($uploadedFilenames, ['mp4', 'mov', 'webm', 'mkv']);
     if ($requested === []) {
         return [
             'state' => $state,

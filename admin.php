@@ -1553,7 +1553,7 @@ if ($tab === 'analytics') {
                         <label for="fromBrandSelect">Brand:</label>
                         <select id="fromBrandSelect" aria-label="Brand library to remove from"></select>
                     </div>
-                    <p class="card-note text-muted">Removes the selected files from that brand’s library only. Global Files rows stay until you Delete. Shell slots (logo / poster / backgrounds) must be cleared under Content → Branding first.</p>
+                    <p class="card-note text-muted">Removes the selected files from the brand libraries they actually belong to. Global Files rows stay until you Delete. If a file is the logo, poster, background, or welcome audio for that brand, those slots clear too.</p>
                     <div class="modal-actions">
                         <button type="button" id="fromBrandConfirmBtn" class="btn btn-primary">Remove from brand</button>
                         <button type="button" class="btn" onclick="closeFromBrandModal()">Cancel</button>
