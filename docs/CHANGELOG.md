@@ -2,6 +2,22 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-09-21 22:00 - Catalogue Live preview: campaign artwork no longer bleeds onto other campaigns when switching rows. Pending cover matched every `card.jpg` basename; now resets per campaign and matches by asset id / full path only (same fix for playlist covers).
+
+2026-09-21 19:50 - Files → Visual Assign: uncatalogued orphans (no `asset_id`, e.g. leftover originals with no dimensions) can be assigned — Assign registers them first, then sets catalogue home. Toast no longer says “Select one or more visuals first” when a row is already selected.
+
+2026-09-21 19:30 - Admin accent deepened again: `#5b8fbf` → `#3a6a94` (hover `#2f5780`); help wash opacity nudged up so the quieter bar still reads.
+
+2026-09-21 19:00 - Admin accent softened for dark mode: `#60a5fa` → muted steel `#5b8fbf` (hover `#4a7aaa`); help washes retuned via `--accent-rgb`.
+
+2026-09-21 18:55 - Admin palette: `--accent` / `--primary` coral → info blue `#60a5fa` (hover `#3b82f6`); help panel and washes use `:root` tokens (`--accent-rgb`, `--admin-help-*`) instead of hardcoded rgba.
+
+2026-09-21 18:40 - Admin help chrome unified to Files → Audio → Pool canon: every tab uses coral sub-tabs + ⓘ + blue-tint `.admin-help-box` with a tip `<ul>`; removed Dashboard amber and System Status slate exceptions. ADMIN-UI documents the locked pattern.
+
+2026-09-21 18:25 - Dashboard help: match Files/Content — ⓘ alone on the sub-tab bar (no “Click here…” hint wrap); help body uses the shared `.admin-help-box` list pattern.
+
+2026-09-21 18:20 - Dashboard: Site update strip above demo campaign card; compactness onto 0/4/8; Hide demo / Install update / Site health CTAs use solid green (not coral); quick-action hover uses Available green.
+
 2026-09-21 16:20 - Docs: lock session admin UI lessons in ADMIN-UI / AGENTS / FEATURES — opaque sticky + page-builder stack; flat field grids; modal single-scroller autosize; Markdown hints trail labels; confirm z-index above Files editors; media picker `campaign` param; Audio quiet head + Featured/Remix / Show artist notes.
 
 2026-09-21 16:10 - Audio track editor: Lyrics|Notes textarea autosizes to content (same as blurb) so the modal is the only scroller.

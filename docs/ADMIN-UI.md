@@ -126,9 +126,9 @@ You are not wrong: with an empty selection, **Upload** is the only enabled actio
 | Idle Delete | Available muted green | Not muted red / not grey-when-enabled |
 | `.media-action-danger` (grey quiet delete) | Retire for enabled deletes | Grey = unavailable only |
 
-### Colour caution (coral vs red)
+### Colour caution (accent vs red)
 
-`--accent` / `--primary` (`#FF6B6B`) sits next to `--error` (`#f44336`). Operators (including colourblind ones) easily read coral as “danger.” **Do not** use coral as a general “important button” colour beside Delete, and do not rely on hue alone to separate safe vs destructive.
+`--accent` / `--primary` (`#3a6a94`) is a deep steel blue for dark admin chrome; `--error` stays red (`#f44336`). Prefer intent greens / amber / grey for actions. **Do not** use accent as a general “important button” colour beside Delete, and do not rely on hue alone to separate safe vs destructive.
 
 ## Sticky toolbars
 
@@ -145,7 +145,7 @@ Do not nest sticky headers under another sticky on the same scroll axis (Content
 
 **Opaque sticky chrome (locked):** every sticky toolbar/header that sits over scrolling content uses `--admin-sticky-chrome-bg` (`#0f172a`) — Files pool (`.media-pool-sticky-chrome`), Content / Status breadcrumb heads (`.content-editor-card-head`), and the page-builder add-block head (`.page-editor-panel-head`, under `--page-builder-sticky-top`). Do **not** use the translucent slate wash on sticky chrome (list rows show through). In-flow (non-sticky) split-editor column headers, Files modal headers, and page rich-text formatting bars may keep wash / stay with their block. Sub-tab bars stay opaque `--accent`.
 
-**Page builder stack:** the add-block sticky head uses `--page-builder-sticky-top` (sub-tabs + breadcrumb height), never `top: 0` (that overlapped the coral Content bar). Rich-text formatting bars stay **in-flow with their block** — do not nest a second sticky under the add-block head.
+**Page builder stack:** the add-block sticky head uses `--page-builder-sticky-top` (sub-tabs + breadcrumb height), never `top: 0` (that overlapped the accent Content bar). Rich-text formatting bars stay **in-flow with their block** — do not nest a second sticky under the add-block head.
 
 ## Form field grids (locked lessons)
 
@@ -208,7 +208,11 @@ Defined on `:root` in `biblioteca/admin.css`:
 
 | Token | Role |
 |-------|------|
-| `--accent` / `--primary` | Affirmative coral (legacy safe-form confirm) — **prefer amber Save / green Saved / grey secondary**; see Colour caution below |
+| `--accent` / `--primary` | Deep steel blue (`#3a6a94`) — sub-tabs, links, focus, help tint; **prefer amber Save / green Saved / grey secondary** for actions |
+| `--accent-h` | Deeper hover (`#2f5780`) |
+| `--accent-rgb` | Channel form of accent for translucent `rgba(var(--accent-rgb), …)` washes |
+| `--admin-help-bg` / `--admin-help-border` / `--admin-help-marker` | Sub-tab help panel (derived from `--accent-rgb`) |
+| `--admin-help-text` / `--admin-help-strong` | Help body / bold tip text |
 | `--success` | Positive completion and the **recommended next step** |
 | `--warn` | Attention / dirty / important information |
 | `--error` | Hard destructive / validation failure / critical findings |
@@ -217,11 +221,11 @@ Defined on `:root` in `biblioteca/admin.css`:
 | `--intent-warn-*` | Amber caution / preview icon actions |
 | `--intent-quiet-*` | Unavailable / muted grey shells (not “quiet delete”) |
 
-### Colour caution (coral vs red)
+### Colour caution (accent vs red)
 
-`--accent` / `--primary` (`#FF6B6B`) sits next to `--error` (`#f44336`). Operators (including colourblind ones) easily read coral as “danger.” **Do not** use coral as a general “important button” colour beside Delete, and do not rely on hue alone to separate safe vs destructive.
+`--accent` / `--primary` (`#3a6a94`) is a deep steel blue for dark admin chrome; `--error` stays red (`#f44336`). Prefer intent greens / amber / grey for actions. **Do not** use accent as a general “important button” colour beside Delete, and do not rely on hue alone to separate safe vs destructive.
 
-Legacy coral `.btn-primary` remains for older safe confirms until those screens are migrated; new chrome uses the **intent × emphasis** table above. Modal footers: solid green **Save** (proposed); muted-green **Download** / **Delete** / **Abort** when available; solid red / solid amber only on **confirms**.
+Legacy `.btn-primary` (now accent blue) remains for older safe confirms until those screens are migrated; new chrome uses the **intent × emphasis** table above. Modal footers: solid green **Save** (proposed); muted-green **Download** / **Delete** / **Abort** when available; solid red / solid amber only on **confirms**.
 
 ### Compactness (spacing)
 
@@ -255,17 +259,17 @@ See **Action colour model** above. Short form:
 | **Solid amber** | Caution **commit** (discard confirm when dirty; dirty head Save) |
 | **Solid red** | Danger **commit** (delete confirm) |
 | **Muted grey** | **Unavailable** only |
-| **Coral** | Legacy — do not extend |
+| **Accent** | Legacy primary — do not extend for new actions |
 
 ## Text buttons
 
-Prefer **one class ladder**. Unstyled `button` elements without a `class` keep the coral default; classed controls use the ladder below.
+Prefer **one class ladder**. Unstyled `button` elements without a `class` keep the accent default; classed controls use the ladder below.
 
 | Class | Meaning | When to use |
 |-------|---------|-------------|
 | `.btn` | Neutral shell (prefer intent classes) | Rare — prefer available green / muted red / amber |
 | `.btn.btn-secondary` | Alias of `.btn` | Legacy markup |
-| `.btn.btn-primary` | Affirmative coral (legacy) | Do not extend; see Colour caution |
+| `.btn.btn-primary` | Affirmative accent blue (legacy) | Do not extend; see Colour caution |
 | `.btn.btn-available` | **Available** muted green | Download / Delete / Abort triggers; several OK |
 | `.btn.btn-good` | **Proposed** constructive (solid green tier) | Exactly one proposed step (Save, Apply, Quick check) |
 | `.btn.btn-amber` | **Caution commit** | Discard confirm when dirty; dirty head Save — not idle Abort |
@@ -412,7 +416,7 @@ Shared markup: `#adminConfirmModal` with `.modal-box`, body `.card-note`, and fo
 
 | Tone | Confirm button | Use |
 |------|----------------|-----|
-| `default` | `.btn.btn-primary` (coral) | Safe affirmative confirms outside the Status ladder |
+| `default` | `.btn.btn-primary` (accent) | Safe affirmative confirms outside the Status ladder |
 | `good` | `.btn.btn-good` (solid green) | Recommended Status step (e.g. Apply treatment) |
 | `warn` / `amber` | `.btn.btn-amber` (solid amber) | Dirty discard / leave-without-save confirm |
 | `quiet` | `.btn` (grey) | Optional / alternate Status paths (e.g. Force full rebuild) |
@@ -516,6 +520,41 @@ Long player-facing prose textareas (track description, lyrics/Notes, release/pla
 **Placement (locked):** the Markdown hint **trails** its control’s label or toggler on the same line — e.g. `Track description / blurb: Markdown in playlist view (?)` and `Lyrics|Notes` toggler then `Restricted Markdown (?) …`. Do not park the hint under the textarea or above the toggler as a separate block.
 
 Helpers: `bandpromo_admin_markdown_help_trigger()` / `bandpromo_admin_markdown_help_note()` in `biblioteca/player-markdown.php`.
+
+## Sub-tab help (ⓘ) — canon: Files → Audio → Pool
+
+One help chrome for every main tab (Dashboard, Analytics, Users, Files, Content, Settings, System, Documentation).
+
+### Structure (locked)
+
+1. **`.tabs.sub-tabs`** accent bar (`var(--accent)`) — sub-links when the tab has them; empty bar is fine for single-pane tabs such as Dashboard / Users / Docs.
+2. **ⓘ** (`.help-toggle-btn`) on the **right** of that bar (`margin-left: auto`) — never inside the help panel.
+3. **`.admin-help-box`** directly under the bar when open: `var(--admin-help-bg)` / `var(--admin-help-border)`, **`border-top: none`** so it attaches to the sub-tabs, rounded bottom corners only.
+
+### Body (locked)
+
+- Body is always a **`<ul>` of short operator tips** (usually 2–3 `<li>`), never a bare paragraph, never `<br><br>` blocks, never a solid accent-coloured banner for the tip body.
+- List markers use `var(--admin-help-marker)`; body text `var(--admin-help-text)`; `<strong>` uses `var(--admin-help-strong)`.
+- No per-tab CSS exceptions (do not restyle System Status / `#help-build` as a slate wash or detached card).
+- Do **not** hardcode accent hex/rgba in rules — use `:root` tokens (`--accent`, `--accent-rgb`, `--admin-help-*`).
+
+### Behaviour
+
+- Toggle opens/closes the box; state in `localStorage` (`adminHelp_{key}`); default closed.
+- Do **not** add a “Click here to toggle help…” hint strip or a second help chrome on Dashboard / Welcome.
+- Section notes under card titles (e.g. Settings field explanations, Analytics chart captions) are **not** this pattern — keep those as ordinary muted prose under the heading.
+
+## Dashboard (Welcome when setup is complete)
+
+Order under the breadcrumb (locked):
+
+1. Catalogue attention card (when Site health needs the operator) — optional
+2. **Site update** strip (`#packageUpdateCard`)
+3. Demo campaign hide suggest (when eligible) — optional
+4. Quick actions
+5. What to do next (when steps exist)
+
+Compactness: dashboard cards / update strip use **8px** padding and margins (not the legacy 12–20px `.card` default). Primary CTAs use solid green `.btn.btn-good` (Hide demo, Install update, Open Site health); secondary stays plain `.btn` (Open Settings, Check again). Quick-action tiles use Available muted green hover — not accent primary and not a separate hover wash.
 
 ## Media picker campaign filter
 

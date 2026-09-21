@@ -403,18 +403,43 @@
             return '';
         }
 
+        function campaignCoverPendingMatches(raw) {
+            const pending = String(pendingCampaignCoverPreviewUrl || '').trim();
+            if (!pending) {
+                return false;
+            }
+            const pendingBase = pending.split('?')[0];
+            const rawResolved = mediaPreviewUrlFromReference(raw).split('?')[0];
+            if (rawResolved && pendingBase === rawResolved) {
+                return true;
+            }
+            // Same asset id in path / value — never match on shared basenames like card.jpg.
+            const idMatch = String(raw || '').match(/ast_[0-9A-HJKMNP-TV-Z]{20}/i);
+            if (idMatch && pendingBase.toLowerCase().includes(idMatch[0].toLowerCase())) {
+                return true;
+            }
+            return false;
+        }
+
+        function syncPendingCampaignCoverPreview(entry, posterAssetId) {
+            const poster = String(posterAssetId || '').trim();
+            if (!poster) {
+                pendingCampaignCoverPreviewUrl = '';
+                return;
+            }
+            pendingCampaignCoverPreviewUrl = String(entry?.poster_preview_url || '').trim()
+                || mediaPreviewUrlFromReference(poster);
+        }
+
         function campaignCoverPreviewUrl(value, entry = null) {
             const raw = String(value || '').trim();
             if (!raw) {
-                return pendingCampaignCoverPreviewUrl || '';
+                // Empty poster must not keep another campaign’s pending preview.
+                return '';
             }
 
-            if (pendingCampaignCoverPreviewUrl) {
-                const pendingBase = pendingCampaignCoverPreviewUrl.split('?')[0];
-                const rawBase = mediaPreviewUrlFromReference(raw).split('?')[0];
-                if (!rawBase || pendingBase.endsWith(raw.split('/').pop() || '') || rawBase === pendingBase) {
-                    return pendingCampaignCoverPreviewUrl;
-                }
+            if (pendingCampaignCoverPreviewUrl && campaignCoverPendingMatches(raw)) {
+                return pendingCampaignCoverPreviewUrl;
             }
 
             if (/^https?:\/\//i.test(raw) || raw.startsWith('/media/')) {
@@ -1153,7 +1178,9 @@
             }
             renderCampaignPreviewMeta(entry);
             if (entry && campaignSettingsPosterAssetId instanceof HTMLInputElement && !isEditing) {
-                campaignSettingsPosterAssetId.value = String(entry.poster_asset_id || '').trim();
+                const poster = String(entry.poster_asset_id || '').trim();
+                campaignSettingsPosterAssetId.value = poster;
+                syncPendingCampaignCoverPreview(entry, poster);
             }
             const canEditCover = !!(isEditing && entry && !entry.locked);
             if (campaignCoverOverlayActions instanceof HTMLElement) {
@@ -2384,6 +2411,7 @@
             if (campaignSettingsPosterAssetId instanceof HTMLInputElement) {
                 campaignSettingsPosterAssetId.value = posterAssetId;
             }
+            syncPendingCampaignCoverPreview(entry, posterAssetId);
             if (campaignSettingsCredits instanceof HTMLTextAreaElement) {
                 campaignSettingsCredits.value = epk.credits;
             }
@@ -2494,22 +2522,29 @@
                 return true;
             }
 
+            const requestCampaignId = selectedCampaignId;
             campaignSettingsSaving = true;
             campaignSettingsSaveQueued = false;
 
             try {
-                const data = await fetchJson(`/biblioteca/manage-campaign.php?campaign=${encodeURIComponent(selectedCampaignId)}`, {
+                const data = await fetchJson(`/biblioteca/manage-campaign.php?campaign=${encodeURIComponent(requestCampaignId)}`, {
                     method: 'PATCH',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(settings),
                 });
                 campaigns = mergeCampaignsFromResponse(data, campaigns);
+                if (selectedCampaignId !== requestCampaignId) {
+                    renderCampaignPoolList();
+                    return true;
+                }
                 const savedPoster = String(data.release?.poster_asset_id || settings.poster_asset_id || '').trim();
                 const savedPreview = String(data.release?.poster_preview_url || '').trim();
                 if (savedPreview) {
                     pendingCampaignCoverPreviewUrl = savedPreview;
                 } else if (savedPoster) {
                     pendingCampaignCoverPreviewUrl = mediaPreviewUrlFromReference(savedPoster);
+                } else {
+                    pendingCampaignCoverPreviewUrl = '';
                 }
                 syncCampaignSettingsPanel(selectedCampaignId);
                 renderCampaignPoolList();

@@ -46,8 +46,55 @@ if (!is_array($assetIds)) {
 $campaignId = trim((string) ($payload['campaign_id'] ?? $payload['release_id'] ?? ''));
 $root = dirname(__DIR__);
 
+require_once __DIR__ . '/asset-registry.php';
+
+$ensureErrors = [];
+$ensureFiles = $payload['ensure_files'] ?? [];
+if (is_array($ensureFiles)) {
+    foreach ($ensureFiles as $row) {
+        if (!is_array($row)) {
+            continue;
+        }
+        $name = basename(trim((string) ($row['name'] ?? '')));
+        if ($name === '' || strpbrk($name, "/\\") !== false) {
+            continue;
+        }
+        $bucket = bandpromo_asset_normalize_intake_bucket((string) ($row['intake_bucket'] ?? 'illustrations'));
+        if ($bucket === '') {
+            $bucket = 'illustrations';
+        }
+        try {
+            $registered = bandpromo_asset_register_visual($root, $name, $bucket, '', [
+                'role' => 'unassigned',
+            ]);
+            $newId = trim((string) ($registered['id'] ?? ''));
+            if ($newId !== '') {
+                $assetIds[] = $newId;
+            } else {
+                $ensureErrors[] = $name . ': registration returned no asset id.';
+            }
+        } catch (Throwable $throwable) {
+            $ensureErrors[] = $name . ': ' . $throwable->getMessage();
+        }
+    }
+}
+
+$assetIds = array_values(array_unique(array_filter(array_map(static function ($id): string {
+    return trim((string) $id);
+}, $assetIds))));
+
+if ($assetIds === []) {
+    http_response_code(400);
+    $message = $ensureErrors !== []
+        ? implode(' ', $ensureErrors)
+        : 'No catalogue-ready visuals to assign.';
+    echo json_encode(['ok' => false, 'error' => $message, 'errors' => $ensureErrors]);
+    exit;
+}
+
 $result = bandpromo_campaign_set_visual_homes($root, $assetIds, $campaignId);
 $ok = !empty($result['ok']) || (int) ($result['updated'] ?? 0) > 0;
+$errors = array_values(array_merge($ensureErrors, is_array($result['errors'] ?? null) ? $result['errors'] : []));
 
 bandpromo_admin_audit_log(
     $campaignId === '' || $campaignId === 'orphans' ? 'visual_campaign_home_clear' : 'visual_campaign_home_set',
@@ -56,8 +103,8 @@ bandpromo_admin_audit_log(
         'target_id' => $campaignId !== '' ? $campaignId : 'orphan',
         'data' => [
             'updated' => (int) ($result['updated'] ?? 0),
-            'asset_ids' => array_values(array_map('strval', $assetIds)),
-            'errors' => $result['errors'] ?? [],
+            'asset_ids' => $assetIds,
+            'errors' => $errors,
         ],
     ]
 );
@@ -70,5 +117,6 @@ echo json_encode([
     'ok' => $ok,
     'updated' => (int) ($result['updated'] ?? 0),
     'campaign_id' => bandpromo_campaign_normalize_id($campaignId),
-    'errors' => $result['errors'] ?? [],
+    'errors' => $errors,
+    'error' => $errors !== [] ? (string) $errors[0] : '',
 ], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);

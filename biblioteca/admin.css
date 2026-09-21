@@ -1,9 +1,8 @@
 /* ====================================================================
    Admin Panel — Dark Theme
-   Palette mirrors the setup wizard:
      bg      #0a0a0a   surface  #141414   card  #1c1c1c
      border  #2a2a2a   text     #e8e8e8   muted #888
-     accent  #FF6B6B   success  #4CAF50   error #f44336
+     accent  #3a6a94   success  #4CAF50   error #f44336
    ==================================================================== */
 
 :root {
@@ -14,12 +13,20 @@
     --border2:  #333;
     --text:     #e8e8e8;
     --muted:    #888;
-    --accent:   #FF6B6B;
-    --accent-h: #ff4f4f;
+    /* Accent = deep steel blue (quiet on dark chrome; white label text still readable). */
+    --accent:   #3a6a94;
+    --accent-h: #2f5780;
+    --accent-rgb: 58, 106, 148;
     --success:  #4CAF50;
     --warn:     #f0b429;
     --error:    #f44336;
-    --primary:  #FF6B6B;
+    --primary:  var(--accent);
+    /* Sub-tab help panel (canon: Files → Audio → Pool) — derived from --accent. */
+    --admin-help-bg: rgba(var(--accent-rgb), 0.1);
+    --admin-help-border: rgba(var(--accent-rgb), 0.28);
+    --admin-help-marker: rgba(var(--accent-rgb), 0.75);
+    --admin-help-text: #94a3b8;
+    --admin-help-strong: #cbd5e1;
     /* Sticky chrome over scrolling lists must be opaque; in-flow headers may wash. */
     --admin-sticky-chrome-bg: #0f172a;
     --admin-sticky-chrome-border: rgba(148, 163, 184, 0.18);
@@ -248,7 +255,7 @@ h1 {
 }
 
 .operator-notifications-item.is-recommended {
-    border-left-color: rgba(96, 165, 250, 0.95);
+    border-left-color: rgba(var(--accent-rgb), 0.95);
 }
 
 .operator-notifications-item-head {
@@ -376,7 +383,7 @@ h1 {
     background: rgba(20, 20, 20, 0.95);
     border: 1px solid rgba(255, 255, 255, 0.2);
     color: var(--text);
-    border-left: 4px solid #60a5fa;
+    border-left: 4px solid var(--accent);
     border-radius: 8px;
     padding: 10px 12px;
     font-size: 12px;
@@ -944,8 +951,23 @@ button.danger:not(.btn):not(.icon-btn):hover { background: #d32f2f; }
     margin-top: 3px;
 }
 
-.welcome-demo-catalog-card {
+.welcome-demo-catalog-card,
+.welcome-catalog-repair-card {
     margin-top: 0;
+    margin-bottom: 8px;
+    padding: 8px;
+}
+
+.welcome-demo-catalog-card h2,
+.welcome-catalog-repair-card h2 {
+    margin: 0 0 4px;
+    font-size: 1rem;
+}
+
+.welcome-demo-catalog-card .card-actions,
+.welcome-catalog-repair-card .card-actions {
+    gap: 8px;
+    padding-top: 8px;
 }
 
 .media-pills {
@@ -1043,19 +1065,6 @@ button.danger:not(.btn):not(.icon-btn):hover { background: #d32f2f; }
     align-items: center;
 }
 
-.subtab-help-hint-wrap {
-    margin-left: auto;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-}
-
-.subtab-help-hint {
-    color: rgba(255,255,255,0.82);
-    font-size: 12px;
-    white-space: nowrap;
-}
-
 /* ── Help toggle button (ⓘ) in sub-tab bar ── */
 .help-toggle-btn {
     margin-left: auto;
@@ -1072,36 +1081,27 @@ button.danger:not(.btn):not(.icon-btn):hover { background: #d32f2f; }
     display: flex;
     align-items: center;
 }
-.subtab-help-hint-wrap .help-toggle-btn {
-    margin-left: 0;
-    align-self: center;
-}
 .help-toggle-btn:hover { color: rgba(255,255,255,0.9); background: rgba(0,0,0,0.15); }
 .help-toggle-btn.active { color: #fff; }
 
-/* ── Admin help box ── */
+/* ── Admin help box (canon: Files → Audio → Pool) ──
+   Always under .tabs.sub-tabs; accent-tint panel; body is a <ul> of tips.
+   No per-tab colour / margin exceptions — one look across all main tabs. */
 .admin-help-box {
-    background: rgba(96,165,250,0.06);
-    border: 1px solid rgba(96,165,250,0.2);
+    background: var(--admin-help-bg);
+    border: 1px solid var(--admin-help-border);
     border-top: none;
     padding: 11px 18px;
     font-size: 13px;
     line-height: 1.65;
-    color: #94a3b8;
+    color: var(--admin-help-text);
     border-radius: 0 0 6px 6px;
-    margin-bottom: 14px;
-}
-/* Status help must never read as an alert banner under the System tabs. */
-#help-build.admin-help-box:not(.collapsed) {
-    margin-top: 0.75rem;
-    border-top: 1px solid rgba(96,165,250,0.2);
-    border-radius: 6px;
-    background: var(--admin-slate-wash);
+    margin: 0 0 14px;
 }
 .admin-help-box.collapsed {
     display: none;
 }
-.admin-help-box strong { color: #cbd5e1; }
+.admin-help-box strong { color: var(--admin-help-strong); }
 .admin-help-box code {
     font-family: monospace;
     background: rgba(255,255,255,0.08);
@@ -1109,13 +1109,13 @@ button.danger:not(.btn):not(.icon-btn):hover { background: #d32f2f; }
     border-radius: 3px;
     font-size: 12px;
 }
-.admin-help-box a { color: #60a5fa; }
+.admin-help-box a { color: var(--accent); }
 .admin-help-box ul {
     margin: 0;
     padding-left: 1.15em;
 }
 .admin-help-box li::marker {
-    color: rgba(96, 165, 250, 0.75);
+    color: var(--admin-help-marker);
 }
 .admin-help-box li + li {
     margin-top: 0.4em;
@@ -1391,10 +1391,10 @@ button.danger:not(.btn):not(.icon-btn):hover { background: #d32f2f; }
 .tab-content.active { display: block; }
 
 #tab-files.drag-upload-active {
-    border: 1px dashed rgba(96, 165, 250, 0.65);
+    border: 1px dashed rgba(var(--accent-rgb), 0.65);
     border-radius: 8px;
-    box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.18);
-    background: linear-gradient(180deg, rgba(96, 165, 250, 0.08), rgba(96, 165, 250, 0.02));
+    box-shadow: 0 0 0 3px rgba(var(--accent-rgb), 0.18);
+    background: linear-gradient(180deg, rgba(var(--accent-rgb), 0.08), rgba(var(--accent-rgb), 0.02));
 }
 
 #tab-files.drag-upload-active::before {
@@ -5661,7 +5661,7 @@ canvas { max-width: 100%; height: auto; }
 }
 
 .markdown-help-open:focus-visible {
-    box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent, #ff6b6b) 45%, transparent);
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 45%, transparent);
 }
 
 .modal-file-list {
@@ -5716,13 +5716,13 @@ canvas { max-width: 100%; height: auto; }
 .welcome-card {
     display: flex;
     flex-direction: column;
-    gap: 16px;
+    gap: 8px;
 }
 
 .package-update-card {
     gap: 0;
     margin-top: 0;
-    margin-bottom: 12px;
+    margin-bottom: 8px;
     padding: 0;
     background: transparent;
     border: none;
@@ -5743,11 +5743,11 @@ canvas { max-width: 100%; height: auto; }
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 12px;
+    gap: 8px;
     border: 1px solid var(--border);
-    border-radius: 10px;
+    border-radius: 8px;
     background: var(--surface);
-    padding: 10px 12px;
+    padding: 8px;
     line-height: 1.5;
     font-size: 13px;
 }
@@ -5773,7 +5773,7 @@ canvas { max-width: 100%; height: auto; }
 }
 
 .package-update-status.is-available {
-    border-left: 4px solid #60a5fa;
+    border-left: 4px solid var(--accent);
 }
 
 .package-update-status.is-current {
@@ -6023,8 +6023,8 @@ canvas { max-width: 100%; height: auto; }
 }
 
 .site-health-run-checklist-item.is-current .site-health-run-checklist-mark {
-    border-color: var(--accent, #ff6b6b);
-    box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent, #ff6b6b) 28%, transparent);
+    border-color: var(--accent);
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 28%, transparent);
 }
 
 #site-health-log-card[hidden] {
@@ -7021,13 +7021,13 @@ canvas { max-width: 100%; height: auto; }
 }
 
 .welcome-card-dashboard {
-    padding: 12px 14px;
-    margin-bottom: 12px;
+    padding: 8px;
+    margin-bottom: 8px;
     gap: 0;
 }
 
 .welcome-dashboard-heading {
-    margin: 0 0 10px;
+    margin: 0 0 8px;
     font-size: 0.92rem;
     font-weight: 600;
     color: var(--text-soft);
@@ -7046,15 +7046,15 @@ canvas { max-width: 100%; height: auto; }
     display: flex;
     flex-direction: row;
     align-items: center;
-    gap: 10px;
+    gap: 8px;
     min-height: 0;
-    padding: 8px 10px;
+    padding: 8px;
     border: 1px solid var(--border);
-    border-radius: 10px;
+    border-radius: 8px;
     background: rgba(255, 255, 255, 0.03);
     color: var(--text);
     text-decoration: none;
-    transition: border-color 0.15s ease, background 0.15s ease, transform 0.15s ease;
+    transition: border-color 0.15s ease, background 0.15s ease;
 }
 
 .welcome-dashboard-link-icon {
@@ -7063,8 +7063,8 @@ canvas { max-width: 100%; height: auto; }
     justify-content: center;
     width: 34px;
     height: 34px;
-    border-radius: 9px;
-    background: color-mix(in srgb, var(--accent) 12%, rgba(255, 255, 255, 0.04));
+    border-radius: 8px;
+    background: var(--intent-good-bg);
     font-size: 1.15rem;
     line-height: 1;
     flex-shrink: 0;
@@ -7073,7 +7073,7 @@ canvas { max-width: 100%; height: auto; }
 .welcome-dashboard-link-body {
     display: flex;
     flex-direction: column;
-    gap: 1px;
+    gap: 0;
     min-width: 0;
 }
 
@@ -7090,10 +7090,9 @@ canvas { max-width: 100%; height: auto; }
 
 .welcome-dashboard-link:hover,
 .welcome-dashboard-link:focus-visible {
-    border-color: var(--accent);
-    background: rgba(98, 179, 255, 0.08);
+    border-color: var(--intent-good-border);
+    background: var(--intent-good-bg-h);
     text-decoration: none;
-    transform: translateY(-1px);
 }
 
 .welcome-setup-archive {
@@ -7250,20 +7249,6 @@ canvas { max-width: 100%; height: auto; }
 .welcome-check-body span {
     color: #d9d9d9;
     line-height: 1.55;
-}
-
-#help-welcome {
-    color: #d9d9d9;
-    background: rgba(240, 180, 41, 0.08);
-    border-color: rgba(240, 180, 41, 0.2);
-}
-
-#help-welcome strong {
-    color: #fff1bf;
-}
-
-#help-welcome a {
-    color: #ffd978;
 }
 
 .social-form-full {
@@ -7504,9 +7489,6 @@ canvas { max-width: 100%; height: auto; }
     }
     .asset-picker-actions {
         justify-content: flex-end;
-    }
-    .subtab-help-hint {
-        display: none;
     }
 }
 
@@ -8697,12 +8679,12 @@ textarea.campaign-settings-description-autofit {
 
 .login-container input[type="text"]:focus,
 .login-container input[type="password"]:focus {
-    outline: none; border-color: #FF6B6B;
-    box-shadow: 0 0 0 3px rgba(255,107,107,0.15);
+    outline: none; border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(var(--accent-rgb), 0.15);
 }
 
 .login-container button {
-    width: 100%; background: #FF6B6B; color: #fff;
+    width: 100%; background: var(--accent); color: #fff;
     border: none; padding: 10px; border-radius: 5px;
     cursor: pointer; font-size: 14px; font-weight: 600;
     transition: background 0.2s;

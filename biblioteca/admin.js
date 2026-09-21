@@ -4178,10 +4178,18 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     const assignBtn = document.getElementById('visualAssignCampaignBtn');
                     const removeHomeBtn = document.getElementById('visualRemoveCampaignBtn');
                     if (assignBtn) {
-                        assignBtn.disabled = selectedDetails.length < 1;
-                        assignBtn.title = selectedDetails.length < 1
-                            ? 'Select one or more files to assign'
-                            : 'Assign selected visuals to a campaign';
+                        const payload = collectSelectedVisualAssignPayload(selectedDetails);
+                        const canAssign = payload.assetIds.length > 0 || payload.ensureFiles.length > 0;
+                        assignBtn.disabled = !canAssign;
+                        if (selectedDetails.length < 1) {
+                            assignBtn.title = 'Select one or more files to assign';
+                        } else if (!canAssign) {
+                            assignBtn.title = 'Selected files are not ready to assign';
+                        } else if (payload.ensureFiles.length > 0) {
+                            assignBtn.title = 'Assign selected visuals (will register uncatalogued files first)';
+                        } else {
+                            assignBtn.title = 'Assign selected visuals to a campaign';
+                        }
                     }
                     if (removeHomeBtn) {
                         const hasHome = selectedDetails.some((file) => {
@@ -8024,11 +8032,17 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 });
             });
 
-            async function saveVisualCampaignHomes(assetIds, campaignId) {
+            async function saveVisualCampaignHomes(assetIds, campaignId, ensureFiles = []) {
                 const ids = (Array.isArray(assetIds) ? assetIds : [])
                     .map((id) => String(id || '').trim())
                     .filter(Boolean);
-                if (!ids.length) {
+                const ensure = (Array.isArray(ensureFiles) ? ensureFiles : [])
+                    .map((row) => ({
+                        name: String(row?.name || '').trim(),
+                        intake_bucket: String(row?.intake_bucket || '').trim() || 'illustrations',
+                    }))
+                    .filter((row) => row.name !== '');
+                if (!ids.length && !ensure.length) {
                     return { ok: false, updated: 0 };
                 }
                 const csrfToken = typeof refreshAdminCsrfToken === 'function'
@@ -8040,6 +8054,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     credentials: 'same-origin',
                     body: JSON.stringify({
                         asset_ids: ids,
+                        ensure_files: ensure,
                         campaign_id: String(campaignId || ''),
                         csrf_token: csrfToken,
                     }),
@@ -8094,13 +8109,40 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
 
             window.closeVisualCampaignAssignModal = closeVisualCampaignAssignModal;
 
+            function resolveSelectedVisualAssetId(file) {
+                return String(file?.asset_id || '').trim() || visualAssetIdFromRef(file?.name || '');
+            }
+
+            function collectSelectedVisualAssignPayload(selected) {
+                const assetIds = [];
+                const ensureFiles = [];
+                (Array.isArray(selected) ? selected : []).forEach((file) => {
+                    const id = resolveSelectedVisualAssetId(file);
+                    if (id) {
+                        assetIds.push(id);
+                        return;
+                    }
+                    const name = String(file?.name || '').trim();
+                    if (!name) {
+                        return;
+                    }
+                    const bucket = String(file?.intake_bucket || '').trim()
+                        || resolveFileIntakeBucket(file, 'visual')
+                        || 'illustrations';
+                    ensureFiles.push({ name, intake_bucket: bucket });
+                });
+                return { assetIds, ensureFiles };
+            }
+
             async function assignSelectedVisualsToCampaign() {
                 const selected = getSelectedMediaDetails('visual');
-                const assetIds = selected
-                    .map((file) => String(file?.asset_id || '').trim())
-                    .filter(Boolean);
-                if (!assetIds.length) {
+                if (!selected.length) {
                     showAdminToast('Select one or more visuals first.', 'error');
+                    return;
+                }
+                const { assetIds, ensureFiles } = collectSelectedVisualAssignPayload(selected);
+                if (!assetIds.length && !ensureFiles.length) {
+                    showAdminToast('Those files are not ready to assign yet.', 'error');
                     return;
                 }
                 await loadCampaignsCatalog();
@@ -8118,11 +8160,15 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     return;
                 }
 
+                const total = assetIds.length + ensureFiles.length;
                 const homeLines = summariseVisualCatalogueHomes(selected);
+                const needsRegister = ensureFiles.length > 0;
                 summaryEl.textContent = [
-                    `Selected: ${assetIds.length} visual${assetIds.length === 1 ? '' : 's'}.`,
+                    `Selected: ${total} visual${total === 1 ? '' : 's'}.`,
                     homeLines.length ? `Currently: ${homeLines.join('; ')}.` : '',
-                    'Choose the campaign that should own them.',
+                    needsRegister
+                        ? 'Some files are not catalogue-ready yet — Assign will register them first, then set the home.'
+                        : 'Choose the campaign that should own them.',
                 ].filter(Boolean).join(' ');
 
                 // No Orphan option here — Assign always sets a home.
@@ -8152,7 +8198,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     const title = campaignTitleForId(campaignId);
                     confirmBtn.disabled = true;
                     try {
-                        const result = await saveVisualCampaignHomes(assetIds, campaignId);
+                        const result = await saveVisualCampaignHomes(assetIds, campaignId, ensureFiles);
                         closeVisualCampaignAssignModal();
                         showAdminToast(
                             result.updated === 1
@@ -11286,14 +11332,15 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 function playlistCoverPreviewUrl(rawValue, entryRef) {
                     const raw = String(rawValue || '').trim();
                     if (!raw) {
-                        return pendingPlaylistCoverPreviewUrl || '';
+                        return '';
                     }
 
                     if (pendingPlaylistCoverPreviewUrl) {
                         const pendingBase = pendingPlaylistCoverPreviewUrl.split('?')[0];
                         const rawBase = playlistMediaPreviewUrlFromReference(raw).split('?')[0];
-                        const rawFile = raw.split('/').pop() || '';
-                        if (!rawBase || pendingBase.endsWith(rawFile) || rawBase === pendingBase) {
+                        const idMatch = raw.match(/ast_[0-9A-HJKMNP-TV-Z]{20}/i);
+                        const sameAsset = !!(idMatch && pendingBase.toLowerCase().includes(idMatch[0].toLowerCase()));
+                        if ((rawBase && pendingBase === rawBase) || sameAsset) {
                             return pendingPlaylistCoverPreviewUrl;
                         }
                     }

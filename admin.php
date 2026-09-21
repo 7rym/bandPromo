@@ -44,7 +44,7 @@ function bandpromo_admin_render_package_update_card(): void
                     <span class="package-update-status-message" id="packageUpdateStatusMessage">Checking for updates…</span>
                     <span class="package-update-status-actions" id="packageUpdateStatusActions">
                         <button type="button" class="btn btn-sm" id="packageUpdateRefreshBtn" hidden>Check again</button>
-                        <button type="button" class="btn btn-primary btn-sm" id="packageUpdateApplyBtn" hidden>Install update</button>
+                        <button type="button" class="btn btn-good btn-sm" id="packageUpdateApplyBtn" hidden>Install update</button>
                     </span>
                 </div>
             </div>
@@ -753,16 +753,19 @@ if ($tab === 'analytics') {
         <!-- ===================== WELCOME TAB ===================== -->
         <div class="tab-content <?php echo $tab === 'welcome' ? 'active' : ''; ?>">
             <div class="tabs sub-tabs">
-                <div class="subtab-help-hint-wrap">
-                    <span class="subtab-help-hint">Click here to toggle help texts -&gt;</span>
-                    <button class="help-toggle-btn collapsed" id="helpBtn-welcome" onclick="toggleHelp('welcome')" title="Show/hide help">ⓘ</button>
-                </div>
+                <button class="help-toggle-btn collapsed" id="helpBtn-welcome" onclick="toggleHelp('welcome')" title="Show/hide help">ⓘ</button>
             </div>
             <div class="admin-help-box collapsed" id="help-welcome">
                 <?php if ($welcomeSetupComplete): ?>
-                    This page is your dashboard. Use <strong>Notifications</strong> to the right of the main tabs for live tasks (track/video preparation, Site update, validation), then jump to <strong>Files</strong> or <strong>Content</strong> to work on them.
+                    <ul>
+                        <li>This page is your dashboard. Use <strong>Notifications</strong> to the right of the main tabs for live tasks (track/video preparation, Site update, validation), then jump to <strong>Files</strong> or <strong>Content</strong> to work on them.</li>
+                    </ul>
                 <?php else: ?>
-                    Use this page as your setup checklist while bandPromo is still getting the installation ready. bandPromo decides as much as it can on its own, then points you to the next incomplete step here on Welcome. <strong>Notifications</strong> is for live work only (media preparation, Site update, publish follow-ups) — not a second copy of this checklist. Jump to <strong>Settings</strong> for site basics and branding, <strong>Files</strong> for uploads and metadata, <strong>Content</strong> for pages and playlist shaping, <strong>System → Status</strong> during setup, and <strong>Documentation</strong> for deeper explanations.
+                    <ul>
+                        <li>Use this page as your setup checklist while bandPromo is still getting the installation ready. bandPromo decides as much as it can on its own, then points you to the next incomplete step here on Welcome.</li>
+                        <li><strong>Notifications</strong> is for live work only (media preparation, Site update, publish follow-ups) — not a second copy of this checklist.</li>
+                        <li>Jump to <strong>Settings</strong> for site basics and branding, <strong>Files</strong> for uploads and metadata, <strong>Content</strong> for pages and playlist shaping, <strong>System → Status</strong> during setup, and <strong>Documentation</strong> for deeper explanations.</li>
+                    </ul>
                 <?php endif; ?>
             </div>
 
@@ -810,10 +813,11 @@ if ($tab === 'analytics') {
                 </ul>
                 <?php endif; ?>
                 <div class="card-actions">
-                    <a class="btn btn-primary" href="<?php echo htmlspecialchars($catalogHref); ?>"><?php echo htmlspecialchars($catalogCtaLabel); ?></a>
+                    <a class="btn btn-good" href="<?php echo htmlspecialchars($catalogHref); ?>"><?php echo htmlspecialchars($catalogCtaLabel); ?></a>
                 </div>
             </div>
             <?php endif; ?>
+            <?php bandpromo_admin_render_package_update_card(); ?>
             <?php if ($demoCatalogShouldSuggestHide): ?>
             <div class="card welcome-demo-catalog-card" id="welcomeDemoCatalogCard">
                 <h2>🎭 bandPromo demo campaign</h2>
@@ -821,14 +825,12 @@ if ($tab === 'analytics') {
                     You have a campaign with a track on a playlist. You can hide the shipped <strong>bandPromo demo</strong> campaign and its catalogue media from the player, content editors, Files, and pickers. Demo Brand shell assets stay visible while Base (or another non-demo brand) still uses them. Files remain on disk and continue to build normally. If you later delete that operator catalogue, the demo is shown again automatically.
                 </p>
                 <div class="card-actions">
-                    <button type="button" class="btn btn-primary" id="demoCatalogHideBtn">Hide demo campaign</button>
+                    <button type="button" class="btn btn-good" id="demoCatalogHideBtn">Hide demo campaign</button>
                     <a class="btn" href="?tab=settings&amp;ctab=basics">Open Settings</a>
                     <span id="demoCatalogHideStatus" class="status-text"></span>
                 </div>
             </div>
             <?php endif; ?>
-
-            <?php bandpromo_admin_render_package_update_card(); ?>
 
             <div class="card welcome-card welcome-card-dashboard">
                 <h3 class="welcome-dashboard-heading">Quick actions</h3>
@@ -908,6 +910,8 @@ if ($tab === 'analytics') {
                 </div>
             </div>
 
+            <?php bandpromo_admin_render_package_update_card(); ?>
+
             <?php if ($demoCatalogShouldSuggestHide): ?>
             <div class="card welcome-demo-catalog-card" id="welcomeDemoCatalogCard">
                 <h2>🎭 bandPromo demo campaign</h2>
@@ -915,14 +919,12 @@ if ($tab === 'analytics') {
                     You have a campaign with a track on a playlist. You can hide the shipped <strong>bandPromo demo</strong> campaign and its catalogue media from the player, content editors, Files, and pickers. Demo Brand shell assets stay visible while Base (or another non-demo brand) still uses them. Files remain on disk and continue to build normally. If you later delete that operator catalogue, the demo is shown again automatically.
                 </p>
                 <div class="card-actions">
-                    <button type="button" class="btn btn-primary" id="demoCatalogHideBtn">Hide demo campaign</button>
+                    <button type="button" class="btn btn-good" id="demoCatalogHideBtn">Hide demo campaign</button>
                     <a class="btn" href="?tab=settings&amp;ctab=basics">Open Settings</a>
                     <span id="demoCatalogHideStatus" class="status-text"></span>
                 </div>
             </div>
             <?php endif; ?>
-
-            <?php bandpromo_admin_render_package_update_card(); ?>
             <?php endif; ?>
         </div>
 
@@ -939,7 +941,11 @@ if ($tab === 'analytics') {
                 <button class="help-toggle-btn collapsed" id="helpBtn-analytics" onclick="toggleHelp('analytics')" title="Show/hide help">ⓘ</button>
             </div>
             <div class="admin-help-box collapsed" id="help-analytics">
-                <strong>Dash</strong> gives a quick overview of platform stats. The other tabs show detailed reports — <strong>Hitlist</strong> ranks your most-played songs, <strong>Patterns</strong> shows where people stop or skip, and <strong>Log</strong> shows raw activity entries. All timestamps are stored in UTC; choose UTC or local display in Settings → Basics.
+                <ul>
+                    <li><strong>Dash</strong> gives a quick overview of platform stats.</li>
+                    <li><strong>Hitlist</strong> ranks your most-played songs, <strong>Patterns</strong> shows where people stop or skip, and <strong>Log</strong> shows raw activity entries.</li>
+                    <li>All timestamps are stored in UTC; choose UTC or local display in Settings → Basics.</li>
+                </ul>
             </div>
 
             <?php
@@ -1150,7 +1156,11 @@ if ($tab === 'analytics') {
                 <button class="help-toggle-btn collapsed" id="helpBtn-users" onclick="toggleHelp('users')" title="Show/hide help">ⓘ</button>
             </div>
             <div class="admin-help-box collapsed" id="help-users">
-                <strong>Admin</strong> users handle day-to-day operation. <strong>Developer</strong> users can access the same panel but also see developer-only documentation. <strong>User</strong> accounts cannot open this admin panel.
+                <ul>
+                    <li><strong>Admin</strong> users handle day-to-day operation.</li>
+                    <li><strong>Developer</strong> users can access the same panel but also see developer-only documentation.</li>
+                    <li><strong>User</strong> accounts cannot open this admin panel.</li>
+                </ul>
             </div>
 
             <?php
@@ -2712,11 +2722,23 @@ if ($tab === 'analytics') {
             </div>
             <div class="admin-help-box collapsed" id="help-settings">
                 <?php if ($configTab === 'basics'): ?>
-                    Basics is the place for your public site title, URL, description, author, and contact. Contact is suggested from author + site URL until you edit it manually. <strong>Save validates only the basics fields</strong>, then writes them back into the full config. If internal config sections are missing, use the <strong>Repair</strong> link to restore them from the config template. Use <strong>Demo campaign</strong> below to hide the shipped demo campaign and its catalogue media from your workspace (Base brand shell assets stay visible while still referenced).
+                    <ul>
+                        <li>Basics holds your public site title, URL, description, author, and contact. Contact is suggested from author + site URL until you edit it manually.</li>
+                        <li><strong>Save validates only the basics fields</strong>, then writes them back into the full config. If internal config sections are missing, use the <strong>Repair</strong> link to restore them from the config template.</li>
+                        <li>Use <strong>Demo campaign</strong> below to hide the shipped demo campaign and its catalogue media from your workspace (Base brand shell assets stay visible while still referenced).</li>
+                    </ul>
                 <?php elseif ($configTab === 'support'): ?>
-                    Support is where you decide whether the public player should show a support call-to-action at all, where it should send visitors, and how visible it should be. Use a simple link button when you want the safest, most portable setup. Use the Ko-fi widget only when you intentionally want Ko-fi's hosted script and overlay behavior on your site. bandPromo does not verify payments or memberships here in v0.7; it only controls presentation.
+                    <ul>
+                        <li>Decide whether the public player shows a support call-to-action, where it sends visitors, and how visible it should be.</li>
+                        <li>Use a simple link button for the safest, most portable setup. Use the Ko-fi widget only when you intentionally want Ko-fi’s hosted script and overlay on your site.</li>
+                        <li>bandPromo does not verify payments or memberships here; it only controls presentation.</li>
+                    </ul>
                 <?php elseif ($configTab === 'sharing'): ?>
-                    Controls how your site appears when shared on Facebook, X (Twitter), and other platforms, and also holds the lightweight SEO/manifest fields used for keywords and categories. The preview cards below update live as you type. Edit the <strong>poster / share cover</strong> under <a href="?tab=content&amp;cntab=branding">Content → Branding</a> on the base brand.
+                    <ul>
+                        <li>Controls how your site appears when shared on Facebook, X (Twitter), and other platforms, plus lightweight SEO/manifest keywords and categories.</li>
+                        <li>Preview cards below update live as you type.</li>
+                        <li>Edit the <strong>poster / share cover</strong> under <a href="?tab=content&amp;cntab=branding">Content → Branding</a> on the base brand.</li>
+                    </ul>
                 <?php endif; ?>
             </div>
 
@@ -3028,7 +3050,11 @@ if ($tab === 'analytics') {
 
             <?php if ($systemTab === 'deliverables'): ?>
             <div class="admin-help-box collapsed" id="help-build">
-                <strong>Status</strong> is the install health desk. Open <strong>Site health</strong> for catalogue checks (Quick or Full), then Review → Apply when something needs fixing. <strong>Force full rebuild</strong> rebuilds every player-ready file so the whole install is checked end to end; it stays unavailable while a check still shows serious problems. Detail stays in Activity.
+                <ul>
+                    <li><strong>Status</strong> is the install health desk. Open <strong>Site health</strong> for catalogue checks (Quick or Full), then Review → Apply when something needs fixing.</li>
+                    <li><strong>Force full rebuild</strong> rebuilds every player-ready file so the whole install is checked end to end; it stays unavailable while a check still shows serious problems.</li>
+                    <li>Detail stays in Activity.</li>
+                </ul>
             </div>
 
             <div id="siteHealthCard" class="card publish-status-card">
@@ -3150,7 +3176,11 @@ if ($tab === 'analytics') {
             </details>
             <?php elseif ($systemTab === 'audit'): ?>
             <div class="admin-help-box collapsed" id="help-audit">
-                Separate admin audit trail for management actions only. Use this to trace who changed users, content, settings, files, and publish runs, without mixing those records into listener activity analytics.
+                <ul>
+                    <li>Separate admin audit trail for management actions only.</li>
+                    <li>Use this to trace who changed users, content, settings, files, and publish runs.</li>
+                    <li>These records stay out of listener activity analytics.</li>
+                </ul>
             </div>
 
             <?php
@@ -3242,10 +3272,12 @@ if ($tab === 'analytics') {
             <?php endif; ?>
             <?php elseif ($systemTab === 'backup'): ?>
             <div class="admin-help-box collapsed" id="help-backup-export">
-                Move one campaign with a <strong>Portable Campaign File (<code>.pcf</code>)</strong> (masters, brand, playlists, galleries, pages), or one brand with a <strong>Portable Brand File (<code>.pbf</code>)</strong> (brand + curated library masters).
-                Or back up this install for recovery (site settings, catalogue &amp; config, media library, support logs).
-                Import collision: <strong>Refuse</strong> keeps local and reports the clash, <strong>Overwrite</strong> replaces the matching id, <strong>Skip</strong> leaves existing ids, <strong>AsNew</strong> allocates a new id.
-                Jobs stay until you download or delete them. After import, open <strong>Status → Site health</strong> if you need to refresh listener-ready files.
+                <ul>
+                    <li>Move one campaign with a <strong>Portable Campaign File (<code>.pcf</code>)</strong> (masters, brand, playlists, galleries, pages), or one brand with a <strong>Portable Brand File (<code>.pbf</code>)</strong> (brand + curated library masters).</li>
+                    <li>Or back up this install for recovery (site settings, catalogue &amp; config, media library, support logs).</li>
+                    <li>Import collision: <strong>Refuse</strong> keeps local and reports the clash, <strong>Overwrite</strong> replaces the matching id, <strong>Skip</strong> leaves existing ids, <strong>AsNew</strong> allocates a new id.</li>
+                    <li>Jobs stay until you download or delete them. After import, open <strong>Status → Site health</strong> if you need to refresh listener-ready files.</li>
+                </ul>
             </div>
 
             <?php
@@ -3604,13 +3636,11 @@ if ($tab === 'analytics') {
             </div>
             <?php elseif ($systemTab === 'environment'): ?>
             <div class="admin-help-box collapsed" id="help-environment">
-                Host facts for debugging limited shared hosting (PHP CLI, open_basedir, Python, ffmpeg, launch path)
-                plus the managed Apache/PHP protection stubs bandPromo expects
-                (<code>.htaccess</code>, <code>.user.ini</code>, and deny-all rules under <code>data/</code>, <code>log/</code>, <code>backups/</code>, and <code>media/</code>).
-                <br><br>
-                <strong>Host protection → Check</strong> only reports.
-                <strong>Repair</strong> recreates missing or drifted managed stubs from
-                <code>biblioteca/templates/runtime/</code>. Site config (<code>web-config.json</code>) is never overwritten here.
+                <ul>
+                    <li>Host facts for debugging limited shared hosting (PHP CLI, open_basedir, Python, ffmpeg, launch path) plus the managed Apache/PHP protection stubs bandPromo expects (<code>.htaccess</code>, <code>.user.ini</code>, and deny-all rules under <code>data/</code>, <code>log/</code>, <code>backups/</code>, and <code>media/</code>).</li>
+                    <li><strong>Host protection → Check</strong> only reports. <strong>Repair</strong> recreates missing or drifted managed stubs from <code>biblioteca/templates/runtime/</code>.</li>
+                    <li>Site config (<code>web-config.json</code>) is never overwritten here.</li>
+                </ul>
             </div>
 
             <?php
@@ -3673,7 +3703,10 @@ if ($tab === 'analytics') {
                 <button class="help-toggle-btn collapsed" id="helpBtn-docs" onclick="toggleHelp('docs')" title="Show/hide help">ⓘ</button>
             </div>
             <div class="admin-help-box collapsed" id="help-docs">
-                Operators see operator-safe documentation only. Developers can switch between operator docs, developer docs, and a combined view when they need both perspectives.
+                <ul>
+                    <li>Operators see operator-safe documentation only.</li>
+                    <li>Developers can switch between operator docs, developer docs, and a combined view when they need both perspectives.</li>
+                </ul>
             </div>
 
             <?php
