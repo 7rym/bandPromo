@@ -20,6 +20,10 @@
     --warn:     #f0b429;
     --error:    #f44336;
     --primary:  #FF6B6B;
+    /* Sticky chrome over scrolling lists must be opaque; in-flow headers may wash. */
+    --admin-sticky-chrome-bg: #0f172a;
+    --admin-sticky-chrome-border: rgba(148, 163, 184, 0.18);
+    --admin-slate-wash: rgba(15, 23, 42, 0.55);
     --intent-good-fg: #d8f5d3;
     --intent-good-border: rgba(76, 175, 80, 0.45);
     --intent-good-bg: rgba(76, 175, 80, 0.16);
@@ -526,8 +530,8 @@ button.danger:not(.btn):not(.icon-btn):hover { background: #d32f2f; }
 
 .media-pool-breadcrumb-head {
     margin: 0 0 4px;
-    padding: 4px 0;
-    min-height: 0;
+    padding: 4px 0 6px;
+    min-height: 30px;
     background: transparent;
     border: 0;
 }
@@ -1092,7 +1096,7 @@ button.danger:not(.btn):not(.icon-btn):hover { background: #d32f2f; }
     margin-top: 0.75rem;
     border-top: 1px solid rgba(96,165,250,0.2);
     border-radius: 6px;
-    background: rgba(15, 23, 42, 0.55);
+    background: var(--admin-slate-wash);
 }
 .admin-help-box.collapsed {
     display: none;
@@ -1993,7 +1997,8 @@ canvas { max-width: 100%; height: auto; }
     background: var(--intent-good-bg-h);
 }
 
-/* Compact pool-row tools (edit / lock / duplicate / delete). */
+/* Compact pool-row tools (edit / lock / duplicate / delete / export).
+   Available muted green when enabled; grey only when disabled. */
 .icon-btn.icon-btn--pool,
 .registry-btn--edit,
 .registry-btn--lock,
@@ -2009,10 +2014,10 @@ canvas { max-width: 100%; height: auto; }
     justify-content: center;
     box-sizing: border-box;
     border-radius: 6px;
-    background: #101010;
-    border: 1px solid var(--border);
-    color: var(--text);
     font-size: 14px;
+    color: var(--intent-good-fg);
+    border: 1px solid var(--intent-good-border);
+    background: var(--intent-good-bg);
 }
 
 .icon-btn.icon-btn--pool:hover,
@@ -2020,20 +2025,20 @@ canvas { max-width: 100%; height: auto; }
 .registry-btn--lock:hover,
 .registry-btn--duplicate:hover,
 .registry-btn--export:hover {
-    border-color: var(--accent);
-    background: rgba(255, 107, 107, 0.12);
-    color: var(--text);
+    color: var(--intent-good-fg-h);
+    border-color: var(--intent-good-border-h);
+    background: var(--intent-good-bg-h);
 }
 
 .registry-btn--lock {
-    color: var(--muted);
+    color: var(--intent-good-fg);
 }
 
 .registry-btn--lock-active,
 .icon-btn.icon-btn--pool.icon-btn--active {
-    border-color: var(--accent);
-    background: rgba(255, 107, 107, 0.12);
-    color: var(--text);
+    color: var(--intent-good-fg-h);
+    border-color: var(--intent-good-border-h);
+    background: var(--intent-good-bg-h);
 }
 
 /* Pool / registry Delete triggers = available muted green (confirm stays solid red). */
@@ -2051,6 +2056,20 @@ canvas { max-width: 100%; height: auto; }
     color: var(--intent-good-fg-h);
     border-color: var(--intent-good-border-h);
     background: var(--intent-good-bg-h);
+}
+
+.icon-btn.icon-btn--pool[disabled],
+.registry-btn--edit[disabled],
+.registry-btn--lock[disabled],
+.registry-btn--duplicate[disabled],
+.registry-btn--export[disabled],
+.registry-btn--delete[disabled],
+.registry-btn--protected[disabled] {
+    color: var(--muted);
+    border-color: var(--border2);
+    background: rgba(255, 255, 255, 0.04);
+    cursor: default;
+    opacity: 1;
 }
 
 /* ===== Modal ===== */
@@ -2090,6 +2109,11 @@ canvas { max-width: 100%; height: auto; }
 
 #audioMasterModal {
     z-index: 1050;
+}
+
+/* Confirms must stack above Files editors / media picker */
+#adminConfirmModal {
+    z-index: 1300;
 }
 
 #mediaPickerModal .media-picker-modal-box {
@@ -2168,7 +2192,7 @@ canvas { max-width: 100%; height: auto; }
     margin: 0 0 8px;
     padding: 4px 28px 4px 4px;
     border-radius: 8px;
-    background: rgba(15, 23, 42, 0.55);
+    background: var(--admin-slate-wash);
     border-bottom: none;
 }
 
@@ -2198,7 +2222,7 @@ canvas { max-width: 100%; height: auto; }
 .audio-master-listen-bar {
     display: block;
     margin: 0 0 8px;
-    max-width: 260px;
+    max-width: 100%;
 }
 
 .audio-master-listen-bar[hidden] {
@@ -2208,7 +2232,7 @@ canvas { max-width: 100%; height: auto; }
 .audio-master-listen-player {
     display: block;
     width: 100%;
-    max-width: 260px;
+    max-width: 100%;
     height: 32px;
 }
 
@@ -2260,17 +2284,58 @@ canvas { max-width: 100%; height: auto; }
     padding-right: 2px;
 }
 
+.audio-master-layout {
+    display: grid;
+    grid-template-columns: minmax(180px, 220px) minmax(280px, 1fr);
+    gap: 8px;
+    align-items: start;
+}
+
+@media (max-width: 820px) {
+    .audio-master-layout {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .audio-master-cover-duo {
+        width: min(220px, 100%);
+    }
+}
+
+.audio-master-preview {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    min-width: 0;
+}
+
+.audio-master-side {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    min-width: 0;
+}
+
+.audio-master-meta-dynamic .audio-master-form {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.audio-master-file-chips {
+    margin-top: 4px;
+}
+
 .audio-master-hero {
     display: grid;
     grid-template-columns: auto minmax(0, 1fr);
-    gap: 10px 16px;
+    gap: 8px;
     align-items: start;
-    margin-bottom: 12px;
+    margin-bottom: 8px;
 }
 
 #audioMasterModal .audio-master-cover-layout {
     grid-template-columns: auto minmax(0, 1fr);
-    margin-bottom: 12px;
+    margin-bottom: 8px;
 }
 
 .audio-master-hero-meta {
@@ -2280,21 +2345,23 @@ canvas { max-width: 100%; height: auto; }
     align-content: start;
     min-width: 0;
     justify-content: center;
-    padding-top: 18px;
+    padding-top: 0;
 }
 
 .audio-master-cover-duo {
     display: grid;
-    grid-template-columns: repeat(2, 140px);
-    gap: 12px;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 8px;
     justify-content: start;
     align-items: start;
+    width: min(220px, 100%);
 }
 
 .audio-master-cover-card {
     display: grid;
     gap: 4px;
-    justify-items: center;
+    justify-items: stretch;
+    width: 100%;
 }
 
 .audio-master-cover-card-label {
@@ -2303,8 +2370,8 @@ canvas { max-width: 100%; height: auto; }
     letter-spacing: 0.08em;
     text-transform: uppercase;
     color: var(--muted);
-    width: 140px;
-    text-align: center;
+    width: 100%;
+    text-align: left;
 }
 
 .audio-master-cover-duo-status {
@@ -2321,21 +2388,22 @@ canvas { max-width: 100%; height: auto; }
 
 .audio-master-cover-layout {
     display: grid;
-    grid-template-columns: 140px minmax(0, 1fr);
-    gap: 12px;
+    grid-template-columns: minmax(0, 220px) minmax(0, 1fr);
+    gap: 8px;
     align-items: start;
-    margin-bottom: 12px;
+    margin-bottom: 8px;
 }
 
 .audio-master-cover-preview-shell {
     display: flex;
     justify-content: flex-start;
+    width: 100%;
 }
 
 .audio-master-cover-preview {
-    width: 140px;
+    width: 100%;
     aspect-ratio: 1;
-    border-radius: 12px;
+    border-radius: 8px;
     border: 1px solid var(--border);
     background: var(--card);
     display: flex;
@@ -2457,20 +2525,63 @@ canvas { max-width: 100%; height: auto; }
 .audio-master-form-grid {
     display: grid;
     grid-template-columns: repeat(4, minmax(0, 1fr));
-    gap: 8px 10px;
-    margin-bottom: 10px;
+    gap: 8px;
+    margin-bottom: 0;
     align-items: start;
 }
 
+.audio-master-form-grid-artists {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.audio-master-form-grid-title {
+    grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
+}
+
+.audio-master-form-grid-music {
+    grid-template-columns: minmax(0, 1fr) auto auto;
+}
+
+.audio-master-form-grid-date {
+    grid-template-columns: max-content;
+}
+
+.audio-master-field-bpm,
+.audio-master-field-key {
+    justify-self: start;
+}
+
+.audio-master-field-bpm input,
+.audio-master-field-key input {
+    box-sizing: border-box;
+    font-variant-numeric: tabular-nums;
+}
+
+.audio-master-field-bpm input {
+    width: calc(3ch + 1.75rem);
+    min-width: calc(3ch + 1.75rem);
+    max-width: calc(3ch + 1.75rem);
+}
+
+.audio-master-field-key input {
+    width: calc(4ch + 1.75rem);
+    min-width: calc(4ch + 1.75rem);
+    max-width: calc(4ch + 1.75rem);
+}
+
 .audio-master-form-grid-compact {
-    grid-template-columns: 2fr 1.4fr 1.2fr 0.9fr;
+    grid-template-columns: minmax(0, 1fr) auto auto;
 }
 
 .audio-master-form-grid-secondary {
-    grid-template-columns: 1fr 1fr 0.9fr;
+    grid-template-columns: minmax(0, 1.2fr) minmax(0, 1.2fr) minmax(0, 0.9fr);
 }
 
 #audioMasterForm .playlist-settings-field {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 4px;
     flex: unset;
     min-width: 0;
     margin: 0;
@@ -2480,7 +2591,7 @@ canvas { max-width: 100%; height: auto; }
     display: flex;
     flex-direction: column;
     gap: 4px;
-    margin-bottom: 10px;
+    margin-bottom: 0;
 }
 
 #audioMasterForm textarea {
@@ -2488,8 +2599,25 @@ canvas { max-width: 100%; height: auto; }
     font-size: 14px;
 }
 
+.audio-master-field-label-with-hint {
+    display: inline-flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 4px 8px;
+}
+
+.audio-master-field-label-with-hint .markdown-help-note {
+    margin: 0;
+    font-weight: 400;
+}
+
 .audio-master-description-group textarea {
-    resize: vertical;
+    resize: none;
+    overflow: hidden;
+    min-height: 2.5rem;
+    width: 100%;
+    box-sizing: border-box;
+    field-sizing: content;
 }
 
 .audio-master-text-panel {
@@ -2505,7 +2633,7 @@ canvas { max-width: 100%; height: auto; }
 }
 
 .audio-master-text-panel-note {
-    margin-top: 4px;
+    margin: 0;
 }
 
 .date-input-shell {
@@ -2578,7 +2706,7 @@ canvas { max-width: 100%; height: auto; }
 .content-editor-field-stack.campaign-catalog-meta-fields {
     display: flex;
     flex-direction: column;
-    gap: 0.65rem;
+    gap: 8px;
     align-items: stretch;
 }
 
@@ -2596,9 +2724,9 @@ canvas { max-width: 100%; height: auto; }
 
 .audio-master-description-meta {
     display: flex;
-    justify-content: space-between;
+    justify-content: flex-end;
     align-items: baseline;
-    gap: 12px;
+    gap: 8px;
     margin-top: 4px;
 }
 
@@ -2611,7 +2739,7 @@ canvas { max-width: 100%; height: auto; }
     flex-wrap: wrap;
     align-items: center;
     justify-content: flex-start;
-    gap: 10px 14px;
+    gap: 8px;
     margin-bottom: 8px;
 }
 
@@ -3150,6 +3278,9 @@ canvas { max-width: 100%; height: auto; }
 :root {
     --admin-subtabs-sticky-top: 0px;
     --admin-subtabs-offset: 38px;
+    --admin-breadcrumb-sticky-height: 33px;
+    /* Page builder add-block head sits under Content sub-tabs + breadcrumb. */
+    --page-builder-sticky-top: calc(var(--admin-subtabs-offset) + var(--admin-breadcrumb-sticky-height));
 }
 
 #tab-files > .tabs.sub-tabs,
@@ -3166,7 +3297,9 @@ canvas { max-width: 100%; height: auto; }
     z-index: 40;
     margin: 0 0 6px;
     padding-bottom: 2px;
-    background: rgba(15, 23, 42, 0.55);
+    /* Opaque — translucent wash lets list rows show through and fights the toolbar. */
+    background: var(--admin-sticky-chrome-bg);
+    border-bottom: 1px solid var(--admin-sticky-chrome-border);
 }
 
 .media-pool-sticky-chrome .audio-pool-toolbar {
@@ -3203,7 +3336,7 @@ canvas { max-width: 100%; height: auto; }
     z-index: 2;
     margin: 0;
     padding-left: 8px;
-    background: rgba(15, 23, 42, 0.55);
+    background: var(--admin-sticky-chrome-bg);
     pointer-events: none;
 }
 
@@ -3212,8 +3345,14 @@ canvas { max-width: 100%; height: auto; }
     position: sticky;
     top: var(--admin-subtabs-offset);
     z-index: 42;
-    background: rgba(15, 23, 42, 0.55);
-    padding: 4px 0 6px;
+    background: var(--admin-sticky-chrome-bg);
+    border-bottom: 1px solid var(--admin-sticky-chrome-border);
+    box-sizing: border-box;
+    /* Locked breadcrumb row — same height with or without ← Back / Save. */
+    height: 33px;
+    min-height: 33px;
+    max-height: 33px;
+    padding: 0;
     margin-bottom: 4px;
 }
 
@@ -3226,7 +3365,7 @@ canvas { max-width: 100%; height: auto; }
     position: static;
     top: auto;
     z-index: auto;
-    background: rgba(15, 23, 42, 0.55);
+    background: var(--admin-slate-wash);
 }
 
 /* Branding Live preview is already a sticky column — keep its title in normal
@@ -4625,7 +4764,7 @@ canvas { max-width: 100%; height: auto; }
     margin: 0 0 8px;
     padding: 4px 28px 4px 4px;
     border-radius: 8px;
-    background: rgba(15, 23, 42, 0.55);
+    background: var(--admin-slate-wash);
 }
 
 .visual-asset-modal-crumb-row {
@@ -4929,7 +5068,7 @@ canvas { max-width: 100%; height: auto; }
     flex-wrap: wrap;
     gap: 8px;
     align-items: center;
-    margin: 0 0 10px;
+    margin: 0 0 8px;
 }
 
 .gallery-available-search {
@@ -4945,7 +5084,7 @@ canvas { max-width: 100%; height: auto; }
 
 .editor-card.is-editing .split-editor__header {
     border-bottom: 1px solid var(--border2);
-    background: rgba(15, 23, 42, 0.55);
+    background: var(--admin-slate-wash);
 }
 
 #galleryEditorCard .content-editor-name-input {
@@ -4957,11 +5096,6 @@ canvas { max-width: 100%; height: auto; }
     color: var(--muted);
     font-size: 13px;
     line-height: 1.6;
-}
-
-.gallery-helper-text h4 {
-    color: var(--text);
-    margin: 0 0 8px;
 }
 
 .gallery-helper-text p {
@@ -5896,7 +6030,10 @@ canvas { max-width: 100%; height: auto; }
     display: none !important;
 }
 
-.content-editor-breadcrumb-sep[hidden] {
+.content-editor-breadcrumb-sep[hidden],
+.content-editor-breadcrumb-link[hidden],
+.content-editor-breadcrumb-root[hidden],
+.content-editor-breadcrumb-current[hidden] {
     display: none !important;
 }
 
@@ -7622,7 +7759,7 @@ canvas { max-width: 100%; height: auto; }
 
 .split-editor {
     display: flex;
-    gap: 18px;
+    gap: 8px;
     align-items: stretch;
 }
 
@@ -7649,7 +7786,7 @@ canvas { max-width: 100%; height: auto; }
 
 .split-editor__header {
     margin: 0;
-    padding: 10px 14px;
+    padding: 8px;
     height: 48px;
     min-height: 48px;
     max-height: 48px;
@@ -7657,18 +7794,18 @@ canvas { max-width: 100%; height: auto; }
     display: flex;
     align-items: center;
     border-bottom: 1px solid var(--border);
-    background: rgba(15, 23, 42, 0.55);
+    background: var(--admin-slate-wash);
     flex-shrink: 0;
 }
 
 .split-editor__header--active {
     justify-content: space-between;
-    gap: 12px;
+    gap: 8px;
 }
 
 .split-editor__header--pool {
     justify-content: space-between;
-    gap: 12px;
+    gap: 8px;
 }
 
 .split-editor__header--pool .split-editor__title {
@@ -7700,10 +7837,10 @@ canvas { max-width: 100%; height: auto; }
     font-size: 12px;
     font-weight: 600;
     line-height: 1;
-    border: 1px solid var(--border2);
+    border: 1px solid var(--intent-good-border);
     border-radius: 6px;
-    background: rgba(15, 23, 42, 0.45);
-    color: var(--text);
+    background: var(--intent-good-bg);
+    color: var(--intent-good-fg);
     cursor: pointer;
     white-space: nowrap;
     box-sizing: border-box;
@@ -7713,13 +7850,15 @@ canvas { max-width: 100%; height: auto; }
 }
 
 .split-editor__pool-action:hover {
-    border-color: var(--accent);
-    background: rgba(255, 107, 107, 0.1);
+    border-color: var(--intent-good-border-h);
+    background: var(--intent-good-bg-h);
+    color: var(--intent-good-fg-h);
 }
 
 .split-editor__pool-action.active {
-    border-color: var(--accent);
-    background: rgba(255, 107, 107, 0.14);
+    border-color: var(--intent-good-border-h);
+    background: var(--intent-good-bg-h);
+    color: var(--intent-good-fg-h);
 }
 
 .split-editor__pool-action-icon {
@@ -7774,11 +7913,15 @@ canvas { max-width: 100%; height: auto; }
     display: flex;
     align-items: center;
     justify-content: flex-start;
-    flex-wrap: wrap;
-    gap: 0.55rem 0.85rem;
-    /* Match Editor chrome (section chips / ← Back) so Pool does not jump shorter. */
-    min-height: 30px;
+    flex-wrap: nowrap;
+    gap: 4px 8px;
+    box-sizing: border-box;
+    /* Locked 33px whether actions (← Back / Save) are present or hidden. */
+    height: 33px;
+    min-height: 33px;
+    max-height: 33px;
     margin: 0 0 4px;
+    overflow: hidden;
 }
 
 .content-editor-card-head h2,
@@ -7789,8 +7932,27 @@ canvas { max-width: 100%; height: auto; }
     color: var(--text);
     font-size: 16px;
     font-weight: 600;
+    line-height: 1.35;
     flex: 0 1 auto;
     min-width: 0;
+    max-height: 33px;
+}
+
+.content-editor-card-head .content-editor-name-input,
+.content-editor-card-head .content-editor-breadcrumb-title {
+    box-sizing: border-box;
+    height: 28px;
+    max-height: 28px;
+    padding-top: 2px;
+    padding-bottom: 2px;
+}
+
+.content-editor-card-head-actions .btn,
+.content-editor-card-head-actions .content-editor-back-btn {
+    box-sizing: border-box;
+    max-height: 28px;
+    padding-top: 2px;
+    padding-bottom: 2px;
 }
 
 .content-editor-card-head .content-editor-subnav {
@@ -8010,18 +8172,18 @@ a.content-editor-breadcrumb-link {
 .campaign-preview-brand {
     display: grid;
     grid-template-columns: minmax(120px, 180px) minmax(0, 1fr);
-    gap: 0.85rem;
+    gap: 8px;
     align-items: start;
 }
 
 .campaign-base-brand-preview {
-    margin: 0.9rem 0 0.15rem;
-    padding-top: 0.85rem;
+    margin: 8px 0 0;
+    padding-top: 8px;
     border-top: 1px solid color-mix(in srgb, var(--text) 12%, transparent);
 }
 
 .campaign-base-brand-preview-heading {
-    margin: 0 0 0.65rem;
+    margin: 0 0 8px;
     font-size: 0.82rem;
     font-weight: 600;
     letter-spacing: 0.02em;
@@ -8035,8 +8197,8 @@ a.content-editor-breadcrumb-link {
 
 .campaign-ownership-summary,
 .campaign-long-description-preview {
-    margin: 0.9rem 0 0.15rem;
-    padding-top: 0.85rem;
+    margin: 8px 0 0;
+    padding-top: 8px;
     border-top: 1px solid color-mix(in srgb, var(--text) 12%, transparent);
 }
 
@@ -8049,7 +8211,7 @@ a.content-editor-breadcrumb-link {
 .campaign-ownership-summary-row {
     display: grid;
     grid-template-columns: 5.5rem minmax(0, 1fr);
-    gap: 0.55rem 0.75rem;
+    gap: 4px 8px;
     align-items: start;
 }
 
@@ -8151,7 +8313,7 @@ textarea.campaign-settings-description-autofit {
 .campaign-preview-swatches {
     display: flex;
     gap: 0.35rem;
-    margin-bottom: 0.75rem;
+    margin-bottom: 8px;
 }
 
 .campaign-preview-swatch {
@@ -8223,7 +8385,7 @@ textarea.campaign-settings-description-autofit {
     min-height: 0;
     display: flex;
     flex-direction: column;
-    gap: 10px;
+    gap: 8px;
     padding: 4px;
 }
 

@@ -84,6 +84,23 @@
             + '>' + (options.icon || '') + '</button>';
     }
 
+    /**
+     * Disabled lock in the Delete slot for protected / undeletable pool rows.
+     * Keeps action columns aligned with deletable siblings.
+     *
+     * @param {string} [title]
+     * @returns {string}
+     */
+    function protectedButton(title) {
+        var reason = String(title || 'This item cannot be deleted').trim();
+        if (reason === '') {
+            reason = 'This item cannot be deleted';
+        }
+        return '<button type="button" class="icon-btn icon-btn--pool registry-btn--protected" disabled'
+            + ' title="' + escapeAttr(reason) + '"'
+            + ' aria-label="' + escapeAttr(reason) + '">🔒</button>';
+    }
+
     function escapeHtml(str) {
         return String(str)
             .replace(/&/g, '&amp;')
@@ -104,6 +121,7 @@
         render: renderRegistryList,
         row: registryRow,
         actionButton: actionButton,
+        protectedButton: protectedButton,
         escapeHtml: escapeHtml,
     };
 })();

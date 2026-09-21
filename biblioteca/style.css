@@ -635,6 +635,10 @@ body.debug-modal-open {
     align-items: center;
 }
 
+#artistName[hidden] {
+    display: none !important;
+}
+
 /* Canvas Analyzer */
 #analyzer {
     position: absolute;
@@ -1732,6 +1736,12 @@ button.pulse-guide {
     font-weight: 600;
 }
 
+.playlist-track-artist {
+    font-size: 12px;
+    color: var(--color-text-muted);
+    font-weight: 500;
+}
+
 .playlist-track-description {
     margin: 0;
     font-size: 13px;
@@ -1742,8 +1752,6 @@ button.pulse-guide {
     font-size: 12px;
     color: color-mix(in srgb, var(--color-text-muted) 75%, transparent);
     font-weight: normal;
-    display: block;
-    margin-top: 3px;
 }
 
 .lyrics-box::-webkit-scrollbar,

@@ -9,6 +9,7 @@
         const saveBtn = document.getElementById('brandSaveBtn');
         const setActiveBtn = document.getElementById('brandSetActiveBtn');
         const backBtn = document.getElementById('brandEditorBackBtn');
+        const addFromBaseBtn = document.getElementById('brandAddFromBaseBtn');
         const titleInput = document.getElementById('brandSettingsTitle');
         const headBadges = document.getElementById('brandEditorHeadBadges');
         const registryStatus = document.getElementById('brandRegistryStatus');
@@ -1555,10 +1556,13 @@
                 }
             }
             if (setActiveBtn) {
-                setActiveBtn.hidden = !document;
-                setActiveBtn.disabled = !!isActive;
-                setActiveBtn.textContent = isActive ? '✓ Base brand' : '★ Set as base';
-                setActiveBtn.classList.toggle('btn-saved', !!isActive);
+                // Status chip next to the name already says Base — only show the
+                // action when this brand is not yet the install base.
+                setActiveBtn.hidden = !document || !!isActive;
+                setActiveBtn.disabled = false;
+                setActiveBtn.textContent = '★ Set as base';
+                setActiveBtn.classList.remove('btn-saved');
+                setActiveBtn.title = 'Use this brand for login and player chrome';
             }
         }
 
@@ -1701,6 +1705,13 @@
                         actions.push(
                             `<button type="button" class="icon-btn icon-btn--pool icon-btn--danger registry-btn--delete" data-brand-id="${escapeHtml(id)}" title="Delete brand" aria-label="Delete ${escapeHtml(label)}">🗑️</button>`
                         );
+                    } else {
+                        const lockReason = entry && entry.id === activeBrandId
+                            ? 'Base brand cannot be deleted'
+                            : (entry && entry.locked
+                                ? 'Locked brand cannot be deleted'
+                                : 'This brand cannot be deleted');
+                        actions.push(window.bandpromoRegistryList.protectedButton(lockReason));
                     }
                     return window.bandpromoRegistryList.row({
                         id: id,
@@ -2088,6 +2099,15 @@
 
         backBtn?.addEventListener('click', () => {
             requestCloseEditor();
+        });
+
+        addFromBaseBtn?.addEventListener('click', () => {
+            const sourceId = String(activeBrandId || '').trim();
+            if (!sourceId) {
+                notifyBrandError('No base brand to duplicate yet.');
+                return;
+            }
+            duplicateBrand(sourceId);
         });
 
         if (window.bandpromoContentEditorBreadcrumb?.attach) {

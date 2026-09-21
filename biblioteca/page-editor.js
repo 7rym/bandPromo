@@ -141,6 +141,8 @@
                         actions.push(
                             `<button type="button" class="icon-btn icon-btn--pool icon-btn--danger registry-btn--delete" data-page-id="${escapeHtml(pageId)}" data-page-title="${escapeHtml(label)}" title="Delete page" aria-label="Delete ${escapeHtml(label)}">🗑️</button>`
                         );
+                    } else {
+                        actions.push(window.bandpromoRegistryList.protectedButton('Required page cannot be deleted'));
                     }
                     return window.bandpromoRegistryList.row({
                         id: pageId,
@@ -980,7 +982,7 @@
                     <div class="page-picture-top">
                         <div class="page-picture-visual">${thumb}</div>
                         <div class="page-picture-controls">
-                            <button type="button" class="btn btn-primary page-picture-change-btn" data-action="pick-image" data-block-index="${index}">${block.src ? 'Change picture' : 'Choose picture'}</button>
+                            <button type="button" class="btn btn-available page-picture-change-btn" data-action="pick-image" data-block-index="${index}">${block.src ? 'Change picture' : 'Choose picture'}</button>
                             ${renderPictureStyleBar(block, index)}
                         </div>
                     </div>
@@ -1003,7 +1005,7 @@
                     <div class="page-picture-top">
                         <div class="page-picture-visual">${thumb}</div>
                         <div class="page-picture-controls">
-                            <button type="button" class="btn btn-primary page-picture-change-btn" data-action="pick-video" data-block-index="${index}">${block.src ? 'Change video' : 'Choose video'}</button>
+                            <button type="button" class="btn btn-available page-picture-change-btn" data-action="pick-video" data-block-index="${index}">${block.src ? 'Change video' : 'Choose video'}</button>
                             ${renderPictureStyleBar(block, index, playbackBar)}
                         </div>
                     </div>
@@ -1794,9 +1796,9 @@
                     <div class="page-block-card-header">
                         <span class="page-block-type-label">${escapeHtml(blockLabel(block))}</span>
                         <div class="page-block-actions">
-                            <button type="button" class="btn" data-action="move-up" data-block-index="${index}"${index === 0 ? ' disabled' : ''}>↑</button>
-                            <button type="button" class="btn" data-action="move-down" data-block-index="${index}"${index === blocks.length - 1 ? ' disabled' : ''}>↓</button>
-                            <button type="button" class="icon-btn icon-btn--danger page-block-delete-btn" data-action="delete-block" data-block-index="${index}" title="Delete block" aria-label="Delete block">🗑️</button>
+                            <button type="button" class="icon-btn media-action-btn media-action-good" data-action="move-up" data-block-index="${index}" title="Move up" aria-label="Move up"${index === 0 ? ' disabled' : ''}>↑</button>
+                            <button type="button" class="icon-btn media-action-btn media-action-good" data-action="move-down" data-block-index="${index}" title="Move down" aria-label="Move down"${index === blocks.length - 1 ? ' disabled' : ''}>↓</button>
+                            <button type="button" class="icon-btn media-action-btn media-action-good page-block-delete-btn" data-action="delete-block" data-block-index="${index}" title="Delete block" aria-label="Delete block">🗑️</button>
                         </div>
                     </div>
                     ${renderBlockFields(block, index)}

@@ -95,61 +95,318 @@ function bandpromo_admin_render_iso_date_field(string $name, string $value, stri
 }
 
 /**
- * Content editor page breadcrumb under the Content sub-nav.
- * Pool: "{emoji} {label} > Pool"; Editor: "{emoji} {label} > Editor".
- * The root button returns to Pool (wire via bandpromoContentEditorBreadcrumb.attach).
- * Optional trailing markup (e.g. section chips) sits after the crumb; optional
- * actions (e.g. Back / Save) hug the right edge of the same card-head row.
+ * Build a page crumb path: "{root} > {leaf}" or "{root}" when $leaf is null/false.
  *
- * @param array{
- *   id_prefix: string,
- *   emoji: string,
- *   label: string,
- *   aria_label?: string,
- *   pool_title?: string,
- *   trailing?: callable|string,
- *   actions?: callable|string
- * } $options
+ * @param string      $rootText
+ * @param string      $rootHref
+ * @param string|false|null $leaf
+ * @return list<array<string,mixed>>
  */
-function bandpromo_admin_render_content_breadcrumb(array $options): void
+function bandpromo_admin_breadcrumb_preset_page($rootText, $rootHref, $leaf = null)
 {
-    $idPrefix = preg_replace('/[^a-zA-Z0-9_-]+/', '', (string) ($options['id_prefix'] ?? '')) ?: 'contentEditor';
+    $rootText = trim((string) $rootText);
+    $rootHref = trim((string) $rootHref);
+    $path = [[
+        'text' => $rootText,
+        'href' => $rootHref,
+        'title' => $rootText,
+        'root' => true,
+    ]];
+    if ($leaf === false || $leaf === null) {
+        return $path;
+    }
+    $leafText = trim((string) $leaf);
+    if ($leafText === '') {
+        return $path;
+    }
+    $path[] = [
+        'text' => $leafText,
+        'current' => true,
+    ];
+    return $path;
+}
+
+/**
+ * Files pool: "📁 Files > {panel} > Pool".
+ *
+ * @param string $panelText e.g. "🎵 Audio"
+ * @param string $panelHref
+ * @return list<array<string,mixed>>
+ */
+function bandpromo_admin_breadcrumb_preset_files_pool($panelText, $panelHref)
+{
+    $panelText = trim((string) $panelText);
+    $panelHref = trim((string) $panelHref);
+    return [
+        [
+            'text' => '📁 Files',
+            'href' => $panelHref,
+            'title' => 'Files',
+            'root' => true,
+        ],
+        [
+            'text' => $panelText,
+            'href' => $panelHref,
+            'title' => $panelText . ' pool',
+        ],
+        [
+            'text' => 'Pool',
+            'current' => true,
+        ],
+    ];
+}
+
+/**
+ * Content section pool/editor: "📄 Content > {emoji} {label} > Pool".
+ * Section button is the attach() pool control; Content uses the same leave path.
+ *
+ * @param string $emoji
+ * @param string $label
+ * @return list<array<string,mixed>>
+ */
+function bandpromo_admin_breadcrumb_preset_content_section($emoji, $label)
+{
+    $emoji = trim((string) $emoji);
+    $label = trim((string) $label);
+    if ($label === '') {
+        $label = 'Content';
+    }
+    $sectionText = trim($emoji . ' ' . $label);
+    return [
+        [
+            'text' => '📄 Content',
+            'button' => true,
+            'root' => true,
+            'title' => 'Content',
+            'id_suffix' => 'BreadcrumbContent',
+        ],
+        [
+            'text' => $sectionText,
+            'button' => true,
+            'title' => 'Back to ' . $label . ' pool',
+            'pool' => true,
+        ],
+        [
+            'text' => 'Pool',
+            'current' => true,
+        ],
+    ];
+}
+
+/**
+ * System sub-tab: "🛠️ System > {leaf}".
+ *
+ * @param string $leafText e.g. "🖥️ Environment"
+ * @return list<array<string,mixed>>
+ */
+function bandpromo_admin_breadcrumb_preset_system($leafText)
+{
+    return bandpromo_admin_breadcrumb_preset_page(
+        '🛠️ System',
+        '?tab=system&stab=deliverables',
+        $leafText
+    );
+}
+
+/**
+ * Normalise breadcrumb options into a path list.
+ * Prefer options['path']; otherwise adapt legacy emoji/label/segments/current.
+ *
+ * @param array<string,mixed> $options
+ * @return list<array<string,mixed>>
+ */
+function bandpromo_admin_breadcrumb_normalize_path(array $options)
+{
+    if (isset($options['path']) && is_array($options['path'])) {
+        $path = [];
+        foreach ($options['path'] as $item) {
+            if (!is_array($item)) {
+                continue;
+            }
+            $path[] = $item;
+        }
+        return $path;
+    }
+
     $emoji = trim((string) ($options['emoji'] ?? ''));
     $label = trim((string) ($options['label'] ?? 'Content'));
     if ($label === '') {
         $label = 'Content';
     }
-    $ariaLabel = trim((string) ($options['aria_label'] ?? ''));
-    if ($ariaLabel === '') {
-        $ariaLabel = $label . ' location';
-    }
+    $rootText = trim($emoji . ' ' . $label);
+    $rootHref = trim((string) ($options['root_href'] ?? ''));
+    $rootNavigable = array_key_exists('root_navigable', $options)
+        ? (bool) $options['root_navigable']
+        : true;
     $poolTitle = trim((string) ($options['pool_title'] ?? ''));
     if ($poolTitle === '') {
         $poolTitle = 'Back to ' . $label . ' pool';
     }
-    $currentLabel = trim((string) ($options['current'] ?? 'Pool'));
-    if ($currentLabel === '') {
-        $currentLabel = 'Pool';
+
+    $path = [];
+    $rootItem = [
+        'text' => $rootText,
+        'title' => $poolTitle,
+        'root' => true,
+    ];
+    if ($rootNavigable && $rootHref !== '') {
+        $rootItem['href'] = $rootHref;
+    } elseif ($rootNavigable) {
+        $rootItem['button'] = true;
+    } else {
+        $rootItem['plain'] = true;
     }
-    $rootNavigable = array_key_exists('root_navigable', $options)
-        ? (bool) $options['root_navigable']
-        : true;
-    $rootHref = trim((string) ($options['root_href'] ?? ''));
-    $rootText = trim($emoji . ' ' . $label);
-    $breadcrumbId = $idPrefix . 'Breadcrumb';
-    $poolLinkId = $idPrefix . 'BreadcrumbPool';
-    $currentId = $idPrefix . 'BreadcrumbCurrent';
+    $path[] = $rootItem;
+
+    if (isset($options['segments']) && is_array($options['segments'])) {
+        foreach ($options['segments'] as $segment) {
+            if (!is_array($segment)) {
+                continue;
+            }
+            $segText = trim((string) ($segment['text'] ?? ''));
+            if ($segText === '') {
+                continue;
+            }
+            $segItem = [
+                'text' => $segText,
+                'title' => trim((string) ($segment['title'] ?? $segText)),
+            ];
+            $segHref = trim((string) ($segment['href'] ?? ''));
+            if ($segHref !== '') {
+                $segItem['href'] = $segHref;
+            } else {
+                $segItem['plain'] = true;
+            }
+            $path[] = $segItem;
+        }
+    }
+
+    $omitCurrent = array_key_exists('current', $options) && $options['current'] === false;
+    if (!$omitCurrent) {
+        $currentLabel = trim((string) ($options['current'] ?? 'Pool'));
+        if ($currentLabel === '') {
+            $currentLabel = 'Pool';
+        }
+        $path[] = [
+            'text' => $currentLabel,
+            'current' => true,
+        ];
+    }
+
+    return $path;
+}
+
+/**
+ * Page / editor breadcrumb under the main or section sub-nav.
+ *
+ * Preferred: options['path'] — ordered crumb items (see presets).
+ * Legacy: emoji/label/segments/current still accepted and normalised to a path.
+ *
+ * Path item keys: text, href?, button?, plain?, current?, id?, title?, hidden?,
+ * root?, type? ('item'|'sep'|'slot'), html? (raw inner HTML for slots).
+ *
+ * @param array{
+ *   id_prefix: string,
+ *   path?: list<array<string,mixed>>,
+ *   emoji?: string,
+ *   label?: string,
+ *   aria_label?: string,
+ *   pool_title?: string,
+ *   current?: string|false,
+ *   root_navigable?: bool,
+ *   root_href?: string,
+ *   head_class?: string,
+ *   wrap_head?: bool,
+ *   tag?: string,
+ *   segments?: list<array{text: string, href?: string, title?: string}>,
+ *   trailing?: callable|string,
+ *   actions?: callable|string,
+ *   after_path?: callable|string
+ * } $options
+ */
+function bandpromo_admin_render_content_breadcrumb(array $options): void
+{
+    $idPrefix = preg_replace('/[^a-zA-Z0-9_-]+/', '', (string) ($options['id_prefix'] ?? '')) ?: 'contentEditor';
+    $ariaLabel = trim((string) ($options['aria_label'] ?? ''));
+    if ($ariaLabel === '') {
+        $labelHint = trim((string) ($options['label'] ?? ''));
+        if ($labelHint === '' && isset($options['path'][0]['text'])) {
+            $labelHint = trim((string) $options['path'][0]['text']);
+        }
+        if ($labelHint === '') {
+            $labelHint = 'Content';
+        }
+        $ariaLabel = $labelHint . ' location';
+    }
+
+    $path = bandpromo_admin_breadcrumb_normalize_path($options);
     $trailing = $options['trailing'] ?? null;
     $actions = $options['actions'] ?? null;
+    $afterPath = $options['after_path'] ?? null;
+    $wrapHead = array_key_exists('wrap_head', $options) ? (bool) $options['wrap_head'] : true;
+    $tag = strtolower(trim((string) ($options['tag'] ?? 'h2')));
+    if (!in_array($tag, ['h2', 'nav'], true)) {
+        $tag = 'h2';
+    }
     $headClass = trim((string) ($options['head_class'] ?? 'content-editor-card-head'));
     if ($headClass === '') {
         $headClass = 'content-editor-card-head';
     }
-    // Optional middle segment(s): [['text' => '🎵 Audio', 'href' => '?…', 'title' => '…'], …]
-    $segments = [];
-    if (isset($options['segments']) && is_array($options['segments'])) {
-        $segments = $options['segments'];
+    $breadcrumbId = $idPrefix . 'Breadcrumb';
+
+    // Stable ids for Content attach(): pool flag / first pool candidate → BreadcrumbPool,
+    // last current → BreadcrumbCurrent. Optional id_suffix → {prefix}{suffix}.
+    $assignedPool = false;
+    $lastCurrentIndex = -1;
+    foreach ($path as $index => $item) {
+        if (!empty($item['current']) && empty($item['type'])) {
+            $lastCurrentIndex = $index;
+        }
     }
+    foreach ($path as $index => &$item) {
+        if (!is_array($item)) {
+            continue;
+        }
+        $type = (string) ($item['type'] ?? 'item');
+        if ($type !== 'item') {
+            continue;
+        }
+        if (!empty($item['id'])) {
+            continue;
+        }
+        $idSuffix = trim((string) ($item['id_suffix'] ?? ''));
+        if ($idSuffix !== '') {
+            $item['id'] = $idPrefix . $idSuffix;
+            if ($idSuffix === 'BreadcrumbPool' || !empty($item['pool'])) {
+                $assignedPool = true;
+            }
+            continue;
+        }
+        if (!$assignedPool && !empty($item['pool'])) {
+            $item['id'] = $idPrefix . 'BreadcrumbPool';
+            $assignedPool = true;
+        } elseif (!$assignedPool && (!empty($item['root']) || !empty($item['button']) || isset($item['href']))) {
+            // Prefer a later pool-flagged item when present.
+            $hasLaterPool = false;
+            for ($j = $index + 1, $n = count($path); $j < $n; $j++) {
+                if (is_array($path[$j]) && !empty($path[$j]['pool'])) {
+                    $hasLaterPool = true;
+                    break;
+                }
+            }
+            if (!$hasLaterPool) {
+                $item['id'] = $idPrefix . 'BreadcrumbPool';
+                $assignedPool = true;
+            } elseif ($index > 0) {
+                $item['id'] = $idPrefix . 'BreadcrumbSeg' . (string) ($index - 1);
+            }
+        } elseif ($index === $lastCurrentIndex && !empty($item['current'])) {
+            $item['id'] = $idPrefix . 'BreadcrumbCurrent';
+        } elseif ($index > 0) {
+            $item['id'] = $idPrefix . 'BreadcrumbSeg' . (string) ($index - 1);
+        }
+    }
+    unset($item);
 
     $renderSlot = static function ($slot): void {
         if (is_callable($slot)) {
@@ -160,47 +417,100 @@ function bandpromo_admin_render_content_breadcrumb(array $options): void
             echo $slot;
         }
     };
+
+    $renderItem = static function (array $item) use ($idPrefix): void {
+        $type = (string) ($item['type'] ?? 'item');
+        $itemId = trim((string) ($item['id'] ?? ''));
+        $hidden = !empty($item['hidden']);
+        $hiddenAttr = $hidden ? ' hidden' : '';
+
+        if ($type === 'sep') {
+            $sepIdAttr = $itemId !== '' ? ' id="' . htmlspecialchars($itemId) . '"' : '';
+            echo '<span class="content-editor-breadcrumb-sep"' . $sepIdAttr . ' aria-hidden="true"' . $hiddenAttr . '> &gt; </span>';
+            return;
+        }
+
+        if ($type === 'slot') {
+            $slotId = $itemId !== '' ? $itemId : ($idPrefix . 'BreadcrumbSlot');
+            $html = isset($item['html']) ? (string) $item['html'] : '';
+            echo '<span id="' . htmlspecialchars($slotId) . '"' . $hiddenAttr . '>' . $html . '</span>';
+            return;
+        }
+
+        $text = trim((string) ($item['text'] ?? ''));
+        if ($text === '' && empty($item['html'])) {
+            return;
+        }
+        $title = trim((string) ($item['title'] ?? $text));
+        $idAttr = $itemId !== '' ? ' id="' . htmlspecialchars($itemId) . '"' : '';
+        $titleAttr = $title !== '' ? ' title="' . htmlspecialchars($title) . '"' : '';
+        $isCurrent = !empty($item['current']);
+        $isRoot = !empty($item['root']);
+        $classes = [];
+        if ($isRoot) {
+            $classes[] = 'content-editor-breadcrumb-root';
+        }
+        if ($isCurrent) {
+            $classes[] = 'content-editor-breadcrumb-current';
+        } else {
+            $classes[] = 'content-editor-breadcrumb-link';
+        }
+        if (!empty($item['class'])) {
+            $classes[] = trim((string) $item['class']);
+        }
+        $classAttr = ' class="' . htmlspecialchars(trim(implode(' ', $classes))) . '"';
+        $inner = !empty($item['html']) ? (string) $item['html'] : htmlspecialchars($text);
+
+        $href = trim((string) ($item['href'] ?? ''));
+        if ($href !== '') {
+            echo '<a' . $classAttr . $idAttr . ' href="' . htmlspecialchars($href) . '"' . $titleAttr . $hiddenAttr . '>' . $inner . '</a>';
+            return;
+        }
+        if (!empty($item['button'])) {
+            echo '<button type="button"' . $classAttr . $idAttr . $titleAttr . $hiddenAttr . '>' . $inner . '</button>';
+            return;
+        }
+        echo '<span' . $classAttr . $idAttr . $titleAttr . $hiddenAttr . '>' . $inner . '</span>';
+    };
+
+    if ($wrapHead) {
+        echo '<div class="' . htmlspecialchars($headClass) . '">';
+    }
     ?>
-    <div class="<?php echo htmlspecialchars($headClass); ?>">
-        <h2 class="content-editor-breadcrumb" id="<?php echo htmlspecialchars($breadcrumbId); ?>" aria-label="<?php echo htmlspecialchars($ariaLabel); ?>">
-            <?php if ($rootNavigable && $rootHref !== ''): ?>
-            <a class="content-editor-breadcrumb-root content-editor-breadcrumb-link" id="<?php echo htmlspecialchars($poolLinkId); ?>" href="<?php echo htmlspecialchars($rootHref); ?>" title="<?php echo htmlspecialchars($poolTitle); ?>"><?php echo htmlspecialchars($rootText); ?></a>
-            <?php elseif ($rootNavigable): ?>
-            <button type="button" class="content-editor-breadcrumb-root content-editor-breadcrumb-link" id="<?php echo htmlspecialchars($poolLinkId); ?>" title="<?php echo htmlspecialchars($poolTitle); ?>"><?php echo htmlspecialchars($rootText); ?></button>
-            <?php else: ?>
-            <span class="content-editor-breadcrumb-root" id="<?php echo htmlspecialchars($poolLinkId); ?>"><?php echo htmlspecialchars($rootText); ?></span>
-            <?php endif; ?>
-            <?php foreach ($segments as $index => $segment): ?>
-                <?php
-                if (!is_array($segment)) {
+        <<?php echo $tag; ?> class="content-editor-breadcrumb" id="<?php echo htmlspecialchars($breadcrumbId); ?>" aria-label="<?php echo htmlspecialchars($ariaLabel); ?>">
+            <?php
+            $pathCount = count($path);
+            for ($i = 0; $i < $pathCount; $i++) {
+                $item = $path[$i];
+                if (!is_array($item)) {
                     continue;
                 }
-                $segText = trim((string) ($segment['text'] ?? ''));
-                if ($segText === '') {
-                    continue;
+                $type = (string) ($item['type'] ?? 'item');
+                // Auto-sep before items only. Explicit type=sep is unchanged.
+                // Slots (e.g. Site health steps) own their leading seps in JS.
+                if ($i > 0 && $type === 'item') {
+                    $prev = $path[$i - 1];
+                    $prevType = is_array($prev) ? (string) ($prev['type'] ?? 'item') : 'item';
+                    if ($prevType !== 'sep') {
+                        $sepHidden = !empty($item['hidden']) ? ' hidden' : '';
+                        echo '<span class="content-editor-breadcrumb-sep" aria-hidden="true"' . $sepHidden . '> &gt; </span>';
+                    }
                 }
-                $segHref = trim((string) ($segment['href'] ?? ''));
-                $segTitle = trim((string) ($segment['title'] ?? $segText));
-                $segId = $idPrefix . 'BreadcrumbSeg' . (string) $index;
-                ?>
-            <span class="content-editor-breadcrumb-sep" aria-hidden="true"> &gt; </span>
-                <?php if ($segHref !== ''): ?>
-            <a class="content-editor-breadcrumb-link" id="<?php echo htmlspecialchars($segId); ?>" href="<?php echo htmlspecialchars($segHref); ?>" title="<?php echo htmlspecialchars($segTitle); ?>"><?php echo htmlspecialchars($segText); ?></a>
-                <?php else: ?>
-            <span class="content-editor-breadcrumb-link" id="<?php echo htmlspecialchars($segId); ?>"><?php echo htmlspecialchars($segText); ?></span>
-                <?php endif; ?>
-            <?php endforeach; ?>
-            <span class="content-editor-breadcrumb-sep" aria-hidden="true"> &gt; </span>
-            <span class="content-editor-breadcrumb-current" id="<?php echo htmlspecialchars($currentId); ?>"><?php echo htmlspecialchars($currentLabel); ?></span>
-        </h2>
+                $renderItem($item);
+            }
+            $renderSlot($afterPath);
+            ?>
+        </<?php echo $tag; ?>>
         <?php $renderSlot($trailing); ?>
         <?php if ($actions !== null && $actions !== ''): ?>
         <div class="content-editor-card-head-actions">
             <?php $renderSlot($actions); ?>
         </div>
         <?php endif; ?>
-    </div>
     <?php
+    if ($wrapHead) {
+        echo '</div>';
+    }
 }
 
 /**

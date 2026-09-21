@@ -64,6 +64,8 @@ def display_from_inspect(inspect, preserve=None):
         'title': title,
         'version': version,
         'artist': artist,
+        'featured_artist': _safe_text(inspect.get('featured_artist') or preserve.get('featured_artist')),
+        'remix_artist': _safe_text(inspect.get('remix_artist') or preserve.get('remix_artist')),
         'album': album,
         'duration': max(0, int(inspect.get('duration_seconds') or inspect.get('duration') or 0)),
         'bitrate_kbps': max(0, int(inspect.get('bitrate_kbps') or 0)),
@@ -145,7 +147,8 @@ def apply_inspect_to_entry(entry, inspect):
     if existing_title and existing_title.lower() != 'untitled' and not _ASSET_ID_RE.match(existing_title):
         # Keep operator title; still fill missing artist/duration/lyrics when empty.
         for key in (
-            'artist', 'album', 'duration', 'bitrate_kbps', 'sample_rate_hz', 'bit_depth',
+            'artist', 'featured_artist', 'remix_artist', 'album', 'duration',
+            'bitrate_kbps', 'sample_rate_hz', 'bit_depth',
             'date', 'tracknumber', 'bpm', 'initialkey', 'genre', 'comment', 'lyrics',
             'cover', 'living_cover', 'version',
         ):

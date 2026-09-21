@@ -8,7 +8,7 @@ Main tabs (Dashboard, Analytics, Users, Files, Content, Settings, System, Docume
 
 ## Page headings under the nav bar (required)
 
-**Every operator page view** under the main tabs gets a **breadcrumb heading**. That includes Content and Files **pools**, System Status, and **mutating editor modals** (Audio track, Visual/SFX drilldown, and the same class of “edit this entity” dialogs).
+**Every operator page view** under the main tabs gets a **breadcrumb heading**. That includes Dashboard, Analytics, Users, Files and Content pools, Settings, System (Status / Audit / Backup / Environment), Documentation, and **mutating editor modals** (Audio track, Visual/SFX drilldown, and the same class of “edit this entity” dialogs).
 
 **Exempt:** info / help dialogs, confirmation prompts (`bandpromoConfirm`, unsaved-leave, delete confirms), and other non-editing overlays with no place in the nav hierarchy.
 
@@ -16,39 +16,50 @@ Prefer breadcrumb + **inline-editable entity title** on editors — not a plain 
 
 | View | Crumb |
 |------|--------|
+| Dashboard / Welcome | `📊 Dashboard` or `🌍 Welcome` (self-linked root) |
+| Analytics | `📊 Analytics > Dash\|Hitlist\|Activities\|Patterns\|Log` |
+| Users | `👥 Users` (account count in meta; Add User in actions) |
 | Files pool | `📁 Files > 🎵 Audio\|🎞️ Visual\|🔊 Sound effects > Pool` |
 | Files editor modal | `📁 Files > {panel} > Editor > [title]` (title input at the tail when editable) |
-| Content pool / list | `{emoji} {Section} > Pool` |
-| Content editor | `{emoji} {Section} > Editor` (+ section chips when needed) |
-| System Status | Default: `📊 Status` landing (Site health tool card only — **no Activity**). Open Site health → **Action** hub (Quick / Full / Force; no Activity). While a job runs → Action checklist + Stop (mode in the crumb) with **Activity** visible underneath; no Good/Bad/Ugly. When finished → **Diagnosis** (Good/Bad/Ugly + Review when findings exist; Activity). **Review** → `… > Diagnosis > Proposed treatment`. **Apply** → Action checklist + Activity, then `… > Treatment result`. Hub resume opens last Diagnosis. Post–Site update / stale auto-start opens the Quick check checklist directly. |
+| Content pool / list | `📄 Content > {emoji} {Section} > Pool` |
+| Content editor | `📄 Content > {emoji} {Section} > Editor` + title input at the crumb tail; section chips (when present) in the **left column header** |
+| Settings | `⚙️ Settings > Basics\|Support\|Sharing` |
+| System Status | Default: `🛠️ System > 📊 Status` landing (Site health tool card only — **no Activity**). Open Site health → `… > Status > Site health` Action hub (Quick / Full / Force; no Activity). While a job runs → Action checklist + Stop (mode in the crumb) with **Activity** visible underneath; no Good/Bad/Ugly. When finished → **Diagnosis** (Good/Bad/Ugly + Review when findings exist; Activity). **Review** → `… > Diagnosis > Proposed treatment`. **Apply** → Action checklist + Activity, then `… > Treatment result`. Hub resume opens last Diagnosis. Post–Site update / stale auto-start opens the Quick check checklist directly. |
+| System Audit / Backup / Environment | `🛠️ System > 🛡️ Audit` · `🛠️ System > 💾 Backup, export & import` · `🛠️ System > 🖥️ Environment` |
+| Documentation | `📚 Documentation > Operator docs\|Developer docs\|All docs` |
 
 ### Breadcrumb line layout
 
-One row under the Content sub-nav (`.content-editor-card-head`, min-height matches Editor chrome so Pool does not jump):
+One row under the Content sub-nav (`.content-editor-card-head`): **height is always 33px** (locked), whether ← Back / Save are shown or hidden on Pool. Do not let the row collapse to the bare crumb line-height.
 
 | Slot | Placement | Use |
 |------|-----------|-----|
-| Crumb | Left | Section root as an **underlined navigation control** (button or link — even when it lands on the same page) + `> Pool\|Editor\|Site health\|…` |
-| `trailing` | Immediately after the crumb | Optional editor section chips (Catalogue: Base info \| …) or muted meta (Status: last check · version via `.content-editor-breadcrumb-meta` — **not** the check mode; mode lives in the crumb). |
+| Crumb | Left | `📄 Content` + section (`📄 Pages`, …) as **underlined navigation controls** (buttons — same leave/unsaved path as ← Back) + `> Pool\|Editor` |
+| `trailing` | Immediately after the crumb | Optional muted meta only. Section chips live in the **left column header** (Pages Base info\|Page builder; Catalogue; Branding). |
 | `actions` | Right edge (`.content-editor-card-head-actions`) | ← Back + Save\|Saved (and ★ Set as default / ★ Set as base when that editor has them). Hidden while not `.is-editing`. Status puts the overall health badge here — on the Status / Site health Action chooser a prior healthy plan is labelled **Last check healthy** (not a live clean bill); green **Healthy** appears after you open Diagnosis or finish a check. |
+| `after_path` | Tail of the crumb | Inline entity title (`.content-editor-name-input`) while editing — all Content pool→editors and Files Visual/SFX modals. **Exception:** Files → Audio track editor keeps a read-only compound `Artist · Title` readout (Artist and Title stay separate fields in Details). Hidden on Pool. |
 
 - Markup: `bandpromo_admin_render_content_breadcrumb()` in `biblioteca/admin-helpers.php`.
-- Options: `current` (default `Pool`), `root_navigable` (default true), `root_href` (optional — render an `<a>` instead of the Pool button; use for page-level crumbs such as Status).
+- **Row height:** `.content-editor-card-head` / `.campaign-editor-card-head` = **33px** everywhere (box-sizing border-box; nowrap; overflow hidden). Pool without actions must not shrink.
+- Preferred API: `path` — ordered crumb items (`text`, optional `href` / `button` / `current` / `id` / `hidden`, plus `type => sep|slot`).
+- Presets: `bandpromo_admin_breadcrumb_preset_page()`, `_files_pool()`, `_content_section()`, `_system()`.
+- Legacy `emoji` / `label` / `segments` / `current` still normalise into a path.
+- Options: `wrap_head` (default true), `tag` (`h2`|`nav` for modals), `trailing`, `actions`, `after_path`.
 - **Preference:** breadcrumb roots are always visually links (underlined). Do not render a plain muted span for the section root unless there is truly no destination.
-- Behaviour: `bandpromoContentEditorBreadcrumb.attach()` — `setView('pool'|'edit')` on lifecycle show hooks (Content editors). Status roots use `root_href` to System → Status.
+- Behaviour: `bandpromoContentEditorBreadcrumb.attach()` — `setView('pool'|'edit')` on lifecycle show hooks (Content editors). Page-level and System roots use `href` on path items.
 
 ### Inline entity title (Content editors)
 
-While editing, the **entity name is an inline text field in the left edit header** under the breadcrumb row — not a static `h3` and not duplicated as a “Title:” row in the settings body.
+While editing, the **entity name is an inline text field at the breadcrumb tail** (`after_path`). Not a static `h3` and not duplicated as a “Title:” row in the settings body. **Pages** is the canon for split pool\|editor + Live preview; Catalogue, Playlists, Galleries, and Branding follow the same factory.
 
 | Pattern | Detail |
 |---------|--------|
 | Control | `.content-editor-name-input` (Branding also uses `.brand-editor-name-input`) |
-| Placement | Left edit header, under `.content-editor-card-head` |
+| Placement | Crumb tail (`after_path`) while editing |
 | Behaviour | Edit in place; dirty state feeds the head Save\|Saved machine / leave Discard path |
-| Preview | Pool / Live preview headers stay **title-only** (readout, no Save strip, no second name field) |
+| Preview | Pool / Live preview column headers use the same in-flow `--admin-slate-wash` as Available content — title-only readout, no Save strip, no second name field |
 
-Shipped on Catalogue, Playlists, Galleries, Pages, and Branding. Prefer this whenever a Content (or Content-like) editor has a single primary display name.
+**Split pool \| editor + Live preview:** both column headers share that slate wash and **48px** height (`padding: 8px` max — compactness). Left pool title is always **Available content**. Section chips sit in the left column header on **one row** (nowrap; thin horizontal scroll if the column is narrower than the chip strip — never wrap under the locked 48px). Chip buttons use tight `4×8` padding. Pool row tools and Add / Create / Browse / Change-media actions use **Available** muted green (`.media-action-good` / `.btn.btn-available`); grey only when disabled. Branding **+ Add brand** duplicates the current base brand. Undeletable / locked / required / protected rows keep a disabled 🔒 in the Delete slot (`bandpromoRegistryList.protectedButton()`) so action columns stay aligned. Catalogue / Playlists pool right column is **Live preview** (edit may switch to a working list title such as Associated tracks / Playlist / Gallery order). Branding / Playlists status chips (**Base** / **Default**) sit next to the name; **★ Set as base** / **★ Set as default** appear in actions only when that entity is not already base/default.
 
 Do **not**:
 
@@ -130,7 +141,9 @@ You are not wrong: with an empty selection, **Upload** is the only enabled actio
 | Content / Status breadcrumb head (`.content-editor-card-head`) | Would leave under the section sub-tab bar |
 | Split-editor column titles (Available / Active) | **Not sticky** — stay in normal flow (nesting under the breadcrumb + `overflow: hidden` panels pulled list rows under the titles) |
 
-Do not nest sticky headers under another sticky on the same scroll axis (Content breadcrumb, Branding Live preview column). Page builder keeps its own sticky section / richtext pattern. Files pool sticky chrome and Content breadcrumb use `rgba(15, 23, 42, 0.55)` (same slate wash as split-editor headers). Files track / Visual / SFX modal headers share that wash.
+Do not nest sticky headers under another sticky on the same scroll axis (Content breadcrumb, Branding Live preview column, page rich-text under the builder add-block head).
+
+**Opaque sticky chrome (locked):** every sticky toolbar/header that sits over scrolling content uses `--admin-sticky-chrome-bg` (`#0f172a`) — Files pool (`.media-pool-sticky-chrome`), Content / Status breadcrumb heads (`.content-editor-card-head`), and the page-builder add-block head (`.page-editor-panel-head`, under `--page-builder-sticky-top`). Do **not** use the translucent slate wash on sticky chrome (list rows show through). In-flow (non-sticky) split-editor column headers, Files modal headers, and page rich-text formatting bars may keep wash / stay with their block. Sub-tab bars stay opaque `--accent`.
 
 ## System tab and roles (2026-08-31)
 
@@ -346,7 +359,7 @@ Rules:
 
 | Surface | Affirmative leave | Abort / Discard | Notes |
 |---------|-------------------|-----------------|-------|
-| Files → Audio track editor | Footer **Save** (force write) / ✕ / backdrop / crumb | Available **Abort** (dirty → warn confirm) | Full crumb; Save label aligned with Visual/SFX |
+| Files → Audio track editor | Footer **Save** (force write) / ✕ / backdrop / crumb | Available **Abort** (dirty → warn confirm) | Full crumb; **read-only** compound `Artist · Title` at crumb tail (exception — not inline-editable); Visual-style **File** / **Details** grouping; footer Download → Delete → Abort → Save |
 | Content editors | Head Save\|Saved + leave modal | **Discard** on leave (amber commit) | `#contentUnsavedModal` |
 | Files → Visual / SFX drilldown | Footer **Save** (always write); ✕ / crumb = save-if-dirty | Available **Abort** (dirty → amber confirm) | Full crumb; available Delete; Captured ISO picker |
 
@@ -431,7 +444,12 @@ Shares Content/Visual chrome without the pool → preview layout:
 |---------|---------|
 | Cover + meta | `.audio-master-cover-layout`, `.release-cover-meta`, shared `.audio-master-cover-preview` |
 | Field labels | `.playlist-settings-field` / `--wide` |
-| Lyrics / Notes | Compact pill `.audio-master-text-role-toggle` / `.audio-master-text-role-btn` |
+| Identity row | Artist · Featured artist · Remix artist (`.audio-master-form-grid-artists`) |
+| Title row | Title · Version (`.audio-master-form-grid-title`) |
+| Music row | Genre (flex) · BPM (3ch) · Key (4ch) (`.audio-master-form-grid-music`) |
+| Date row | Release date alone (`.audio-master-form-grid-date`) |
+| Blurb | Label trails Markdown hint; textarea autosizes to content |
+| Lyrics / Notes | Compact pill `.audio-master-text-role-toggle` / `.audio-master-text-role-btn`; Restricted Markdown hint trails the toggler |
 | Listen preview | Compact `<audio>` under Master audio asset (`.audio-master-listen-bar`); Files rows use ▶ → `#adminAudioListenDock` via `audio.php` (`.media-action-good`) |
 | Save / Abort | Footer: **Abort** (available muted green; dirty → warn confirm) · **Save** (proposed solid green) / ✕ / backdrop / crumb = save on close |
 | Autosave status | Header status quiet when clean; “Unsaved changes” when dirty |
@@ -481,10 +499,11 @@ Helpers: `bandpromo_admin_markdown_help_trigger()` / `bandpromo_admin_markdown_h
 
 Pages and Branding edit views group fields in `.content-editor-section` cards:
 
-- Chrome header: `.content-editor-section-head` with `--border2` fill (same bar as Page/Branding Back/name and Live preview headers, and block card headers)
+- Chrome header: `.content-editor-section-head` with `--border2` fill (nested section / block card bars — **not** the split column headers)
+- Column headers (Available content / Live preview / Pages section chips): in-flow `--admin-slate-wash` (not sticky)
 - Body: `.content-editor-section-body`
 
-Pages: breadcrumb chips **Base info** \| **Page builder**; each section is a tab panel (builder toolbar + blocks only on Page builder). Breadcrumb actions hold ← Back + Save|Saved. Playlists: **Base info** (Artwork, publish date, package type, play order As listed|Newest first toggle, slug, descriptions) with inline `Label:` chrome; Pool preview mirrors Catalogue (cover + blurb + Playlist details: tracks / package / campaign / play order / URL); track order + available pool only while editing. **★ Set as default** / Branding **★ Set as base** sit on the breadcrumb actions row with ← Back and Save (not a checkbox). Catalogue (Campaign): name in the edit header; breadcrumb row holds section chips (Base info | Extended info | Tracks | …) and ← Back + Save|Saved on the right while editing; **Base info** (start / slug / press / branding / blurb) + **Media assets** (Artwork); **Extended info** holds **Press kit** (long description Markdown); Pool preview shows cover + brand + owned-content summary (Tracks / Playlists / Galleries / Pages); Base|Extended edit preview keeps cover + brand + long-description readout. Branding: Common | Player | Content chips on the breadcrumb row; (Player: **Cover** [Size Full|Medium|Half, Reflection, Side covers], **Controls** [full panel chrome], **User area** [Login / status, Beggars banquet]; Content: **Buttons**, **Playlist selector**, **Panels**, **Typography**). Prefer `Label:` + control on one line; segmented toggles over checkboxes; toggles over dropdowns when ≤5 alternatives; inline `Label:` + value sliders for continuous scales (see [AGENTS.md](AGENTS.md)).
+Pages: crumb `📄 Content > 📄 Pages > Pool|Editor` with title input at the crumb tail while editing; **Base info** \| **Page builder** chips in the left column header; add-block buttons use `.btn.btn-available`. Breadcrumb actions hold ← Back + Save|Saved. Playlists: **Base info** (Artwork, publish date, package type, play order As listed|Newest first toggle, Show artist Show|Hide toggle, slug, descriptions) with inline `Label:` chrome; Pool preview mirrors Catalogue (cover + blurb + Playlist details: tracks / package / campaign / play order / artist / URL); track order + available pool only while editing. **★ Set as default** / Branding **★ Set as base** sit on the breadcrumb actions row with ← Back and Save when the entity is not already default/base (status chips **Default** / **Base** stay next to the name). Catalogue (Campaign): name in the edit header; section chips (Base info | Extended info | Tracks | …) in the left column header; ← Back + Save|Saved on the right while editing; **Base info** (start / slug / press / branding / blurb) + **Media assets** (Artwork); **Extended info** holds **Press kit** (long description Markdown); Pool preview shows cover + brand + owned-content summary (Tracks / Playlists / Galleries / Pages); Base|Extended edit preview keeps cover + brand + long-description readout. Branding: Common | Player | Content chips in the left column header; (Player: **Cover** [Size Full|Medium|Half, Reflection, Side covers], **Controls** [full panel chrome], **User area** [Login / status, Beggars banquet]; Content: **Buttons**, **Playlist selector**, **Panels**, **Typography**). Prefer `Label:` + control on one line; segmented toggles over checkboxes; toggles over dropdowns when ≤5 alternatives; inline `Label:` + value sliders for continuous scales (see [AGENTS.md](AGENTS.md)).
 
 **Player colour contract:** `#mediaplayer` keeps platform layout (scene, transport, scrubber) but paints from brand colours. `#content-container` shares the palette; **Buttons** and **Typography** use role swatches (outline/fill, headings/body/blockquote) from that palette. Soft fill = 50% of the Fill role. **Panels** (fill, blur, corners Square/Shaved, border width + colour role, density) drive the frosted boxes — content sits inside that one surface.
 

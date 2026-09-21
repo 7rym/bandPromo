@@ -773,6 +773,11 @@ if ($tab === 'analytics') {
                 require_once __DIR__ . '/biblioteca/asset-registry.php';
                 $catalogHealth = bandpromo_asset_registry_health_snapshot(__DIR__);
             }
+            bandpromo_admin_render_content_breadcrumb([
+                'id_prefix' => 'dashboardPage',
+                'aria_label' => 'Dashboard location',
+                'path' => bandpromo_admin_breadcrumb_preset_page('📊 Dashboard', '?tab=welcome'),
+            ]);
             ?>
             <?php if (!empty($catalogHealth['needs_attention']) && in_array($currentUserRole, ['developer', 'admin'], true)): ?>
             <?php
@@ -856,6 +861,13 @@ if ($tab === 'analytics') {
             </div>
             <?php endif; ?>
             <?php else: ?>
+            <?php
+            bandpromo_admin_render_content_breadcrumb([
+                'id_prefix' => 'welcomePage',
+                'aria_label' => 'Welcome location',
+                'path' => bandpromo_admin_breadcrumb_preset_page('🌍 Welcome', '?tab=welcome'),
+            ]);
+            ?>
             <div class="card welcome-card">
                 <h2>🌍 Welcome to bandPromo</h2>
 
@@ -929,6 +941,26 @@ if ($tab === 'analytics') {
             <div class="admin-help-box collapsed" id="help-analytics">
                 <strong>Dash</strong> gives a quick overview of platform stats. The other tabs show detailed reports — <strong>Hitlist</strong> ranks your most-played songs, <strong>Patterns</strong> shows where people stop or skip, and <strong>Log</strong> shows raw activity entries. All timestamps are stored in UTC; choose UTC or local display in Settings → Basics.
             </div>
+
+            <?php
+            $analyticsCrumbViews = [
+                'dashboard' => 'Dash',
+                'tracks' => 'Hitlist',
+                'user-activities' => 'Activities',
+                'listening-patterns' => 'Patterns',
+                'log' => 'Log',
+            ];
+            $analyticsCrumbCurrent = $analyticsCrumbViews[$analyticsTab] ?? 'Dash';
+            bandpromo_admin_render_content_breadcrumb([
+                'id_prefix' => 'analyticsPage',
+                'aria_label' => 'Analytics location',
+                'path' => bandpromo_admin_breadcrumb_preset_page(
+                    '📊 Analytics',
+                    '?tab=analytics&atab=' . rawurlencode((string) $analyticsTab),
+                    $analyticsCrumbCurrent
+                ),
+            ]);
+            ?>
 
             <?php if ($analyticsTab === 'dashboard'): ?>
             <?php renderFilterBar('analytics', $dateStart, $dateEnd); ?>
@@ -1121,10 +1153,20 @@ if ($tab === 'analytics') {
                 <strong>Admin</strong> users handle day-to-day operation. <strong>Developer</strong> users can access the same panel but also see developer-only documentation. <strong>User</strong> accounts cannot open this admin panel.
             </div>
 
-            <div class="users-toolbar">
-                <h2>👥 Users (<?php echo count($users); ?>)</h2>
-                <button class="btn btn-primary" onclick="openUserModal()">➕ Add User</button>
-            </div>
+            <?php
+            $usersCount = count($users);
+            bandpromo_admin_render_content_breadcrumb([
+                'id_prefix' => 'usersPage',
+                'aria_label' => 'Users location',
+                'path' => bandpromo_admin_breadcrumb_preset_page('👥 Users', '?tab=users'),
+                'trailing' => '<span class="content-editor-breadcrumb-meta">' . htmlspecialchars((string) $usersCount) . ' account' . ($usersCount === 1 ? '' : 's') . '</span>',
+                'actions' => static function (): void {
+                    ?>
+                    <button type="button" class="btn btn-primary" onclick="openUserModal()">➕ Add User</button>
+                    <?php
+                },
+            ]);
+            ?>
 
             <!-- Search filter -->
             <div class="filter-bar">
@@ -1216,20 +1258,9 @@ if ($tab === 'analytics') {
                 <div class="media-pool-sticky-chrome">
                     <?php bandpromo_admin_render_content_breadcrumb([
                         'id_prefix' => 'filesAudioPool',
-                        'emoji' => '📁',
-                        'label' => 'Files',
                         'aria_label' => 'Files location',
-                        'pool_title' => 'Files',
-                        'root_href' => '?tab=files&fpanel=audio',
                         'head_class' => 'content-editor-card-head media-pool-breadcrumb-head',
-                        'segments' => [
-                            [
-                                'text' => '🎵 Audio',
-                                'href' => '?tab=files&fpanel=audio',
-                                'title' => 'Audio pool',
-                            ],
-                        ],
-                        'current' => 'Pool',
+                        'path' => bandpromo_admin_breadcrumb_preset_files_pool('🎵 Audio', '?tab=files&fpanel=audio'),
                     ]); ?>
                     <div class="audio-pool-toolbar" data-media-list-header="audio">
                         <div class="audio-pool-toolbar-main">
@@ -1282,20 +1313,9 @@ if ($tab === 'analytics') {
                 <div class="media-pool-sticky-chrome">
                     <?php bandpromo_admin_render_content_breadcrumb([
                         'id_prefix' => 'filesVisualPool',
-                        'emoji' => '📁',
-                        'label' => 'Files',
                         'aria_label' => 'Files location',
-                        'pool_title' => 'Files',
-                        'root_href' => '?tab=files&fpanel=visual',
                         'head_class' => 'content-editor-card-head media-pool-breadcrumb-head',
-                        'segments' => [
-                            [
-                                'text' => '🎞️ Visual',
-                                'href' => '?tab=files&fpanel=visual',
-                                'title' => 'Visual pool',
-                            ],
-                        ],
-                        'current' => 'Pool',
+                        'path' => bandpromo_admin_breadcrumb_preset_files_pool('🎞️ Visual', '?tab=files&fpanel=visual'),
                     ]); ?>
                 <div class="audio-pool-toolbar visual-pool-toolbar" data-media-list-header="visual">
                     <div class="audio-pool-toolbar-main visual-pool-toolbar-main">
@@ -1383,20 +1403,9 @@ if ($tab === 'analytics') {
                 <div class="media-pool-sticky-chrome">
                     <?php bandpromo_admin_render_content_breadcrumb([
                         'id_prefix' => 'filesSfxPool',
-                        'emoji' => '📁',
-                        'label' => 'Files',
                         'aria_label' => 'Files location',
-                        'pool_title' => 'Files',
-                        'root_href' => '?tab=files&fpanel=sfx',
                         'head_class' => 'content-editor-card-head media-pool-breadcrumb-head',
-                        'segments' => [
-                            [
-                                'text' => '🔊 Sound effects',
-                                'href' => '?tab=files&fpanel=sfx',
-                                'title' => 'Sound effects pool',
-                            ],
-                        ],
-                        'current' => 'Pool',
+                        'path' => bandpromo_admin_breadcrumb_preset_files_pool('🔊 Sound effects', '?tab=files&fpanel=sfx'),
                     ]); ?>
                 <div class="audio-pool-toolbar visual-pool-toolbar" data-media-list-header="sfx">
                     <div class="audio-pool-toolbar-main visual-pool-toolbar-main">
@@ -1584,16 +1593,45 @@ if ($tab === 'analytics') {
                     <button type="button" class="modal-close" onclick="closePoolAssetModal()" aria-label="Close">✕</button>
                     <header class="visual-asset-modal-header">
                         <div class="visual-asset-modal-crumb-row">
-                            <nav class="content-editor-breadcrumb" id="poolAssetBreadcrumb" aria-label="Files location">
-                                <button type="button" class="content-editor-breadcrumb-root content-editor-breadcrumb-link" id="poolAssetBreadcrumbFiles" title="Back to Files">📁 Files</button>
-                                <span class="content-editor-breadcrumb-sep" aria-hidden="true"> &gt; </span>
-                                <button type="button" class="content-editor-breadcrumb-link" id="poolAssetBreadcrumbRoot" title="Back to Files pool">🎞️ Visual</button>
-                                <span class="content-editor-breadcrumb-sep" aria-hidden="true"> &gt; </span>
-                                <span class="content-editor-breadcrumb-current" id="poolAssetBreadcrumbCurrent">Editor</span>
-                                <span class="content-editor-breadcrumb-sep" id="poolAssetBreadcrumbTitleSep" aria-hidden="true"> &gt; </span>
-                                <span id="poolAssetTitle" class="visual-asset-modal-title-readout content-editor-breadcrumb-current" hidden>Asset</span>
-                                <input type="text" id="poolAssetDisplayTitle" class="visual-asset-modal-title-input content-editor-name-input" maxlength="200" autocomplete="off" aria-label="Title" hidden>
-                            </nav>
+                            <?php bandpromo_admin_render_content_breadcrumb([
+                                'id_prefix' => 'poolAsset',
+                                'aria_label' => 'Files location',
+                                'wrap_head' => false,
+                                'tag' => 'nav',
+                                'path' => [
+                                    [
+                                        'text' => '📁 Files',
+                                        'button' => true,
+                                        'root' => true,
+                                        'title' => 'Back to Files',
+                                        'id' => 'poolAssetBreadcrumbFiles',
+                                    ],
+                                    [
+                                        'text' => '🎞️ Visual',
+                                        'button' => true,
+                                        'title' => 'Back to Files pool',
+                                        'id' => 'poolAssetBreadcrumbRoot',
+                                    ],
+                                    [
+                                        'text' => 'Editor',
+                                        'current' => true,
+                                        'id' => 'poolAssetBreadcrumbCurrent',
+                                    ],
+                                    [
+                                        'type' => 'sep',
+                                        'id' => 'poolAssetBreadcrumbTitleSep',
+                                        'hidden' => true,
+                                    ],
+                                    [
+                                        'text' => 'Asset',
+                                        'current' => true,
+                                        'id' => 'poolAssetTitle',
+                                        'class' => 'visual-asset-modal-title-readout',
+                                        'hidden' => true,
+                                    ],
+                                ],
+                                'after_path' => '<input type="text" id="poolAssetDisplayTitle" class="visual-asset-modal-title-input content-editor-name-input" maxlength="200" autocomplete="off" aria-label="Title" hidden>',
+                            ]); ?>
                             <span id="poolAssetDisplayStatus" class="status-text playlist-settings-status--head visual-asset-display-status" hidden></span>
                         </div>
                     </header>
@@ -1732,20 +1770,11 @@ if ($tab === 'analytics') {
                  data-initial-campaign="<?php echo htmlspecialchars($contentCampaign, ENT_QUOTES, 'UTF-8'); ?>">
                 <?php bandpromo_admin_render_content_breadcrumb([
                     'id_prefix' => 'campaignEditor',
-                    'emoji' => '💿',
-                    'label' => 'Catalogue',
                     'aria_label' => 'Catalogue location',
-                    'pool_title' => 'Back to Catalogue pool',
-                    'trailing' => static function (): void {
+                    'path' => bandpromo_admin_breadcrumb_preset_content_section('💿', 'Catalogue'),
+                    'after_path' => static function (): void {
                         ?>
-                        <div class="content-editor-subnav campaign-editor-section-tabs campaign-editor-section-tabs--breadcrumb" role="tablist" aria-label="Campaign editor sections">
-                            <button type="button" class="content-editor-subnav-btn is-active" role="tab" aria-selected="true" data-campaign-editor-tab="base">Base info</button>
-                            <button type="button" class="content-editor-subnav-btn" role="tab" aria-selected="false" data-campaign-editor-tab="extended">Extended info</button>
-                            <button type="button" class="content-editor-subnav-btn" role="tab" aria-selected="false" data-campaign-editor-tab="tracks">Tracks</button>
-                            <button type="button" class="content-editor-subnav-btn" role="tab" aria-selected="false" data-campaign-editor-tab="playlists">Playlists</button>
-                            <button type="button" class="content-editor-subnav-btn" role="tab" aria-selected="false" data-campaign-editor-tab="galleries">Galleries</button>
-                            <button type="button" class="content-editor-subnav-btn" role="tab" aria-selected="false" data-campaign-editor-tab="pages">Pages</button>
-                        </div>
+                        <input type="text" class="content-editor-name-input content-editor-breadcrumb-title" id="campaignSettingsTitle" maxlength="120" autocomplete="off" placeholder="Campaign name" aria-label="Campaign name">
                         <?php
                     },
                     'actions' => static function (): void {
@@ -1763,7 +1792,7 @@ if ($tab === 'analytics') {
                         <div class="split-editor__panel content-editor-left-panel">
                             <div id="campaignPoolView">
                                 <div class="split-editor__header split-editor__header--pool">
-                                    <h4 class="split-editor__title">Campaigns</h4>
+                                    <h4 class="split-editor__title">Available content</h4>
                                     <div class="split-editor__pool-head-slot split-editor__pool-actions">
                                         <button type="button" class="split-editor__pool-action page-editor-add-btn" id="toggleAddCampaignBtn" aria-expanded="false" aria-label="Add campaign" title="Add campaign">
                                             <span class="split-editor__pool-action-icon" aria-hidden="true">＋</span>
@@ -1775,24 +1804,29 @@ if ($tab === 'analytics') {
                                     <div class="add-page-panel" id="addCampaignPanel" hidden>
                                         <form id="addCampaignForm" class="add-page-form">
                                             <label class="add-page-field">
-                                                <span>Campaign name</span>
+                                                <span>Name:</span>
                                                 <input type="text" name="title" placeholder="Summer EP" required>
                                             </label>
                                             <div class="add-page-actions">
-                                                <button type="submit" class="btn btn-primary">Create campaign</button>
+                                                <button type="submit" class="btn btn-available">Create campaign</button>
                                                 <button type="button" class="btn" id="cancelAddCampaignBtn">Cancel</button>
                                             </div>
                                         </form>
                                     </div>
                                     <p id="campaignRegistryStatus" class="status-text registry-panel-status"></p>
-                                    <ol class="split-editor__track-list split-editor__list split-editor__pool-list registry-list" id="campaignPoolList" aria-label="Campaigns"></ol>
+                                    <ol class="split-editor__track-list split-editor__list split-editor__pool-list registry-list" id="campaignPoolList" aria-label="Available content"></ol>
                                 </div>
                             </div>
 
                             <div id="campaignTracksPoolView" class="page-editor-view" hidden>
                                 <div class="split-editor__header split-editor__header--pool page-editor-view-head content-editor-view-head">
-                                    <div class="content-editor-head-name">
-                                        <input type="text" class="content-editor-name-input" id="campaignSettingsTitle" maxlength="120" autocomplete="off" placeholder="Campaign name" aria-label="Campaign name">
+                                    <div class="content-editor-subnav campaign-editor-section-tabs" role="tablist" aria-label="Campaign editor sections">
+                                        <button type="button" class="content-editor-subnav-btn is-active" role="tab" aria-selected="true" data-campaign-editor-tab="base">Base info</button>
+                                        <button type="button" class="content-editor-subnav-btn" role="tab" aria-selected="false" data-campaign-editor-tab="extended">Extended info</button>
+                                        <button type="button" class="content-editor-subnav-btn" role="tab" aria-selected="false" data-campaign-editor-tab="tracks">Tracks</button>
+                                        <button type="button" class="content-editor-subnav-btn" role="tab" aria-selected="false" data-campaign-editor-tab="playlists">Playlists</button>
+                                        <button type="button" class="content-editor-subnav-btn" role="tab" aria-selected="false" data-campaign-editor-tab="galleries">Galleries</button>
+                                        <button type="button" class="content-editor-subnav-btn" role="tab" aria-selected="false" data-campaign-editor-tab="pages">Pages</button>
                                     </div>
                                 </div>
                                 <div class="split-editor__body registry-panel-body">
@@ -1937,7 +1971,7 @@ if ($tab === 'analytics') {
                     <div class="split-editor__col split-editor__col--active">
                         <div class="split-editor__panel">
                             <div class="split-editor__header split-editor__header--active">
-                                <h3 class="split-editor__title" id="campaignEditorPreviewHeading">Preview</h3>
+                                <h3 class="split-editor__title" id="campaignEditorPreviewHeading">Live preview</h3>
                             </div>
                             <div class="split-editor__body campaign-editor-active-body">
                                 <div id="campaignCoverPanel" class="campaign-cover-panel" hidden>
@@ -2003,10 +2037,14 @@ if ($tab === 'analytics') {
                  data-initial-playlist="<?php echo htmlspecialchars($contentPlaylist, ENT_QUOTES, 'UTF-8'); ?>">
                 <?php bandpromo_admin_render_content_breadcrumb([
                     'id_prefix' => 'playlistEditor',
-                    'emoji' => '🎵',
-                    'label' => 'Playlists',
                     'aria_label' => 'Playlists location',
-                    'pool_title' => 'Back to Playlists pool',
+                    'path' => bandpromo_admin_breadcrumb_preset_content_section('🎵', 'Playlists'),
+                    'after_path' => static function (): void {
+                        ?>
+                        <input type="text" class="content-editor-name-input content-editor-breadcrumb-title" id="playlistSettingsTitle" maxlength="120" autocomplete="off" placeholder="Playlist name" aria-label="Playlist name">
+                        <span class="brand-editor-head-badges content-editor-breadcrumb-badges" id="playlistEditorHeadBadges"></span>
+                        <?php
+                    },
                     'actions' => static function (): void {
                         ?>
                         <button type="button" class="btn page-editor-back-btn content-editor-back-btn" id="playlistEditorBackBtn" title="Back to playlist list">← Back</button>
@@ -2035,27 +2073,21 @@ if ($tab === 'analytics') {
                                     <div class="add-page-panel" id="addPlaylistPanel" hidden>
                                         <form id="addPlaylistForm" class="add-page-form">
                                             <label class="add-page-field">
-                                                <span>Playlist name</span>
+                                                <span>Name:</span>
                                                 <input type="text" name="title" placeholder="Summer singles" required>
                                             </label>
                                             <div class="add-page-actions">
-                                                <button type="submit" class="btn btn-primary">Create playlist</button>
+                                                <button type="submit" class="btn btn-available">Create playlist</button>
                                                 <button type="button" class="btn" id="cancelAddPlaylistBtn">Cancel</button>
                                             </div>
                                         </form>
                                     </div>
                                     <p id="playlistRegistryStatus" class="status-text registry-panel-status"></p>
-                                    <ol class="split-editor__track-list split-editor__list split-editor__pool-list registry-list" id="playlistPoolList" aria-label="Playlists"></ol>
+                                    <ol class="split-editor__track-list split-editor__list split-editor__pool-list registry-list" id="playlistPoolList" aria-label="Available content"></ol>
                                 </div>
                             </div>
 
                             <div id="playlistTracksPoolView" class="page-editor-view" hidden>
-                                <div class="split-editor__header page-editor-view-head content-editor-view-head">
-                                    <div class="content-editor-head-name">
-                                        <input type="text" class="content-editor-name-input" id="playlistSettingsTitle" maxlength="120" autocomplete="off" placeholder="Playlist name" aria-label="Playlist name">
-                                        <span class="brand-editor-head-badges" id="playlistEditorHeadBadges"></span>
-                                    </div>
-                                </div>
                                 <div class="split-editor__body registry-panel-body">
                                     <section class="content-editor-section" id="playlistSettingsPanel">
                                         <div class="content-editor-section-head">
@@ -2119,6 +2151,20 @@ if ($tab === 'analytics') {
                                                     </div>
                                                 </div>
                                                 <p class="hint content-editor-field-hint">Shows and podcasts default to newest first so new episodes can append at the bottom of the list.</p>
+                                                <div class="content-editor-field content-editor-field--inline">
+                                                    <span class="content-editor-field-label" id="playlistSettingsShowArtistLabel">Show artist:</span>
+                                                    <div class="content-editor-setting-toggle" role="group" aria-labelledby="playlistSettingsShowArtistLabel">
+                                                        <label class="content-editor-setting-option">
+                                                            <input type="radio" name="playlistSettingsShowArtist" value="1" checked>
+                                                            <span>Show</span>
+                                                        </label>
+                                                        <label class="content-editor-setting-option">
+                                                            <input type="radio" name="playlistSettingsShowArtist" value="0">
+                                                            <span>Hide</span>
+                                                        </label>
+                                                    </div>
+                                                </div>
+                                                <p class="hint content-editor-field-hint">Hide when every track is the same artist so titles stay uncluttered. Show for various-artist packages.</p>
                                                 <label class="content-editor-field content-editor-field--inline">
                                                     <span class="content-editor-field-label">Slug:</span>
                                                     <input type="text" id="playlistSettingsSlug" maxlength="48" autocomplete="off" placeholder="summer-singles" aria-label="Playlist slug" pattern="[a-z][a-z0-9-]*">
@@ -2145,7 +2191,7 @@ if ($tab === 'analytics') {
                         <div class="split-editor__panel">
                             <div class="split-editor__header split-editor__header--active">
                                 <h4 class="split-editor__title" id="playlistEditorPreviewHeading">
-                                    <span id="playlistEditorPreviewHeadingLabel">Preview</span>
+                                    <span id="playlistEditorPreviewHeadingLabel">Live preview</span>
                                     <span class="split-editor__count" id="playlistActiveCount"></span>
                                 </h4>
                             </div>
@@ -2209,10 +2255,13 @@ if ($tab === 'analytics') {
                  data-initial-gallery="<?php echo htmlspecialchars($contentGallery, ENT_QUOTES, 'UTF-8'); ?>">
                 <?php bandpromo_admin_render_content_breadcrumb([
                     'id_prefix' => 'galleryEditor',
-                    'emoji' => '🖼️',
-                    'label' => 'Galleries',
                     'aria_label' => 'Galleries location',
-                    'pool_title' => 'Back to Galleries pool',
+                    'path' => bandpromo_admin_breadcrumb_preset_content_section('🖼️', 'Galleries'),
+                    'after_path' => static function (): void {
+                        ?>
+                        <input type="text" class="content-editor-name-input content-editor-breadcrumb-title" id="gallerySettingsTitle" maxlength="120" autocomplete="off" placeholder="Gallery name" aria-label="Gallery name">
+                        <?php
+                    },
                     'actions' => static function (): void {
                         ?>
                         <button type="button" class="btn page-editor-back-btn content-editor-back-btn" id="galleryEditorBackBtn" title="Back to gallery list">← Back</button>
@@ -2240,36 +2289,33 @@ if ($tab === 'analytics') {
                                     <div class="add-page-panel" id="addGalleryPanel" hidden>
                                         <form id="addGalleryForm" class="add-page-form">
                                             <label class="add-page-field">
-                                                <span>Gallery name</span>
+                                                <span>Name:</span>
                                                 <input type="text" name="title" placeholder="Live photos" required>
                                             </label>
                                             <div class="add-page-actions">
-                                                <button type="submit" class="btn btn-primary">Create gallery</button>
+                                                <button type="submit" class="btn btn-available">Create gallery</button>
                                                 <button type="button" class="btn" id="cancelAddGalleryBtn">Cancel</button>
                                             </div>
                                         </form>
                                     </div>
                                     <p id="galleryRegistryStatus" class="status-text registry-panel-status"></p>
-                                    <ol class="split-editor__track-list split-editor__list split-editor__pool-list registry-list" id="galleryPoolList" aria-label="Galleries"></ol>
+                                    <ol class="split-editor__track-list split-editor__list split-editor__pool-list registry-list" id="galleryPoolList" aria-label="Available content"></ol>
                                 </div>
                             </div>
 
                             <div id="galleryItemsPoolView" class="page-editor-view" hidden>
                                 <div class="split-editor__header split-editor__header--pool page-editor-view-head content-editor-view-head">
-                                    <div class="content-editor-head-name">
-                                        <input type="text" class="content-editor-name-input" id="gallerySettingsTitle" maxlength="120" autocomplete="off" placeholder="Gallery name" aria-label="Gallery name">
-                                    </div>
+                                    <h4 class="split-editor__title">How galleries work</h4>
                                 </div>
                                 <div class="split-editor__body registry-panel-body gallery-helper-panel">
                                     <div class="gallery-helper-text">
-                                        <h4 class="split-editor__title">How galleries work</h4>
                                         <p>Use <strong>Browse catalogue</strong> to open the media picker and select photos and videos for this gallery. You can select multiple items at once.</p>
                                         <p>Selected items appear under <strong>Gallery order</strong> on the right. Drag rows to reorder, edit names and alt text inline, or click <strong>✕</strong> to remove individual items.</p>
                                         <p>To remove several items at once, click rows in the Gallery order list (Ctrl+click or Shift+click to multi-select), then press <strong>Remove selected</strong>.</p>
                                     </div>
                                     <div class="gallery-picker-toolbar gallery-picker-toolbar--spaced">
                                         <div class="gallery-picker-actions">
-                                            <button type="button" class="btn btn-primary btn-sm" id="galleryBrowseCatalogueBtn">Browse catalogue…</button>
+                                            <button type="button" class="btn btn-available btn-sm" id="galleryBrowseCatalogueBtn">Browse catalogue…</button>
                                             <button type="button" class="btn btn-sm" id="galleryRemoveSelectedBtn">Remove selected</button>
                                         </div>
                                         <input type="hidden" id="galleryPickerField" value="">
@@ -2324,16 +2370,11 @@ if ($tab === 'analytics') {
                  data-pages="<?php echo htmlspecialchars(json_encode($pagePoolData, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES), ENT_QUOTES, 'UTF-8'); ?>">
                 <?php bandpromo_admin_render_content_breadcrumb([
                     'id_prefix' => 'pageEditor',
-                    'emoji' => '📄',
-                    'label' => 'Pages',
                     'aria_label' => 'Pages location',
-                    'pool_title' => 'Back to Pages pool',
-                    'trailing' => static function (): void {
+                    'path' => bandpromo_admin_breadcrumb_preset_content_section('📄', 'Pages'),
+                    'after_path' => static function () use ($activeContentPage): void {
                         ?>
-                        <div class="content-editor-subnav page-editor-section-tabs page-editor-section-tabs--breadcrumb" id="pageEditorSubnav" role="tablist" aria-label="Page editor sections">
-                            <button type="button" class="content-editor-subnav-btn is-active" role="tab" aria-selected="true" data-page-editor-tab="base">Base info</button>
-                            <button type="button" class="content-editor-subnav-btn" role="tab" aria-selected="false" data-page-editor-tab="builder">Page builder</button>
-                        </div>
+                        <input type="text" class="content-editor-name-input content-editor-breadcrumb-title" id="pageTitleInput" value="<?php echo htmlspecialchars($activeContentPage['title'], ENT_QUOTES, 'UTF-8'); ?>" maxlength="120" placeholder="Page name" aria-label="Page name">
                         <?php
                     },
                     'actions' => static function (): void {
@@ -2363,11 +2404,11 @@ if ($tab === 'analytics') {
                                     <div class="add-page-panel" id="addPagePanel" hidden>
                                         <form id="addPageForm" class="add-page-form">
                                             <label class="add-page-field">
-                                                <span>Page name</span>
+                                                <span>Name:</span>
                                                 <input type="text" name="title" placeholder="Tour dates" required>
                                             </label>
                                             <div class="add-page-actions">
-                                                <button type="submit" class="btn btn-primary">Create page</button>
+                                                <button type="submit" class="btn btn-available">Create page</button>
                                                 <button type="button" class="btn" id="cancelAddPageBtn">Cancel</button>
                                             </div>
                                         </form>
@@ -2379,16 +2420,14 @@ if ($tab === 'analytics') {
 
                             <div id="pageEditorView" class="page-editor-view" hidden>
                                 <div class="split-editor__header page-editor-view-head content-editor-view-head">
-                                    <div class="content-editor-head-name">
-                                        <input type="text" class="content-editor-name-input" id="pageTitleInput" value="<?php echo htmlspecialchars($activeContentPage['title'], ENT_QUOTES, 'UTF-8'); ?>" maxlength="120" placeholder="Page name" aria-label="Page name">
+                                    <div class="content-editor-subnav page-editor-section-tabs" id="pageEditorSubnav" role="tablist" aria-label="Page editor sections">
+                                        <button type="button" class="content-editor-subnav-btn is-active" role="tab" aria-selected="true" data-page-editor-tab="base">Base info</button>
+                                        <button type="button" class="content-editor-subnav-btn" role="tab" aria-selected="false" data-page-editor-tab="builder">Page builder</button>
                                     </div>
                                 </div>
                                 <div class="split-editor__body page-editor-view-body">
                                     <div class="page-editor-section-panel is-active" data-page-editor-panel="base" role="tabpanel">
                                         <section class="content-editor-section">
-                                            <div class="content-editor-section-head">
-                                                <h4 class="split-editor__title">Base info</h4>
-                                            </div>
                                             <div class="content-editor-section-body">
                                                 <div class="content-editor-field-stack page-base-info">
                                                     <label class="content-editor-field content-editor-field--inline" id="pageLabelFieldWrap"<?php echo $activePageIsLoginOnly ? ' hidden' : ''; ?>>
@@ -2420,15 +2459,14 @@ if ($tab === 'analytics') {
                                     <div class="page-editor-section-panel" data-page-editor-panel="builder" role="tabpanel" hidden>
                                         <section class="content-editor-section page-editor-section--builder">
                                             <div class="content-editor-section-head page-editor-panel-head">
-                                                <h4 class="split-editor__title">Page builder</h4>
                                                 <p class="hint page-editor-hint">Build with blocks, change their order, and watch your live preview update while you edit your content.</p>
                                                 <div class="page-editor-toolbar">
-                                                    <button type="button" class="btn btn-primary" data-action="add-block" data-block-type="text">+ Text</button>
-                                                    <button type="button" class="btn btn-primary" data-action="add-block" data-block-type="picture">+ Picture</button>
-                                                    <button type="button" class="btn btn-primary" data-action="add-block" data-block-type="video">+ Video</button>
-                                                    <button type="button" class="btn btn-primary" data-action="add-block" data-block-type="picture_richtext">+ Picture + text</button>
-                                                    <button type="button" class="btn btn-primary" data-action="add-block" data-block-type="gallery">+ Gallery</button>
-                                                    <button type="button" class="btn btn-primary" data-action="add-block" data-block-type="list">+ List</button>
+                                                    <button type="button" class="btn btn-available" data-action="add-block" data-block-type="text">+ Text</button>
+                                                    <button type="button" class="btn btn-available" data-action="add-block" data-block-type="picture">+ Picture</button>
+                                                    <button type="button" class="btn btn-available" data-action="add-block" data-block-type="video">+ Video</button>
+                                                    <button type="button" class="btn btn-available" data-action="add-block" data-block-type="picture_richtext">+ Picture + text</button>
+                                                    <button type="button" class="btn btn-available" data-action="add-block" data-block-type="gallery">+ Gallery</button>
+                                                    <button type="button" class="btn btn-available" data-action="add-block" data-block-type="list">+ List</button>
                                                 </div>
                                             </div>
                                             <div class="content-editor-section-body">
@@ -2500,17 +2538,12 @@ if ($tab === 'analytics') {
                  data-initial-brand="<?php echo htmlspecialchars($contentBrand, ENT_QUOTES, 'UTF-8'); ?>">
                 <?php bandpromo_admin_render_content_breadcrumb([
                     'id_prefix' => 'brandEditor',
-                    'emoji' => '🎨',
-                    'label' => 'Branding',
                     'aria_label' => 'Branding location',
-                    'pool_title' => 'Back to Branding pool',
-                    'trailing' => static function (): void {
+                    'path' => bandpromo_admin_breadcrumb_preset_content_section('🎨', 'Branding'),
+                    'after_path' => static function (): void {
                         ?>
-                        <div class="content-editor-subnav brand-editor-section-tabs brand-editor-section-tabs--breadcrumb" id="brandEditorSubnav" role="tablist" aria-label="Brand editor sections">
-                            <button type="button" class="content-editor-subnav-btn is-active" role="tab" aria-selected="true" data-brand-editor-tab="common">Common</button>
-                            <button type="button" class="content-editor-subnav-btn" role="tab" aria-selected="false" data-brand-editor-tab="player">Player</button>
-                            <button type="button" class="content-editor-subnav-btn" role="tab" aria-selected="false" data-brand-editor-tab="content">Content</button>
-                        </div>
+                        <input type="text" class="brand-editor-name-input content-editor-name-input content-editor-breadcrumb-title" id="brandSettingsTitle" maxlength="120" autocomplete="off" placeholder="Brand name" aria-label="Brand name">
+                        <span class="brand-editor-head-badges content-editor-breadcrumb-badges" id="brandEditorHeadBadges"></span>
                         <?php
                     },
                     'actions' => static function (): void {
@@ -2530,18 +2563,25 @@ if ($tab === 'analytics') {
                             <div id="brandPoolView">
                                 <div class="split-editor__header split-editor__header--pool">
                                     <h4 class="split-editor__title">Available content</h4>
+                                    <div class="split-editor__pool-head-slot split-editor__pool-actions">
+                                        <button type="button" class="split-editor__pool-action page-editor-add-btn" id="brandAddFromBaseBtn" aria-label="Add brand" title="Duplicate the current base brand">
+                                            <span class="split-editor__pool-action-icon" aria-hidden="true">＋</span>
+                                            <span>Add brand</span>
+                                        </button>
+                                    </div>
                                 </div>
                                 <div class="split-editor__body registry-panel-body">
                                     <p id="brandRegistryStatus" class="status-text registry-panel-status"></p>
-                                    <ol class="split-editor__track-list split-editor__list split-editor__pool-list registry-list brand-pool-list" id="brandPoolList" aria-label="Brands"></ol>
+                                    <ol class="split-editor__track-list split-editor__list split-editor__pool-list registry-list brand-pool-list" id="brandPoolList" aria-label="Available content"></ol>
                                 </div>
                             </div>
 
                             <div id="brandEditorView" class="page-editor-view" hidden>
                                 <div class="split-editor__header page-editor-view-head brand-editor-view-head content-editor-view-head">
-                                    <div class="brand-editor-head-name content-editor-head-name">
-                                        <input type="text" class="brand-editor-name-input content-editor-name-input" id="brandSettingsTitle" maxlength="120" autocomplete="off" placeholder="Brand name" aria-label="Brand name">
-                                        <span class="brand-editor-head-badges" id="brandEditorHeadBadges"></span>
+                                    <div class="content-editor-subnav brand-editor-section-tabs" id="brandEditorSubnav" role="tablist" aria-label="Brand editor sections">
+                                        <button type="button" class="content-editor-subnav-btn is-active" role="tab" aria-selected="true" data-brand-editor-tab="common">Common</button>
+                                        <button type="button" class="content-editor-subnav-btn" role="tab" aria-selected="false" data-brand-editor-tab="player">Player</button>
+                                        <button type="button" class="content-editor-subnav-btn" role="tab" aria-selected="false" data-brand-editor-tab="content">Content</button>
                                     </div>
                                 </div>
                                 <div class="split-editor__body registry-panel-body brand-editor-view-body">
@@ -2679,6 +2719,24 @@ if ($tab === 'analytics') {
                     Controls how your site appears when shared on Facebook, X (Twitter), and other platforms, and also holds the lightweight SEO/manifest fields used for keywords and categories. The preview cards below update live as you type. Edit the <strong>poster / share cover</strong> under <a href="?tab=content&amp;cntab=branding">Content → Branding</a> on the base brand.
                 <?php endif; ?>
             </div>
+
+            <?php
+            $settingsCrumbViews = [
+                'basics' => 'Basics',
+                'support' => 'Support',
+                'sharing' => 'Sharing',
+            ];
+            $settingsCrumbCurrent = $settingsCrumbViews[$configTab] ?? 'Basics';
+            bandpromo_admin_render_content_breadcrumb([
+                'id_prefix' => 'settingsPage',
+                'aria_label' => 'Settings location',
+                'path' => bandpromo_admin_breadcrumb_preset_page(
+                    '⚙️ Settings',
+                    '?tab=settings&ctab=' . rawurlencode((string) $configTab),
+                    $settingsCrumbCurrent
+                ),
+            ]);
+            ?>
 
             <!-- ── BASICS ──────────────────────────────────────────────────── -->
             <?php if ($tab === 'settings' && $configTab === 'basics'): ?>
@@ -2974,18 +3032,51 @@ if ($tab === 'analytics') {
             </div>
 
             <div id="siteHealthCard" class="card publish-status-card">
-                <div class="content-editor-card-head">
-                    <h2 class="content-editor-breadcrumb" id="siteHealthBreadcrumb" aria-label="Site health location">
-                        <a class="content-editor-breadcrumb-root content-editor-breadcrumb-link" href="?tab=system&amp;stab=deliverables" id="siteHealthCrumbStatus" title="System → Status">📊 Status</a>
-                        <span class="content-editor-breadcrumb-sep" id="siteHealthCrumbSep" aria-hidden="true"> &gt; </span>
-                        <button type="button" class="content-editor-breadcrumb-link" id="siteHealthCrumbHome" title="Site health">Site health</button>
-                        <span id="siteHealthBreadcrumbSteps"></span>
-                    </h2>
-                    <span id="siteHealthMeta" class="content-editor-breadcrumb-meta"></span>
-                    <div class="content-editor-card-head-actions">
+                <?php bandpromo_admin_render_content_breadcrumb([
+                    'id_prefix' => 'siteHealth',
+                    'aria_label' => 'Site health location',
+                    'path' => [
+                        [
+                            'text' => '🛠️ System',
+                            'href' => '?tab=system&stab=deliverables',
+                            'title' => 'System',
+                            'root' => true,
+                            'id' => 'siteHealthCrumbSystem',
+                        ],
+                        [
+                            'text' => '📊 Status',
+                            'href' => '?tab=system&stab=deliverables',
+                            'title' => 'Status',
+                            'id' => 'siteHealthCrumbStatus',
+                        ],
+                        [
+                            'text' => '📊 Status',
+                            'current' => true,
+                            'id' => 'siteHealthCrumbStatusLeaf',
+                            'hidden' => true,
+                        ],
+                        [
+                            'type' => 'sep',
+                            'id' => 'siteHealthCrumbSep',
+                        ],
+                        [
+                            'text' => 'Site health',
+                            'button' => true,
+                            'title' => 'Site health',
+                            'id' => 'siteHealthCrumbHome',
+                        ],
+                        [
+                            'type' => 'slot',
+                            'id' => 'siteHealthBreadcrumbSteps',
+                        ],
+                    ],
+                    'trailing' => '<span id="siteHealthMeta" class="content-editor-breadcrumb-meta"></span>',
+                    'actions' => static function (): void {
+                        ?>
                         <span id="siteHealthOverall" class="badge audit-status-badge status-neutral">Not checked yet</span>
-                    </div>
-                </div>
+                        <?php
+                    },
+                ]); ?>
 
                 <div id="siteHealthStatusHome" class="site-health-status-home">
                     <div class="site-health-tool-list">
@@ -3061,6 +3152,14 @@ if ($tab === 'analytics') {
             <div class="admin-help-box collapsed" id="help-audit">
                 Separate admin audit trail for management actions only. Use this to trace who changed users, content, settings, files, and publish runs, without mixing those records into listener activity analytics.
             </div>
+
+            <?php
+            bandpromo_admin_render_content_breadcrumb([
+                'id_prefix' => 'systemAuditPage',
+                'aria_label' => 'System location',
+                'path' => bandpromo_admin_breadcrumb_preset_system('🛡️ Audit'),
+            ]);
+            ?>
 
             <form method="GET" class="filter-bar filter-bar-form">
                 <input type="hidden" name="tab" value="system">
@@ -3148,6 +3247,14 @@ if ($tab === 'analytics') {
                 Import collision: <strong>Refuse</strong> keeps local and reports the clash, <strong>Overwrite</strong> replaces the matching id, <strong>Skip</strong> leaves existing ids, <strong>AsNew</strong> allocates a new id.
                 Jobs stay until you download or delete them. After import, open <strong>Status → Site health</strong> if you need to refresh listener-ready files.
             </div>
+
+            <?php
+            bandpromo_admin_render_content_breadcrumb([
+                'id_prefix' => 'systemBackupPage',
+                'aria_label' => 'System location',
+                'path' => bandpromo_admin_breadcrumb_preset_system('💾 Backup, export & import'),
+            ]);
+            ?>
 
             <div class="card site-backup-card">
                 <h3>📦 Jobs</h3>
@@ -3506,6 +3613,14 @@ if ($tab === 'analytics') {
                 <code>biblioteca/templates/runtime/</code>. Site config (<code>web-config.json</code>) is never overwritten here.
             </div>
 
+            <?php
+            bandpromo_admin_render_content_breadcrumb([
+                'id_prefix' => 'systemEnvironmentPage',
+                'aria_label' => 'System location',
+                'path' => bandpromo_admin_breadcrumb_preset_system('🖥️ Environment'),
+            ]);
+            ?>
+
             <div id="environmentReportCard" class="card environment-report-card">
                 <div class="build-validation-head">
                     <h3>🖥️ Host environment</h3>
@@ -3560,6 +3675,24 @@ if ($tab === 'analytics') {
             <div class="admin-help-box collapsed" id="help-docs">
                 Operators see operator-safe documentation only. Developers can switch between operator docs, developer docs, and a combined view when they need both perspectives.
             </div>
+
+            <?php
+            $docsCrumbViews = [
+                'operator' => 'Operator docs',
+                'developer' => 'Developer docs',
+                'all' => 'All docs',
+            ];
+            $docsCrumbCurrent = $docsCrumbViews[$documentationScope] ?? 'Operator docs';
+            bandpromo_admin_render_content_breadcrumb([
+                'id_prefix' => 'docsPage',
+                'aria_label' => 'Documentation location',
+                'path' => bandpromo_admin_breadcrumb_preset_page(
+                    '📚 Documentation',
+                    '?tab=docs&doc_scope=' . rawurlencode((string) $documentationScope),
+                    $docsCrumbCurrent
+                ),
+            ]);
+            ?>
 
             <?php if ($currentUserRole === 'developer'): ?>
             <div class="docs-scope-switch">
@@ -3646,157 +3779,173 @@ if ($tab === 'analytics') {
             <button class="modal-close" onclick="closeAudioMasterModal()">✕</button>
             <header class="audio-master-modal-header">
                 <div class="visual-asset-modal-crumb-row">
-                    <nav class="content-editor-breadcrumb" id="audioMasterBreadcrumb" aria-label="Files location">
-                        <button type="button" class="content-editor-breadcrumb-root content-editor-breadcrumb-link" id="audioMasterBreadcrumbFiles" title="Back to Files">📁 Files</button>
-                        <span class="content-editor-breadcrumb-sep" aria-hidden="true"> &gt; </span>
-                        <button type="button" class="content-editor-breadcrumb-link" id="audioMasterBreadcrumbPanel" title="Back to Audio pool">🎵 Audio</button>
-                        <span class="content-editor-breadcrumb-sep" aria-hidden="true"> &gt; </span>
-                        <span class="content-editor-breadcrumb-current">Editor</span>
-                        <span class="content-editor-breadcrumb-sep" aria-hidden="true"> &gt; </span>
-                        <span id="audioMasterTitle" class="visual-asset-modal-title-readout content-editor-breadcrumb-current">Track details</span>
-                    </nav>
-<span id="audioMasterStatus" class="status-text playlist-settings-status--head visual-asset-display-status"></span>
+                    <?php bandpromo_admin_render_content_breadcrumb([
+                        'id_prefix' => 'audioMaster',
+                        'aria_label' => 'Files location',
+                        'wrap_head' => false,
+                        'tag' => 'nav',
+                        'path' => [
+                            [
+                                'text' => '📁 Files',
+                                'button' => true,
+                                'root' => true,
+                                'title' => 'Back to Files',
+                                'id' => 'audioMasterBreadcrumbFiles',
+                            ],
+                            [
+                                'text' => '🎵 Audio',
+                                'button' => true,
+                                'title' => 'Back to Audio pool',
+                                'id' => 'audioMasterBreadcrumbPanel',
+                            ],
+                            [
+                                'text' => 'Editor',
+                                'current' => true,
+                            ],
+                            [
+                                'text' => 'Track details',
+                                'current' => true,
+                                'id' => 'audioMasterTitle',
+                                'class' => 'visual-asset-modal-title-readout',
+                            ],
+                        ],
+                    ]); ?>
+<span id="audioMasterStatus" class="status-text playlist-settings-status--head visual-asset-display-status" hidden></span>
                 </div>
             </header>
 
             <div class="audio-master-modal-body">
-                <div class="audio-master-hero audio-master-cover-layout">
-                    <div class="audio-master-cover-duo">
-                        <div class="audio-master-cover-card">
-                            <span class="audio-master-cover-card-label">Still cover</span>
-                            <div class="audio-master-cover-preview-shell">
-                                <div class="audio-master-cover-preview" id="audioMasterCoverPreviewShell">
-                                    <div class="audio-master-cover-overlay-actions">
-                                        <button type="button" class="icon-btn media-picker-open audio-master-cover-action" data-field="audioMasterFieldCoverPath" data-title="Choose track cover" data-targets="visual" title="Choose cover" aria-label="Choose cover">✎</button>
-                                        <button type="button" class="icon-btn audio-master-cover-action" id="audioMasterCoverClearBtn" title="Use campaign cover" aria-label="Use campaign cover">↺</button>
+                <div class="audio-master-layout">
+                    <div class="audio-master-preview">
+                        <div class="audio-master-cover-duo">
+                            <div class="audio-master-cover-card">
+                                <span class="audio-master-cover-card-label">Still cover:</span>
+                                <div class="audio-master-cover-preview-shell">
+                                    <div class="audio-master-cover-preview" id="audioMasterCoverPreviewShell">
+                                        <div class="audio-master-cover-overlay-actions">
+                                            <button type="button" class="icon-btn media-picker-open audio-master-cover-action" data-field="audioMasterFieldCoverPath" data-title="Choose track cover" data-targets="visual" title="Choose cover" aria-label="Choose cover">✎</button>
+                                            <button type="button" class="icon-btn audio-master-cover-action" id="audioMasterCoverClearBtn" title="Use campaign cover" aria-label="Use campaign cover">↺</button>
+                                        </div>
+                                        <img id="audioMasterCoverPreview" alt="Track cover preview" style="display:none;">
+                                        <span id="audioMasterCoverPlaceholder" class="audio-master-cover-placeholder">No cover</span>
                                     </div>
-                                    <img id="audioMasterCoverPreview" alt="Track cover preview" style="display:none;">
-                                    <span id="audioMasterCoverPlaceholder" class="audio-master-cover-placeholder">No cover</span>
+                                </div>
+                            </div>
+                            <div class="audio-master-cover-card">
+                                <span class="audio-master-cover-card-label">Living cover:</span>
+                                <div class="audio-master-cover-preview-shell">
+                                    <div class="audio-master-cover-preview" id="audioMasterLivingCoverPreviewShell">
+                                        <div class="audio-master-cover-overlay-actions">
+                                            <button type="button" class="icon-btn media-picker-open audio-master-cover-action" data-field="audioMasterFieldLivingCoverPath" data-title="Choose living cover video" data-targets="video" title="Choose living cover" aria-label="Choose living cover">✎</button>
+                                            <button type="button" class="icon-btn audio-master-cover-action" id="audioMasterLivingCoverClearBtn" title="Clear living cover" aria-label="Clear living cover">↺</button>
+                                        </div>
+                                        <video id="audioMasterLivingCoverPreview" class="audio-master-living-cover-preview" muted loop playsinline preload="metadata" style="display:none;"></video>
+                                        <span id="audioMasterLivingCoverPlaceholder" class="audio-master-cover-placeholder">No living cover</span>
+                                    </div>
                                 </div>
                             </div>
                         </div>
-                        <div class="audio-master-cover-card">
-                            <span class="audio-master-cover-card-label">Living cover</span>
-                            <div class="audio-master-cover-preview-shell">
-                                <div class="audio-master-cover-preview" id="audioMasterLivingCoverPreviewShell">
-                                    <div class="audio-master-cover-overlay-actions">
-                                        <button type="button" class="icon-btn media-picker-open audio-master-cover-action" data-field="audioMasterFieldLivingCoverPath" data-title="Choose living cover video" data-targets="video" title="Choose living cover" aria-label="Choose living cover">✎</button>
-                                        <button type="button" class="icon-btn audio-master-cover-action" id="audioMasterLivingCoverClearBtn" title="Clear living cover" aria-label="Clear living cover">↺</button>
-                                    </div>
-                                    <video id="audioMasterLivingCoverPreview" class="audio-master-living-cover-preview" muted loop playsinline preload="metadata" style="display:none;"></video>
-                                    <span id="audioMasterLivingCoverPlaceholder" class="audio-master-cover-placeholder">No living cover</span>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="audio-master-hero-meta campaign-cover-meta">
                         <p class="field-note audio-master-cover-duo-status" id="audioMasterLivingCoverStatus"></p>
-                        <p class="audio-master-summary-caption campaign-preview-date">Master audio asset</p>
-                        <div class="audio-master-listen-bar" id="audioMasterListenBar" hidden>
-                            <audio id="audioMasterListenPlayer" class="audio-master-listen-player" controls preload="metadata" controlsList="nodownload" title="Listen to this track"></audio>
-                        </div>
-                        <div class="audio-master-summary audio-master-summary-compact" id="audioMasterSummary">
-                            <div class="audio-master-stat audio-master-stat-compact audio-master-stat-campaign">
-                                <span class="audio-master-stat-label">In campaign</span>
-                                <strong id="audioMasterCampaignName">—</strong>
+                    </div>
+
+                    <div class="audio-master-side">
+                        <section class="visual-asset-meta-block audio-master-meta-static" aria-label="File facts">
+                            <h4 class="visual-asset-meta-heading">File</h4>
+                            <div class="audio-master-listen-bar" id="audioMasterListenBar" hidden>
+                                <audio id="audioMasterListenPlayer" class="audio-master-listen-player" controls preload="metadata" controlsList="nodownload" title="Listen to this track"></audio>
                             </div>
-                            <div class="audio-master-stat audio-master-stat-compact">
-                                <span class="audio-master-stat-label">Duration</span>
-                                <strong id="audioMasterDuration">—</strong>
-                            </div>
-                            <div class="audio-master-stat audio-master-stat-compact">
-                                <span class="audio-master-stat-label">Format</span>
-                                <strong id="audioMasterFormat">—</strong>
-                            </div>
-                            <div class="audio-master-stat audio-master-stat-compact">
-                                <span class="audio-master-stat-label">Bitrate</span>
-                                <strong id="audioMasterBitrate">—</strong>
-                            </div>
-                            <div class="audio-master-stat audio-master-stat-compact">
-                                <span class="audio-master-stat-label">Sample rate</span>
-                                <strong id="audioMasterSampleRate">—</strong>
-                            </div>
-                            <div class="audio-master-stat audio-master-stat-compact">
-                                <span class="audio-master-stat-label">Bit depth</span>
-                                <strong id="audioMasterBitDepth">—</strong>
-                            </div>
-                            <div class="audio-master-stat audio-master-stat-compact">
-                                <span class="audio-master-stat-label">Filesize</span>
-                                <strong id="audioMasterFilesize">—</strong>
-                            </div>
-                        </div>
+                            <div id="audioMasterBadges" class="visual-asset-badges audio-master-file-chips" aria-label="File facts"></div>
+                        </section>
+
+                        <section class="visual-asset-meta-block audio-master-meta-dynamic" aria-label="Editable details">
+                            <h4 class="visual-asset-meta-heading">Details</h4>
+                            <input type="hidden" id="audioMasterFieldCoverPath" name="cover_path" data-empty-label="No new cover selected">
+                            <input type="hidden" id="audioMasterFieldLivingCoverPath" data-empty-label="No living cover assigned">
+                            <form id="audioMasterForm" class="audio-master-form">
+                                <div class="audio-master-form-grid audio-master-form-grid-artists">
+                                    <label class="playlist-settings-field" for="audioMasterFieldArtist">
+                                        <span>* Artist:</span>
+                                        <input type="text" id="audioMasterFieldArtist" name="artist" autocomplete="off" required>
+                                    </label>
+                                    <label class="playlist-settings-field" for="audioMasterFieldFeaturedArtist">
+                                        <span>Featured artist:</span>
+                                        <input type="text" id="audioMasterFieldFeaturedArtist" name="featured_artist" autocomplete="off" placeholder="Guest vocalist">
+                                    </label>
+                                    <label class="playlist-settings-field" for="audioMasterFieldRemixArtist">
+                                        <span>Remix artist:</span>
+                                        <input type="text" id="audioMasterFieldRemixArtist" name="remix_artist" autocomplete="off" placeholder="Remixer">
+                                    </label>
+                                </div>
+                                <div class="audio-master-form-grid audio-master-form-grid-title">
+                                    <label class="playlist-settings-field" for="audioMasterFieldTitle">
+                                        <span>* Title:</span>
+                                        <input type="text" id="audioMasterFieldTitle" name="title" autocomplete="off" required>
+                                    </label>
+                                    <label class="playlist-settings-field" for="audioMasterFieldVersion">
+                                        <span>Version:</span>
+                                        <input type="text" id="audioMasterFieldVersion" name="version" autocomplete="off" placeholder="Radio Edit">
+                                    </label>
+                                </div>
+                                <div class="audio-master-form-grid audio-master-form-grid-music">
+                                    <label class="playlist-settings-field" for="audioMasterFieldGenre">
+                                        <span>Genre:</span>
+                                        <input type="text" id="audioMasterFieldGenre" name="genre" autocomplete="off">
+                                    </label>
+                                    <label class="playlist-settings-field audio-master-field-bpm" for="audioMasterFieldBpm">
+                                        <span>BPM:</span>
+                                        <input type="text" id="audioMasterFieldBpm" name="bpm" autocomplete="off" inputmode="numeric" pattern="[0-9]{0,3}" maxlength="3" placeholder="128">
+                                    </label>
+                                    <label class="playlist-settings-field audio-master-field-key" for="audioMasterFieldInitialkey">
+                                        <span>Key:</span>
+                                        <input type="text" id="audioMasterFieldInitialkey" name="initialkey" autocomplete="off" maxlength="4" placeholder="8A">
+                                    </label>
+                                </div>
+                                <div class="audio-master-form-grid audio-master-form-grid-date">
+                                    <label class="playlist-settings-field form-group-date" for="audioMasterFieldDate">
+                                        <span>* Release date:</span>
+                                        <div class="date-input-shell iso-date-field">
+                                            <input type="text" class="iso-date-input" id="audioMasterFieldDate" name="date" inputmode="numeric" placeholder="YYYY-MM-DD" pattern="^\d{4}(-\d{2}-\d{2})?$" title="ISO date: YYYY or YYYY-MM-DD" autocomplete="off" spellcheck="false" maxlength="10" required>
+                                            <input type="date" class="iso-date-picker-native" tabindex="-1" aria-hidden="true">
+                                            <button type="button" class="iso-date-picker-btn" title="Open calendar" aria-label="Pick date">📅</button>
+                                        </div>
+                                    </label>
+                                </div>
+                                <label class="playlist-settings-field playlist-settings-field--wide audio-master-description-group" for="audioMasterFieldComment">
+                                    <span class="audio-master-field-label-with-hint">
+                                        <span>Track description / blurb:</span>
+                                        <?php echo bandpromo_admin_markdown_help_note('Markdown in playlist view'); ?>
+                                    </span>
+                                    <textarea id="audioMasterFieldComment" name="comment" rows="1" maxlength="300"></textarea>
+                                    <div class="audio-master-description-meta">
+                                        <span class="field-note"><span id="audioMasterDescriptionCount">0</span>/300</span>
+                                    </div>
+                                </label>
+                                <div class="audio-master-text-panel">
+                                    <div class="audio-master-text-panel-header">
+                                        <div class="audio-master-text-role-toggle" role="group" aria-label="Text panel type">
+                                            <button type="button" class="audio-master-text-role-btn is-active" data-text-role="lyrics" id="audioMasterTextRoleLyrics" aria-pressed="true">Lyrics</button>
+                                            <button type="button" class="audio-master-text-role-btn" data-text-role="notes" id="audioMasterTextRoleNotes" aria-pressed="false">Notes</button>
+                                        </div>
+                                        <div class="field-note audio-master-text-panel-note markdown-help-note">
+                                            <span class="markdown-help-note-label">Restricted Markdown</span>
+                                            <?php echo bandpromo_admin_markdown_help_trigger(); ?>
+                                            <span class="markdown-help-note-extra">Lyrics keep line breaks; Notes use paragraphs.</span>
+                                        </div>
+                                        <label class="audio-master-notes-label-wrap" id="audioMasterNotesLabelWrap" for="audioMasterFieldNotesLabel" hidden title="Shown on the player nav while this track plays. Default: Tracklist.">
+                                            <span>Player tab label:</span>
+                                            <input type="text" id="audioMasterFieldNotesLabel" name="notes_label" maxlength="24" autocomplete="off" placeholder="Tracklist">
+                                        </label>
+                                    </div>
+                                    <textarea id="audioMasterFieldLyrics" name="lyrics" rows="10" aria-label="Lyrics"></textarea>
+                                </div>
+                            </form>
+                        </section>
                     </div>
                 </div>
-
-                <input type="hidden" id="audioMasterFieldCoverPath" name="cover_path" data-empty-label="No new cover selected">
-                <input type="hidden" id="audioMasterFieldLivingCoverPath" data-empty-label="No living cover assigned">
-
-                <form id="audioMasterForm" class="audio-master-form">
-                    <div class="audio-master-form-grid audio-master-form-grid-compact">
-                        <label class="playlist-settings-field form-group-date" for="audioMasterFieldDate">
-                            <span>* Release date</span>
-                            <div class="date-input-shell iso-date-field">
-                                <input type="text" class="iso-date-input" id="audioMasterFieldDate" name="date" inputmode="numeric" placeholder="YYYY-MM-DD" pattern="^\d{4}(-\d{2}-\d{2})?$" title="ISO date: YYYY or YYYY-MM-DD" autocomplete="off" spellcheck="false" maxlength="10" required>
-                                <input type="date" class="iso-date-picker-native" tabindex="-1" aria-hidden="true">
-                                <button type="button" class="iso-date-picker-btn" title="Open calendar" aria-label="Pick date">📅</button>
-                            </div>
-                        </label>
-                        <label class="playlist-settings-field" for="audioMasterFieldGenre">
-                            <span>Genre</span>
-                            <input type="text" id="audioMasterFieldGenre" name="genre" autocomplete="off">
-                        </label>
-                        <label class="playlist-settings-field" for="audioMasterFieldBpm">
-                            <span>BPM</span>
-                            <input type="text" id="audioMasterFieldBpm" name="bpm" autocomplete="off" inputmode="numeric" pattern="[0-9]{0,3}" maxlength="3" placeholder="128">
-                        </label>
-                        <label class="playlist-settings-field" for="audioMasterFieldInitialkey">
-                            <span>Key</span>
-                            <input type="text" id="audioMasterFieldInitialkey" name="initialkey" autocomplete="off" maxlength="3" placeholder="8A">
-                        </label>
-                    </div>
-                    <div class="audio-master-form-grid audio-master-form-grid-secondary">
-                        <label class="playlist-settings-field" for="audioMasterFieldArtist">
-                            <span>* Artist</span>
-                            <input type="text" id="audioMasterFieldArtist" name="artist" autocomplete="off" required>
-                        </label>
-                        <label class="playlist-settings-field" for="audioMasterFieldTitle">
-                            <span>* Title</span>
-                            <input type="text" id="audioMasterFieldTitle" name="title" autocomplete="off" required>
-                        </label>
-                        <label class="playlist-settings-field" for="audioMasterFieldVersion">
-                            <span>Version</span>
-                            <input type="text" id="audioMasterFieldVersion" name="version" autocomplete="off" placeholder="Radio Edit">
-                        </label>
-                    </div>
-                    <label class="playlist-settings-field playlist-settings-field--wide audio-master-description-group" for="audioMasterFieldComment">
-                        <span>Track description / blurb</span>
-                        <textarea id="audioMasterFieldComment" name="comment" rows="2" maxlength="300"></textarea>
-                        <div class="audio-master-description-meta">
-                            <?php echo bandpromo_admin_markdown_help_note('Markdown in playlist view'); ?>
-                            <span class="field-note"><span id="audioMasterDescriptionCount">0</span>/300</span>
-                        </div>
-                    </label>
-                    <div class="audio-master-text-panel">
-                        <div class="audio-master-text-panel-header">
-                            <div class="audio-master-text-role-toggle" role="group" aria-label="Text panel type">
-                                <button type="button" class="audio-master-text-role-btn is-active" data-text-role="lyrics" id="audioMasterTextRoleLyrics" aria-pressed="true">Lyrics</button>
-                                <button type="button" class="audio-master-text-role-btn" data-text-role="notes" id="audioMasterTextRoleNotes" aria-pressed="false">Notes</button>
-                            </div>
-                            <label class="audio-master-notes-label-wrap" id="audioMasterNotesLabelWrap" for="audioMasterFieldNotesLabel" hidden title="Shown on the player nav while this track plays. Default: Tracklist.">
-                                <span>Player tab label</span>
-                                <input type="text" id="audioMasterFieldNotesLabel" name="notes_label" maxlength="24" autocomplete="off" placeholder="Tracklist">
-                            </label>
-                        </div>
-                        <textarea id="audioMasterFieldLyrics" name="lyrics" rows="10" aria-label="Lyrics"></textarea>
-                        <div class="field-note audio-master-text-panel-note markdown-help-note">
-                            <span class="markdown-help-note-label">Restricted Markdown</span>
-                            <?php echo bandpromo_admin_markdown_help_trigger(); ?>
-                            <span class="markdown-help-note-extra">Lyrics keep line breaks; Notes use paragraphs.</span>
-                        </div>
-                    </div>
-                </form>
             </div>
             <div class="modal-actions audio-master-modal-actions">
+                <button type="button" class="btn btn-available" id="audioMasterDownloadBtn">Download</button>
+                <button type="button" class="btn btn-available" id="audioMasterDeleteBtn" title="Delete this file">Delete</button>
                 <button type="button" class="btn btn-available" id="audioMasterAbortBtn" title="Close without saving">Abort</button>
                 <button type="button" class="btn btn-good" id="audioMasterDoneBtn" title="Save and close">Save</button>
             </div>

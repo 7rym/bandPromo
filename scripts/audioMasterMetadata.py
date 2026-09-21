@@ -16,7 +16,7 @@ except Exception:
 from mutagen import File
 from mutagen.apev2 import APEv2, APENoHeaderError
 from mutagen.flac import FLAC, Picture
-from mutagen.id3 import APIC, COMM, ID3, ID3NoHeaderError, TALB, TBPM, TCON, TDRC, TIT2, TKEY, TPE1, TRCK, TXXX, USLT
+from mutagen.id3 import APIC, COMM, ID3, ID3NoHeaderError, TALB, TBPM, TCON, TDRC, TIT2, TKEY, TPE1, TPE4, TRCK, TXXX, USLT
 
 try:
     import stdio_utf8
@@ -30,6 +30,9 @@ AUDIO_ORIG_DIR = ROOT_DIR / 'media' / 'audio' / 'original'
 AUDIO_MASTER_DIR = ROOT_DIR / 'media' / 'audio' / 'master'
 ASSET_REGISTRY_FILE = ROOT_DIR / 'data' / 'assets' / 'registry.json'
 LIVING_COVER_TAG = 'BANDPROMO_LIVING_COVER'
+FEATURED_ARTIST_TAG = 'FEATUREDARTIST'
+FEATURED_ARTIST_TXXX_DESC = 'FEATURED ARTIST'
+REMIX_ARTIST_TAG = 'REMIXER'
 
 
 def respond(payload, exit_code=0):
@@ -171,24 +174,45 @@ def read_mp3_lyrics(tags):
     return ''
 
 
-def read_living_cover_value(tags, audio=None):
-    if audio is not None:
-        text = read_text_tag(audio, LIVING_COVER_TAG)
-        if text != '':
-            return text
-
+def read_txxx_value(tags, wanted_desc):
+    wanted = str(wanted_desc or '').strip().upper()
+    if wanted == '':
+        return ''
     for key in tags.keys():
         if not str(key).startswith('TXXX'):
             continue
         frame = tags[key]
-        desc = str(getattr(frame, 'desc', '') or '').strip()
-        if desc != LIVING_COVER_TAG:
+        desc = str(getattr(frame, 'desc', '') or '').strip().upper()
+        if desc != wanted:
             continue
         text = getattr(frame, 'text', [])
         if isinstance(text, list) and text:
             return str(text[0]).strip()
         return str(text).strip()
     return ''
+
+
+def set_txxx_value(tags, desc, value):
+    wanted = str(desc or '').strip()
+    for key in list(tags.keys()):
+        if not str(key).startswith('TXXX'):
+            continue
+        frame = tags[key]
+        frame_desc = str(getattr(frame, 'desc', '') or '').strip()
+        if frame_desc.upper() == wanted.upper():
+            del tags[key]
+    normalized = str(value or '').strip()
+    if normalized != '':
+        tags.add(TXXX(encoding=3, desc=wanted, text=[normalized]))
+
+
+def read_living_cover_value(tags, audio=None):
+    if audio is not None:
+        text = read_text_tag(audio, LIVING_COVER_TAG)
+        if text != '':
+            return text
+
+    return read_txxx_value(tags, LIVING_COVER_TAG)
 
 
 def set_living_cover_tag(tags, audio, value):
@@ -200,17 +224,7 @@ def set_living_cover_tag(tags, audio, value):
         else:
             audio[LIVING_COVER_TAG] = [normalized]
 
-    for key in list(tags.keys()):
-        if not str(key).startswith('TXXX'):
-            continue
-        frame = tags[key]
-        desc = str(getattr(frame, 'desc', '') or '').strip()
-        if desc == LIVING_COVER_TAG:
-            del tags[key]
-
-    if normalized != '':
-        tags.add(TXXX(encoding=3, desc=LIVING_COVER_TAG, text=[normalized]))
-
+    set_txxx_value(tags, LIVING_COVER_TAG, normalized)
 
 def inspect_flac(path, audio):
     embedded_cover_present = bool(getattr(audio, 'pictures', None))
@@ -218,6 +232,13 @@ def inspect_flac(path, audio):
         'format': 'flac',
         'title': read_text_tag(audio, 'title', 'TITLE'),
         'artist': read_text_tag(audio, 'artist', 'ARTIST'),
+        'featured_artist': read_text_tag(
+            audio,
+            FEATURED_ARTIST_TAG,
+            'FEATURED_ARTIST',
+            'FEATURED ARTIST',
+        ),
+        'remix_artist': read_text_tag(audio, REMIX_ARTIST_TAG, 'REMIX ARTIST', 'remixer'),
         'album': read_text_tag(audio, 'album', 'ALBUM'),
         'date': read_text_tag(audio, 'date', 'DATE', 'year', 'YEAR'),
         'tracknumber': read_track_value(read_text_tag(audio, 'tracknumber', 'TRACKNUMBER')),
@@ -248,6 +269,8 @@ def inspect_mp3(path):
         'format': 'mp3',
         'title': read_text_tag(tags, 'TIT2'),
         'artist': read_text_tag(tags, 'TPE1'),
+        'featured_artist': read_txxx_value(tags, FEATURED_ARTIST_TXXX_DESC),
+        'remix_artist': read_text_tag(tags, 'TPE4'),
         'album': read_text_tag(tags, 'TALB'),
         'date': read_text_tag(tags, 'TDRC'),
         'tracknumber': read_track_value(read_text_tag(tags, 'TRCK')),
@@ -334,6 +357,8 @@ def update_flac(path, fields):
 
     title = normalize_field_text(fields, 'title')
     artist = normalize_field_text(fields, 'artist')
+    featured_artist = normalize_field_text(fields, 'featured_artist')
+    remix_artist = normalize_field_text(fields, 'remix_artist')
     album = normalize_field_text(fields, 'album')
     date = normalize_field_text(fields, 'date')
     tracknumber = normalize_field_text(fields, 'tracknumber')
@@ -346,6 +371,8 @@ def update_flac(path, fields):
 
     set_field('title', title)
     set_field('artist', artist)
+    set_field(FEATURED_ARTIST_TAG, featured_artist)
+    set_field(REMIX_ARTIST_TAG, remix_artist)
     set_field('album', album)
     set_field('date', date)
     set_field('tracknumber', tracknumber)
@@ -404,6 +431,8 @@ def update_mp3(path, fields):
 
     title = normalize_field_text(fields, 'title')
     artist = normalize_field_text(fields, 'artist')
+    featured_artist = normalize_field_text(fields, 'featured_artist')
+    remix_artist = normalize_field_text(fields, 'remix_artist')
     album = normalize_field_text(fields, 'album')
     date = normalize_field_text(fields, 'date')
     tracknumber = normalize_field_text(fields, 'tracknumber')
@@ -416,6 +445,8 @@ def update_mp3(path, fields):
 
     set_id3_text_frame(tags, 'TIT2', TIT2, title)
     set_id3_text_frame(tags, 'TPE1', TPE1, artist)
+    set_txxx_value(tags, FEATURED_ARTIST_TXXX_DESC, featured_artist)
+    set_id3_text_frame(tags, 'TPE4', TPE4, remix_artist)
     set_id3_text_frame(tags, 'TALB', TALB, album)
     set_id3_text_frame(tags, 'TDRC', TDRC, date)
     set_id3_text_frame(tags, 'TRCK', TRCK, tracknumber)

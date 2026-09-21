@@ -3,6 +3,7 @@
 let playList = []; // Loaded from get-player-playlist.php
 let currentIndex = 0;
 let brandStylesById = {};
+let showArtistNames = true; // Playlist setting: show_artist (default true)
 let PATH_VARIANT = 'optimal'; // Will be set by speed test (HQ or optimal), defaults to safe optimal
 const IMAGE_PATH_VARIANT = 'optimal';
 const TRACK_END_GUARD_EPSILON_SECONDS = 0.02;
@@ -2164,6 +2165,7 @@ function applyPlayerPlaylistPayload(data, options = {}) {
     const forcedCampaignId = String(options.forcedCampaignId || '').trim();
     playList = Array.isArray(data) ? data : (Array.isArray(data.tracks) ? data.tracks : []);
     brandStylesById = (data.brand_styles && typeof data.brand_styles === 'object') ? data.brand_styles : {};
+    showArtistNames = data.show_artist !== false;
     if (data.playlist_id) {
         window.BANDPROMO_PLAYLIST_ID = data.playlist_id;
     }
@@ -3073,7 +3075,16 @@ function updateVisuals(index) {
     
     // Main info
     songTitle.innerText = song.title;
-    artistName.innerText = song.artist;
+    if (artistName) {
+        const artist = String(song.artist || '').trim();
+        if (showArtistNames && artist !== '') {
+            artistName.innerText = artist;
+            artistName.hidden = false;
+        } else {
+            artistName.innerText = '';
+            artistName.hidden = true;
+        }
+    }
     setPlayerMarkdownHtml(
         lyricsBox,
         hasDisplayableLyrics(song) ? song.lyrics : '',
@@ -3300,6 +3311,28 @@ function toggleView(view) {
 }
 
 // Render the playlist
+function playlistTrackHeadlineParts(song) {
+    const rawTitle = String(song?.title || '').trim();
+    const lines = rawTitle.split(/\r?\n/).map((part) => String(part || '').trim()).filter(Boolean);
+    let title = lines[0] || '';
+    let version = String(song?.version || '').trim();
+    if (!version && lines.length > 1) {
+        version = lines.slice(1).join(' ').replace(/^\[/, '').replace(/\]$/, '').trim();
+    }
+    if (!version) {
+        const match = title.match(/^(.+?)\s+\[(.+)\]$/);
+        if (match) {
+            title = String(match[1] || '').trim();
+            version = String(match[2] || '').trim();
+        }
+    }
+    return {
+        title: title || 'Untitled',
+        version,
+        artist: String(song?.artist || '').trim(),
+    };
+}
+
 function renderPlaylist() {
     const playlistBox = document.getElementById('playlistBox');
     if (playList.length === 0) {
@@ -3313,16 +3346,21 @@ function renderPlaylist() {
         const isLocked = !isTrackPlayable(song) ? 'playlist-item--locked' : '';
         const lockLabel = playlistLockLabel(song);
 
-        const titleParts = String(song.title || '').split('\n');
-        const mainTitle = escapePlayerHtml(titleParts[0] || '');
-        const taleName = escapePlayerHtml(titleParts[1] || '');
+        const parts = playlistTrackHeadlineParts(song);
+        const mainTitle = escapePlayerHtml(parts.title);
+        const versionHtml = parts.version
+            ? ` <span class="playlist-track-tale">[${escapePlayerHtml(parts.version)}]</span>`
+            : '';
+        const artistHtml = (showArtistNames && parts.artist)
+            ? ` <span class="playlist-track-artist">${escapePlayerHtml(parts.artist)}</span>`
+            : '';
         const descriptionHtml = renderPlayerMarkdown(song.description || '', 'default');
 
         html += `
             <div class="playlist-item ${isCurrentTrack} ${isLocked}" onclick="playTrackFromPlaylist(${index})">
                 <img alt="${mainTitle}" class="playlist-track-cover" loading="lazy" decoding="async" width="70" height="70">
                 <div class="playlist-track-content">
-                    <h5 class="playlist-track-title">${mainTitle} <span class="playlist-track-tale">${taleName}</span></h5>
+                    <h5 class="playlist-track-title">${mainTitle}${versionHtml}${artistHtml}</h5>
                     <div class="playlist-track-description player-markdown-host">${descriptionHtml}${lockLabel}</div>
                 </div>
             </div>

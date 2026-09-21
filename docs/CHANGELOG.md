@@ -2,6 +2,54 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-09-21 16:00 - Audio track editor Details: Artist|Featured|Remix → Title|Version → Genre|BPM|Key → Release date; blurb autosizes; Markdown hints trail the blurb label and Lyrics|Notes toggler. Key allows up to 4 characters.
+
+2026-09-21 15:55 - Audio track editor: **Featured artist** and **Remix artist** under Artist; Release date moves under BPM. Registry + master tags (Vorbis `FEATUREDARTIST` / `REMIXER`, ID3 `TXXX:FEATURED ARTIST` / `TPE4`).
+
+2026-09-21 15:45 - Player playlist list: one-line headline `Title [Version] Artist` (artist only when Show artist is on); version no longer wraps to its own line.
+
+2026-09-21 15:40 - Playlists: **Show artist:** Show|Hide on Base info (default Show). Player now-playing and playlist list honour `show_artist` so single-artist packages need not repeat the name on every track.
+
+2026-09-21 15:25 - Pages editor: sticky add-block head sits under Content sub-tabs + breadcrumb (was `top: 0`, overlapping coral); rich-text bars stay with their block. Media picker campaign filter actually applies (`campaign` param was sent as ignored `release`).
+
+2026-09-21 15:10 - Admin sticky chrome: lock opaque `--admin-sticky-chrome-bg` (`#0f172a`) on every sticky toolbar/header over scrolling content (Files pool, Content/Status breadcrumb heads, page-builder sticky heads, richtext toolbar); keep translucent `--admin-slate-wash` for in-flow column headers only.
+
+2026-09-21 15:00 - Files pool sticky toolbar: opaque `#0f172a` background (was translucent slate wash) so list rows no longer show through filters/actions.
+
+2026-09-21 14:50 - Audio track editor: keep footer Save solid green (not amber); quiet head — no “Saving…” / “Saved” / “Unsaved changes” in the crumb (errors only).
+
+2026-09-21 14:45 - Audio track editor: dirty state via amber Save (no “Unsaved changes” crumb text); `#adminConfirmModal` z-index above Files editors so Abort discard confirms are not buried.
+
+2026-09-21 14:40 - Audio track editor: File facts as chips (hover titles) instead of labelled rows; Still cover stacked above Living cover at a larger size.
+
+2026-09-21 14:30 - Audio track editor: Visual-style File \| Details grouping (static facts vs editable tags); identity then music field order; colon labels; footer Download → Delete → Abort → Save. Compound Artist · Title crumb stays read-only (accepted exception).
+
+2026-09-21 14:10 - Content compactness pass: shared chrome onto 0/4/8 — `.split-editor` gap 18→8; section body pad 12/16→8; field stacks / inline rows →8; chip/view heads →8; campaign preview blocks →8; Branding form/grids/shell slots →8; gallery picker toolbar margin 10→8. ISO date icon clearance unchanged.
+
+2026-09-21 14:00 - Catalogue section chips: stop wrapping inside the locked 48px column header (was overlapping Base info). Split headers use 8px padding (was 10/14); chip padding 4×8; subnav nowrap with thin horizontal scroll if the column is still too narrow.
+
+2026-09-21 13:55 - Content chrome tidy: Branding/Playlists drop the duplicate ✓ Base brand / ✓ Default playlist action when the status chip already says Base/Default (★ Set as… only when actionable); Catalogue/Playlists pool right column renamed Live preview; Galleries edit left column gets the standard 48px slate header.
+
+2026-09-21 13:40 - Content pools: undeletable / locked / required / protected rows show a disabled 🔒 in the Delete slot (Catalogue, Playlists, Galleries, Pages, Branding) via shared `protectedButton()`.
+
+2026-09-21 13:35 - Branding pool: locked/base rows show a disabled 🔒 in the Delete slot so action columns stay aligned.
+
+2026-09-21 13:30 - Content split editors follow Pages canon: title on crumb tail; Catalogue/Branding chips in left column header; pool title Available content; Available muted green for pool tools + Create/Browse/Change-media; Branding + Add brand duplicates the base brand; nested content-pool headers stay 48px.
+
+2026-09-21 13:15 - Page builder block actions (↑ ↓ 🗑️) use Available muted green (`.media-action-good`); disabled stays grey.
+
+2026-09-21 13:10 - Page builder block actions (↑ ↓ 🗑️) are equal 28×28 icon buttons.
+
+2026-09-21 12:30 - `.content-editor-card-head` locked to 33px everywhere (Pool no longer collapses when ← Back / Save are hidden). ADMIN-UI + cursor rule registered.
+
+2026-09-21 12:20 - Pages (and split Live preview): column headers share the slate panel wash (drop sticky Live preview override that read grey over preview HTML); Content crumbs are `📄 Content > {Section} > Pool|Editor`; Pages title sits on the crumb tail with Base info|Page builder in the left column header; page-builder add-block buttons use Available muted green.
+
+2026-09-21 09:05 - Breadcrumb helper is path-based with presets (`page`, `files_pool`, `content_section`, `system`). All admin page crumbs, Status, and Files modals render through it; legacy emoji/label options still normalise.
+
+2026-09-21 08:55 - System crumbs include the main tab (`🛠️ System > Environment|Audit|Backup|Status…`). Breadcrumb heads share 16px / 600 / line-height 1.35 / min-height 30px.
+
+2026-09-21 08:45 - Breadcrumbs on remaining admin page views (Dashboard, Analytics, Users, Settings, System Audit/Backup/Environment, Documentation). Helper accepts `current => false` for single-level roots; ADMIN-UI table updated.
+
 2026-09-20 23:50 - Registered canonical admin date look (Captured exemplar): left calendar, padding clearance, compact ISO width. Shared `.date-input-shell` styles, ADMIN-UI, and `.cursor/rules/iso-date-fields.mdc`.
 
 2026-09-20 22:00 - Files → Visual / SFX: title moves to the breadcrumb tail; Captured uses the shared ISO date picker; Done is green beside Delete. ADMIN-UI: leave vocabulary (Done vs Close vs Save vs Back), date-field contract, and modal colour rules clarified.

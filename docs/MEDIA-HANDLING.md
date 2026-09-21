@@ -1205,8 +1205,12 @@ For source files, the current reader looks for:
 
 - `TITLE` or ID3 `TIT2` for track title
 - `ARTIST` or ID3 `TPE1` for artist
+- `FEATUREDARTIST` / `FEATURED ARTIST` or ID3 `TXXX:FEATURED ARTIST` for featured artist (Files → Audio editor; registry `display.featured_artist`)
+- `REMIXER` / `REMIX ARTIST` or ID3 `TPE4` for remix artist (Files → Audio editor; registry `display.remix_artist`)
 - `ALBUM` or ID3 `TALB` for album
 - `TRACKNUMBER` or ID3 `TRCK` for track ordering
+
+Featured / remix artist are stored on the master and in the asset registry for editing and PCF round-trip. Listener playlist payloads still use primary `artist` only until a player display rule is added.
 
 ### Lyrics currently read
 
@@ -1378,7 +1382,7 @@ If multiple issues affect one track, the admin summary should show the highest-s
 ## Current limitations
 
 - The admin UI keeps unresolved publish/build follow-up and validation issues visible in a persistent **What needs your attention** inbox modal (header bell and dashboard summary). The completed-install dashboard shows a short status line rather than the full task list inline.
-- Metadata repair now covers the first audio-master editor pass, including common text fields, lyrics, cover selection, release date, and operator-facing title/version handling, plus tag-bullet quick-edit for short fields from Files -> Audio: artist, title, version, release/album name, track, release date, genre, BPM, and key. Larger fields such as description and lyrics stay in the full editor. Broader packaging workflows are still incomplete.
+- Metadata repair now covers the first audio-master editor pass, including common text fields (artist, featured artist, remix artist, title/version, genre, BPM, key, release date), lyrics, cover selection, plus tag-bullet quick-edit for short fields from Files -> Audio: artist, title, version, release/album name, track, release date, genre, BPM, and key. Larger fields such as description and lyrics stay in the full editor. Broader packaging workflows are still incomplete.
 - Some MP3 files tagged mainly through APEv2 may still behave inconsistently compared with FLAC or clean ID3v2-tagged files.
 - Real audio metadata changes still flow through the older coarse build-required state, so the operator messaging is better for no-op saves than for task-specific follow-up after actual edits.
 - The current `optimal` label is too vague; delivery targets should be defined by actual usage context rather than implied quality alone.

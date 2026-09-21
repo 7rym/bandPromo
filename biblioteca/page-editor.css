@@ -54,16 +54,21 @@
 .page-editor-view-head {
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 8px;
 }
 
 .page-editor-view > .page-editor-view-head {
-    background: var(--border2);
-    border-bottom: 1px solid #3d3d3d;
+    background: var(--admin-slate-wash);
+    border-bottom: 1px solid var(--border);
 }
 
 .content-editor-view-head {
     justify-content: flex-start;
+}
+
+.content-editor-view-head .content-editor-subnav {
+    flex: 0 1 auto;
+    min-width: 0;
 }
 
 .content-editor-head-name {
@@ -82,6 +87,43 @@
     padding: 6px 8px;
 }
 
+.content-editor-breadcrumb .content-editor-breadcrumb-title,
+.content-editor-breadcrumb .content-editor-name-input {
+    flex: 0 1 auto;
+    min-width: 8rem;
+    max-width: 16rem;
+    margin-left: 0.45rem;
+    font-weight: 700;
+}
+
+.content-editor-breadcrumb .content-editor-breadcrumb-badges {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    margin-left: 0.35rem;
+    flex: 0 0 auto;
+}
+
+/* Keep Content > Section > Editor [title] on one row when possible. */
+.editor-card .content-editor-breadcrumb {
+    flex-wrap: nowrap;
+    align-items: center;
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+.editor-card .content-editor-breadcrumb .content-editor-name-input {
+    flex: 1 1 10rem;
+    min-width: 6rem;
+    max-width: 18rem;
+}
+
+.editor-card:not(.is-editing) .content-editor-breadcrumb .content-editor-breadcrumb-title,
+.editor-card:not(.is-editing) .content-editor-breadcrumb .content-editor-name-input,
+.editor-card:not(.is-editing) .content-editor-breadcrumb .content-editor-breadcrumb-badges {
+    display: none;
+}
+
 #pageEditorView .content-editor-name-input,
 #themeEditorView .content-editor-name-input,
 #playlistTracksPoolView .content-editor-name-input,
@@ -95,9 +137,13 @@
     background: rgba(0, 0, 0, 0.15);
 }
 
+.content-editor-section > .content-editor-section-body:first-child {
+    border-radius: 9px;
+}
+
 .content-editor-section-head {
     margin: 0;
-    padding: 8px 10px;
+    padding: 8px;
     background: var(--border2);
     border-bottom: 1px solid #3d3d3d;
     border-radius: 9px 9px 0 0;
@@ -108,31 +154,36 @@
 }
 
 .content-editor-section-head .page-editor-hint {
-    margin: 6px 0 0;
+    margin: 4px 0 0;
 }
 
 .content-editor-section-body {
-    padding: 0.75rem 1rem 1rem;
+    padding: 8px;
 }
 
 .content-editor-subnav {
     display: inline-flex;
     align-items: stretch;
-    align-self: flex-start;
-    flex-wrap: wrap;
+    align-self: stretch;
+    flex-wrap: nowrap;
     gap: 0;
     max-width: 100%;
+    min-width: 0;
+    height: 100%;
+    max-height: 32px;
     border: 1px solid var(--border, rgba(255, 255, 255, 0.14));
     border-radius: 7px;
-    overflow: hidden;
+    overflow-x: auto;
+    overflow-y: hidden;
     background: rgba(15, 23, 42, 0.45);
-    flex-shrink: 0;
+    flex-shrink: 1;
+    scrollbar-width: thin;
 }
 
 .content-editor-subnav-btn {
     appearance: none;
     margin: 0;
-    padding: 0.4rem 0.85rem;
+    padding: 4px 8px;
     border: 0;
     border-left: 1px solid var(--border, rgba(255, 255, 255, 0.14));
     background: transparent;
@@ -142,6 +193,7 @@
     line-height: 1.2;
     cursor: pointer;
     white-space: nowrap;
+    flex: 0 0 auto;
 }
 
 .content-editor-subnav-btn:first-child {
@@ -161,13 +213,13 @@
 .content-editor-field-stack {
     display: flex;
     flex-direction: column;
-    gap: 0.65rem;
+    gap: 8px;
 }
 
 .content-editor-field {
     display: flex;
     flex-direction: column;
-    gap: 0.25rem;
+    gap: 4px;
     margin: 0;
     min-width: 0;
 }
@@ -182,7 +234,7 @@
     flex-direction: row;
     flex-wrap: nowrap;
     align-items: center;
-    gap: 0.45rem 0.65rem;
+    gap: 4px 8px;
 }
 
 .content-editor-field--inline > .content-editor-field-label {
@@ -325,9 +377,12 @@
 
 .page-editor-section--builder > .content-editor-section-head {
     position: sticky;
-    top: 0;
+    /* Under Content sub-tabs + breadcrumb — top:0 overlapped the coral bar. */
+    top: var(--page-builder-sticky-top, 71px);
     z-index: 25;
-    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.18);
+    background: var(--admin-sticky-chrome-bg);
+    border-bottom: 1px solid var(--admin-sticky-chrome-border);
+    box-shadow: none;
 }
 
 .page-editor-section--builder .content-editor-section-head .page-editor-toolbar {
@@ -358,13 +413,13 @@
 
 .page-editor-back-btn {
     font-size: 13px;
-    padding: 6px 10px;
+    padding: 4px 8px;
 }
 
 .page-editor-view-body {
     display: flex;
     flex-direction: column;
-    gap: 12px;
+    gap: 8px;
     flex: 1 1 auto;
     min-height: 0;
     overflow: visible;
@@ -411,12 +466,6 @@
 
 .content-pool-section[hidden] {
     display: none !important;
-}
-
-.content-pool-head {
-    height: auto;
-    min-height: 0;
-    padding-top: 0;
 }
 
 .content-pool-list {
@@ -588,7 +637,7 @@
 }
 
 .campaign-streaming-fields {
-    gap: 10px;
+    gap: 8px;
 }
 
 .campaign-enjoy-fields {
@@ -608,7 +657,7 @@
 .campaign-streaming-grid {
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 10px;
+    gap: 8px;
     flex: 1 1 100%;
     width: 100%;
 }
@@ -748,11 +797,13 @@
 #pageEditorLayout .page-editor-preview-panel > .split-editor__header,
 #themeEditorLayout .theme-editor-preview-panel > .split-editor__header,
 #playlistEditorLayout .split-editor__col--active > .split-editor__panel > .split-editor__header {
-    position: sticky;
-    top: 0;
-    z-index: 21;
-    background: var(--border2);
-    border-bottom: 1px solid #3d3d3d;
+    /* Same static slate header as Available content — sticky + translucent wash
+       over preview HTML made Live preview read as a different grey. */
+    position: static;
+    top: auto;
+    z-index: auto;
+    background: var(--admin-slate-wash);
+    border-bottom: 1px solid var(--border);
 }
 
 #pageEditorLayout .page-editor-preview-body {
@@ -774,7 +825,7 @@
 .page-editor-shell {
     display: grid;
     grid-template-columns: minmax(0, 1fr) minmax(280px, 0.85fr);
-    gap: 10px;
+    gap: 8px;
     align-items: start;
 }
 
@@ -782,8 +833,17 @@
 .page-editor-preview-panel {
     border: 1px solid var(--border);
     border-radius: 12px;
-    background: var(--surface);
     padding: 0;
+}
+
+.page-editor-panel {
+    background: var(--surface);
+}
+
+/* Keep Live preview on the same panel wash as Available content so translucent
+   column headers do not read as a different grey over --surface. */
+.split-editor__panel.page-editor-preview-panel {
+    background: rgba(15, 23, 42, 0.32);
 }
 
 .page-editor-panel h4 {
@@ -814,14 +874,14 @@
     display: flex;
     align-items: center;
     justify-content: flex-end;
-    gap: 10px;
+    gap: 8px;
     flex: 0 0 auto;
     min-width: 0;
 }
 
 .page-editor-save-row .btn {
     font-size: 13px;
-    padding: 6px 10px;
+    padding: 4px 8px;
     white-space: nowrap;
 }
 
@@ -838,9 +898,11 @@
 
 .page-editor-panel-head {
     position: sticky;
-    top: 0;
+    top: var(--page-builder-sticky-top, 71px);
     z-index: 25;
     margin: 0;
+    background: var(--admin-sticky-chrome-bg);
+    border-bottom: 1px solid var(--admin-sticky-chrome-border);
 }
 
 .page-editor-toolbar {
@@ -871,12 +933,14 @@
 }
 
 .page-rich-toolbar-sticky {
-    position: sticky;
-    top: 7.5rem;
-    z-index: 12;
-    background: var(--card);
+    /* Stay with the block — nested sticky under the builder head floated the
+       formatting bar through add-block chrome while scrolling. */
+    position: static;
+    top: auto;
+    z-index: auto;
+    background: transparent;
     padding-bottom: 4px;
-    border-bottom: 1px solid var(--border);
+    border-bottom: none;
 }
 
 .page-rich-toolbar-sticky .page-word-toolbar {
@@ -1388,12 +1452,31 @@
 
 .page-block-actions {
     display: flex;
+    align-items: center;
     gap: 4px;
 }
 
-.page-block-actions .btn {
-    font-size: 11px;
-    padding: 4px 7px;
+.page-block-actions > button {
+    box-sizing: border-box;
+    flex: 0 0 auto;
+    width: 28px;
+    height: 28px;
+    min-width: 28px;
+    min-height: 28px;
+    padding: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 13px;
+    line-height: 1;
+    border-radius: 5px;
+}
+
+.page-block-actions > button[disabled] {
+    color: var(--muted);
+    border-color: var(--border2);
+    background: rgba(255, 255, 255, 0.04);
+    cursor: default;
 }
 
 .page-block-field {
@@ -1488,7 +1571,7 @@
     min-height: 220px;
     max-height: none;
     overflow: visible;
-    padding: 10px 8px;
+    padding: 8px;
 }
 
 .page-editor-preview-frame .page-preview {
@@ -1500,17 +1583,17 @@
 .page-registry-form-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-    gap: 10px;
+    gap: 8px;
     align-items: end;
 }
 
 #pageEditorRoot.card {
-    margin-bottom: 16px;
+    margin-bottom: 8px;
 }
 
 .add-page-panel {
     margin-bottom: 8px;
-    padding: 8px 10px;
+    padding: 8px;
     border: 1px solid var(--border);
     border-radius: 10px;
     background: var(--card);
@@ -1519,7 +1602,7 @@
 .add-page-form {
     display: flex;
     flex-wrap: wrap;
-    gap: 10px;
+    gap: 8px;
     align-items: end;
 }
 
@@ -1549,7 +1632,7 @@
 .playlist-settings-fields {
     display: flex;
     flex-wrap: wrap;
-    gap: 10px;
+    gap: 8px;
     align-items: end;
     flex: 1 1 auto;
     min-width: 0;
@@ -1559,7 +1642,7 @@
     display: flex;
     align-items: flex-start;
     justify-content: space-between;
-    gap: 10px;
+    gap: 8px;
 }
 
 .playlist-settings-label-row {
@@ -1619,7 +1702,7 @@
 .campaign-catalog-meta-fields {
     display: grid;
     grid-template-columns: minmax(0, 200px) minmax(0, 1fr);
-    gap: 10px 12px;
+    gap: 8px;
     align-items: start;
 }
 
@@ -1634,7 +1717,7 @@
     display: grid;
     grid-template-columns: 110px minmax(0, 1fr);
     align-items: center;
-    gap: 10px;
+    gap: 8px;
 }
 
 .campaign-editor-form-label {
@@ -1645,7 +1728,7 @@
 .campaign-editor-title-control {
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 8px;
     min-width: 0;
 }
 
@@ -1692,7 +1775,7 @@
 .campaign-base-panels {
     display: flex;
     flex-direction: column;
-    gap: 0.75rem;
+    gap: 8px;
 }
 
 .campaign-editor-section-tabs {
@@ -1850,10 +1933,6 @@
     margin: 0;
 }
 
-.page-block-delete-btn {
-    padding: 4px 8px;
-}
-
 .page-unsaved-actions {
     display: flex;
     flex-wrap: wrap;
@@ -1873,7 +1952,7 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 12px;
+    gap: 8px;
     margin-bottom: 8px;
 }
 

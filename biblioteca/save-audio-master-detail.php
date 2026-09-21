@@ -54,7 +54,20 @@ if ($filename === '' || strpbrk($filename, '/\\') !== false) {
 }
 
 $fields = is_array($payload['fields'] ?? null) ? $payload['fields'] : [];
-$allowed_keys = ['title', 'artist', 'album', 'date', 'tracknumber', 'bpm', 'initialkey', 'genre', 'comment', 'lyrics'];
+$allowed_keys = [
+    'title',
+    'artist',
+    'featured_artist',
+    'remix_artist',
+    'album',
+    'date',
+    'tracknumber',
+    'bpm',
+    'initialkey',
+    'genre',
+    'comment',
+    'lyrics',
+];
 $normalized_fields = [];
 foreach ($allowed_keys as $key) {
     $value = $fields[$key] ?? '';
@@ -116,9 +129,9 @@ if (bandpromo_text_length($normalized_fields['comment']) > 300) {
     exit;
 }
 
-if ($normalized_fields['initialkey'] !== '' && bandpromo_text_length($normalized_fields['initialkey']) > 3) {
+if ($normalized_fields['initialkey'] !== '' && bandpromo_text_length($normalized_fields['initialkey']) > 4) {
     http_response_code(400);
-    echo json_encode(['error' => 'Key must be 3 characters or fewer']);
+    echo json_encode(['error' => 'Key must be 4 characters or fewer']);
     exit;
 }
 

@@ -552,6 +552,7 @@ Listening package type is operator labeling (not access `kind`): `single` | `ep`
 |-------|--------|-------|
 | `package_type` | see above | Shown in the playlist pool; defaults new docs to `other` |
 | `play_order` | `stored` \| `reverse` | Player list + next/prev use this order; admin edit list stays stored order |
+| `show_artist` | `true` \| `false` | Player now-playing + playlist list show artist names; default `true`. Hide for single-artist packages so titles stay uncluttered |
 
 Shows and podcasts default to `reverse` so operators append episodes at the bottom of the edit list while the player plays newest first. Changing package type without an explicit play-order choice resets play order to that type’s default. Deep links still resolve by slug against the playback-ordered track list.
 

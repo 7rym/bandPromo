@@ -492,6 +492,8 @@ function bandpromo_audio_master_detail_from_registry(string $root, string $filen
         'title' => $title,
         'version' => $version,
         'artist' => trim((string) ($display['artist'] !== '' ? $display['artist'] : ($playlistEntry['artist'] ?? ''))),
+        'featured_artist' => trim((string) ($display['featured_artist'] ?? '')),
+        'remix_artist' => trim((string) ($display['remix_artist'] ?? '')),
         'album' => trim((string) ($display['album'] !== '' ? $display['album'] : ($playlistEntry['album'] ?? ''))),
         'date' => trim((string) ($display['date'] ?? '')),
         'tracknumber' => trim((string) ($display['tracknumber'] ?? '')),

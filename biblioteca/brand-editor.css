@@ -110,7 +110,7 @@
 .brand-role-row {
     display: flex;
     flex-wrap: wrap;
-    gap: 0.65rem 1.25rem;
+    gap: 8px;
     align-items: center;
 }
 
@@ -229,13 +229,13 @@
     display: flex;
     flex-wrap: wrap;
     align-items: center;
-    gap: 0.55rem 1rem;
+    gap: 4px 8px;
 }
 
 .brand-content-chrome-grid {
     display: flex;
     flex-direction: column;
-    gap: 0.65rem;
+    gap: 8px;
 }
 
 /* Label + control on one line across Content panels. */
@@ -245,7 +245,7 @@
     flex-direction: row;
     flex-wrap: nowrap;
     align-items: center;
-    gap: 0.45rem 0.55rem;
+    gap: 4px 8px;
     min-width: 0;
     margin: 0;
 }
@@ -415,7 +415,7 @@
 
 .brand-editor-empty {
     margin: 0;
-    padding: 1rem;
+    padding: 8px;
     color: var(--muted);
     font-size: 0.9rem;
 }
@@ -423,14 +423,14 @@
 .brand-editor-form {
     display: flex;
     flex-direction: column;
-    gap: 1rem;
-    padding: 0.25rem 0;
+    gap: 8px;
+    padding: 0;
 }
 
 .brand-editor-tab-panel {
     display: flex;
     flex-direction: column;
-    gap: 1rem;
+    gap: 8px;
 }
 
 .brand-editor-tab-panel[hidden] {
@@ -440,7 +440,7 @@
 .brand-token-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-    gap: 0.65rem 1rem;
+    gap: 8px;
 }
 
 .brand-token-field {
@@ -458,7 +458,7 @@
     flex-direction: row;
     flex-wrap: nowrap;
     align-items: center;
-    gap: 0.45rem 0.65rem;
+    gap: 4px 8px;
     margin: 0;
 }
 
@@ -573,7 +573,7 @@
 .theme-preview-section {
     border: 1px solid rgba(255, 255, 255, 0.08);
     border-radius: 10px;
-    padding: 0.75rem 0.85rem;
+    padding: 8px;
     background: rgba(0, 0, 0, 0.18);
 }
 
@@ -1069,12 +1069,12 @@
 .theme-preview-surfaces {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-    gap: 0.75rem;
+    gap: 8px;
 }
 
 .theme-preview-surface {
     border-radius: 8px;
-    padding: 0.75rem;
+    padding: 8px;
     display: flex;
     flex-direction: column;
     gap: 0.25rem;
@@ -1156,7 +1156,7 @@
 
 .brand-editor-view-head {
     justify-content: flex-start;
-    gap: 10px;
+    gap: 8px;
 }
 
 .brand-editor-head-badges {
@@ -1185,14 +1185,14 @@
 .brand-shell-media-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(168px, 1fr));
-    gap: 0.85rem;
+    gap: 8px;
 }
 
 .brand-shell-slot {
     display: flex;
     flex-direction: column;
-    gap: 0.45rem;
-    padding: 0.7rem;
+    gap: 4px;
+    padding: 8px;
     border: 1px dashed rgba(255, 255, 255, 0.18);
     border-radius: 10px;
     background: rgba(255, 255, 255, 0.03);
@@ -1320,7 +1320,7 @@
 
 .brand-effects-grid {
     display: grid;
-    gap: 14px;
+    gap: 8px;
 }
 
 .brand-effect-field {
@@ -1656,7 +1656,7 @@
 .theme-preview-assets {
     display: flex;
     flex-wrap: wrap;
-    gap: 0.75rem;
+    gap: 8px;
 }
 
 .theme-preview-asset {

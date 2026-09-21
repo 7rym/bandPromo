@@ -30,7 +30,9 @@
     const logEl = document.getElementById('siteHealthLog');
     const spinnerEl = document.getElementById('siteHealthSpinner');
     const breadcrumbStepsEl = document.getElementById('siteHealthBreadcrumbSteps');
+    const crumbSystemLink = document.getElementById('siteHealthCrumbSystem');
     const crumbStatusLink = document.getElementById('siteHealthCrumbStatus');
+    const crumbStatusLeaf = document.getElementById('siteHealthCrumbStatusLeaf');
     const crumbSepEl = document.getElementById('siteHealthCrumbSep');
     const crumbHomeBtn = document.getElementById('siteHealthCrumbHome');
     const logCardEl = document.getElementById('site-health-log-card');
@@ -743,15 +745,22 @@
             return;
         }
 
+        const onStatusLanding = uiStage === 'status';
+        if (crumbStatusLink) {
+            crumbStatusLink.hidden = onStatusLanding;
+        }
+        if (crumbStatusLeaf) {
+            crumbStatusLeaf.hidden = !onStatusLanding;
+        }
         if (crumbSepEl) {
-            crumbSepEl.hidden = uiStage === 'status';
+            crumbSepEl.hidden = onStatusLanding;
         }
         if (crumbHomeBtn) {
             // Site health root link: visible once past the Action hub.
-            crumbHomeBtn.hidden = uiStage === 'status' || uiStage === 'hub';
+            crumbHomeBtn.hidden = onStatusLanding || uiStage === 'hub';
         }
 
-        if (uiStage === 'status') {
+        if (onStatusLanding) {
             breadcrumbStepsEl.innerHTML = '';
             return;
         }
@@ -3065,6 +3074,12 @@
         });
     });
 
+    if (crumbSystemLink) {
+        crumbSystemLink.addEventListener('click', (event) => {
+            event.preventDefault();
+            goBreadcrumb('status');
+        });
+    }
     if (crumbStatusLink) {
         crumbStatusLink.addEventListener('click', (event) => {
             event.preventDefault();

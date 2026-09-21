@@ -753,7 +753,7 @@
                     campaignPresskitLivePreview.hidden = true;
                 }
                 if (campaignEditorPreviewHeading) {
-                    campaignEditorPreviewHeading.textContent = 'Preview';
+                    campaignEditorPreviewHeading.textContent = 'Live preview';
                 }
                 if (campaignAssociationActiveList) {
                     campaignAssociationActiveList.hidden = true;
@@ -815,7 +815,7 @@
                     galleries: 'Associated galleries',
                     pages: 'Associated pages',
                 };
-                campaignEditorPreviewHeading.textContent = headings[campaignEditorTab] || 'Preview';
+                campaignEditorPreviewHeading.textContent = headings[campaignEditorTab] || 'Live preview';
             }
             refreshCampaignBaseBrandPreview();
             refreshCampaignOwnershipSummary();
@@ -2687,6 +2687,15 @@
                                 dataAttribute: `data-campaign-id="${escapedId}"`,
                             })
                         );
+                    } else {
+                        const lockReason = campaignIsPlatformDemo(entry)
+                            ? 'Demo campaign cannot be deleted'
+                            : (campaignIsProtected(entry)
+                                ? 'Protected campaign cannot be deleted'
+                                : (entry && entry.locked
+                                    ? 'Locked campaign cannot be deleted'
+                                    : 'This campaign cannot be deleted'));
+                        actions.push(registry.protectedButton(lockReason));
                     }
 
                     return registry.row({

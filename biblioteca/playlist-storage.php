@@ -60,6 +60,29 @@ function bandpromo_playlist_normalize_play_order(string $order): string
 }
 
 /**
+ * Whether the player shows artist names (now playing + playlist list).
+ * Default true so existing playlists keep today’s behaviour.
+ */
+function bandpromo_playlist_normalize_show_artist($value): bool
+{
+    if (is_bool($value)) {
+        return $value;
+    }
+    if (is_int($value) || is_float($value)) {
+        return ((int) $value) !== 0;
+    }
+    $raw = strtolower(trim((string) $value));
+    if ($raw === '' || $raw === '1' || $raw === 'true' || $raw === 'yes' || $raw === 'on' || $raw === 'show') {
+        return true;
+    }
+    if ($raw === '0' || $raw === 'false' || $raw === 'no' || $raw === 'off' || $raw === 'hide') {
+        return false;
+    }
+
+    return true;
+}
+
+/**
  * Default play order for a package type (shows/podcasts play newest first).
  */
 function bandpromo_playlist_default_play_order_for_package_type(string $type): string
@@ -1017,6 +1040,9 @@ function bandpromo_playlist_normalize_document(array $input, ?string $expectedId
     $playOrder = array_key_exists('play_order', $input)
         ? bandpromo_playlist_normalize_play_order((string) $input['play_order'])
         : bandpromo_playlist_default_play_order_for_package_type($packageType);
+    $showArtist = array_key_exists('show_artist', $input)
+        ? bandpromo_playlist_normalize_show_artist($input['show_artist'])
+        : true;
 
     $document = [
         'version' => BANDPROMO_PLAYLIST_REGISTRY_VERSION,
@@ -1026,6 +1052,7 @@ function bandpromo_playlist_normalize_document(array $input, ?string $expectedId
         'kind' => $kind,
         'package_type' => $packageType,
         'play_order' => $playOrder,
+        'show_artist' => $showArtist,
         'publish_date' => $publishDate,
         'campaign_id' => $campaignId,
         'description' => bandpromo_campaign_normalize_text_field($input['description'] ?? '', 4000),
@@ -1086,6 +1113,7 @@ function bandpromo_playlist_new_document(string $id, string $title): array
         'kind' => 'system',
         'package_type' => 'other',
         'play_order' => 'stored',
+        'show_artist' => true,
         'publish_date' => gmdate('Y-m-d'),
         'release_id' => '',
         'description' => '',
@@ -2561,6 +2589,7 @@ function bandpromo_playlist_load_player_response(
         'play_order' => bandpromo_playlist_normalize_play_order(
             (string) ($document['play_order'] ?? 'stored')
         ),
+        'show_artist' => bandpromo_playlist_normalize_show_artist($document['show_artist'] ?? true),
         'preferred_audio_variant' => $preferredVariant,
         'delivery_summary' => $deliverySummary,
         'brand_styles' => $brandStyles,
@@ -3083,6 +3112,7 @@ function bandpromo_playlist_admin_registry_entry(string $root, array $registryEn
         $entry['play_order'] = bandpromo_playlist_normalize_play_order(
             (string) ($document['play_order'] ?? bandpromo_playlist_default_play_order_for_package_type($entry['package_type']))
         );
+        $entry['show_artist'] = bandpromo_playlist_normalize_show_artist($document['show_artist'] ?? true);
     } catch (Throwable $throwable) {
         // Keep registry-only fields when the document is missing.
         $entry['slug'] = (string) ($entry['slug'] ?? $playlistId);
@@ -3091,6 +3121,7 @@ function bandpromo_playlist_admin_registry_entry(string $root, array $registryEn
         $entry['package_type'] = 'other';
         $entry['package_type_label'] = bandpromo_playlist_package_type_label('other');
         $entry['play_order'] = 'stored';
+        $entry['show_artist'] = true;
     }
 
     $configuredDefault = bandpromo_playlist_configured_default_id($root);
@@ -3361,6 +3392,9 @@ function bandpromo_playlist_update_details(string $root, string $playlistId, arr
             (string) ($document['package_type'] ?? 'other')
         );
     }
+    if (array_key_exists('show_artist', $fields)) {
+        $document['show_artist'] = bandpromo_playlist_normalize_show_artist($fields['show_artist']);
+    }
     if (!empty($fields['set_as_default'])) {
         bandpromo_playlist_set_default_id($root, $playlistId);
     } elseif (array_key_exists('set_as_default', $fields) && empty($fields['set_as_default'])) {
@@ -3369,7 +3403,7 @@ function bandpromo_playlist_update_details(string $root, string $playlistId, arr
             bandpromo_playlist_clear_default_id($root);
         }
     }
-    // Keep published player tracks: package_type / play_order apply at load time;
+    // Keep published player tracks: package_type / play_order / show_artist apply at load time;
     // brand styles also resolve live. Membership/entry edits clear payloads elsewhere.
     bandpromo_playlist_write_document($root, $document);
 
