@@ -2,6 +2,10 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-09-22 21:20 - Files drops the Original|Master list toggle and any operator path to archival uploads: pools, pickers, and previews resolve masters only; dead toggle JS/CSS removed. Originals stay disposable intake reclaimable from Status → Storage.
+
+2026-09-22 21:15 - Files downloads are masters-only: drop Download original everywhere (Audio / Visual / SFX pool, editors, bulk). `download-media.php` streams enriched masters for all families; archival uploads stay intake-only for master creation/heal.
+
 2026-09-22 20:35 - Status → Storage: stop Chart.js auto-skipping media-tier bar labels (Visual/SFX were vanishing in short charts); size the bar area by row count and keep a minimum bar length.
 
 2026-09-22 20:15 - Status → Storage: load Chart.js on the Status tab (was Analytics-only), so host/install/reclaim gauges actually render; legend rows keep a swatch column so Total aligns.

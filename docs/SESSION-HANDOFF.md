@@ -2,9 +2,12 @@
 
 ## Resume point
 
-Session ended and **published** **v0.8.95 build 582** (`v0.8.95-build-582`): Status → Storage media-tier bar keeps all family labels (Chart.js `autoSkip` off; bar height by row count).
+**Checkpoint pending publish** this turn: Files masters-only (no Download original; no Original|Master list toggle; admin paths resolve masters).
 
-**Next:** Testers: Dashboard → Site update. HITZ: Status → Storage to discard eligible archival uploads if quota is still tight. Optional: Files pool compactness; featured/remix player display.
+**Next (do not skip):**
+1. Strip operator/runtime **fallbacks** that still read or invent `original/` uploads, legacy folders (`img`/`photo`/`video`/`special`), or legacy filename dual-reads — prefer hard cut; ask only if a live fleet path would break.
+2. Full audit for stale PHP/JS/CSS/scripts/helpers/docs left behind by that cut.
+3. Testers: Dashboard → Site update after publish. HITZ Storage reclaim still available for disposable intake.
 
 ### Policy locked (do not reopen)
 
@@ -32,6 +35,7 @@ Session ended and **published** **v0.8.95 build 582** (`v0.8.95-build-582`): Sta
 - ffmpeg capture must decode stderr as UTF-8 with replace (Windows charmap)
 - Sticky playlist-scan Notifications heal on bell (full) or Site health Check start
 - Archival original discard lives under **System → Status → Storage** only (not Files)
+- Files pools/pickers/downloads are **masters only** — no Original|Master list toggle; originals are disposable intake
 - VERSION **session** number bumps only when the operator explicitly starts a session (`session-start.ps1 -BumpSession` / `/bandpromo-session-start`); agent resume must not bump
 
 ### Local workspace

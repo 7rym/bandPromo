@@ -914,7 +914,6 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
             };
             const mediaReferenceFilterTypes = new Set(['visual', 'illustrations', 'photos', 'video']);
             const poolPanelTypes = new Set(['visual', 'sfx']);
-            let audioDisplayMode = 'master';
             let expandedAudioFile = null;
             const mediaSelectionState = new Map();
             const mediaFilesState = new Map();
@@ -960,19 +959,19 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 photos: 'Photos',
                 sfx: 'Sound effects',
             };
+            // Operator-facing URLs are masters only — archival uploads are disposable intake.
             const mediaPathMap = {
-                audio: '/media/audio/original',
-                video: '/media/visual/original',
-                illustrations: '/media/visual/original',
-                photos: '/media/visual/original',
-                // Legacy special intake dual-read still resolves under Visual originals.
-                special: '/media/visual/original',
-                sfx: '/media/sfx/original',
+                audio: '/media/audio/master',
+                video: '/media/visual/master',
+                illustrations: '/media/visual/master',
+                photos: '/media/visual/master',
+                special: '/media/visual/master',
+                sfx: '/media/sfx/master',
                 // Registry intake aliases (visual pool / asset.intake_bucket).
-                img: '/media/visual/original',
-                photo: '/media/visual/original',
-                images: '/media/visual/original',
-                visual: '/media/visual/original',
+                img: '/media/visual/master',
+                photo: '/media/visual/master',
+                images: '/media/visual/master',
+                visual: '/media/visual/master',
             };
 
             function normalizeMediaPathType(type) {
@@ -996,7 +995,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 const safeName = String(filename || '').replace(/^\/+/, '');
                 if (!base) {
                     // Never emit "/filename" — that breaks cover preview + poster save.
-                    return safeName ? `/media/visual/original/${safeName}` : '';
+                    return safeName ? `/media/visual/master/${safeName}` : '';
                 }
                 return `${base}/${safeName}`;
             }
@@ -1005,7 +1004,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 const base = getMediaBasePath(type);
                 const safeName = encodeURIComponent(String(filename || ''));
                 if (!base) {
-                    return safeName ? `/media/visual/original/${safeName}` : '';
+                    return safeName ? `/media/visual/master/${safeName}` : '';
                 }
                 return `${base}/${safeName}`;
             }
@@ -1183,8 +1182,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
             }
 
             function sfxAdminListenUrl(file, options = {}) {
-                const forceMaster = String(options.variant || '').trim().toLowerCase() === 'master'
-                    || String(options.variant || '').trim().toLowerCase() === 'original';
+                const forceMaster = String(options.variant || '').trim().toLowerCase() === 'master';
                 const playUrl = String(file?.play_url || '').trim();
                 if (!forceMaster && playUrl !== '') {
                     return playUrl;
@@ -1193,7 +1191,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 if (!forceMaster && file?.pool_ready === true && assetId !== '') {
                     return `/media/sfx/optimal/${encodeURIComponent(assetId)}.mp3`;
                 }
-                // Pending delivery: no original/master public URL for login/player; admin waits.
+                // Pending delivery: admin waits — do not stream disposable intake uploads.
                 return '';
             }
 
@@ -3144,8 +3142,10 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                         : 'Media asset',
                     subtitle: '',
                     size: Number(mediaFile.size) || 0,
-                    downloadVariant: 'original',
-                    downloadAvailable: true,
+                    downloadVariant: 'master',
+                    downloadAvailable: mediaFile.has_master === true
+                        || (mediaFile.audio_master && mediaFile.audio_master.exists === true)
+                        || Number(mediaFile.size) > 0,
                 };
             }
 
@@ -4052,7 +4052,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
 
                 const payload = new URLSearchParams();
                 payload.set('target', type);
-                payload.set('variant', variant || 'original');
+                payload.set('variant', variant || 'master');
                 payload.set('preflight', '1');
                 selectedFiles.forEach((filename) => payload.append('filenames[]', filename));
 
@@ -4116,26 +4116,8 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
             window.submitMediaDownloadRequest = submitMediaDownloadRequest;
 
             function resolveBulkDownloadVariant(type, explicitVariant) {
-                if (type === 'audio' && (explicitVariant === '' || explicitVariant === 'current')) {
-                    return audioDisplayMode;
-                }
-                return explicitVariant || 'original';
-            }
-
-            function syncAudioDisplayToggleUi() {
-                document.querySelectorAll('[data-audio-display-toggle]').forEach((button) => {
-                    const showingOriginal = audioDisplayMode === 'original';
-                    const mode = showingOriginal ? 'original' : 'master';
-                    button.classList.remove('media-display-toggle-master', 'media-display-toggle-original');
-                    button.classList.add(showingOriginal ? 'media-display-toggle-original' : 'media-display-toggle-master');
-                    button.dataset.audioDisplayMode = mode;
-                    button.setAttribute('aria-pressed', showingOriginal ? 'false' : 'true');
-                    button.textContent = showingOriginal ? '◉ Original' : '◉ Master';
-                    button.title = showingOriginal ? 'Show master files' : 'Show original files';
-                });
-                document.querySelectorAll('[data-media-audio-display-filter]').forEach((select) => {
-                    select.value = audioDisplayMode === 'original' ? 'original' : 'master';
-                });
+                // Masters only — archival uploads are never offered for download.
+                return 'master';
             }
 
             function syncMediaListHeaderSelection(type) {
@@ -4278,7 +4260,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
 
                 const selectedDetails = getSelectedMediaDetails(type);
                 document.querySelectorAll(`[data-bulk-download-target="${type}"]`).forEach((button) => {
-                    const variant = resolveBulkDownloadVariant(type, String(button.dataset.downloadVariant || 'original').trim());
+                    const variant = resolveBulkDownloadVariant(type, String(button.dataset.downloadVariant || 'master').trim());
                     const count = selectedDetails.length;
                     const canDownloadOriginal = count >= 1;
                     const canDownloadMaster = type === 'audio'
@@ -4876,7 +4858,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                         <div class="visual-pool-card-actions media-file-actions">
                             ${listenBtn}
                             ${detailsBtn}
-                            <button type="button" class="icon-btn media-action-btn media-action-good" title="Download" onclick="event.stopPropagation(); submitMediaDownloadRequest('${pathType}', 'original', ['${String(file.name).replace(/\\/g, '\\\\').replace(/'/g, "\\'")}'])">⬇</button>
+                            <button type="button" class="icon-btn media-action-btn media-action-good" title="Download master" onclick="event.stopPropagation(); submitMediaDownloadRequest('${pathType}', 'master', ['${String(file.name).replace(/\\/g, '\\\\').replace(/'/g, "\\'")}'])">⬇</button>
                             ${deleteBtn}
                         </div>
                     </div>
@@ -5102,22 +5084,13 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 }
 
                 if (downloadBtn) {
-                    const hasOriginal = file.has_original === true || file.can_discard_original === true;
                     const hasMaster = file.has_master === true
                         || (panelType === 'audio' && file.audio_master && file.audio_master.exists);
-                    if (hasOriginal) {
-                        downloadBtn.hidden = false;
-                        downloadBtn.disabled = false;
-                        downloadBtn.textContent = 'Download original';
-                        downloadBtn.title = 'Download the archival upload';
-                        downloadBtn.onclick = () => {
-                            submitMediaDownloadRequest(pathType, 'original', [file.name]);
-                        };
-                    } else if (hasMaster) {
+                    if (hasMaster) {
                         downloadBtn.hidden = false;
                         downloadBtn.disabled = false;
                         downloadBtn.textContent = 'Download master';
-                        downloadBtn.title = 'Archival upload is gone — download the master instead';
+                        downloadBtn.title = 'Download the enriched master file';
                         downloadBtn.onclick = () => {
                             submitMediaDownloadRequest(pathType, 'master', [file.name]);
                         };
@@ -5125,7 +5098,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                         downloadBtn.hidden = false;
                         downloadBtn.disabled = true;
                         downloadBtn.textContent = 'Download';
-                        downloadBtn.title = 'No downloadable file is ready';
+                        downloadBtn.title = 'No master is ready to download yet';
                         downloadBtn.onclick = null;
                     }
                 }
@@ -6516,7 +6489,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                         );
                         const itemSrc = String(fromItems?.src || '').trim();
                         const deliveryUrl = String(tile?.dataset?.publicUrl || '').trim();
-                        // Prefer delivery (huge/card) over stale original/master paths in preview items.
+                        // Prefer delivery (huge/card) over stale intake/master paths in preview items.
                         const previewSrc = (itemSrc.includes('/media/visual/delivery/') ? itemSrc : '')
                             || deliveryUrl
                             || itemSrc
@@ -6819,8 +6792,8 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     return raw.startsWith('/') ? raw : `/${raw}`;
                 }
                 const safe = audioMasterLivingCoverBasename(raw);
-                // Human original filenames only — never invent original/ast_*.ext master paths.
-                return safe ? `/media/visual/original/${safe}` : '';
+                // Legacy human filenames only — never invent master/ast_*.ext paths from a stem.
+                return safe ? `/media/visual/master/${safe}` : '';
             }
 
             function audioMasterLivingCoverPreviewFromPicker(filename) {
@@ -6867,7 +6840,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     if (selectedAssetId) {
                         return `/media/visual/delivery/${encodeURIComponent(selectedAssetId)}/standard-stream.mp4`;
                     }
-                    // Prefer absolute original path so the <video> element can load it.
+                    // Prefer an absolute path so the <video> element can load it.
                     return selected.startsWith('/') ? selected : `/${selected.replace(/^\/*/, '')}`;
                 }
 
@@ -7458,7 +7431,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     name: listingName || String(listFile?.name || ''),
                     master_filename: masterName,
                     audio_master: listFile?.audio_master || (masterName ? { filename: masterName, exists: true } : null),
-                    // Prefer delivery when known ready; otherwise try optimal then fall back to original.
+                    // Prefer delivery when known ready; otherwise master.
                     pool_ready: listFile
                         ? listFile.pool_ready === true
                         : masterName !== '',
@@ -7478,7 +7451,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 audioMasterListenBar.hidden = false;
                 audioMasterListenPlayer.title = listenSource.pool_ready
                     ? 'Streaming delivery preview'
-                    : 'Source/master preview (delivery not ready yet)';
+                    : 'Master preview (delivery not ready yet)';
             }
 
             function setAudioMasterSummary(detail) {
@@ -7773,13 +7746,15 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     const file = resolveAudioMasterPoolFile();
                     const listingName = String(file?.name || activeAudioMasterFile || '').trim();
                     const masterReady = !!(file?.audio_master && file.audio_master.exists);
-                    audioMasterDownloadBtn.disabled = !listingName;
+                    audioMasterDownloadBtn.disabled = !listingName || !masterReady;
+                    audioMasterDownloadBtn.title = masterReady
+                        ? 'Download the enriched master file'
+                        : 'Master not ready yet';
                     audioMasterDownloadBtn.onclick = () => {
-                        if (!listingName) {
+                        if (!listingName || !masterReady) {
                             return;
                         }
-                        const variant = masterReady ? 'master' : 'original';
-                        submitMediaDownloadRequest('audio', variant, [listingName]);
+                        submitMediaDownloadRequest('audio', 'master', [listingName]);
                     };
                 }
                 if (audioMasterDeleteBtn) {
@@ -8061,7 +8036,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 );
                 if (idx >= 0) {
                     // Caller-provided src wins so a good delivery URL is not replaced by a
-                    // stale original/master path still sitting on the preview item.
+                    // stale intake/master path still sitting on the preview item.
                     if (normalizedSrc && items[idx].src !== normalizedSrc) {
                         items[idx].src = normalizedSrc;
                     }
@@ -9019,7 +8994,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 button.addEventListener('click', () => {
                     const files = getSelectedMediaFiles(target);
                     if (!files.length) return;
-                    submitMediaDownloadRequest(target, resolveBulkDownloadVariant(target, String(button.dataset.downloadVariant || 'original').trim()), files);
+                    submitMediaDownloadRequest(target, resolveBulkDownloadVariant(target, String(button.dataset.downloadVariant || 'master').trim()), files);
                 });
             });
 

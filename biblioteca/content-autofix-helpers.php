@@ -1626,7 +1626,7 @@ function bandpromo_content_autofix_materialize_visual_masters(string $root, bool
             || !bandpromo_asset_is_asset_id((string) pathinfo($currentMaster, PATHINFO_FILENAME))
             || ($mediaType === 'video' && strtolower(trim((string) ($asset['master_format'] ?? ''))) !== 'mkv');
 
-        // Original is provenance/download only after materialize. Missing originals with a
+        // Original is intake-only after materialise. Missing originals with a
         // healthy master are intentional after masters-only PCF — do not invent original bytes.
         if (!$needsMaster && !$needsCanonical) {
             $step['skipped']++;

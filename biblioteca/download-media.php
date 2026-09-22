@@ -44,6 +44,7 @@ function bandpromo_download_content_type(string $filename): string
         'mp4' => 'video/mp4',
         'webm' => 'video/webm',
         'mov' => 'video/quicktime',
+        'mkv' => 'video/x-matroska',
         'svg' => 'image/svg+xml',
         'json' => 'application/json',
         'txt' => 'text/plain; charset=utf-8',
@@ -53,9 +54,30 @@ function bandpromo_download_content_type(string $filename): string
     return $map[$ext] ?? 'application/octet-stream';
 }
 
+function bandpromo_download_safe_label(string $label, string $fallbackFilename): string
+{
+    $extension = strtolower((string) pathinfo($fallbackFilename, PATHINFO_EXTENSION));
+    $label = preg_replace('/[\x00-\x1F\x7F<>:"\/\\\\|?*]+/u', '_', $label) ?? '';
+    $label = trim(preg_replace('/\s+/u', ' ', $label) ?? '', " .\t\n\r\0\x0B");
+    if ($label === '') {
+        return basename($fallbackFilename);
+    }
+    if (function_exists('mb_substr')) {
+        $label = mb_substr($label, 0, 180, 'UTF-8');
+    } else {
+        $label = substr($label, 0, 180);
+    }
+
+    $hasExt = strtolower((string) pathinfo($label, PATHINFO_EXTENSION)) !== '';
+    if (!$hasExt && $extension !== '') {
+        $label .= '.' . $extension;
+    }
+
+    return $label;
+}
+
 function bandpromo_download_current_audio_name(?array $asset, string $masterFilename): string
 {
-    $extension = strtolower((string) pathinfo($masterFilename, PATHINFO_EXTENSION));
     $display = bandpromo_asset_read_audio_display($asset);
     $artist = trim((string) ($display['artist'] ?? ''));
     $title = trim((string) ($display['title'] ?? ''));
@@ -70,101 +92,116 @@ function bandpromo_download_current_audio_name(?array $asset, string $masterFile
         $label .= ' [' . $version . ']';
     }
 
-    // Keep Unicode and readable punctuation, but remove characters forbidden
-    // by Windows/macOS filesystems and browser attachment handling.
-    $label = preg_replace('/[\x00-\x1F\x7F<>:"\/\\\\|?*]+/u', '_', $label) ?? '';
-    $label = trim(preg_replace('/\s+/u', ' ', $label) ?? '', " .\t\n\r\0\x0B");
-    if ($label === '') {
-        return basename($masterFilename);
-    }
-    if (function_exists('mb_substr')) {
-        $label = mb_substr($label, 0, 180, 'UTF-8');
-    } else {
-        $label = substr($label, 0, 180);
-    }
-
-    return $label . ($extension !== '' ? '.' . $extension : '');
+    return bandpromo_download_safe_label($label, $masterFilename);
 }
 
+/**
+ * Resolve a master-file download. Archival uploads (original/) are not offered.
+ *
+ * @return array{ok:bool,filename?:string,download_name?:string,path?:string,error?:string}
+ */
 function bandpromo_resolve_download_item(string $root, string $sourceDir, string $target, string $variant, string $filename): array
 {
     require_once __DIR__ . '/asset-registry.php';
+    require_once __DIR__ . '/visual-master-helpers.php';
+    require_once __DIR__ . '/sfx-helpers.php';
 
     $safe = basename($filename);
     if ($safe === '' || $safe === '.' || $safe === '..') {
         return ['ok' => false, 'filename' => $filename, 'error' => 'Invalid filename'];
     }
 
-    if ($variant === 'master') {
-        if ($target !== 'audio') {
-            return ['ok' => false, 'filename' => $safe, 'error' => 'Prepared downloads are only available for audio'];
-        }
-        $master = bandpromo_find_audio_master($root, $safe);
-        if (empty($master['exists']) || empty($master['filename'])) {
-            return ['ok' => false, 'filename' => $safe, 'error' => 'Prepared copy not found'];
-        }
-        $path = $root . '/media/audio/master/' . $master['filename'];
-        if (!is_file($path)) {
-            return ['ok' => false, 'filename' => $safe, 'error' => 'Prepared copy not found'];
-        }
-
-        $asset = bandpromo_asset_lookup_from_media_ref($root, $safe)
-            ?? bandpromo_asset_lookup_by_master_filename($root, $safe);
-        $downloadName = bandpromo_download_current_audio_name(
-            is_array($asset) ? $asset : null,
-            basename((string) $master['filename'])
-        );
-
+    // Masters only — archival uploads are intake, not a download product.
+    if ($variant === 'original') {
         return [
-            'ok' => true,
+            'ok' => false,
             'filename' => $safe,
-            'download_name' => $downloadName,
-            'path' => $path,
+            'error' => 'Download the master instead — archival uploads are not offered for download.',
         ];
     }
-
-    // variant=original: stream original bytes only — never substitute the master.
-    $path = $sourceDir . '/' . $safe;
-    $downloadName = $safe;
+    if ($variant !== 'master') {
+        return ['ok' => false, 'filename' => $safe, 'error' => 'Unknown download variant'];
+    }
 
     $asset = bandpromo_asset_lookup_from_media_ref($root, $safe)
         ?? bandpromo_asset_lookup_by_master_filename($root, $safe)
         ?? bandpromo_asset_lookup_by_original_filename($root, $safe);
-    if (is_array($asset)) {
-        $originalName = basename(trim((string) ($asset['original_filename'] ?? '')));
-        if ($originalName !== '') {
-            $downloadName = $originalName;
-            if ($target === 'audio') {
-                $path = $root . '/media/audio/original/' . $originalName;
-            } elseif ($target === 'sfx') {
-                $path = $root . '/media/sfx/original/' . $originalName;
-            } elseif (in_array($target, ['illustrations', 'photos', 'video'], true)) {
-                require_once __DIR__ . '/visual-master-helpers.php';
-                $unified = bandpromo_visual_unified_original_path($root, $originalName);
-                $legacy = bandpromo_asset_visual_legacy_original_path($root, $asset);
-                if ($unified !== '' && is_file($unified)) {
-                    $path = $unified;
-                } elseif ($legacy !== '' && is_file($legacy)) {
-                    $path = $legacy;
-                } else {
-                    $path = $sourceDir . '/' . $originalName;
-                }
-            } else {
-                $path = $sourceDir . '/' . $originalName;
-            }
+
+    if ($target === 'audio') {
+        $master = bandpromo_find_audio_master($root, $safe);
+        if (empty($master['exists']) || empty($master['filename'])) {
+            return ['ok' => false, 'filename' => $safe, 'error' => 'Master not found'];
         }
+        $path = $root . '/media/audio/master/' . $master['filename'];
+        if (!is_file($path)) {
+            return ['ok' => false, 'filename' => $safe, 'error' => 'Master not found'];
+        }
+
+        return [
+            'ok' => true,
+            'filename' => $safe,
+            'download_name' => bandpromo_download_current_audio_name(
+                is_array($asset) ? $asset : null,
+                basename((string) $master['filename'])
+            ),
+            'path' => $path,
+        ];
     }
 
-    if (!is_file($path)) {
-        return ['ok' => false, 'filename' => $safe, 'error' => 'Original not found'];
+    if ($target === 'sfx') {
+        if (!is_array($asset) || ($asset['kind'] ?? '') !== 'sfx') {
+            return ['ok' => false, 'filename' => $safe, 'error' => 'Master not found'];
+        }
+        $masterName = basename(trim((string) ($asset['master_filename'] ?? '')));
+        if ($masterName === '') {
+            return ['ok' => false, 'filename' => $safe, 'error' => 'Master not found'];
+        }
+        $path = bandpromo_sfx_master_dir($root) . DIRECTORY_SEPARATOR . $masterName;
+        if (!is_file($path)) {
+            return ['ok' => false, 'filename' => $safe, 'error' => 'Master not found'];
+        }
+        $label = trim((string) ($asset['original_filename'] ?? ''));
+        if ($label === '') {
+            $label = $masterName;
+        }
+
+        return [
+            'ok' => true,
+            'filename' => $safe,
+            'download_name' => bandpromo_download_safe_label($label, $masterName),
+            'path' => $path,
+        ];
     }
 
-    return [
-        'ok' => true,
-        'filename' => $safe,
-        'download_name' => $downloadName,
-        'path' => $path,
-    ];
+    if (in_array($target, ['illustrations', 'photos', 'video', 'special'], true)) {
+        if (!is_array($asset) || ($asset['kind'] ?? '') !== 'visual') {
+            return ['ok' => false, 'filename' => $safe, 'error' => 'Master not found'];
+        }
+        $path = bandpromo_visual_working_path($root, $asset);
+        if ($path === '' || !is_file($path)) {
+            return ['ok' => false, 'filename' => $safe, 'error' => 'Master not found'];
+        }
+        $masterName = basename($path);
+        $displayTitle = '';
+        if (is_array($asset['display'] ?? null)) {
+            $displayTitle = trim((string) ($asset['display']['title'] ?? ''));
+        }
+        $label = $displayTitle !== ''
+            ? $displayTitle
+            : trim((string) ($asset['original_filename'] ?? ''));
+        if ($label === '') {
+            $label = $masterName;
+        }
+
+        return [
+            'ok' => true,
+            'filename' => $safe,
+            'download_name' => bandpromo_download_safe_label($label, $masterName),
+            'path' => $path,
+        ];
+    }
+
+    return ['ok' => false, 'filename' => $safe, 'error' => 'Unknown target'];
 }
 
 function bandpromo_stream_download_file(string $path, string $downloadName): bool
@@ -206,12 +243,12 @@ function bandpromo_download_execute(
         bandpromo_download_error(400, 'Unknown target', $jsonMode);
     }
 
-    if ($variant !== 'original' && $variant !== 'master') {
-        bandpromo_download_error(400, 'Unknown download variant', $jsonMode);
+    // Always stream masters — ignore legacy "original" requests.
+    if ($variant === 'original' || $variant === '' || $variant === 'current') {
+        $variant = 'master';
     }
-
-    if ($variant === 'master' && $target !== 'audio') {
-        bandpromo_download_error(400, 'Prepared downloads are only available for audio', $jsonMode);
+    if ($variant !== 'master') {
+        bandpromo_download_error(400, 'Unknown download variant', $jsonMode);
     }
 
     $resolved = [];
@@ -301,9 +338,8 @@ function bandpromo_download_execute(
     $zip->close();
 
     $archiveName = sprintf(
-        'bandpromo-%s-%s-%s.zip',
+        'bandpromo-%s-masters-%s.zip',
         preg_replace('/[^a-z0-9]+/i', '-', $target),
-        $variant === 'master' ? 'ready' : 'uploaded',
         gmdate('Ymd-His')
     );
 
@@ -356,7 +392,7 @@ if ($downloadToken !== '') {
     }
 
     $target = trim((string) ($tokenPayload['target'] ?? ''));
-    $variant = trim((string) ($tokenPayload['variant'] ?? 'original'));
+    $variant = trim((string) ($tokenPayload['variant'] ?? 'master'));
     $requestedFiles = is_array($tokenPayload['files'] ?? null) ? $tokenPayload['files'] : [];
     if ($target === '' || $requestedFiles === []) {
         bandpromo_download_error(400, 'Invalid download token', false);
@@ -386,7 +422,7 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 }
 
 $target = trim((string) ($_POST['target'] ?? ''));
-$variant = trim((string) ($_POST['variant'] ?? 'original'));
+$variant = trim((string) ($_POST['variant'] ?? 'master'));
 $requestedFiles = $_POST['filenames'] ?? ($_POST['filename'] ?? []);
 if (!is_array($requestedFiles)) {
     $requestedFiles = [$requestedFiles];
@@ -406,6 +442,9 @@ if (bandpromo_media_target_dir($target) === null) {
 if ($jsonMode) {
     // Resolve once so preflight can return actionable errors before issuing a token.
     $sourceDir = bandpromo_media_target_dir($target);
+    if ($variant === 'original' || $variant === '' || $variant === 'current') {
+        $variant = 'master';
+    }
     $resolved = [];
     $failures = [];
     foreach ($requestedFiles as $filename) {

@@ -1492,12 +1492,6 @@ table tbody tr:hover {
     border: 1px solid rgba(0,198,255,0.2);
 }
 
-.badge.original {
-    background: rgba(76,175,80,0.12);
-    color: #81c784;
-    border: 1px solid rgba(76,175,80,0.2);
-}
-
 .badge.lq {
     background: rgba(255,152,0,0.12);
     color: #ffb74d;
@@ -5394,39 +5388,6 @@ canvas { max-width: 100%; height: auto; }
     color: var(--muted);
     font-size: 12px;
     line-height: 1.35;
-}
-
-.media-display-toggle {
-    min-width: 98px;
-    font-weight: 600;
-}
-
-.media-display-toggle[data-audio-display-mode="master"],
-.media-display-toggle.media-display-toggle-master {
-    color: #effced;
-    border-color: rgba(76, 175, 80, 0.55);
-    background: rgba(76, 175, 80, 0.24);
-}
-
-.media-display-toggle[data-audio-display-mode="master"]:hover,
-.media-display-toggle.media-display-toggle-master:hover {
-    color: #fff;
-    border-color: rgba(76, 175, 80, 0.8);
-    background: rgba(76, 175, 80, 0.36);
-}
-
-.media-display-toggle[data-audio-display-mode="original"],
-.media-display-toggle.media-display-toggle-original {
-    color: #fff1d1;
-    border-color: rgba(240, 180, 41, 0.58);
-    background: rgba(240, 180, 41, 0.22);
-}
-
-.media-display-toggle[data-audio-display-mode="original"]:hover,
-.media-display-toggle.media-display-toggle-original:hover {
-    color: #fff8ea;
-    border-color: rgba(240, 180, 41, 0.82);
-    background: rgba(240, 180, 41, 0.34);
 }
 
 @media (max-width: 720px) {

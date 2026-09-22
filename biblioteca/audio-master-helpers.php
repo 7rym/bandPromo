@@ -540,7 +540,7 @@ function bandpromo_resolve_source_audio_file(string $root_dir, string $filename)
 
 /**
  * Playable audio: public delivery (`optimal`) or operator master (`master`).
- * `original` is not a playable variant (Download original only).
+ * `original` is not a playable variant (archival uploads are not streamed).
  *
  * @return array{path:string,filename:string}|null
  */
