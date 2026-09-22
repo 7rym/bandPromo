@@ -2,9 +2,9 @@
 
 ## Resume point
 
-Session ending / publishing **storage reclaim + discard archival originals** (with prior demo-hide / special-intake cleanup from this session): Site health package scratch + older Ready archives Treat; Files Discard archival upload; demo ownership hide; findings 2–13 special-intake cleanup.
+Session ended and **published** **v0.8.94 build 579** (`v0.8.94-build-579`): Storage reclaim (package scratch + older Ready archives) + Files Discard archival upload; demo-hide ownership-only + special-intake findings 2–13.
 
-**Next after publish:** Testers: Dashboard → Site update. HITZ: Check → Review → Apply storage reclaim findings first. Optional: Files pool compactness; featured/remix player display.
+**Next:** Testers: Dashboard → Site update. HITZ: Status → Check → Review → Apply storage reclaim findings first. Optional: Files pool compactness; featured/remix player display.
 
 ### Policy locked (do not reopen)
 
