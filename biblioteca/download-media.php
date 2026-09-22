@@ -238,13 +238,13 @@ function bandpromo_download_execute(
     string $statusUsername = ''
 ): void
 {
-    $sourceDir = bandpromo_media_target_dir($target);
+    $sourceDir = bandpromo_media_files_listing_dir($target);
     if ($sourceDir === null) {
         bandpromo_download_error(400, 'Unknown target', $jsonMode);
     }
 
-    // Always stream masters — ignore legacy "original" requests.
-    if ($variant === 'original' || $variant === '' || $variant === 'current') {
+    // Always stream masters — refuse unknown / archival variants.
+    if ($variant === '') {
         $variant = 'master';
     }
     if ($variant !== 'master') {
@@ -435,13 +435,13 @@ if ($requestedFiles === []) {
     bandpromo_download_error(400, 'No files selected', $jsonMode);
 }
 
-if (bandpromo_media_target_dir($target) === null) {
+if (bandpromo_media_files_listing_dir($target) === null) {
     bandpromo_download_error(400, 'Unknown target', $jsonMode);
 }
 
 if ($jsonMode) {
     // Resolve once so preflight can return actionable errors before issuing a token.
-    $sourceDir = bandpromo_media_target_dir($target);
+    $sourceDir = bandpromo_media_files_listing_dir($target);
     if ($variant === 'original' || $variant === '' || $variant === 'current') {
         $variant = 'master';
     }

@@ -191,20 +191,14 @@ function bandpromo_upload_resolve_files_index_target(string $target_hint, string
     }
 
     $normalized = str_replace('\\', '/', $saved_path);
-    if (stripos($normalized, '/media/photo/') !== false) {
-        return 'photos';
-    }
-    if (stripos($normalized, '/media/video/') !== false) {
-        return 'video';
-    }
     if (stripos($normalized, '/media/sfx/') !== false) {
         return 'sfx';
     }
-    if (stripos($normalized, '/media/visual/') !== false || stripos($normalized, '/media/special/') !== false) {
+    if (stripos($normalized, '/media/visual/') !== false) {
         return 'illustrations';
     }
-    if (stripos($normalized, '/media/img/') !== false) {
-        return 'illustrations';
+    if (stripos($normalized, '/media/audio/') !== false) {
+        return 'audio';
     }
 
     return 'illustrations';
@@ -303,10 +297,8 @@ function bandpromo_register_sfx_upload_if_needed(
 function bandpromo_record_cover_upload_if_needed(string $root_dir, string $saved_path, string $saved_name): void
 {
     $normalized = str_replace('\\', '/', $saved_path);
-    // Track-cover uploads land in unified Visual original (legacy img/original retired).
-    if (stripos($normalized, '/media/visual/original/') === false
-        && stripos($normalized, '/media/img/original/') === false
-    ) {
+    // Track-cover uploads land in unified Visual original.
+    if (stripos($normalized, '/media/visual/original/') === false) {
         return;
     }
 
@@ -316,6 +308,7 @@ function bandpromo_record_cover_upload_if_needed(string $root_dir, string $saved
 /**
  * Index an operator upload and clear any prior hide-for-install flag.
  * Always stamps origin as user-upload so bandPromo_* names are not treated as bundled forever.
+ * Prefer master basename once the registry has materialised tiers (Files is master-only).
  */
 function bandpromo_upload_index_operator_file(
     string $root_dir,
@@ -324,9 +317,30 @@ function bandpromo_upload_index_operator_file(
     string $saved_path,
     string $saved_name
 ): string {
+    require_once __DIR__ . '/asset-registry.php';
+
     $indexTarget = bandpromo_upload_resolve_files_index_target($target_hint, $saved_ext, $saved_path);
     $listingName = $saved_name;
+    $asset = bandpromo_asset_lookup_from_media_ref($root_dir, $saved_name);
+    if (!is_array($asset)) {
+        $asset = bandpromo_asset_lookup_by_original_filename($root_dir, $saved_name);
+    }
+    if (is_array($asset)) {
+        $masterName = basename(trim((string) ($asset['master_filename'] ?? '')));
+        if ($masterName !== '') {
+            $listingName = $masterName;
+        } elseif (($asset['kind'] ?? '') === 'sfx') {
+            $assetId = trim((string) ($asset['id'] ?? ''));
+            if ($assetId !== '' && bandpromo_asset_is_asset_id($assetId)) {
+                $listingName = $assetId . '.mp3';
+            }
+        }
+    }
+
     bandpromo_media_set_hidden_for_install($indexTarget, $listingName, false);
+    if ($listingName !== $saved_name) {
+        bandpromo_media_set_hidden_for_install($indexTarget, $saved_name, false);
+    }
     bandpromo_media_files_index_sync_file($root_dir, $indexTarget, $listingName, [
         'origin' => 'user-upload',
     ]);
@@ -514,13 +528,7 @@ if (isset($_POST['chunk_index']) && isset($_POST['filename'])) {
         $videoPoster = bandpromo_is_video_extension($savedExt)
             ? ['attempted' => false, 'generated' => false, 'poster' => '', 'warning' => '']
             : bandpromo_generate_video_poster($root_dir, $savedExt, $savedName, $savedPath, (string) $target_hint);
-        bandpromo_upload_index_operator_file(
-            $root_dir,
-            (string) $target_hint,
-            $savedExt,
-            $savedPath,
-            $savedName
-        );
+        // Register before Files index so resolve_source can list the master (not intake).
         $visualAsset = bandpromo_register_visual_upload_if_needed(
             $root_dir,
             (string) $target_hint,
@@ -529,6 +537,13 @@ if (isset($_POST['chunk_index']) && isset($_POST['filename'])) {
             $savedPath
         );
         $sfxAsset = bandpromo_register_sfx_upload_if_needed($root_dir, (string) $target_hint, $savedName);
+        bandpromo_upload_index_operator_file(
+            $root_dir,
+            (string) $target_hint,
+            $savedExt,
+            $savedPath,
+            $savedName
+        );
         $response = [
             'ok' => true,
             'status' => 'complete',
@@ -773,13 +788,7 @@ foreach ($files as $file) {
         $videoPoster = bandpromo_is_video_extension($saved_ext)
             ? ['attempted' => false, 'generated' => false, 'poster' => '', 'warning' => '']
             : bandpromo_generate_video_poster($root_dir, $saved_ext, $saved_name, $saved_path, (string) $target_hint);
-        bandpromo_upload_index_operator_file(
-            $root_dir,
-            (string) $target_hint,
-            $saved_ext,
-            $saved_path,
-            $saved_name
-        );
+        // Register before Files index so resolve_source can list the master (not intake).
         $visualAsset = bandpromo_register_visual_upload_if_needed(
             $root_dir,
             (string) $target_hint,
@@ -788,6 +797,13 @@ foreach ($files as $file) {
             $saved_path
         );
         $sfxAsset = bandpromo_register_sfx_upload_if_needed($root_dir, (string) $target_hint, $saved_name);
+        bandpromo_upload_index_operator_file(
+            $root_dir,
+            (string) $target_hint,
+            $saved_ext,
+            $saved_path,
+            $saved_name
+        );
         $result = [
             'name' => $original,
             'ok' => true,

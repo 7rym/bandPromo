@@ -31,10 +31,8 @@ KNOWN_AUDIO_EXTENSIONS = SUPPORTED_EXTENSIONS + ('.wav', '.aif', '.aiff', '.m4a'
 ROOT_DIR      = SCRIPT_DIR.parent
 AUDIO_ORIG_DIR  = ROOT_DIR / 'media' / 'audio' / 'original'
 AUDIO_MASTER_DIR = ROOT_DIR / 'media' / 'audio' / 'master'
-IMG_ORIG_DIR    = ROOT_DIR / 'media' / 'img'   / 'original'
-PHOTO_ORIG_DIR  = ROOT_DIR / 'media' / 'photo' / 'original'
-SPECIAL_DIR     = ROOT_DIR / 'media' / 'special'
-VISUAL_ORIG_DIR = ROOT_DIR / 'media' / 'visual' / 'original'
+IMG_ORIG_DIR    = ROOT_DIR / 'media' / 'img'   / 'original'  # Storage discard cleanup only
+VISUAL_ORIG_DIR = ROOT_DIR / 'media' / 'visual' / 'original'  # embedded-cover intake write
 VISUAL_MASTER_DIR = ROOT_DIR / 'media' / 'visual' / 'master'
 VISUAL_DELIVERY_DIR = ROOT_DIR / 'media' / 'visual' / 'delivery'
 VALIDATION_FILE = ROOT_DIR / 'data' / 'validation' / 'playlist-validation.json'
@@ -714,7 +712,7 @@ def normalize_asset_id_ref(value):
 
 
 def resolve_pool_cover_filename(cover_name):
-    """Return a cover ref if bytes exist in visual master/original, delivery, or legacy intake."""
+    """Return a cover ref if bytes exist in visual master or delivery."""
     cover_name = os.path.basename(str(cover_name or '').strip())
     if not cover_name:
         return None
@@ -723,24 +721,21 @@ def resolve_pool_cover_filename(cover_name):
         delivery_dir = VISUAL_DELIVERY_DIR / asset_id
         if delivery_dir.is_dir():
             return asset_id
-        for folder in (VISUAL_MASTER_DIR, VISUAL_ORIG_DIR):
-            for ext in ('.png', '.jpg', '.jpeg', '.webp'):
-                if (folder / (asset_id + ext)).exists():
-                    return asset_id
+        for ext in ('.png', '.jpg', '.jpeg', '.webp'):
+            if (VISUAL_MASTER_DIR / (asset_id + ext)).exists():
+                return asset_id
         return None
-    for folder in (VISUAL_MASTER_DIR, VISUAL_ORIG_DIR, IMG_ORIG_DIR, PHOTO_ORIG_DIR, SPECIAL_DIR):
-        if (folder / cover_name).exists():
-            return cover_name
+    if (VISUAL_MASTER_DIR / cover_name).exists():
+        return cover_name
     stem = os.path.splitext(cover_name)[0]
     if stem:
         delivery_dir = VISUAL_DELIVERY_DIR / stem
         if delivery_dir.is_dir():
             return cover_name
-        for folder in (VISUAL_MASTER_DIR, VISUAL_ORIG_DIR):
-            for ext in ('.png', '.jpg', '.jpeg', '.webp'):
-                candidate = folder / (stem + ext)
-                if candidate.exists():
-                    return candidate.name
+        for ext in ('.png', '.jpg', '.jpeg', '.webp'):
+            candidate = VISUAL_MASTER_DIR / (stem + ext)
+            if candidate.exists():
+                return candidate.name
     return None
 
 
@@ -1135,7 +1130,7 @@ def visual_delivery_variant_file_exists(asset, variant_name):
 
 
 def visual_cover_source_available(cover_ref):
-    """True when master or original bytes exist for this Visual asset."""
+    """True when master bytes exist for this Visual asset."""
     visual_id = find_visual_asset_id_for_ref(cover_ref)
     if not visual_id:
         return False
@@ -1149,7 +1144,6 @@ def visual_cover_source_available(cover_ref):
         return optimize_media.visual_working_path_for_asset(asset) is not None
     except Exception:
         pass
-    original_name = os.path.basename(str(asset.get('original_filename') or '').strip())
     master_name = os.path.basename(str(asset.get('master_filename') or '').strip())
     fmt = str(asset.get('master_format') or '').strip().lower()
     if not fmt and master_name:
@@ -1159,11 +1153,6 @@ def visual_cover_source_available(cover_ref):
         candidates.append(VISUAL_MASTER_DIR / ('%s.%s' % (visual_id, fmt)))
     if master_name:
         candidates.append(VISUAL_MASTER_DIR / master_name)
-    if original_name:
-        candidates.append(VISUAL_ORIG_DIR / original_name)
-        candidates.append(IMG_ORIG_DIR / original_name)
-        candidates.append(PHOTO_ORIG_DIR / original_name)
-        candidates.append(SPECIAL_DIR / original_name)
     for path in candidates:
         if path.is_file():
             return True
@@ -1383,8 +1372,6 @@ def extract_embedded_cover_to_visual(filename, base_filename=None):
     for folder, bucket in (
         (VISUAL_ORIG_DIR, 'img'),
         (VISUAL_MASTER_DIR, 'img'),
-        (IMG_ORIG_DIR, 'img'),
-        (PHOTO_ORIG_DIR, 'photo'),
     ):
         if not folder.exists():
             continue

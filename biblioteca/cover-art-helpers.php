@@ -29,7 +29,7 @@ function bandpromo_cover_art_normalize_img_basename(?string $path): string
     }
 
     $value = ltrim($value, '/');
-    if (preg_match('#^media/img/original/(.+)$#i', $value, $matches) === 1) {
+    if (preg_match('#^media/visual/(?:master|delivery)/(.+)$#i', $value, $matches) === 1) {
         return basename($matches[1]);
     }
 
@@ -43,10 +43,6 @@ function bandpromo_cover_art_img_path_basename_exists(string $root, string $base
         return false;
     }
 
-    if (is_file($root . '/media/img/original/' . $basename)) {
-        return true;
-    }
-
     require_once __DIR__ . '/asset-registry.php';
     require_once __DIR__ . '/visual-master-helpers.php';
     $visual = bandpromo_asset_lookup_from_media_ref($root, $basename);
@@ -54,8 +50,15 @@ function bandpromo_cover_art_img_path_basename_exists(string $root, string $base
         return false;
     }
     $working = bandpromo_visual_working_path($root, $visual);
+    if ($working !== '' && is_file($working)) {
+        return true;
+    }
+    $assetId = trim((string) ($visual['id'] ?? ''));
+    if ($assetId !== '' && is_dir($root . '/media/visual/delivery/' . $assetId)) {
+        return true;
+    }
 
-    return $working !== '' && is_file($working);
+    return false;
 }
 
 function bandpromo_cover_art_collect_audio_stems(string $root): array

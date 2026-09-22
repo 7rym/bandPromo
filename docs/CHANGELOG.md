@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-09-22 21:50 - Wave 1 + stale audit: visual working path is master-only (PHP + Python); stop inventing `original_filename` from masters on register/normalize/Treat; download refuses non-master variants; visual registry backfill and Publish intake check scan unified `visual/original` only; drop unused legacy dir constants in `optimizeMedia.py`; delete unreferenced `backfillWavAudioToFlac.py`; admin picker path infer drops legacy img/photo/video arms.
+
+2026-09-22 21:40 - Wave 3 legacy-fallback cut: Files index is master-only (no original/legacy orphan pool rows). `bandpromo_media_files_index_resolve_source` / rebuild list registry masters only; uncatalogued intake stays Apply/Publish. `bandpromo_media_target_dir` stays intake for upload/materialize; list/download report master listing dirs. Legacy orphan dir helper kept for Storage/Site health janitor, not Files rows.
+
+2026-09-22 21:35 - Wave 2 legacy-fallback cut: product cover/share/path resolve uses master + delivery + registry only; drop invent of visual/original and legacy img/photo/video/special probes. Embedded-cover intake writes and Storage discard unchanged.
+
 2026-09-22 21:20 - Files drops the Original|Master list toggle and any operator path to archival uploads: pools, pickers, and previews resolve masters only; dead toggle JS/CSS removed. Originals stay disposable intake reclaimable from Status → Storage.
 
 2026-09-22 21:15 - Files downloads are masters-only: drop Download original everywhere (Audio / Visual / SFX pool, editors, bulk). `download-media.php` streams enriched masters for all families; archival uploads stay intake-only for master creation/heal.

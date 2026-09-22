@@ -2084,34 +2084,14 @@ function bandpromo_brand_resolve_media_absolute_path(string $root, string $webPa
  */
 function bandpromo_brand_shell_seed_fallback_paths(): array
 {
+    // Prefer asset_ids → delivery resolution. No /media/special or */original invent.
     return [
-        'logo' => [
-            '/media/visual/original/bandPromo_logo.png',
-            '/media/special/bandPromo_logo.png',
-            '/media/special/bandPromo_logo_simplified.png',
-        ],
-        'poster' => [
-            '/media/visual/original/bandPromo_cover.png',
-            '/media/visual/original/bandPromo_share.png',
-            '/media/special/bandPromo_cover.png',
-            '/media/special/bandPromo_share.png',
-        ],
-        'background_image' => [
-            '/media/visual/original/bandPromo_background.png',
-            '/media/special/bandPromo_background.png',
-        ],
-        'background_video' => [
-            '/media/visual/original/bandPromo_background.mp4',
-            '/media/special/bandPromo_background.mp4',
-        ],
-        'welcome_audio' => [
-            '/media/sfx/original/bandPromo_welcome.flac',
-            '/media/special/bandPromo_welcome.flac',
-        ],
-        'loggedin_audio' => [
-            '/media/sfx/original/bandPromo_loggedin.flac',
-            '/media/special/bandPromo_loggedin.flac',
-        ],
+        'logo' => [],
+        'poster' => [],
+        'background_image' => [],
+        'background_video' => [],
+        'welcome_audio' => [],
+        'loggedin_audio' => [],
     ];
 }
 
@@ -2195,8 +2175,7 @@ function bandpromo_brand_heal_install_shell_media(string $root): array
                 if ($slotAssetId === '') {
                     $slotAssetId = bandpromo_brand_lookup_asset_id_for_path($root, $before);
                 }
-                // Brand shell clones often still live under media/special/ — materialize
-                // master from special/original, then rebuild delivery variants.
+                // Prefer asset_ids → rebuild delivery variants when path heal finds nothing.
                 if ($slotAssetId !== '') {
                     try {
                         bandpromo_visual_ensure_tiers_for_asset($root, $slotAssetId);

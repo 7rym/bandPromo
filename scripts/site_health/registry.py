@@ -364,11 +364,8 @@ def register_audio_master(registry, master_filename, master_format, asset_id, or
             pass
         return entry
 
-    # Register-in-place masters have no separate original upload name — use the
-    # master filename so PHP normalize / indexes stay consistent.
-    if not original_filename:
-        original_filename = master_filename
-
+    # Register-in-place masters have no separate original upload name.
+    # Leave original_filename empty — never invent it from the master id.
     entry = {
         'id': asset_id,
         'kind': 'audio',
@@ -411,10 +408,7 @@ def register_visual_master(registry, master_filename, master_format, asset_id, m
         return registry['assets'][existing]
 
     intake = 'video' if media_type == 'video' else 'img'
-    # Register-in-place masters have no separate original upload name — use the
-    # master filename so PHP normalize keeps the row (empty original_filename
-    # would drop the visual on the next registry write-back).
-    original_filename = master_filename
+    # Register-in-place: leave original_filename empty (never invent from master).
     entry = {
         'id': asset_id,
         'kind': 'visual',
@@ -423,7 +417,7 @@ def register_visual_master(registry, master_filename, master_format, asset_id, m
         'brand_id': '',
         'role': 'unassigned',
         'has_alpha': False,
-        'original_filename': original_filename,
+        'original_filename': '',
         'master_filename': master_filename,
         'master_format': master_format,
         'release_id': '',
@@ -438,7 +432,6 @@ def register_visual_master(registry, master_filename, master_format, asset_id, m
     }
     registry.setdefault('assets', {})[asset_id] = entry
     by_master[master_filename] = asset_id
-    registry.setdefault('by_original_filename', {})[original_filename] = asset_id
     return entry
 
 
@@ -459,7 +452,7 @@ def register_sfx_master(registry, master_filename, master_format, asset_id, orig
             return entry
 
     if not original_filename:
-        original_filename = _guess_sfx_original_filename(master_filename) or master_filename
+        original_filename = _guess_sfx_original_filename(master_filename)
 
     brand_id = _guess_sfx_brand_id(asset_id)
     optimal = os.path.join(SFX_OPTIMAL_DIR, asset_id + '.mp3')

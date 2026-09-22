@@ -2,12 +2,9 @@
 
 ## Resume point
 
-**Checkpoint pending publish** this turn: Files masters-only (no Download original; no Original|Master list toggle; admin paths resolve masters).
+**Published** **v0.8.95 build 584** (`v0.8.95-build-584`): Waves 1–4 legacy-fallback cut — product resolve masters-only; no invent `original_filename` from master; Files index masters-only; stale script deleted.
 
-**Next (do not skip):**
-1. Strip operator/runtime **fallbacks** that still read or invent `original/` uploads, legacy folders (`img`/`photo`/`video`/`special`), or legacy filename dual-reads — prefer hard cut; ask only if a live fleet path would break.
-2. Full audit for stale PHP/JS/CSS/scripts/helpers/docs left behind by that cut.
-3. Testers: Dashboard → Site update after publish. HITZ Storage reclaim still available for disposable intake.
+**Next:** Fleet: Dashboard → Site update on Vanilla / Spandexual / HITZ. After update, Quick health check. HITZ: Status → Storage to discard disposable intake if quota is tight. Keep relocate/janitor until legacy trees empty.
 
 ### Policy locked (do not reopen)
 
@@ -36,6 +33,8 @@
 - Sticky playlist-scan Notifications heal on bell (full) or Site health Check start
 - Archival original discard lives under **System → Status → Storage** only (not Files)
 - Files pools/pickers/downloads are **masters only** — no Original|Master list toggle; originals are disposable intake
+- Product resolve never falls back to archival `original/` or legacy `img`/`photo`/`video`/`special` when the master is missing (fail loud / empty)
+- Never invent `original_filename` from `master_filename` on register/normalize/Treat
 - VERSION **session** number bumps only when the operator explicitly starts a session (`session-start.ps1 -BumpSession` / `/bandpromo-session-start`); agent resume must not bump
 
 ### Local workspace

@@ -59,8 +59,7 @@ def treat_audio_register_in_place():
                 if isinstance(existing, dict) and str(existing.get('kind') or '') in ('', 'audio'):
                     existing['master_filename'] = name
                     existing['master_format'] = fmt
-                    if not str(existing.get('original_filename') or '').strip():
-                        existing['original_filename'] = name
+                    # Do not invent original_filename from the master id.
                     registry['assets'][asset_id] = existing
                     registry.setdefault('by_master_filename', {})[name] = asset_id
                     try:

@@ -34,11 +34,11 @@ function bandpromo_media_reference_normalize_basename(?string $path, string $exp
 function bandpromo_media_reference_original_prefix(string $target): ?string
 {
     $map = [
-        'illustrations' => 'media/visual/original',
-        'photos' => 'media/visual/original',
-        'video' => 'media/visual/original',
-        'special' => 'media/visual/original',
-        'sfx' => 'media/sfx/original',
+        'illustrations' => 'media/visual/master',
+        'photos' => 'media/visual/master',
+        'video' => 'media/visual/master',
+        'special' => 'media/visual/master',
+        'sfx' => 'media/sfx/master',
     ];
 
     return $map[$target] ?? null;
@@ -49,19 +49,6 @@ function bandpromo_media_reference_original_prefix(string $target): ?string
  */
 function bandpromo_media_reference_legacy_original_prefixes(string $target): array
 {
-    if ($target === 'illustrations') {
-        return ['media/img/original'];
-    }
-    if ($target === 'photos') {
-        return ['media/photo/original'];
-    }
-    if ($target === 'video') {
-        return ['media/video/original'];
-    }
-    if ($target === 'special') {
-        return ['media/special'];
-    }
-
     return [];
 }
 
@@ -92,17 +79,14 @@ function bandpromo_media_reference_path_matches_prefix(?string $raw, string $pre
         return true;
     }
 
-    // Accept unified Visual + leftover legacy intake paths while leftovers remain on disk.
+    // Product paths: registry/master/delivery only (no legacy img/photo/video/special).
     foreach ([
-        'media/visual/original',
         'media/visual/master',
         'media/visual/delivery',
-        'media/img/original',
-        'media/photo/original',
-        'media/video/original',
-        'media/special',
-    ] as $legacy) {
-        if (stripos($value, $legacy . '/') === 0) {
+        'media/sfx/master',
+        'media/sfx/optimal',
+    ] as $allowed) {
+        if (stripos($value, $allowed . '/') === 0) {
             return true;
         }
     }
@@ -117,19 +101,14 @@ function bandpromo_media_reference_file_exists(string $root, string $target, str
         return false;
     }
 
-    $prefix = bandpromo_media_reference_original_prefix($target);
-    if ($prefix !== null && is_file($root . '/' . $prefix . '/' . $basename)) {
-        return true;
-    }
-    foreach (bandpromo_media_reference_legacy_original_prefixes($target) as $legacyPrefix) {
-        if (is_file($root . '/' . $legacyPrefix . '/' . $basename)) {
-            return true;
-        }
-    }
-
     require_once __DIR__ . '/asset-registry.php';
     $asset = bandpromo_asset_lookup_from_media_ref($root, $basename);
     if (!is_array($asset)) {
+        $masterPrefix = bandpromo_media_reference_original_prefix($target);
+        if ($masterPrefix !== null && is_file($root . '/' . $masterPrefix . '/' . $basename)) {
+            return true;
+        }
+
         return false;
     }
 
@@ -137,8 +116,18 @@ function bandpromo_media_reference_file_exists(string $root, string $target, str
     if ($kind === 'visual') {
         require_once __DIR__ . '/visual-master-helpers.php';
         $working = bandpromo_visual_working_path($root, $asset);
+        if ($working !== '' && is_file($working)) {
+            return true;
+        }
+        $assetId = trim((string) ($asset['id'] ?? ''));
+        if ($assetId !== '') {
+            $deliveryDir = $root . '/media/visual/delivery/' . $assetId;
+            if (is_dir($deliveryDir)) {
+                return true;
+            }
+        }
 
-        return $working !== '' && is_file($working);
+        return false;
     }
 
     if ($kind === 'sfx') {
@@ -146,9 +135,12 @@ function bandpromo_media_reference_file_exists(string $root, string $target, str
         if ($master !== '' && is_file($root . '/media/sfx/master/' . $master)) {
             return true;
         }
-        $original = basename(trim((string) ($asset['original_filename'] ?? '')));
+        $assetId = trim((string) ($asset['id'] ?? ''));
+        if ($assetId !== '' && is_file($root . '/media/sfx/optimal/' . $assetId . '.mp3')) {
+            return true;
+        }
 
-        return $original !== '' && is_file($root . '/media/sfx/original/' . $original);
+        return false;
     }
 
     return false;
@@ -487,28 +479,27 @@ function bandpromo_media_reference_config_entries(string $target): array
 
     if ($target === 'photos') {
         return [
-            ['path' => 'release.theme.background_image', 'legacy' => ['media.background_image'], 'prefix' => 'media/photo/original', 'kind' => 'theme-background', 'label' => $siteChromeLabel],
-            ['path' => 'release.theme.cover', 'legacy' => ['media.cover'], 'prefix' => 'media/photo/original', 'kind' => 'theme-cover', 'label' => $siteChromeLabel],
-            ['path' => 'release.social.share_image', 'legacy' => ['social.share_image'], 'prefix' => 'media/photo/original', 'kind' => 'share-image', 'label' => $siteChromeLabel],
+            ['path' => 'release.theme.background_image', 'legacy' => ['media.background_image'], 'prefix' => 'media/visual/delivery', 'kind' => 'theme-background', 'label' => $siteChromeLabel],
+            ['path' => 'release.theme.cover', 'legacy' => ['media.cover'], 'prefix' => 'media/visual/delivery', 'kind' => 'theme-cover', 'label' => $siteChromeLabel],
+            ['path' => 'release.social.share_image', 'legacy' => ['social.share_image'], 'prefix' => 'media/visual/delivery', 'kind' => 'share-image', 'label' => $siteChromeLabel],
         ];
     }
 
     if ($target === 'video') {
         return [
-            ['path' => 'release.theme.background_video', 'legacy' => ['media.background_video'], 'prefix' => 'media/video/original', 'kind' => 'theme-background-video', 'label' => $siteChromeLabel],
+            ['path' => 'release.theme.background_video', 'legacy' => ['media.background_video'], 'prefix' => 'media/visual/delivery', 'kind' => 'theme-background-video', 'label' => $siteChromeLabel],
         ];
     }
 
     if ($target === 'special') {
         return [
-            ['path' => 'install.brand.logo', 'legacy' => ['install.theme.logo', 'media.logo', 'release.brand.logo', 'release.theme.logo'], 'prefix' => 'media/special', 'kind' => 'brand-logo', 'label' => $siteChromeLabel],
-            ['path' => 'release.brand.poster', 'legacy' => ['release.social.share_image', 'social.share_image', 'install.brand.poster'], 'prefix' => 'media/special', 'kind' => 'share-image', 'label' => $siteChromeLabel],
-            ['path' => 'release.theme.cover', 'legacy' => ['media.cover'], 'prefix' => 'media/special', 'kind' => 'theme-cover', 'label' => $siteChromeLabel],
-            ['path' => 'release.theme.background_image', 'legacy' => ['media.background_image'], 'prefix' => 'media/special', 'kind' => 'theme-background', 'label' => $siteChromeLabel],
-            ['path' => 'release.theme.background_video', 'legacy' => ['media.background_video'], 'prefix' => 'media/special', 'kind' => 'theme-background-video', 'label' => $siteChromeLabel],
-            // Legacy shell audio paths (pre–Sound effects pool).
-            ['path' => 'install.theme.welcome_audio', 'legacy' => ['media.welcome_audio'], 'prefix' => 'media/special', 'kind' => 'welcome-audio', 'label' => 'Welcome audio'],
-            ['path' => 'install.theme.loggedin_audio', 'legacy' => ['media.loggedin_audio'], 'prefix' => 'media/special', 'kind' => 'loggedin-audio', 'label' => 'Logged-in audio'],
+            ['path' => 'install.brand.logo', 'legacy' => ['install.theme.logo', 'media.logo', 'release.brand.logo', 'release.theme.logo'], 'prefix' => 'media/visual/delivery', 'kind' => 'brand-logo', 'label' => $siteChromeLabel],
+            ['path' => 'release.brand.poster', 'legacy' => ['release.social.share_image', 'social.share_image', 'install.brand.poster'], 'prefix' => 'media/visual/delivery', 'kind' => 'share-image', 'label' => $siteChromeLabel],
+            ['path' => 'release.theme.cover', 'legacy' => ['media.cover'], 'prefix' => 'media/visual/delivery', 'kind' => 'theme-cover', 'label' => $siteChromeLabel],
+            ['path' => 'release.theme.background_image', 'legacy' => ['media.background_image'], 'prefix' => 'media/visual/delivery', 'kind' => 'theme-background', 'label' => $siteChromeLabel],
+            ['path' => 'release.theme.background_video', 'legacy' => ['media.background_video'], 'prefix' => 'media/visual/delivery', 'kind' => 'theme-background-video', 'label' => $siteChromeLabel],
+            ['path' => 'install.theme.welcome_audio', 'legacy' => ['media.welcome_audio'], 'prefix' => 'media/sfx/optimal', 'kind' => 'welcome-audio', 'label' => 'Welcome audio'],
+            ['path' => 'install.theme.loggedin_audio', 'legacy' => ['media.loggedin_audio'], 'prefix' => 'media/sfx/optimal', 'kind' => 'loggedin-audio', 'label' => 'Logged-in audio'],
         ];
     }
 
@@ -518,8 +509,6 @@ function bandpromo_media_reference_config_entries(string $target): array
             ['path' => 'install.theme.loggedin_audio', 'legacy' => ['media.loggedin_audio'], 'prefix' => 'media/sfx/optimal', 'kind' => 'loggedin-audio', 'label' => 'Logged-in audio'],
             ['path' => 'install.theme.welcome_audio', 'legacy' => ['media.welcome_audio'], 'prefix' => 'media/sfx/master', 'kind' => 'welcome-audio', 'label' => 'Welcome audio'],
             ['path' => 'install.theme.loggedin_audio', 'legacy' => ['media.loggedin_audio'], 'prefix' => 'media/sfx/master', 'kind' => 'loggedin-audio', 'label' => 'Logged-in audio'],
-            ['path' => 'install.theme.welcome_audio', 'legacy' => ['media.welcome_audio'], 'prefix' => 'media/sfx/original', 'kind' => 'welcome-audio', 'label' => 'Welcome audio'],
-            ['path' => 'install.theme.loggedin_audio', 'legacy' => ['media.loggedin_audio'], 'prefix' => 'media/sfx/original', 'kind' => 'loggedin-audio', 'label' => 'Logged-in audio'],
         ];
     }
 
@@ -922,15 +911,6 @@ function bandpromo_media_reference_target_for_media_path(string $src): string
     $src = str_replace('\\', '/', trim($src));
     if ($src === '') {
         return '';
-    }
-    if (stripos($src, '/media/video/') !== false) {
-        return 'video';
-    }
-    if (stripos($src, '/media/photo/') !== false) {
-        return 'photos';
-    }
-    if (stripos($src, '/media/img/') !== false) {
-        return 'illustrations';
     }
     if (stripos($src, '/media/visual/') !== false) {
         if (preg_match('/\.(mp4|webm|mov|mkv)$/i', $src) === 1) {

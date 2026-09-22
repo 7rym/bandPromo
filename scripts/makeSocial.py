@@ -12,12 +12,11 @@ from pathlib import Path
 SCRIPT_DIR  = Path(__file__).parent
 ROOT_DIR    = SCRIPT_DIR.parent
 CONFIG_FILE = ROOT_DIR / 'web-config.json'
-SPECIAL_DIR = ROOT_DIR / 'media' / 'special'  # legacy dual-read only
-VISUAL_ORIGINAL_DIR = ROOT_DIR / 'media' / 'visual' / 'original'
 SHARE_DIR = ROOT_DIR / 'media' / 'share'
 BRANDS_DIR  = ROOT_DIR / 'data' / 'brands'
 ASSETS_REGISTRY = ROOT_DIR / 'data' / 'assets' / 'registry.json'
 VISUAL_DELIVERY_ROOT = ROOT_DIR / 'media' / 'visual' / 'delivery'
+VISUAL_MASTER_DIR = ROOT_DIR / 'media' / 'visual' / 'master'
 
 # Target dimensions per platform
 PLATFORMS = {
@@ -98,7 +97,7 @@ def resolve_visual_delivery_image(asset_id, preferred_variants=('card', 'share',
 
 
 def resolve_asset_id_to_path(asset_id):
-    """Resolve registry asset_id → on-disk image path (master/original first)."""
+    """Resolve registry asset_id → on-disk image path (master, then delivery)."""
     asset_id = str(asset_id or '').strip()
     if not asset_id.startswith('ast_'):
         return None
@@ -109,36 +108,21 @@ def resolve_asset_id_to_path(asset_id):
         # Delivery-only fallback when registry entry is missing.
         return resolve_visual_delivery_image(asset_id)
 
-    filename = str(asset.get('original_filename') or asset.get('master_filename') or '').strip()
-    filename = Path(filename).name
     master_name = str(asset.get('master_filename') or '').strip()
     master_name = Path(master_name).name
     fmt = str(asset.get('master_format') or '').strip().lower()
-    if not fmt and filename:
-        fmt = Path(filename).suffix.lstrip('.').lower()
+    if not fmt and master_name:
+        fmt = Path(master_name).suffix.lstrip('.').lower()
 
     candidates = []
     if fmt:
         candidates.append(ROOT_DIR / 'media' / 'visual' / 'master' / f'{asset_id}.{fmt}')
     if master_name.startswith('ast_'):
         candidates.append(ROOT_DIR / 'media' / 'visual' / 'master' / master_name)
-    if filename:
-        candidates.append(ROOT_DIR / 'media' / 'visual' / 'original' / filename)
-    bucket = str(asset.get('intake_bucket') or '').strip().lower()
-    if filename:
-        if bucket == 'special' or bucket == '':
-            candidates.append(SPECIAL_DIR / filename)
-        if bucket == 'photo':
-            candidates.append(ROOT_DIR / 'media' / 'photo' / 'original' / filename)
-        else:
-            candidates.append(ROOT_DIR / 'media' / 'img' / 'original' / filename)
-            candidates.append(SPECIAL_DIR / filename)
-            candidates.append(ROOT_DIR / 'media' / 'photo' / 'original' / filename)
     for candidate in candidates:
         if candidate.is_file():
             return candidate
 
-    # Last resort: delivery card/share (may be smaller than OG targets).
     return resolve_visual_delivery_image(asset_id)
 
 
@@ -163,7 +147,7 @@ def resolve_share_image(config):
             if candidate.is_file():
                 return candidate
 
-    path_str = config_get(config, 'social.share_image', '/media/visual/original/bandPromo_share.png')
+    path_str = config_get(config, 'social.share_image', '')
     path_str = normalize_media_path(path_str)
     # Bare asset ids occasionally land in config during migration.
     if str(path_str).startswith('ast_') or str(path_str).lstrip('/').startswith('ast_'):
@@ -220,18 +204,36 @@ def config_keys_pointing_at(config, path_str):
 
 
 def suggest_special_images(limit=8):
-    """Suggest candidate share images from Visual original, then legacy special/."""
+    """Suggest candidate share images from Visual master (then delivery folders)."""
     names = []
     seen = set()
-    for folder in (VISUAL_ORIGINAL_DIR, SPECIAL_DIR):
+    folders = [VISUAL_MASTER_DIR]
+    if VISUAL_DELIVERY_ROOT.is_dir():
+        folders.append(VISUAL_DELIVERY_ROOT)
+    for folder in folders:
         if not folder.is_dir():
             continue
         for path in sorted(folder.iterdir()):
+            if folder == VISUAL_DELIVERY_ROOT:
+                if not path.is_dir():
+                    continue
+                for variant in ('share', 'card', 'poster'):
+                    for ext in ('.png', '.jpg', '.jpeg', '.webp'):
+                        candidate = path / (variant + ext)
+                        if not candidate.is_file():
+                            continue
+                        label = path.name
+                        if label in seen:
+                            continue
+                        seen.add(label)
+                        names.append(label)
+                        if len(names) >= limit:
+                            return names
+                continue
             if not path.is_file():
                 continue
             if path.suffix.lower() not in ('.png', '.jpg', '.jpeg', '.webp'):
                 continue
-            # Skip generated platform crops
             stem = path.stem.lower()
             if stem.endswith('_facebook') or stem.endswith('_twitter'):
                 continue
@@ -252,7 +254,7 @@ def print_missing_share_image_help(config, src_image):
         relative = str(src_image)
 
     configured = normalize_media_path(
-        config_get(config, 'social.share_image', '/media/visual/original/bandPromo_share.png')
+        config_get(config, 'social.share_image', '')
     )
     matching_keys = config_keys_pointing_at(config, configured)
     brand_id = active_brand_id(config)

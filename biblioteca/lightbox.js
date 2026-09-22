@@ -67,7 +67,7 @@ class Lightbox {
                     }
                     if (!fallback || fallback === current) {
                         const masterMatch = current.match(
-                            /\/media\/visual\/(?:original|master)\/(ast_[0-9A-HJKMNP-TV-Z]{20})\.[a-z0-9]+(\?[^#]*)?(#.*)?$/i
+                            /\/media\/visual\/master\/(ast_[0-9A-HJKMNP-TV-Z]{20})\.[a-z0-9]+(\?[^#]*)?(#.*)?$/i
                         );
                         if (masterMatch) {
                             fallback = `/media/visual/delivery/${masterMatch[1]}/card.jpg${masterMatch[2] || ''}${masterMatch[3] || ''}`;

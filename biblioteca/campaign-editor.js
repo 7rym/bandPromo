@@ -375,14 +375,10 @@
             };
 
             if (raw.startsWith('/media/')) {
-                const intakeOriginal = raw.match(/^\/media\/(?:img|photo|visual)\/original\/([^/?#]+)$/i);
-                if (intakeOriginal) {
-                    const stem = String(intakeOriginal[1] || '').replace(/\.[^.]+$/, '');
-                    const card = deliveryCardFromAssetId(stem);
-                    if (card) {
-                        return card;
-                    }
-                    // Do not paint multi-MB intake originals in Catalogue chrome.
+                if (
+                    /^\/media\/(?:img|photo|video|special)(\/|$)/i.test(raw)
+                    || /\/original\//i.test(raw)
+                ) {
                     return '';
                 }
                 const parts = raw.split('/');
@@ -399,7 +395,7 @@
             if (card) {
                 return card;
             }
-            // No bare-filename guess into /media/img/original — wait for server poster_preview_url.
+            // No bare-filename invent into original/master — wait for server poster_preview_url.
             return '';
         }
 

@@ -363,11 +363,8 @@ function bandpromo_campaign_normalize_poster_asset_id(?string $root, mixed $valu
 function bandpromo_campaign_visual_media_bases(): array
 {
     return [
-        '/media/visual/original',
         '/media/visual/master',
-        '/media/img/original',
-        '/media/photo/original',
-        '/media/special',
+        '/media/visual/delivery',
     ];
 }
 
@@ -440,8 +437,11 @@ function bandpromo_campaign_resolve_poster_preview_url(string $root, string $pos
             }
         }
 
-        // Never paint multi-MB intake originals in Catalogue / release chrome.
-        if (preg_match('#^/media/(?:img|photo|visual)/original/#', str_replace('\\', '/', $posterReference))) {
+        // Never paint multi-MB intake originals or legacy folders in Catalogue / release chrome.
+        $normalizedRef = str_replace('\\', '/', $posterReference);
+        if (preg_match('#^/media/(?:img|photo|video|special)(/|$)#', $normalizedRef)
+            || preg_match('#^/media/(?:visual|sfx)/original/#', $normalizedRef)
+        ) {
             return '';
         }
 

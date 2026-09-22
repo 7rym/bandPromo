@@ -53,17 +53,19 @@ function bandpromo_visual_master_path(string $root, string $assetId, string $for
 
 /**
  * Resolve on-disk working bytes for a visual asset (master only).
- * Original is download/delete/provenance — not a working copy after materialize.
+ * Archival uploads are disposable intake — never a product working copy.
  */
 function bandpromo_visual_working_path(string $root, array $asset): string
 {
     $assetId = trim((string) ($asset['id'] ?? ''));
-    $format = strtolower(trim((string) ($asset['master_format'] ?? pathinfo(
-        (string) ($asset['original_filename'] ?? ''),
-        PATHINFO_EXTENSION
-    ))));
+    $format = strtolower(trim((string) ($asset['master_format'] ?? '')));
+    if ($format === '') {
+        $format = strtolower((string) pathinfo(
+            (string) ($asset['master_filename'] ?? ($asset['original_filename'] ?? '')),
+            PATHINFO_EXTENSION
+        ));
+    }
     $masterFilename = basename(trim((string) ($asset['master_filename'] ?? '')));
-    $originalFilename = basename(trim((string) ($asset['original_filename'] ?? '')));
 
     if ($assetId !== '' && $format !== '') {
         $masterPath = bandpromo_visual_master_path($root, $assetId, $format);
@@ -76,23 +78,6 @@ function bandpromo_visual_working_path(string $root, array $asset): string
         $candidate = bandpromo_visual_master_dir($root) . DIRECTORY_SEPARATOR . $masterFilename;
         if (is_file($candidate)) {
             return $candidate;
-        }
-    }
-
-    // Master missing: allow delivery/materialize to use provenance original (unified or legacy).
-    if ($originalFilename !== '') {
-        $unified = bandpromo_visual_unified_original_path($root, $originalFilename);
-        if ($unified !== '' && is_file($unified)) {
-            return $unified;
-        }
-        $legacy = bandpromo_visual_find_legacy_original_file($root, $originalFilename);
-        if ($legacy !== '') {
-            return $legacy;
-        }
-        require_once __DIR__ . '/asset-registry.php';
-        $bucketLegacy = bandpromo_asset_visual_legacy_original_path($root, $asset);
-        if ($bucketLegacy !== '' && is_file($bucketLegacy)) {
-            return $bucketLegacy;
         }
     }
 

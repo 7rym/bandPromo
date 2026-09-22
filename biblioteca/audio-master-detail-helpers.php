@@ -78,12 +78,12 @@ function bandpromo_audio_master_resolve_current_cover_url(?string $cover): strin
         return '/media/visual/delivery/' . rawurlencode($assetId) . '/card.jpg';
     }
 
-    // Human original filenames may still live under original/; never invent original/ast_*.ext.
-    return '/media/visual/original/' . rawurlencode($filename);
+    // Non-asset refs: do not invent /media/visual/original/{file}.
+    return '';
 }
 
 /**
- * Absolute path for a track-cover pool file (Visual original / legacy img|photo|special).
+ * Absolute path for a track-cover pool file (Visual master / delivery / registry only).
  */
 function bandpromo_audio_master_resolve_pool_cover_path(string $root, string $coverFilename): string
 {
@@ -101,9 +101,14 @@ function bandpromo_audio_master_resolve_pool_cover_path(string $root, string $co
         if ($working !== '' && is_file($working)) {
             return $working;
         }
-        $path = bandpromo_asset_visual_original_path($root, $visual);
-        if ($path !== '' && is_file($path)) {
-            return $path;
+        $assetId = trim((string) ($visual['id'] ?? ''));
+        if ($assetId !== '') {
+            foreach (['card.jpg', 'card.png', 'thumb.jpg', 'thumb.png'] as $variant) {
+                $delivery = $root . '/media/visual/delivery/' . $assetId . '/' . $variant;
+                if (is_file($delivery)) {
+                    return $delivery;
+                }
+            }
         }
     }
 
@@ -112,17 +117,9 @@ function bandpromo_audio_master_resolve_pool_cover_path(string $root, string $co
         return '';
     }
 
-    foreach ([
-        $root . '/media/visual/master/' . $coverFilename,
-        $root . '/media/visual/original/' . $coverFilename,
-        $root . '/media/img/original/' . $coverFilename,
-        $root . '/media/photo/original/' . $coverFilename,
-        // Legacy dual-read only — product path is visual/original.
-        $root . '/media/special/' . $coverFilename,
-    ] as $candidate) {
-        if (is_file($candidate)) {
-            return $candidate;
-        }
+    $masterCandidate = $root . '/media/visual/master/' . $coverFilename;
+    if (is_file($masterCandidate)) {
+        return $masterCandidate;
     }
 
     $stem = (string) pathinfo($coverFilename, PATHINFO_FILENAME);
@@ -715,19 +712,9 @@ function bandpromo_audio_master_apply_cover_selection(string $root, string $audi
     $targetKey = '';
     $filename = '';
 
-    if ($firstDir === 'visual' && $secondDir === 'original' && count($parts) >= 4) {
+    if ($firstDir === 'visual' && in_array($secondDir, ['master', 'original'], true) && count($parts) >= 4) {
         $targetKey = 'illustrations';
         $filename = basename($parts[3]);
-    } elseif ($firstDir === 'img' && $secondDir === 'original' && count($parts) >= 4) {
-        $targetKey = 'illustrations';
-        $filename = basename($parts[3]);
-    } elseif ($firstDir === 'photo' && $secondDir === 'original' && count($parts) >= 4) {
-        $targetKey = 'photos';
-        $filename = basename($parts[3]);
-    } elseif ($firstDir === 'special' && count($parts) >= 3) {
-        // Legacy path — treat as Visual illustrations, never Brand-assets special index.
-        $targetKey = 'illustrations';
-        $filename = basename($parts[2]);
     }
 
     if ($targetKey === '') {
@@ -752,8 +739,10 @@ function bandpromo_audio_master_apply_cover_selection(string $root, string $audi
         ];
     }
 
-    $sourceDir = bandpromo_media_target_dir($targetKey);
-    if ($sourceDir === null) {
+    $sourceDir = $secondDir === 'master'
+        ? ($root . '/media/visual/master')
+        : bandpromo_media_target_dir($targetKey);
+    if ($sourceDir === null || $sourceDir === '') {
         return [
             'ok' => false,
             'error' => 'Unsupported cover source',
@@ -761,12 +750,6 @@ function bandpromo_audio_master_apply_cover_selection(string $root, string $audi
     }
 
     $sourcePath = $sourceDir . '/' . $filename;
-    if (!is_file($sourcePath) && $firstDir === 'special') {
-        $legacySpecial = $root . '/media/special/' . $filename;
-        if (is_file($legacySpecial)) {
-            $sourcePath = $legacySpecial;
-        }
-    }
     if (!is_file($sourcePath)) {
         return [
             'ok' => false,

@@ -41,10 +41,6 @@ ROOT_DIR     = SCRIPT_DIR.parent
 AUDIO_ORIG_DIR = ROOT_DIR / 'media' / 'audio' / 'original'
 AUDIO_MASTER_DIR = ROOT_DIR / 'media' / 'audio' / 'master'
 AUDIO_OPT_DIR  = ROOT_DIR / 'media' / 'audio' / 'optimal'
-IMG_ORIG_DIR   = ROOT_DIR / 'media' / 'img'   / 'original'
-IMG_OPT_DIR    = ROOT_DIR / 'media' / 'img'   / 'optimal'
-PHOTO_ORIG_DIR = ROOT_DIR / 'media' / 'photo' / 'original'
-SPECIAL_DIR = ROOT_DIR / 'media' / 'special'
 ASSET_REGISTRY_FILE = ROOT_DIR / 'data' / 'assets' / 'registry.json'
 MEDIA_DIR    = ROOT_DIR / 'media'
 OPTIMIZE_MODE = os.environ.get('BANDPROMO_OPTIMIZE_MODE', '').strip().lower() or 'image-only'
@@ -431,9 +427,8 @@ def file_xxh3_hex(path):
 
 def visual_working_path_for_asset(asset):
     """
-    Resolve visual source bytes for delivery build.
-    Prefer master; fall back to unified/legacy original when master is missing
-    so publish catchup can heal sticky track covers.
+    Resolve visual source bytes for delivery build (master only).
+    Archival uploads are disposable intake — never a product working copy.
     """
     asset_id = str(asset.get('id') or '').strip()
     master_name = os.path.basename(str(asset.get('master_filename') or '').strip())
@@ -454,19 +449,6 @@ def visual_working_path_for_asset(asset):
         if path is not None and path.is_file():
             return path
 
-    # Master missing: use provenance original so delivery can still be rebuilt.
-    # Brand shell clones live under media/special/ (intake_bucket=special).
-    if original_name:
-        for folder in (VISUAL_ORIG_DIR, IMG_ORIG_DIR, PHOTO_ORIG_DIR, SPECIAL_DIR):
-            candidate = folder / original_name
-            if candidate.is_file():
-                print(
-                    "    ⚠️  Visual master missing for {}; using original {}".format(
-                        asset_id or master_name or original_name,
-                        candidate.name,
-                    )
-                )
-                return candidate
     return None
 
 
@@ -1380,25 +1362,23 @@ def main():
         print("  ✓ No registered visual image assets")
 
     # ── Unregistered intake (register-or-fail) ───────────────────────────────────
-    print("\n📷 Photos / illustrations intake check (register-or-fail)...")
+    print("\n📷 Visual intake check (register-or-fail)...")
     photo_exts = {'.png', '.jpg', '.jpeg', '.webp'}
     registered_visual_names = {
         os.path.basename(str(a.get('original_filename') or ''))
         for a in visual_queue
     }
     orphan_count = 0
-    for label, orig_dir in (('photo', PHOTO_ORIG_DIR), ('illustration', IMG_ORIG_DIR)):
-        if not orig_dir.exists():
-            continue
-        for src in sorted(orig_dir.iterdir()):
+    if VISUAL_ORIG_DIR.exists():
+        for src in sorted(VISUAL_ORIG_DIR.iterdir()):
             if not src.is_file() or src.suffix.lower() not in photo_exts:
                 continue
             if src.name in registered_visual_names:
                 continue
             orphan_count += 1
             print(
-                "  ⚠️  Unregistered {} {} — skipped (run Content autofix / register before Publish)"
-                .format(label, src.name)
+                "  ⚠️  Unregistered visual {} — skipped (run Content autofix / register before Publish)"
+                .format(src.name)
             )
     if orphan_count == 0:
         print("  ✓ No unregistered image originals waiting for registry")

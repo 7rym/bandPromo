@@ -3466,15 +3466,8 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 if (targets.includes('sfx') && raw.startsWith('/media/sfx/')) {
                     return 'sfx';
                 }
-                if (targets.includes('visual')) {
-                    if (
-                        raw.startsWith('/media/img/')
-                        || raw.startsWith('/media/photo/')
-                        || raw.startsWith('/media/video/')
-                        || raw.startsWith('/media/visual/')
-                    ) {
-                        return 'visual';
-                    }
+                if (targets.includes('visual') && raw.startsWith('/media/visual/')) {
+                    return 'visual';
                 }
                 const match = targets.find((target) => raw.startsWith(getMediaBasePath(target) + '/'));
                 return match || targets[0] || 'visual';
@@ -6788,12 +6781,11 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 if (assetId) {
                     return assetId;
                 }
-                if (raw.startsWith('/media/visual/') || raw.startsWith('media/visual/')) {
+                if (raw.startsWith('/media/visual/delivery/') || raw.startsWith('media/visual/delivery/')) {
                     return raw.startsWith('/') ? raw : `/${raw}`;
                 }
-                const safe = audioMasterLivingCoverBasename(raw);
-                // Legacy human filenames only — never invent master/ast_*.ext paths from a stem.
-                return safe ? `/media/visual/master/${safe}` : '';
+                // Asset id / delivery only — never invent /media/visual/master/{bare}.
+                return '';
             }
 
             function audioMasterLivingCoverPreviewFromPicker(filename) {
@@ -11452,13 +11444,10 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     };
 
                     if (raw.startsWith('/media/')) {
-                        const intakeOriginal = raw.match(/^\/media\/(?:img|photo|visual)\/original\/([^/?#]+)$/i);
-                        if (intakeOriginal) {
-                            const stem = String(intakeOriginal[1] || '').replace(/\.[^.]+$/, '');
-                            const card = deliveryCardFromAssetId(stem);
-                            if (card) {
-                                return card;
-                            }
+                        if (
+                            /^\/media\/(?:img|photo|video|special)(\/|$)/i.test(raw)
+                            || /\/original\//i.test(raw)
+                        ) {
                             return '';
                         }
                         const parts = raw.split('/');

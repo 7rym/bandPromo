@@ -123,33 +123,6 @@ function bandpromo_sfx_resolve_play_url(string $root, array $asset): string
     return '';
 }
 
-function bandpromo_sfx_rewrite_special_audio_path(string $webPath): string
-{
-    $webPath = trim(str_replace('\\', '/', $webPath));
-    if ($webPath === '') {
-        return '';
-    }
-    if (preg_match('#^https?://#i', $webPath) === 1) {
-        return $webPath;
-    }
-    if ($webPath[0] !== '/') {
-        $webPath = '/' . $webPath;
-    }
-
-    if (preg_match('#^/media/special/([^/]+)$#i', $webPath, $matches) !== 1) {
-        return $webPath;
-    }
-
-    $filename = basename((string) ($matches[1] ?? ''));
-    if ($filename === '' || !bandpromo_sfx_is_audio_filename($filename)) {
-        return $webPath;
-    }
-
-    // Keep a synthetic sfx path so resolve_stored_path can look up the asset;
-    // public playback still resolves to optimal-only via bandpromo_sfx_resolve_play_url.
-    return '/media/sfx/master/' . $filename;
-}
-
 /**
  * Resolve a stored shell path (any sfx tier) to the best public playback URL.
  */
@@ -161,7 +134,6 @@ function bandpromo_sfx_resolve_stored_path(string $root, string $webPath): strin
     if ($webPath === '') {
         return '';
     }
-    $webPath = bandpromo_sfx_rewrite_special_audio_path($webPath);
     if ($webPath !== '' && $webPath[0] !== '/') {
         $webPath = '/' . $webPath;
     }
@@ -989,7 +961,7 @@ function bandpromo_sfx_migrate_from_special(string $root): array
                 if ($current === '') {
                     continue;
                 }
-                $next = bandpromo_sfx_resolve_stored_path($root, bandpromo_sfx_rewrite_special_audio_path($current));
+                $next = bandpromo_sfx_resolve_stored_path($root, $current);
                 if ($next !== '' && $next !== $current) {
                     $assets[$key] = $next;
                     $changed = true;
@@ -1031,7 +1003,7 @@ function bandpromo_sfx_migrate_from_special(string $root): array
                         }
                         $next = bandpromo_sfx_resolve_stored_path(
                             $root,
-                            bandpromo_sfx_rewrite_special_audio_path($current)
+                            $current
                         );
                         if ($next !== '' && $next !== $current) {
                             $cursor[$segment] = $next;

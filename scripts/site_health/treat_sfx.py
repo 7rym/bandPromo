@@ -59,9 +59,9 @@ def treat_sfx_register_in_place():
                 existing['master_filename'] = name
                 existing['master_format'] = fmt
                 if not str(existing.get('original_filename') or '').strip():
-                    existing['original_filename'] = (
-                        reg._guess_sfx_original_filename(name) or name
-                    )
+                    guessed = reg._guess_sfx_original_filename(name)
+                    if guessed:
+                        existing['original_filename'] = guessed
                 if not str(existing.get('brand_id') or '').strip():
                     existing['brand_id'] = reg._guess_sfx_brand_id(asset_id)
                 registry['assets'][asset_id] = existing

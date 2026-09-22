@@ -31,13 +31,13 @@ bandpromo_asset_registry_ensure_migrated($root);
 bandpromo_campaign_ensure_seeded($root);
 
 $dirs = [
-    'audio'         => bandpromo_media_target_dir('audio'),
-    'illustrations' => bandpromo_media_target_dir('illustrations'),
-    'photos'        => bandpromo_media_target_dir('photos'),
-    'video'         => bandpromo_media_target_dir('video'),
-    'special'       => bandpromo_media_target_dir('special'),
-    'sfx'           => bandpromo_media_target_dir('sfx'),
-    'visual'        => dirname(__DIR__) . '/media',
+    'audio'         => bandpromo_media_files_listing_dir('audio'),
+    'illustrations' => bandpromo_media_files_listing_dir('illustrations'),
+    'photos'        => bandpromo_media_files_listing_dir('photos'),
+    'video'         => bandpromo_media_files_listing_dir('video'),
+    'special'       => bandpromo_media_files_listing_dir('special'),
+    'sfx'           => bandpromo_media_files_listing_dir('sfx'),
+    'visual'        => dirname(__DIR__) . '/media/visual/master',
 ];
 
 $target = $_GET['target'] ?? '';
