@@ -4205,18 +4205,6 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                         : 'Delete selected files';
                 }
 
-                const bulkDiscardBtn = document.querySelector(`[data-bulk-discard-original-target="${type}"]`);
-                if (bulkDiscardBtn) {
-                    const eligible = getSelectedMediaDetails(type).filter((file) => (
-                        file?.can_discard_original === true
-                        || (file?.has_original === true && file?.has_master === true)
-                    ));
-                    bulkDiscardBtn.disabled = eligible.length < 1;
-                    bulkDiscardBtn.title = eligible.length < 1
-                        ? 'Select files that still have an archival upload and a master'
-                        : `Discard archival upload for ${eligible.length} selected file(s)`;
-                }
-
                 if (type === 'visual') {
                     const selectedDetails = getSelectedMediaDetails('visual');
                     const assignBtn = document.getElementById('visualAssignCampaignBtn');
@@ -4942,7 +4930,6 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 const badgesEl = document.getElementById('poolAssetBadges');
                 const detailsEl = document.getElementById('poolAssetDetails');
                 const downloadBtn = document.getElementById('poolAssetDownloadBtn');
-                const discardOriginalBtn = document.getElementById('poolAssetDiscardOriginalBtn');
                 const deleteBtn = document.getElementById('poolAssetDeleteBtn');
                 const displayForm = document.getElementById('poolAssetDisplayForm');
                 if (!file || !modal || !previewEl || !titleEl || !badgesEl || !detailsEl) {
@@ -5140,27 +5127,6 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                         downloadBtn.textContent = 'Download';
                         downloadBtn.title = 'No downloadable file is ready';
                         downloadBtn.onclick = null;
-                    }
-                }
-                if (discardOriginalBtn) {
-                    const canDiscard = file.can_discard_original === true
-                        || (file.has_original === true && file.has_master === true);
-                    discardOriginalBtn.hidden = !canDiscard;
-                    discardOriginalBtn.disabled = !canDiscard;
-                    if (canDiscard) {
-                        const originalBytes = Number(file.original_bytes) || 0;
-                        discardOriginalBtn.title = originalBytes > 0
-                            ? `Remove the archival upload (${fmtSize(originalBytes)}); keep master and player files`
-                            : 'Remove the archival upload; keep master and player files';
-                        discardOriginalBtn.onclick = () => {
-                            void discardArchivalOriginals(panelType, [file]).then((ok) => {
-                                if (ok) {
-                                    void closePoolAssetModal({ discard: true });
-                                }
-                            });
-                        };
-                    } else {
-                        discardOriginalBtn.onclick = null;
                     }
                 }
                 if (deleteBtn) {
@@ -8127,117 +8093,6 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     openDeleteModal(target, files);
                 });
             });
-
-            document.querySelectorAll('[data-bulk-discard-original-target]').forEach((button) => {
-                const target = String(button.dataset.bulkDiscardOriginalTarget || '').trim();
-                syncMediaSelectionUi(target);
-                button.addEventListener('click', () => {
-                    const eligible = getSelectedMediaDetails(target).filter((file) => (
-                        file?.can_discard_original === true
-                        || (file?.has_original === true && file?.has_master === true)
-                    ));
-                    if (!eligible.length) {
-                        return;
-                    }
-                    void discardArchivalOriginals(target, eligible);
-                });
-            });
-
-            /**
-             * Remove archival original bytes only (master + delivery stay).
-             * @returns {Promise<boolean>}
-             */
-            async function discardArchivalOriginals(panelType, files) {
-                const list = (Array.isArray(files) ? files : []).filter(Boolean);
-                if (!list.length) {
-                    return false;
-                }
-                const totalBytes = list.reduce((sum, file) => sum + (Number(file.original_bytes) || 0), 0);
-                const sizeNote = totalBytes > 0 ? ` About ${fmtSize(totalBytes)} will be freed.` : '';
-                const body = list.length === 1
-                    ? `Remove the archival upload for “${poolAssetHeadline(panelType, list[0]) || list[0].name}”? The master and player-ready files stay.${sizeNote} Download original will stop working for this file.`
-                    : `Remove the archival upload for ${list.length} selected files? Masters and player-ready files stay.${sizeNote} Download original will stop working for those files.`;
-                const confirmed = typeof window.bandpromoConfirm === 'function'
-                    ? await window.bandpromoConfirm({
-                        title: list.length === 1 ? 'Discard archival upload?' : 'Discard archival uploads?',
-                        body,
-                        confirmLabel: list.length === 1 ? 'Discard upload' : 'Discard uploads',
-                        tone: 'warn',
-                    })
-                    : window.confirm(body);
-                if (!confirmed) {
-                    return false;
-                }
-
-                const byTarget = new Map();
-                list.forEach((file) => {
-                    const intake = resolveFileIntakeBucket(file, panelType)
-                        || (panelType === 'visual' ? 'illustrations' : panelType);
-                    const name = String(file.name || '').trim();
-                    if (!name) {
-                        return;
-                    }
-                    if (!byTarget.has(intake)) {
-                        byTarget.set(intake, []);
-                    }
-                    byTarget.get(intake).push({
-                        name,
-                        asset_id: String(file.asset_id || '').trim(),
-                    });
-                });
-
-                let freed = 0;
-                let discarded = 0;
-                const errors = [];
-                for (const [target, rows] of byTarget.entries()) {
-                    try {
-                        const csrfToken = typeof refreshAdminCsrfToken === 'function'
-                            ? await refreshAdminCsrfToken()
-                            : (adminCsrf || '');
-                        const resp = await fetch('/biblioteca/discard-original.php', {
-                            method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/json',
-                                ...(csrfToken ? { 'X-CSRF-Token': csrfToken } : {}),
-                            },
-                            credentials: 'same-origin',
-                            body: JSON.stringify({
-                                target,
-                                filenames: rows.map((row) => row.name),
-                                asset_id: rows.length === 1 ? rows[0].asset_id : '',
-                                csrf_token: csrfToken,
-                            }),
-                        });
-                        const data = await resp.json().catch(() => ({}));
-                        if (!resp.ok || data.ok === false) {
-                            errors.push(String(data.error || 'Could not discard archival upload'));
-                            continue;
-                        }
-                        discarded += Number(data.discarded) || 0;
-                        freed += Number(data.bytes_freed) || 0;
-                    } catch (err) {
-                        errors.push(String(err?.message || err || 'Could not discard archival upload'));
-                    }
-                }
-
-                if (typeof loadMediaList === 'function') {
-                    await loadMediaList(panelType === 'visual' ? 'visual' : panelType);
-                }
-
-                if (discarded > 0 && typeof showAdminToast === 'function') {
-                    const freedNote = freed > 0 ? ` Freed ${fmtSize(freed)}.` : '';
-                    showAdminToast(
-                        discarded === 1
-                            ? `Archival upload discarded.${freedNote}`
-                            : `${discarded} archival uploads discarded.${freedNote}`,
-                        'success'
-                    );
-                }
-                if (errors.length && typeof showAdminToast === 'function') {
-                    showAdminToast(errors[0], 'error');
-                }
-                return discarded > 0 && errors.length === 0;
-            }
 
             async function saveVisualCampaignHomes(assetIds, campaignId, ensureFiles = []) {
                 const ids = (Array.isArray(assetIds) ? assetIds : [])

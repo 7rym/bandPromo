@@ -3,7 +3,7 @@ declare(strict_types=1);
 
 /**
  * Discard archival original uploads while keeping master + delivery.
- * Manual Files action only — never called from Site health Treat.
+ * Called from System → Status → Storage only — never from Site health Treat.
  *
  * POST JSON:
  *   { target, filename } or { target, filenames: [...] }

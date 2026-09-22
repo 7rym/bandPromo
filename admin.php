@@ -1296,7 +1296,6 @@ if ($tab === 'analytics') {
                             </div>
                             <div class="media-action-group" role="group" aria-label="Export and delete">
                                 <button type="button" class="icon-btn media-action-btn media-action-good media-group-action-btn media-labeled-action-btn media-bulk-download-btn" data-bulk-download-target="audio" data-download-variant="master" disabled aria-label="Download selected audio files" title="Download selected audio files"><span class="media-labeled-action-icon" aria-hidden="true">⬇</span><span>Download</span></button>
-                                <button type="button" class="icon-btn media-action-btn media-action-good media-group-action-btn media-labeled-action-btn media-bulk-discard-original-btn" data-bulk-discard-original-target="audio" disabled aria-label="Discard archival uploads for selected audio" title="Select files that still have an archival upload"><span class="media-labeled-action-icon" aria-hidden="true">📦</span><span>Discard upload</span></button>
                                 <button type="button" class="icon-btn media-action-btn media-action-good media-group-action-btn media-labeled-action-btn media-bulk-delete-btn" data-bulk-delete-target="audio" disabled aria-label="Delete selected audio files" title="Delete selected audio files"><span class="media-labeled-action-icon" aria-hidden="true">🗑️</span><span>Delete</span></button>
                             </div>
                         </div>
@@ -1387,7 +1386,6 @@ if ($tab === 'analytics') {
                         </div>
                         <div class="media-action-group" role="group" aria-label="Export and delete">
                             <button type="button" class="icon-btn media-action-btn media-action-good media-group-action-btn media-labeled-action-btn media-bulk-download-btn" data-bulk-download-target="visual" data-download-variant="original" disabled aria-label="Download selected files" title="Download selected files"><span class="media-labeled-action-icon" aria-hidden="true">⬇</span><span>Download</span></button>
-                            <button type="button" class="icon-btn media-action-btn media-action-good media-group-action-btn media-labeled-action-btn media-bulk-discard-original-btn" data-bulk-discard-original-target="visual" disabled aria-label="Discard archival uploads for selected files" title="Select files that still have an archival upload"><span class="media-labeled-action-icon" aria-hidden="true">📦</span><span>Discard upload</span></button>
                             <button type="button" class="icon-btn media-action-btn media-action-good media-group-action-btn media-labeled-action-btn media-bulk-delete-btn" data-bulk-delete-target="visual" disabled aria-label="Delete selected files" title="Delete selected files"><span class="media-labeled-action-icon" aria-hidden="true">🗑️</span><span>Delete</span></button>
                         </div>
                     </div>
@@ -1444,7 +1442,6 @@ if ($tab === 'analytics') {
                         </div>
                         <div class="media-action-group" role="group" aria-label="Export and delete">
                             <button type="button" class="icon-btn media-action-btn media-action-good media-group-action-btn media-labeled-action-btn media-bulk-download-btn" data-bulk-download-target="sfx" data-download-variant="original" disabled aria-label="Download selected sound effects" title="Download selected sound effects"><span class="media-labeled-action-icon" aria-hidden="true">⬇</span><span>Download</span></button>
-                            <button type="button" class="icon-btn media-action-btn media-action-good media-group-action-btn media-labeled-action-btn media-bulk-discard-original-btn" data-bulk-discard-original-target="sfx" disabled aria-label="Discard archival uploads for selected sound effects" title="Select files that still have an archival upload"><span class="media-labeled-action-icon" aria-hidden="true">📦</span><span>Discard upload</span></button>
                             <button type="button" class="icon-btn media-action-btn media-action-good media-group-action-btn media-labeled-action-btn media-bulk-delete-btn" data-bulk-delete-target="sfx" disabled aria-label="Delete selected sound effects" title="Delete selected sound effects"><span class="media-labeled-action-icon" aria-hidden="true">🗑️</span><span>Delete</span></button>
                         </div>
                     </div>
@@ -1684,7 +1681,6 @@ if ($tab === 'analytics') {
                     </div>
                     <div class="modal-actions visual-asset-modal-actions">
                         <button type="button" class="btn btn-available" id="poolAssetDownloadBtn">Download</button>
-                        <button type="button" class="btn btn-available" id="poolAssetDiscardOriginalBtn" hidden title="Remove the archival upload; keep the master and player files">Discard archival upload</button>
                         <button type="button" class="btn btn-available" id="poolAssetDeleteBtn" title="Delete this file">Delete</button>
                         <button type="button" class="btn btn-available" id="poolAssetAbortBtn" title="Close without saving">Abort</button>
                         <button type="button" class="btn btn-good" id="poolAssetDoneBtn" title="Save and close">Save</button>
@@ -3114,7 +3110,29 @@ if ($tab === 'analytics') {
                             <span class="site-health-tool-card-title">Site health</span>
                             <span class="site-health-tool-card-body">Check the catalogue and player-ready files, then Review and Apply when something needs fixing.</span>
                         </button>
+                        <button type="button" class="site-health-tool-card" id="statusStorageEnterBtn">
+                            <span class="site-health-tool-card-title">Storage</span>
+                            <span class="site-health-tool-card-body">See how much space this install uses, and discard archival uploads when masters already exist.</span>
+                        </button>
                     </div>
+                </div>
+
+                <div id="statusStoragePanel" class="status-storage-panel" hidden>
+                    <p class="site-health-stage-lead">Disk use for this install, plus how much you can free by discarding archival uploads when a master is already on disk. Masters and player-ready files stay.</p>
+                    <div id="statusStorageSummary" class="status-storage-summary">
+                        <p class="publish-status-empty">Measuring storage…</p>
+                    </div>
+                    <div class="status-storage-actions">
+                        <button type="button" id="statusStorageDiscardBtn" class="btn btn-good" hidden>Discard eligible archival uploads</button>
+                        <button type="button" id="statusStorageRefreshBtn" class="btn">Refresh</button>
+                    </div>
+                    <p id="statusStorageStatus" class="status-storage-status" hidden></p>
+                    <?php if ($currentUserRole === 'developer'): ?>
+                    <details id="statusStorageDevDetail" class="status-storage-dev" hidden>
+                        <summary>Developer detail</summary>
+                        <pre id="statusStorageDevSample" class="status-storage-dev-sample"></pre>
+                    </details>
+                    <?php endif; ?>
                 </div>
 
                 <div id="siteHealthHub" class="site-health-hub" hidden>

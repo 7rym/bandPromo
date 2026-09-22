@@ -2,9 +2,9 @@
 
 ## Resume point
 
-Session ended and **published** **v0.8.94 build 579** (`v0.8.94-build-579`): Storage reclaim (package scratch + older Ready archives) + Files Discard archival upload; demo-hide ownership-only + special-intake findings 2–13.
+Session ended and **published** **v0.8.95 build 580** (`v0.8.95-build-580`): Status → Storage panel (disk use + discard eligible archival originals). Files no longer offers Discard upload — reclaim lives only under System → Status → Storage.
 
-**Next:** Testers: Dashboard → Site update. HITZ: Status → Check → Review → Apply storage reclaim findings first. Optional: Files pool compactness; featured/remix player display.
+**Next:** Testers: Dashboard → Site update. HITZ: open Status → Storage to see freeable originals, then Discard eligible archival uploads if quota still tight (after Site health package/archive Treat if needed). Optional: Files pool compactness; featured/remix player display.
 
 ### Policy locked (do not reopen)
 
@@ -31,6 +31,7 @@ Session ended and **published** **v0.8.94 build 579** (`v0.8.94-build-579`): Sto
 - Video MKV remux maps video + optional audio only (drop data/timecode tracks)
 - ffmpeg capture must decode stderr as UTF-8 with replace (Windows charmap)
 - Sticky playlist-scan Notifications heal on bell (full) or Site health Check start
+- Archival original discard lives under **System → Status → Storage** only (not Files)
 
 ### Local workspace
 

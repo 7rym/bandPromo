@@ -2,6 +2,8 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-09-22 19:55 - Status → Storage: disk use + reclaimable archival originals live under System → Status (peer tool card to Site health). Discard eligible uploads only from that panel; Files toolbars and Visual/SFX editors no longer offer Discard upload.
+
 2026-09-22 16:50 - Storage reclaim + discard archival originals: Site health Check/Treat clears stuck `.bandpromo-*` package folders and older Ready Jobs archives (keeps newest Backup/PCF/PBF each); Files gains Discard archival upload (editor + bulk) when a master exists — originals never auto-deleted.
 
 2026-09-22 16:30 - Findings 11–13 + recurring Unused image orphan: makeSocial / Brand seed fallbacks prefer Files → Visual (retire Brand assets copy); page-image picker drops “legacy brand intake” group; track-cover assign accepts `visual/original` and maps legacy `/media/special` to illustrations. Unregistered `bandPromo_*` disk leftovers are demo-owned when demo is hidden (skip Files index orphan re-ingest; stamp demo home on heavy visual backfill).

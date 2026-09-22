@@ -21,6 +21,14 @@
     const hubEl = document.getElementById('siteHealthHub');
     const hubResumeEl = document.getElementById('siteHealthHubResume');
     const enterHubBtn = document.getElementById('siteHealthEnterHubBtn');
+    const storagePanelEl = document.getElementById('statusStoragePanel');
+    const storageEnterBtn = document.getElementById('statusStorageEnterBtn');
+    const storageSummaryEl = document.getElementById('statusStorageSummary');
+    const storageDiscardBtn = document.getElementById('statusStorageDiscardBtn');
+    const storageRefreshBtn = document.getElementById('statusStorageRefreshBtn');
+    const storageStatusEl = document.getElementById('statusStorageStatus');
+    const storageDevDetailEl = document.getElementById('statusStorageDevDetail');
+    const storageDevSampleEl = document.getElementById('statusStorageDevSample');
     const hubSlotQuick = document.getElementById('siteHealthHubSlotQuick');
     const hubSlotFull = document.getElementById('siteHealthHubSlotFull');
     const hubSlotForce = document.getElementById('siteHealthHubSlotForce');
@@ -52,11 +60,14 @@
     }
 
     const EXAM_LABEL_KEY = 'bandpromo_site_health_exam_label';
-    /** @type {'status'|'hub'|'running'|'diagnosis'|'review'|'result'} */
+    /** @type {'status'|'storage'|'hub'|'running'|'diagnosis'|'review'|'result'} */
     let uiStage = 'status';
     let examLabel = 'Quick check';
     /** @type {'check'|'check_full'|'force'|'treat'|''} */
     let runModeKey = '';
+    /** @type {object|null} */
+    let lastStorageReport = null;
+    let storageBusy = false;
     try {
         const storedExam = sessionStorage.getItem(EXAM_LABEL_KEY);
         if (storedExam) {
@@ -168,6 +179,7 @@
         const normalised = next === 'exam' ? 'diagnosis' : next;
         if (
             normalised === 'status'
+            || normalised === 'storage'
             || normalised === 'hub'
             || normalised === 'running'
             || normalised === 'diagnosis'
@@ -618,16 +630,20 @@
 
     function syncStagePanels() {
         const showStatus = uiStage === 'status';
+        const showStorage = uiStage === 'storage';
         const showHub = uiStage === 'hub';
         const showRunning = uiStage === 'running';
         const showDiagnosis = uiStage === 'diagnosis';
         const showReview = uiStage === 'review';
         const showResult = uiStage === 'result';
-        // Activity while jobs run (checklist + detail); still hidden on Status / Action hub.
+        // Activity while jobs run (checklist + detail); still hidden on Status / Storage / Action hub.
         const showActivity = showRunning || showDiagnosis || showReview || showResult;
 
         if (statusHomeEl) {
             statusHomeEl.hidden = !showStatus;
+        }
+        if (storagePanelEl) {
+            storagePanelEl.hidden = !showStorage;
         }
         if (hubEl) {
             // Hide Action hub guides while a checklist run is in progress.
@@ -646,11 +662,11 @@
         }
 
         if (metaEl) {
-            // Diagnosis keeps last-check meta; Status / Action / running stay quiet.
+            // Diagnosis keeps last-check meta; Status / Storage / Action / running stay quiet.
             metaEl.hidden = !showDiagnosis;
         }
 
-        // Good / Bad / Ugly and findings only on Diagnosis (never Status / Action / running).
+        // Good / Bad / Ugly and findings only on Diagnosis (never Status / Storage / Action / running).
         if (!showDiagnosis) {
             if (summaryEl) {
                 summaryEl.hidden = true;
@@ -701,7 +717,7 @@
             if (showRunning || running) {
                 // Stop only — checklist is the progress UI.
                 actionsEl.hidden = false;
-            } else if (showHub || showStatus) {
+            } else if (showHub || showStatus || showStorage) {
                 actionsEl.hidden = true;
             } else {
                 actionsEl.hidden = !showDiagnosisToolbar;
@@ -748,6 +764,7 @@
         }
 
         const onStatusLanding = uiStage === 'status';
+        const onStorage = uiStage === 'storage';
         if (crumbStatusLink) {
             crumbStatusLink.hidden = onStatusLanding;
         }
@@ -758,12 +775,17 @@
             crumbSepEl.hidden = onStatusLanding;
         }
         if (crumbHomeBtn) {
-            // Site health root link: visible once past the Action hub.
-            crumbHomeBtn.hidden = onStatusLanding || uiStage === 'hub';
+            // Site health root link: visible once past the Action hub (not on Storage).
+            crumbHomeBtn.hidden = onStatusLanding || onStorage || uiStage === 'hub';
         }
 
         if (onStatusLanding) {
             breadcrumbStepsEl.innerHTML = '';
+            return;
+        }
+
+        if (onStorage) {
+            breadcrumbStepsEl.innerHTML = crumbCurrentHtml('Storage');
             return;
         }
 
@@ -796,6 +818,13 @@
             setPreviewMode(false);
             setUiStage('status');
             setJobStatus('');
+            return;
+        }
+        if (action === 'storage') {
+            setPreviewMode(false);
+            setUiStage('storage');
+            setJobStatus('');
+            void loadStorageReport();
             return;
         }
         if (action === 'home' || action === 'hub') {
@@ -1088,7 +1117,7 @@
             window.location.href = target;
             return;
         }
-        if (uiStage === 'status' || uiStage === 'hub' || uiStage === 'running') {
+        if (uiStage === 'status' || uiStage === 'storage' || uiStage === 'hub' || uiStage === 'running') {
             setUiStage('diagnosis');
         }
         const logCard = document.getElementById('site-health-log-card');
@@ -1144,7 +1173,7 @@
             return;
         }
         const key = String(lastOverallKey || 'unknown').toLowerCase();
-        const onChooser = uiStage === 'status' || uiStage === 'hub';
+        const onChooser = uiStage === 'status' || uiStage === 'storage' || uiStage === 'hub';
         let label = 'Not checked yet';
         let cls = 'badge audit-status-badge status-neutral';
         if (key === 'running') {
@@ -1769,6 +1798,289 @@
         return '';
     }
 
+    function formatStorageBytes(bytes) {
+        if (bytes === null || bytes === undefined || !Number.isFinite(Number(bytes))) {
+            return '(unknown)';
+        }
+        let value = Math.max(0, Number(bytes));
+        const units = ['B', 'KB', 'MB', 'GB', 'TB'];
+        let i = 0;
+        while (value >= 1024 && i < units.length - 1) {
+            value /= 1024;
+            i += 1;
+        }
+        const precision = i === 0 ? 0 : 1;
+        return value.toFixed(precision) + ' ' + units[i];
+    }
+
+    function setStorageStatus(message, tone) {
+        if (!storageStatusEl) {
+            return;
+        }
+        const text = String(message || '').trim();
+        if (!text) {
+            storageStatusEl.hidden = true;
+            storageStatusEl.textContent = '';
+            storageStatusEl.removeAttribute('data-tone');
+            return;
+        }
+        storageStatusEl.hidden = false;
+        storageStatusEl.textContent = text;
+        storageStatusEl.setAttribute('data-tone', String(tone || ''));
+    }
+
+    function renderStorageSummary(report) {
+        if (!storageSummaryEl) {
+            return;
+        }
+        const disk = (report && report.disk) || {};
+        const install = (report && report.install) || {};
+        const reclaim = (report && report.reclaimable) || {};
+        const media = install.media || {};
+        const byFamily = reclaim.by_family || {};
+
+        const freeLabel = disk.free_label || formatStorageBytes(disk.free_bytes);
+        const totalLabel = disk.total_label || formatStorageBytes(disk.total_bytes);
+        const hostBody = (disk.free_bytes == null && disk.total_bytes == null)
+            ? 'Could not read host disk space for this install.'
+            : (freeLabel + ' free of ' + totalLabel);
+
+        const mediaParts = [];
+        ['audio', 'visual', 'sfx'].forEach((family) => {
+            const row = media[family] || {};
+            const label = family === 'sfx' ? 'Sound effects' : (family.charAt(0).toUpperCase() + family.slice(1));
+            const total = Number(row.total_bytes) || 0;
+            if (total <= 0) {
+                return;
+            }
+            mediaParts.push(
+                label + ': ' + formatStorageBytes(total)
+                + ' (uploads ' + formatStorageBytes(row.original_bytes)
+                + ' · masters ' + formatStorageBytes(row.master_bytes)
+                + ' · player ' + formatStorageBytes(row.delivery_bytes) + ')'
+            );
+        });
+        if (Number(install.media_legacy_bytes) > 0) {
+            mediaParts.push('Legacy folders: ' + formatStorageBytes(install.media_legacy_bytes));
+        }
+
+        let installBody = 'Media ' + (install.media_label || formatStorageBytes(install.media_bytes))
+            + ' · Backups ' + (install.backups_label || formatStorageBytes(install.backups_bytes))
+            + ' · Data ' + (install.data_label || formatStorageBytes(install.data_bytes));
+        if (mediaParts.length) {
+            installBody += '. ' + mediaParts.join('; ') + '.';
+        }
+        if (install.partial) {
+            installBody += ' (partial measure — large tree timed out)';
+        }
+
+        const reclaimCount = Number(reclaim.count) || 0;
+        const reclaimBytes = Number(reclaim.bytes) || 0;
+        const familyBits = [];
+        ['audio', 'visual', 'sfx'].forEach((family) => {
+            const row = byFamily[family] || {};
+            const count = Number(row.count) || 0;
+            if (count <= 0) {
+                return;
+            }
+            const label = family === 'sfx' ? 'sound effects' : family;
+            familyBits.push(count + ' ' + label + ' (' + formatStorageBytes(row.bytes) + ')');
+        });
+        let reclaimBody;
+        if (reclaimCount <= 0) {
+            reclaimBody = 'Nothing to discard right now — every archival upload already has no spare original, or only locked demo originals remain.';
+        } else {
+            reclaimBody = 'About ' + (reclaim.bytes_label || formatStorageBytes(reclaimBytes))
+                + ' across ' + reclaimCount + ' file' + (reclaimCount === 1 ? '' : 's');
+            if (familyBits.length) {
+                reclaimBody += ': ' + familyBits.join(', ');
+            }
+            reclaimBody += '. Masters and player-ready files stay.';
+            const locked = Number(reclaim.excluded_locked_demo) || 0;
+            if (locked > 0) {
+                reclaimBody += ' ' + locked + ' locked demo upload'
+                    + (locked === 1 ? ' is' : 's are') + ' excluded.';
+            }
+        }
+
+        storageSummaryEl.innerHTML =
+            '<div class="status-storage-cards">' +
+            '<article class="status-storage-card">' +
+            '<h3 class="status-storage-card-title">Host space</h3>' +
+            '<p class="status-storage-card-body">' + escapeHtml(hostBody) + '</p>' +
+            '</article>' +
+            '<article class="status-storage-card">' +
+            '<h3 class="status-storage-card-title">This install (approx)</h3>' +
+            '<p class="status-storage-card-body">' + escapeHtml(installBody) + '</p>' +
+            '</article>' +
+            '<article class="status-storage-card">' +
+            '<h3 class="status-storage-card-title">Archival uploads you can discard</h3>' +
+            '<p class="status-storage-card-body">' + escapeHtml(reclaimBody) + '</p>' +
+            '</article>' +
+            '</div>';
+
+        if (storageDiscardBtn) {
+            const canDiscard = reclaimCount > 0 && reclaimBytes >= 0;
+            storageDiscardBtn.hidden = !canDiscard;
+            storageDiscardBtn.disabled = storageBusy || !canDiscard;
+            storageDiscardBtn.textContent = reclaimCount > 0
+                ? ('Discard eligible archival uploads (' + formatStorageBytes(reclaimBytes) + ')')
+                : 'Discard eligible archival uploads';
+        }
+
+        if (storageDevDetailEl && storageDevSampleEl) {
+            const sample = Array.isArray(reclaim.sample) ? reclaim.sample : [];
+            if (sample.length) {
+                storageDevDetailEl.hidden = false;
+                storageDevSampleEl.textContent = sample.map((row) => {
+                    return String(row.family || '') + '\t'
+                        + String(row.filename || '') + '\t'
+                        + String(row.bytes_label || formatStorageBytes(row.bytes));
+                }).join('\n');
+            } else {
+                storageDevDetailEl.hidden = true;
+                storageDevSampleEl.textContent = '';
+            }
+        }
+    }
+
+    async function loadStorageReport() {
+        if (!storageSummaryEl) {
+            return;
+        }
+        storageSummaryEl.innerHTML = '<p class="publish-status-empty">Measuring storage…</p>';
+        setStorageStatus('');
+        if (storageDiscardBtn) {
+            storageDiscardBtn.hidden = true;
+            storageDiscardBtn.disabled = true;
+        }
+        try {
+            const resp = await fetch('/biblioteca/storage-report.php', {
+                credentials: 'same-origin',
+            });
+            const data = await resp.json().catch(() => ({}));
+            if (!resp.ok || !data || data.ok !== true || !data.report) {
+                storageSummaryEl.innerHTML = '<p class="publish-status-empty">'
+                    + escapeHtml(String((data && data.error) || 'Could not measure storage.'))
+                    + '</p>';
+                lastStorageReport = null;
+                return;
+            }
+            lastStorageReport = data.report;
+            renderStorageSummary(data.report);
+        } catch (err) {
+            lastStorageReport = null;
+            storageSummaryEl.innerHTML = '<p class="publish-status-empty">Could not measure storage.</p>';
+        }
+    }
+
+    async function discardEligibleArchivalUploads() {
+        const report = lastStorageReport;
+        const items = report && report.reclaimable && Array.isArray(report.reclaimable.items)
+            ? report.reclaimable.items
+            : [];
+        if (!items.length || storageBusy) {
+            return;
+        }
+        const totalBytes = Number(report.reclaimable.bytes) || 0;
+        const count = items.length;
+        const body = count === 1
+            ? ('Remove 1 archival upload (about ' + formatStorageBytes(totalBytes)
+                + ')? The master and player-ready files stay.')
+            : ('Remove ' + count + ' archival uploads (about ' + formatStorageBytes(totalBytes)
+                + ')? Masters and player-ready files stay.');
+        const confirmed = typeof window.bandpromoConfirm === 'function'
+            ? await window.bandpromoConfirm({
+                title: count === 1 ? 'Discard archival upload?' : 'Discard archival uploads?',
+                body: body,
+                confirmLabel: count === 1 ? 'Discard upload' : 'Discard uploads',
+                tone: 'warn',
+            })
+            : window.confirm(body);
+        if (!confirmed) {
+            return;
+        }
+
+        storageBusy = true;
+        if (storageDiscardBtn) {
+            storageDiscardBtn.disabled = true;
+        }
+        if (storageRefreshBtn) {
+            storageRefreshBtn.disabled = true;
+        }
+        setStorageStatus('Discarding archival uploads…');
+
+        const byTarget = new Map();
+        items.forEach((item) => {
+            const target = String(item.target || '').trim();
+            const filename = String(item.filename || '').trim();
+            if (!target || !filename) {
+                return;
+            }
+            if (!byTarget.has(target)) {
+                byTarget.set(target, []);
+            }
+            byTarget.get(target).push({
+                name: filename,
+                asset_id: String(item.asset_id || '').trim(),
+            });
+        });
+
+        let discarded = 0;
+        let freed = 0;
+        const errors = [];
+        for (const [target, rows] of byTarget.entries()) {
+            // Batch in chunks to keep requests modest.
+            for (let offset = 0; offset < rows.length; offset += 40) {
+                const chunk = rows.slice(offset, offset + 40);
+                try {
+                    const csrfToken = await getAdminCsrfToken();
+                    const resp = await fetch('/biblioteca/discard-original.php', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            ...(csrfToken ? { 'X-CSRF-Token': csrfToken } : {}),
+                        },
+                        credentials: 'same-origin',
+                        body: JSON.stringify({
+                            target: target,
+                            filenames: chunk.map((row) => row.name),
+                            asset_id: chunk.length === 1 ? chunk[0].asset_id : '',
+                            csrf_token: csrfToken,
+                        }),
+                    });
+                    const data = await resp.json().catch(() => ({}));
+                    discarded += Number(data.discarded) || 0;
+                    freed += Number(data.bytes_freed) || 0;
+                    if (!resp.ok || data.ok === false) {
+                        errors.push(String(data.error || 'Could not discard archival upload'));
+                    }
+                } catch (err) {
+                    errors.push(String((err && err.message) || err || 'Could not discard archival upload'));
+                }
+            }
+        }
+
+        storageBusy = false;
+        if (storageRefreshBtn) {
+            storageRefreshBtn.disabled = false;
+        }
+
+        if (discarded > 0) {
+            setStorageStatus(
+                'Discarded ' + discarded + ' archival upload' + (discarded === 1 ? '' : 's')
+                + (freed > 0 ? (' · freed ' + formatStorageBytes(freed)) : '')
+                + '.',
+                errors.length ? 'warn' : 'success'
+            );
+        } else if (errors.length) {
+            setStorageStatus(errors[0], 'error');
+        } else {
+            setStorageStatus('Nothing was discarded.', 'warn');
+        }
+        await loadStorageReport();
+    }
+
     async function postJson(url, body) {
         let csrfToken = '';
         try {
@@ -2380,7 +2692,7 @@
             findingsEl.innerHTML = '';
             findingsEl.hidden = true;
             // Status / Action hubs must not claim Diagnosis content.
-            if (uiStage === 'status' || uiStage === 'hub' || uiStage === 'running') {
+            if (uiStage === 'status' || uiStage === 'storage' || uiStage === 'hub' || uiStage === 'running') {
                 if (summaryEl) {
                     summaryEl.hidden = true;
                     summaryEl.innerHTML = '';
@@ -2430,8 +2742,8 @@
             return;
         }
 
-        // Status / Action hubs keep their stage; only refresh badge data underneath.
-        if (uiStage === 'status' || uiStage === 'hub' || uiStage === 'running') {
+        // Status / Storage / Action hubs keep their stage; only refresh badge data underneath.
+        if (uiStage === 'status' || uiStage === 'storage' || uiStage === 'hub' || uiStage === 'running') {
             syncRecommendedAction();
             syncStagePanels();
             return;
@@ -3091,6 +3403,21 @@
     if (enterHubBtn) {
         enterHubBtn.addEventListener('click', () => {
             goBreadcrumb('hub');
+        });
+    }
+    if (storageEnterBtn) {
+        storageEnterBtn.addEventListener('click', () => {
+            goBreadcrumb('storage');
+        });
+    }
+    if (storageRefreshBtn) {
+        storageRefreshBtn.addEventListener('click', () => {
+            void loadStorageReport();
+        });
+    }
+    if (storageDiscardBtn) {
+        storageDiscardBtn.addEventListener('click', () => {
+            void discardEligibleArchivalUploads();
         });
     }
     if (crumbHomeBtn) {

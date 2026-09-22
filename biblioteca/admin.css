@@ -5836,12 +5836,14 @@ canvas { max-width: 100%; height: auto; }
 }
 
 .site-health-status-home,
-.site-health-hub {
+.site-health-hub,
+.status-storage-panel {
     margin-top: 0.65rem;
 }
 
 .site-health-status-home[hidden],
-.site-health-hub[hidden] {
+.site-health-hub[hidden],
+.status-storage-panel[hidden] {
     display: none !important;
 }
 
@@ -5898,6 +5900,81 @@ canvas { max-width: 100%; height: auto; }
     font-size: 13px;
     line-height: 1.4;
     color: var(--text-muted, #999);
+}
+
+.status-storage-summary {
+    margin: 0 0 12px;
+}
+
+.status-storage-cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr));
+    gap: 10px;
+}
+
+.status-storage-card {
+    margin: 0;
+    padding: 12px 14px;
+    border-radius: 8px;
+    border: 1px solid color-mix(in srgb, var(--muted, #999) 28%, transparent);
+    background: var(--surface);
+}
+
+.status-storage-card-title {
+    margin: 0 0 6px;
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--text);
+}
+
+.status-storage-card-body {
+    margin: 0;
+    font-size: 13px;
+    line-height: 1.45;
+    color: var(--text-muted, #999);
+}
+
+.status-storage-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: center;
+    margin: 0 0 8px;
+}
+
+.status-storage-status {
+    margin: 0 0 8px;
+    font-size: 13px;
+    color: var(--text-muted, #999);
+}
+
+.status-storage-status[data-tone="success"] {
+    color: var(--success, #3d9a5f);
+}
+
+.status-storage-status[data-tone="warn"] {
+    color: var(--warning, #c9a227);
+}
+
+.status-storage-status[data-tone="error"] {
+    color: var(--danger, #c44);
+}
+
+.status-storage-dev {
+    margin-top: 8px;
+    font-size: 12px;
+    color: var(--text-muted, #999);
+}
+
+.status-storage-dev-sample {
+    margin: 6px 0 0;
+    padding: 8px;
+    max-height: 10rem;
+    overflow: auto;
+    font-size: 11px;
+    white-space: pre-wrap;
+    background: var(--admin-sticky-chrome-bg, #0f172a);
+    border-radius: 6px;
 }
 
 .site-health-hub-guide {
