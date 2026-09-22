@@ -2,6 +2,8 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-09-22 20:35 - Status → Storage: stop Chart.js auto-skipping media-tier bar labels (Visual/SFX were vanishing in short charts); size the bar area by row count and keep a minimum bar length.
+
 2026-09-22 20:15 - Status → Storage: load Chart.js on the Status tab (was Analytics-only), so host/install/reclaim gauges actually render; legend rows keep a swatch column so Total aligns.
 
 2026-09-22 20:10 - Status → Storage: Chart.js gauges and charts for host free space, install mix, media tiers, and reclaimable archival uploads (legends keep the exact sizes).

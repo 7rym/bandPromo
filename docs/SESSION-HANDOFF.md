@@ -2,7 +2,7 @@
 
 ## Resume point
 
-Session ended and **published** **v0.8.95 build 581** (`v0.8.95-build-581`): Status → Storage Chart.js gauges (host / install / reclaim) + load Chart.js on Status; session VERSION bump is opt-in (`-BumpSession` / `/bandpromo-session-start` only).
+Session ended and **published** **v0.8.95 build 582** (`v0.8.95-build-582`): Status → Storage media-tier bar keeps all family labels (Chart.js `autoSkip` off; bar height by row count).
 
 **Next:** Testers: Dashboard → Site update. HITZ: Status → Storage to discard eligible archival uploads if quota is still tight. Optional: Files pool compactness; featured/remix player display.
 

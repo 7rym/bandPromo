@@ -1854,12 +1854,12 @@
                 const primary = String(rows[0] || '');
                 const secondary = String(rows[1] || '');
                 ctx.fillStyle = STORAGE_CHART_COLORS.text;
-                ctx.font = '700 16px system-ui, sans-serif';
-                ctx.fillText(primary, x, secondary ? y - 8 : y);
+                ctx.font = '700 15px system-ui, sans-serif';
+                ctx.fillText(primary, x, secondary ? y - 9 : y);
                 if (secondary) {
                     ctx.fillStyle = STORAGE_CHART_COLORS.mutedText;
-                    ctx.font = '12px system-ui, sans-serif';
-                    ctx.fillText(secondary, x, y + 12);
+                    ctx.font = '11px system-ui, sans-serif';
+                    ctx.fillText(secondary, x, y + 11);
                 }
                 ctx.restore();
             },
@@ -1924,6 +1924,13 @@
                 responsive: true,
                 maintainAspectRatio: false,
                 indexAxis: 'y',
+                datasets: {
+                    bar: {
+                        minBarLength: 6,
+                        categoryPercentage: 0.75,
+                        barPercentage: 0.9,
+                    },
+                },
                 plugins: {
                     legend: {
                         display: true,
@@ -1948,6 +1955,8 @@
                         stacked: true,
                         ticks: {
                             color: STORAGE_CHART_COLORS.mutedText,
+                            maxTicksLimit: 4,
+                            autoSkip: true,
                             callback: function (value) {
                                 return formatStorageBytes(Number(value) || 0);
                             },
@@ -1956,7 +1965,11 @@
                     },
                     y: {
                         stacked: true,
-                        ticks: { color: STORAGE_CHART_COLORS.mutedText },
+                        ticks: {
+                            color: STORAGE_CHART_COLORS.mutedText,
+                            autoSkip: false,
+                            font: { size: 11 },
+                        },
                         grid: { display: false },
                     },
                 },
@@ -2169,31 +2182,44 @@
                 { key: 'audio', label: 'Audio' },
                 { key: 'visual', label: 'Visual' },
                 { key: 'sfx', label: 'SFX' },
-            ];
-            storageCharts.tiers = makeStorageStackedBar(tiersCanvas, {
-                labels: tierFamilies.map((row) => row.label),
-                datasets: [
-                    {
-                        label: 'Uploads',
-                        data: tierFamilies.map((row) => Number((media[row.key] && media[row.key].original_bytes) || 0)),
-                        backgroundColor: STORAGE_CHART_COLORS.original,
-                        borderWidth: 0,
-                    },
-                    {
-                        label: 'Masters',
-                        data: tierFamilies.map((row) => Number((media[row.key] && media[row.key].master_bytes) || 0)),
-                        backgroundColor: STORAGE_CHART_COLORS.master,
-                        borderWidth: 0,
-                    },
-                    {
-                        label: 'Player',
-                        data: tierFamilies.map((row) => Number((media[row.key] && media[row.key].delivery_bytes) || 0)),
-                        backgroundColor: STORAGE_CHART_COLORS.delivery,
-                        borderWidth: 0,
-                    },
-                ],
+            ].filter((row) => {
+                const tier = media[row.key] || {};
+                return (Number(tier.original_bytes) || 0)
+                    + (Number(tier.master_bytes) || 0)
+                    + (Number(tier.delivery_bytes) || 0) > 0;
             });
-
+            if (tierFamilies.length && tiersCanvas) {
+                if (tiersCanvas.parentElement) {
+                    tiersCanvas.parentElement.hidden = false;
+                    // Give each category row enough height so Chart.js never auto-hides labels.
+                    tiersCanvas.parentElement.style.height = String(56 + (tierFamilies.length * 34)) + 'px';
+                }
+                storageCharts.tiers = makeStorageStackedBar(tiersCanvas, {
+                    labels: tierFamilies.map((row) => row.label),
+                    datasets: [
+                        {
+                            label: 'Uploads',
+                            data: tierFamilies.map((row) => Number((media[row.key] && media[row.key].original_bytes) || 0)),
+                            backgroundColor: STORAGE_CHART_COLORS.original,
+                            borderWidth: 0,
+                        },
+                        {
+                            label: 'Masters',
+                            data: tierFamilies.map((row) => Number((media[row.key] && media[row.key].master_bytes) || 0)),
+                            backgroundColor: STORAGE_CHART_COLORS.master,
+                            borderWidth: 0,
+                        },
+                        {
+                            label: 'Player',
+                            data: tierFamilies.map((row) => Number((media[row.key] && media[row.key].delivery_bytes) || 0)),
+                            backgroundColor: STORAGE_CHART_COLORS.delivery,
+                            borderWidth: 0,
+                        },
+                    ],
+                });
+            } else if (tiersCanvas && tiersCanvas.parentElement) {
+                tiersCanvas.parentElement.hidden = true;
+            }
             const reclaimCanvas = document.getElementById('statusStorageReclaimChart');
             storageCharts.reclaim = makeStorageDoughnut(reclaimCanvas, {
                 labels: ['Audio', 'Visual', 'Sound effects'],

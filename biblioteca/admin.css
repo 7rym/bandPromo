@@ -5963,7 +5963,8 @@ canvas { max-width: 100%; height: auto; }
 }
 
 .status-storage-chart-wrap--bar {
-    height: 140px;
+    height: 168px;
+    min-height: 120px;
 }
 
 .status-storage-chart-wrap canvas {
