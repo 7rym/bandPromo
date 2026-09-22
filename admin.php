@@ -3112,18 +3112,18 @@ if ($tab === 'analytics') {
                         </button>
                         <button type="button" class="site-health-tool-card" id="statusStorageEnterBtn">
                             <span class="site-health-tool-card-title">Storage</span>
-                            <span class="site-health-tool-card-body">See how much space this install uses, and discard archival uploads when masters already exist.</span>
+                            <span class="site-health-tool-card-body">See how much space this install uses, and free leftover intake uploads and junk when masters already exist.</span>
                         </button>
                     </div>
                 </div>
 
                 <div id="statusStoragePanel" class="status-storage-panel" hidden>
-                    <p class="site-health-stage-lead">Disk use for this install, plus how much you can free by discarding archival uploads when a master is already on disk. Masters and player-ready files stay.</p>
+                    <p class="site-health-stage-lead">Disk use for this install, plus how much you can free by clearing leftover intake uploads and unregistered junk. Masters and player-ready files stay.</p>
                     <div id="statusStorageSummary" class="status-storage-summary">
                         <p class="publish-status-empty">Measuring storage…</p>
                     </div>
                     <div class="status-storage-actions">
-                        <button type="button" id="statusStorageDiscardBtn" class="btn btn-good" hidden>Discard eligible archival uploads</button>
+                        <button type="button" id="statusStorageDiscardBtn" class="btn btn-good" hidden>Discard leftover intake</button>
                         <button type="button" id="statusStorageRefreshBtn" class="btn">Refresh</button>
                     </div>
                     <p id="statusStorageStatus" class="status-storage-status" hidden></p>

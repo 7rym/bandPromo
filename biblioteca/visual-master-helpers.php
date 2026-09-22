@@ -7,6 +7,7 @@ declare(strict_types=1);
  * Legacy buckets remain until M4.
  */
 require_once __DIR__ . '/asset-registry.php';
+require_once __DIR__ . '/media-intake-helpers.php';
 
 function bandpromo_visual_unified_original_dir(string $root): string
 {
@@ -22,10 +23,10 @@ function bandpromo_visual_master_dir(string $root): string
 
 function bandpromo_visual_ensure_tier_dirs(string $root): void
 {
-    foreach ([bandpromo_visual_unified_original_dir($root), bandpromo_visual_master_dir($root)] as $dir) {
-        if (!is_dir($dir) && !mkdir($dir, 0755, true) && !is_dir($dir)) {
-            throw new RuntimeException('Could not create visual media directory: ' . $dir);
-        }
+    // Durable product dirs only — intake is temp/media-intake (original/ is leftover reclaim).
+    $dir = bandpromo_visual_master_dir($root);
+    if (!is_dir($dir) && !mkdir($dir, 0755, true) && !is_dir($dir)) {
+        throw new RuntimeException('Could not create visual media directory: ' . $dir);
     }
 }
 
@@ -368,33 +369,45 @@ function bandpromo_visual_materialize_master(string $root, array $asset): array
     }
 
     $canonicalMaster = bandpromo_asset_master_filename_for_ulid($assetId, $format);
+    $intakeSource = $originalFilename !== ''
+        ? bandpromo_intake_resolve_source($root, 'visual', $originalFilename)
+        : '';
     $working = bandpromo_visual_working_path($root, $asset);
     if ($working === '') {
-        $relocated = bandpromo_visual_relocate_original($root, $asset);
-        if (empty($relocated['ok'])) {
-            return [
-                'ok' => false,
-                'asset' => null,
-                'copied' => false,
-                'changed_registry' => false,
-                'error' => (string) ($relocated['error'] ?? 'No source bytes'),
-            ];
+        // Prefer disposable temp intake before relocating into unified original.
+        if ($intakeSource !== '' && is_file($intakeSource)) {
+            $working = $intakeSource;
+        } else {
+            $relocated = bandpromo_visual_relocate_original($root, $asset);
+            if (empty($relocated['ok'])) {
+                return [
+                    'ok' => false,
+                    'asset' => null,
+                    'copied' => false,
+                    'changed_registry' => false,
+                    'error' => (string) ($relocated['error'] ?? 'No source bytes'),
+                ];
+            }
+            $working = (string) $relocated['path'];
         }
-        $working = (string) $relocated['path'];
     }
 
-    // Prefer unified original as master source when available (unless working is already the MKV master).
+    // Prefer temp intake as master source when available (unless working is already the MKV master).
     $unified = bandpromo_visual_unified_original_path($root, $originalFilename);
     $masterPathTarget = bandpromo_visual_master_path($root, $assetId, $format);
     $workingIsCanonicalMaster = ($masterPathTarget !== '' && $working !== '' && realpath($working) !== false
         && realpath($masterPathTarget) !== false
         && realpath($working) === realpath($masterPathTarget));
-    if (!$workingIsCanonicalMaster && $unified !== '' && is_file($unified)) {
+    if (!$workingIsCanonicalMaster && $intakeSource !== '' && is_file($intakeSource)) {
+        $working = $intakeSource;
+    } elseif (!$workingIsCanonicalMaster && $unified !== '' && is_file($unified)) {
         $working = $unified;
     } elseif (!$workingIsCanonicalMaster) {
         bandpromo_visual_relocate_original($root, $asset);
         if (is_file($unified)) {
             $working = $unified;
+        } elseif ($intakeSource !== '' && is_file($intakeSource)) {
+            $working = $intakeSource;
         }
     }
 
@@ -433,8 +446,15 @@ function bandpromo_visual_materialize_master(string $root, array $asset): array
             }
         }
     } else {
-        $sourceForMaster = ($unified !== '' && is_file($unified)) ? $unified : $working;
-        if ($sourceForMaster === '') {
+        $sourceForMaster = $working;
+        if ($sourceForMaster === '' || !is_file($sourceForMaster)) {
+            if ($intakeSource !== '' && is_file($intakeSource)) {
+                $sourceForMaster = $intakeSource;
+            } elseif ($unified !== '' && is_file($unified)) {
+                $sourceForMaster = $unified;
+            }
+        }
+        if ($sourceForMaster === '' || !is_file($sourceForMaster)) {
             return [
                 'ok' => false,
                 'asset' => null,
@@ -464,6 +484,10 @@ function bandpromo_visual_materialize_master(string $root, array $asset): array
             'master_format' => $format,
         ]);
         $changedRegistry = true;
+    }
+
+    if ($originalFilename !== '' && $masterPath !== '' && is_file($masterPath)) {
+        bandpromo_intake_discard_after_master($root, 'visual', $originalFilename, $masterPath);
     }
 
     return [
@@ -598,6 +622,22 @@ function bandpromo_visual_ensure_tiers_for_asset(string $root, string $assetId):
     $resolved = !empty($result['ok']) && is_array($result['asset'])
         ? $result['asset']
         : bandpromo_asset_lookup_by_id($root, $assetId);
+
+    // After relocate + materialize, discard durable/temp intake leftovers for this basename.
+    if (!empty($result['ok']) && is_array($resolved)) {
+        $originalFilename = basename(trim((string) ($resolved['original_filename'] ?? $asset['original_filename'] ?? '')));
+        $format = strtolower(trim((string) ($resolved['master_format'] ?? $asset['master_format'] ?? '')));
+        $masterFilename = basename(trim((string) ($resolved['master_filename'] ?? $asset['master_filename'] ?? '')));
+        $masterPath = '';
+        if ($masterFilename !== '') {
+            $masterPath = bandpromo_visual_master_dir($root) . DIRECTORY_SEPARATOR . $masterFilename;
+        } elseif ($format !== '') {
+            $masterPath = bandpromo_visual_master_path($root, $assetId, $format);
+        }
+        if ($originalFilename !== '' && $masterPath !== '' && is_file($masterPath)) {
+            bandpromo_intake_discard_after_master($root, 'visual', $originalFilename, $masterPath);
+        }
+    }
 
     if (is_array($resolved)) {
         bandpromo_visual_heal_empty_display_for_asset($root, $assetId);

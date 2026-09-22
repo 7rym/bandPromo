@@ -23,7 +23,6 @@ function bandpromo_build_catalog_register_uncatalogued(string $root): array
 
     if (bandpromo_build_catalog_inventory_only()) {
         $pendingMasters = bandpromo_list_uncatalogued_audio_masters($root);
-        $pendingOriginals = bandpromo_list_uncatalogued_audio_originals($root);
         foreach ($pendingMasters as $item) {
             if (!is_array($item)) {
                 continue;
@@ -35,17 +34,7 @@ function bandpromo_build_catalog_register_uncatalogued(string $root): array
             $result['skipped']++;
             $result['items'][] = $name;
         }
-        foreach ($pendingOriginals as $item) {
-            if (!is_array($item)) {
-                continue;
-            }
-            $name = basename(trim((string) ($item['filename'] ?? '')));
-            if ($name === '') {
-                continue;
-            }
-            $result['skipped']++;
-            $result['items'][] = $name;
-        }
+        // Durable leftover originals are reclaim junk — do not count as register-pending.
 
         return $result;
     }
@@ -67,30 +56,16 @@ function bandpromo_build_catalog_register_uncatalogued(string $root): array
         $result['errors'][] = $filename . ': ' . $error;
     }
 
-    foreach (bandpromo_list_uncatalogued_audio_originals($root) as $item) {
-        if (!is_array($item)) {
+    // Link-only: never mint from durable leftover originals during catalogue heal.
+    $originalReconcile = bandpromo_reconcile_uncatalogued_audio_originals($root);
+    foreach (($originalReconcile['fixed'] ?? []) as $fixedName) {
+        if (!is_string($fixedName) || trim($fixedName) === '') {
             continue;
         }
-
-        $filename = basename(trim((string) ($item['filename'] ?? '')));
-        if ($filename === '') {
-            continue;
-        }
-
-        $prepared = bandpromo_materialize_audio_master_from_original($root, $filename, false);
-        if (!empty($prepared['prepared'])) {
-            $result['changed']++;
-            $result['items'][] = $filename;
-            continue;
-        }
-
-        if (!empty($prepared['attempted']) && !empty($prepared['warning'])) {
-            $result['errors'][] = $filename . ': ' . (string) $prepared['warning'];
-            continue;
-        }
-
-        $result['skipped']++;
+        $result['changed']++;
+        $result['items'][] = $fixedName;
     }
+    $result['skipped'] += (int) ($originalReconcile['skipped_reclaim'] ?? 0);
 
     return $result;
 }

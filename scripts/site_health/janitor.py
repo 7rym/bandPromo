@@ -1,12 +1,16 @@
 # -*- coding: utf-8 -*-
 """
-Site health media janitor — remove homeless derived / legacy / junk under media/.
+Site health media janitor — remove homeless derived / legacy / leftover intake under media/.
 
 Policy (operator-locked):
-- IGNORE everything under any ``original`` or ``icons`` path segment.
+- IGNORE everything under any ``icons`` path segment.
+- Leftover files under ``original/`` (and legacy intake originals) are reclaimable
+  (``leftover_original``) on Review → Apply — not ignored forever.
 - Unknown ``ast_*`` masters are NOT deleted here (register-in-place Treat).
-- Orphan delivery, unreferenced legacy intake leftovers, empty dirs, and
-  non-media junk may be deleted on Review → Apply.
+- Stray ``.zip`` under ``media/`` is reclaimable junk.
+- Stale ``temp/media-intake`` files older than 24h are reclaimable (crashed uploads).
+- Orphan delivery, unreferenced legacy leftovers, empty dirs, and non-media junk
+  may be deleted on Review → Apply.
 
 Probe is read-only; Treat mutates.
 """
@@ -34,11 +38,22 @@ _JUNK_NAMES = frozenset({
     '.ds_store',
     '.gitkeep',
 })
+_MEDIA_INTAKE_MAX_AGE_SEC = 24 * 60 * 60
 _LEGACY_INTAKE_ROOTS = (
     'img',
     'photo',
     'video',
     'special',
+)
+# Product + legacy durable intake dirs (files only; never masters).
+_ORIGINAL_SCAN_RELS = (
+    ('audio', os.path.join('audio', 'original')),
+    ('visual', os.path.join('visual', 'original')),
+    ('sfx', os.path.join('sfx', 'original')),
+    ('visual', os.path.join('img', 'original')),
+    ('visual', os.path.join('photo', 'original')),
+    ('visual', os.path.join('video', 'original')),
+    ('visual', 'special'),
 )
 _MEDIA_FILE_EXTS = frozenset({
     '.flac', '.mp3', '.wav', '.aif', '.aiff', '.m4a', '.aac', '.ogg',
@@ -67,12 +82,24 @@ def _path_parts(abs_path):
 
 
 def is_ignored_path(abs_path):
-    """True when any path segment is original or icons (leave alone)."""
+    """True when any path segment is icons (leave alone). Leftover original/ is reclaimable."""
     for part in _path_parts(abs_path):
-        low = part.lower()
-        if low in ('original', 'icons'):
+        if part.lower() == 'icons':
             return True
     return False
+
+
+def _filter_walk_dirnames(dirnames):
+    """Mutate os.walk dirnames: skip icons and package scratch workdirs."""
+    kept = []
+    for name in dirnames:
+        low = name.lower()
+        if low == 'icons':
+            continue
+        if low.startswith('.bandpromo-'):
+            continue
+        kept.append(name)
+    dirnames[:] = kept
 
 
 def _is_asset_id(value):
@@ -96,6 +123,57 @@ def _claimed_basenames(registry):
         if asset_id:
             claimed.add(asset_id.lower())
     return claimed
+
+
+def _original_basename_assets(registry):
+    """Map original_filename.lower() -> list of asset dicts."""
+    index = {}
+    assets = registry.get('assets') if isinstance(registry, dict) else None
+    if not isinstance(assets, dict):
+        return index
+    for asset in assets.values():
+        if not isinstance(asset, dict):
+            continue
+        name = os.path.basename(_safe_text(asset.get('original_filename')))
+        if not name:
+            continue
+        index.setdefault(name.lower(), []).append(asset)
+    return index
+
+
+def _asset_master_on_disk(asset):
+    """True when the asset's master file exists (disposable intake may be reclaimed)."""
+    if not isinstance(asset, dict):
+        return False
+    kind = _safe_text(asset.get('kind')).lower()
+    master_name = os.path.basename(_safe_text(asset.get('master_filename')))
+    asset_id = _safe_text(asset.get('id'))
+    if kind == 'audio':
+        if not master_name:
+            return False
+        path = os.path.join(ROOT_DIR, 'media', 'audio', 'master', master_name)
+        return os.path.isfile(path)
+    if kind == 'sfx':
+        if not master_name:
+            return False
+        path = os.path.join(ROOT_DIR, 'media', 'sfx', 'master', master_name)
+        return os.path.isfile(path)
+    if kind == 'visual':
+        fmt = _safe_text(asset.get('master_format')).lower()
+        if not fmt and master_name:
+            fmt = os.path.splitext(master_name)[1].lstrip('.').lower()
+        if asset_id and fmt and _is_asset_id(asset_id):
+            path = os.path.join(
+                ROOT_DIR, 'media', 'visual', 'master',
+                '{0}.{1}'.format(asset_id, fmt),
+            )
+            if os.path.isfile(path):
+                return True
+        if master_name:
+            path = os.path.join(ROOT_DIR, 'media', 'visual', 'master', master_name)
+            return os.path.isfile(path)
+        return False
+    return False
 
 
 def _audio_ids(registry):
@@ -244,14 +322,19 @@ def _probe_legacy_trees(out, claimed):
         if not os.path.isdir(legacy_root):
             continue
         for dirpath, dirnames, filenames in os.walk(legacy_root, topdown=True):
-            # Do not descend into ignored segments if any appear.
+            # Leftover originals are handled by _probe_leftover_originals.
             if is_ignored_path(dirpath):
                 dirnames[:] = []
                 continue
-            dirnames[:] = [d for d in dirnames if d.lower() not in ('original', 'icons')]
+            _filter_walk_dirnames(dirnames)
+            dirnames[:] = [d for d in dirnames if d.lower() != 'original']
             for name in filenames:
                 path = os.path.join(dirpath, name)
                 if is_ignored_path(path):
+                    continue
+                # Skip files directly under */original/ (leftover probe owns those).
+                parent = os.path.basename(os.path.normpath(dirpath)).lower()
+                if parent == 'original':
                     continue
                 low = name.lower()
                 if low in _JUNK_NAMES:
@@ -302,6 +385,97 @@ def _probe_legacy_optimal(out, claimed):
                 )
 
 
+def _probe_leftover_originals(out, registry):
+    """
+    Durable leftover intake under product/legacy original dirs.
+    Unregistered files, or registry-linked originals whose master already exists.
+    Never touches masters.
+    """
+    by_original = _original_basename_assets(registry)
+    for _family, rel in _ORIGINAL_SCAN_RELS:
+        folder = os.path.join(ROOT_DIR, 'media', rel)
+        if not os.path.isdir(folder):
+            continue
+        try:
+            names = os.listdir(folder)
+        except Exception:
+            continue
+        for name in names:
+            if name in ('.', '..'):
+                continue
+            path = os.path.join(folder, name)
+            if is_ignored_path(path) or not os.path.isfile(path):
+                continue
+            low = name.lower()
+            if low in _JUNK_NAMES:
+                _add_candidate(out, path, 'junk', 'non-media junk under leftover intake')
+                continue
+            assets = by_original.get(low) or []
+            if not assets:
+                _add_candidate(
+                    out, path, 'leftover_original',
+                    'unregistered leftover intake under media/{0}'.format(rel.replace('\\', '/')),
+                )
+                continue
+            if any(_asset_master_on_disk(asset) for asset in assets):
+                _add_candidate(
+                    out, path, 'leftover_original',
+                    'disposable intake — master already on disk (media/{0})'.format(
+                        rel.replace('\\', '/')
+                    ),
+                )
+
+
+def _probe_stray_zips(out):
+    """Stray .zip / .ZIP anywhere under media/ (icons and package workdirs skipped)."""
+    media_root = os.path.join(ROOT_DIR, 'media')
+    if not os.path.isdir(media_root):
+        return
+    for dirpath, dirnames, filenames in os.walk(media_root, topdown=True):
+        if is_ignored_path(dirpath):
+            dirnames[:] = []
+            continue
+        _filter_walk_dirnames(dirnames)
+        for name in filenames:
+            if not name.lower().endswith('.zip'):
+                continue
+            path = os.path.join(dirpath, name)
+            if is_ignored_path(path):
+                continue
+            _add_candidate(
+                out, path, 'stray_zip',
+                'stray ZIP archive under media/ (not part of the catalogue)',
+            )
+
+
+def _probe_stale_media_intake(out):
+    """Crash leftovers under temp/media-intake older than 24h."""
+    intake_root = os.path.join(ROOT_DIR, 'temp', 'media-intake')
+    if not os.path.isdir(intake_root):
+        return
+    now = 0
+    try:
+        import time
+        now = time.time()
+    except Exception:
+        return
+    for dirpath, dirnames, filenames in os.walk(intake_root, topdown=True):
+        for name in filenames:
+            path = os.path.join(dirpath, name)
+            if not os.path.isfile(path):
+                continue
+            try:
+                age = now - os.path.getmtime(path)
+            except Exception:
+                continue
+            if age < _MEDIA_INTAKE_MAX_AGE_SEC:
+                continue
+            _add_candidate(
+                out, path, 'stale_intake_temp',
+                'temp/media-intake older than 24h (crashed or abandoned upload)',
+            )
+
+
 def _probe_media_junk(out):
     media_root = os.path.join(ROOT_DIR, 'media')
     if not os.path.isdir(media_root):
@@ -310,7 +484,7 @@ def _probe_media_junk(out):
         if is_ignored_path(dirpath):
             dirnames[:] = []
             continue
-        dirnames[:] = [d for d in dirnames if d.lower() not in ('original', 'icons')]
+        _filter_walk_dirnames(dirnames)
         for name in filenames:
             path = os.path.join(dirpath, name)
             if is_ignored_path(path):
@@ -320,7 +494,7 @@ def _probe_media_junk(out):
 
 
 def _probe_empty_dirs(out):
-    """Empty directories under media/ (never original/icons; never media root)."""
+    """Empty directories under media/ (never icons; never media root)."""
     media_root = os.path.normpath(os.path.join(ROOT_DIR, 'media'))
     if not os.path.isdir(media_root):
         return
@@ -345,7 +519,7 @@ def _probe_empty_dirs(out):
 
 def probe_janitor_targets(registry=None):
     """
-    Return orphan/junk/empty candidates (read-only).
+    Return orphan/junk/empty/leftover-original candidates (read-only).
     Each item: path (media-relative), abs, kind, reason, is_dir.
     """
     if registry is None:
@@ -378,6 +552,9 @@ def probe_janitor_targets(registry=None):
     _probe_visual_delivery(out, registry)
     _probe_legacy_optimal(out, claimed)
     _probe_legacy_trees(out, claimed)
+    _probe_leftover_originals(out, registry)
+    _probe_stray_zips(out)
+    _probe_stale_media_intake(out)
     _probe_media_junk(out)
     _probe_empty_dirs(out)
     return out

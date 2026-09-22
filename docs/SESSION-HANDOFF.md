@@ -2,9 +2,9 @@
 
 ## Resume point
 
-**Published** **v0.8.95 build 584** (`v0.8.95-build-584`): Waves 1–4 legacy-fallback cut — product resolve masters-only; no invent `original_filename` from master; Files index masters-only; stale script deleted.
+**Published** **v0.8.95 build 585** (`v0.8.95-build-585`): Disposable intake — uploads stage under `temp/media-intake/`; auto-discard on master success; Storage + janitor reclaim leftover `original/` and stray media ZIPs (and stale temp intake >24h).
 
-**Next:** Fleet: Dashboard → Site update on Vanilla / Spandexual / HITZ. After update, Quick health check. HITZ: Status → Storage to discard disposable intake if quota is tight. Keep relocate/janitor until legacy trees empty.
+**Next:** Fleet: Dashboard → Site update → Quick check → Review/Apply janitor → Status → Storage discard. HITZ should free orphan Cleaning_House originals + `tmp.zip` / `master.zip`.
 
 ### Policy locked (do not reopen)
 
@@ -31,7 +31,8 @@
 - Video MKV remux maps video + optional audio only (drop data/timecode tracks)
 - ffmpeg capture must decode stderr as UTF-8 with replace (Windows charmap)
 - Sticky playlist-scan Notifications heal on bell (full) or Site health Check start
-- Archival original discard lives under **System → Status → Storage** only (not Files)
+- Archival original discard lives under **System → Status → Storage** only (not Files); Site health janitor also reclaims leftover intake + stray media ZIPs on Review → Apply
+- Durable media model is **master + delivery**; intake is ephemeral (`temp/media-intake/`), discarded when the master succeeds
 - Files pools/pickers/downloads are **masters only** — no Original|Master list toggle; originals are disposable intake
 - Product resolve never falls back to archival `original/` or legacy `img`/`photo`/`video`/`special` when the master is missing (fail loud / empty)
 - Never invent `original_filename` from `master_filename` on register/normalize/Treat

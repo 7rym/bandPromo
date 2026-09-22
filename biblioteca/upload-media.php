@@ -25,6 +25,7 @@ require_once __DIR__ . '/build-catalog-helpers.php';
 require_once __DIR__ . '/media-library-state.php';
 require_once __DIR__ . '/asset-registry.php';
 require_once __DIR__ . '/campaign-storage.php';
+require_once __DIR__ . '/media-intake-helpers.php';
 
 /**
  * Fill registry display after a successful audio master prepare.
@@ -55,9 +56,7 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 }
 
 $root_dir      = dirname(dirname(__FILE__));
-$audio_orig_dir = $root_dir . '/media/audio/original';
 $audio_master_dir = $root_dir . '/media/audio/master';
-$sfx_dir      = $root_dir . '/media/sfx/original';
 $tmp_dir      = $root_dir . '/data/upload_tmp';
 
 // Optional target hint from Media sub-panel (audio | illustrations | photos | video | special | sfx | visual)
@@ -68,12 +67,17 @@ require_once __DIR__ . '/sfx-helpers.php';
 bandpromo_visual_ensure_tier_dirs($root_dir);
 bandpromo_sfx_ensure_tier_dirs($root_dir);
 
-foreach ([$audio_orig_dir, $sfx_dir] as $dir) {
-    if (!is_dir($dir)) mkdir($dir, 0755, true);
+// Disposable intake dirs (temp); durable original/ is not created for new uploads.
+foreach (['audio', 'visual', 'sfx'] as $intakeFamily) {
+    bandpromo_intake_temp_dir($root_dir, $intakeFamily);
 }
-if (!is_dir($audio_master_dir)) mkdir($audio_master_dir, 0755, true);
-// tmp dir stays private — not served over the web
-if (!is_dir($tmp_dir)) mkdir($tmp_dir, 0750, true);
+if (!is_dir($audio_master_dir)) {
+    mkdir($audio_master_dir, 0755, true);
+}
+// Chunk assembly stays private under data/upload_tmp — not served over the web.
+if (!is_dir($tmp_dir)) {
+    mkdir($tmp_dir, 0750, true);
+}
 
 $audio_exts = ['flac', 'mp3', 'wav'];
 $image_exts = ['png', 'jpg', 'jpeg', 'webp'];
@@ -116,41 +120,46 @@ function bandpromo_finalize_uploaded_file(string $root_dir, string $target_hint,
 }
 
 function resolve_upload_destination(string $root_dir, string $target_hint, string $ext, string $safe_name): ?string {
+    $uniqueName = bandpromo_intake_unique_basename($safe_name);
+
     if ($target_hint === 'special') {
-        // Brand assets write into Visual original (ast_* masters); not media/special/.
-        require_once __DIR__ . '/visual-master-helpers.php';
-        bandpromo_visual_ensure_tier_dirs($root_dir);
+        // Brand assets: shell audio → SFX intake; images/video → Visual intake.
         if (!in_array($ext, ['png', 'jpg', 'jpeg', 'webp', 'mp4', 'webm', 'mov', 'mkv', 'flac', 'mp3', 'wav', 'ogg', 'm4a'], true)) {
             return null;
         }
         if (in_array($ext, ['flac', 'mp3', 'wav', 'ogg', 'm4a'], true)) {
-            // Shell audio uploads from Brand tab belong in SFX (legacy accept).
             require_once __DIR__ . '/sfx-helpers.php';
             bandpromo_sfx_ensure_tier_dirs($root_dir);
 
-            return bandpromo_sfx_original_dir($root_dir) . DIRECTORY_SEPARATOR . $safe_name;
+            return bandpromo_intake_temp_dir($root_dir, 'sfx') . DIRECTORY_SEPARATOR . $uniqueName;
         }
 
-        return bandpromo_visual_unified_original_dir($root_dir) . DIRECTORY_SEPARATOR . $safe_name;
+        require_once __DIR__ . '/visual-master-helpers.php';
+        bandpromo_visual_ensure_tier_dirs($root_dir);
+
+        return bandpromo_intake_temp_dir($root_dir, 'visual') . DIRECTORY_SEPARATOR . $uniqueName;
     }
 
     if ($target_hint === 'sfx') {
         if (!in_array($ext, ['flac', 'mp3', 'wav', 'ogg', 'm4a'], true)) {
             return null;
         }
-        return $root_dir . '/media/sfx/original/' . $safe_name;
+        require_once __DIR__ . '/sfx-helpers.php';
+        bandpromo_sfx_ensure_tier_dirs($root_dir);
+
+        return bandpromo_intake_temp_dir($root_dir, 'sfx') . DIRECTORY_SEPARATOR . $uniqueName;
     }
 
     if (in_array($ext, ['flac', 'mp3', 'wav'], true)) {
-        return $root_dir . '/media/audio/original/' . $safe_name;
+        return bandpromo_intake_temp_dir($root_dir, 'audio') . DIRECTORY_SEPARATOR . $uniqueName;
     }
 
-    // All Visual stills/videos land in media/visual/original (img/photo/video intake retired).
+    // All Visual stills/videos land in disposable visual intake (legacy img/photo/video retired).
     if (in_array($ext, ['mp4', 'webm', 'mov', 'mkv', 'png', 'jpg', 'jpeg', 'webp'], true)) {
         require_once __DIR__ . '/visual-master-helpers.php';
         bandpromo_visual_ensure_tier_dirs($root_dir);
 
-        return bandpromo_visual_unified_original_dir($root_dir) . DIRECTORY_SEPARATOR . $safe_name;
+        return bandpromo_intake_temp_dir($root_dir, 'visual') . DIRECTORY_SEPARATOR . $uniqueName;
     }
 
     return null;
@@ -297,8 +306,10 @@ function bandpromo_register_sfx_upload_if_needed(
 function bandpromo_record_cover_upload_if_needed(string $root_dir, string $saved_path, string $saved_name): void
 {
     $normalized = str_replace('\\', '/', $saved_path);
-    // Track-cover uploads land in unified Visual original.
-    if (stripos($normalized, '/media/visual/original/') === false) {
+    // Track-cover uploads land in Visual intake (temp or durable leftover).
+    if (stripos($normalized, '/media/visual/original/') === false
+        && stripos($normalized, '/temp/media-intake/visual/') === false
+    ) {
         return;
     }
 
@@ -500,21 +511,27 @@ if (isset($_POST['chunk_index']) && isset($_POST['filename'])) {
         }
         @unlink($assembledPath);
 
-        $finalized = bandpromo_finalize_uploaded_file($root_dir, (string) $target_hint, $ext, $safeName, $dest);
+        // Finalize uses the unique disk basename; registry keeps the human safe name.
+        $diskBasename = basename($dest);
+        $finalized = bandpromo_finalize_uploaded_file($root_dir, (string) $target_hint, $ext, $diskBasename, $dest);
         if (empty($finalized['ok'])) {
             http_response_code(500);
             echo json_encode(['ok' => false, 'error' => $finalized['warning'] ?: 'Could not finalize upload']);
             exit;
         }
 
-        $savedName = (string) ($finalized['saved_as'] ?? $safeName);
+        $diskSavedAs = (string) ($finalized['saved_as'] ?? $diskBasename);
         $savedPath = (string) ($finalized['saved_path'] ?? $dest);
         $savedExt = (string) ($finalized['saved_ext'] ?? $ext);
+        $savedName = bandpromo_intake_human_basename($diskSavedAs);
+        if ($savedName === '') {
+            $savedName = $safeName;
+        }
         bandpromo_record_cover_upload_if_needed($root_dir, $savedPath, $savedName);
         $reason = build_reason_for_upload((string) $target_hint, $savedExt, $savedName);
         if ($target_hint === 'audio' && in_array($savedExt, ['flac', 'mp3', 'wav'], true)) {
             // Prefer materialize (reuse/link existing master) over prepare (mint only when needed).
-            $master = bandpromo_materialize_audio_master_from_original($root_dir, $savedName);
+            $master = bandpromo_materialize_audio_master_from_original($root_dir, $savedName, true, $savedPath);
             bandpromo_build_catalog_finalize_audio_upload($root_dir, $savedName);
             if (empty($master['prepared']) && empty($master['attempted'])) {
                 $master = bandpromo_prepare_audio_master($root_dir, $savedExt, $savedName, $savedPath);
@@ -762,19 +779,24 @@ foreach ($files as $file) {
 
     $replacedExisting = is_file($dest);
     if (move_uploaded_file($file['tmp_name'], $dest)) {
-        $finalized = bandpromo_finalize_uploaded_file($root_dir, (string) $target_hint, $ext, $safe_name, $dest);
+        $diskBasename = basename($dest);
+        $finalized = bandpromo_finalize_uploaded_file($root_dir, (string) $target_hint, $ext, $diskBasename, $dest);
         if (empty($finalized['ok'])) {
             $results[] = ['name' => $original, 'ok' => false, 'error' => $finalized['warning'] ?: 'Could not finalize upload'];
             $errors++;
             continue;
         }
 
-        $saved_name = (string) ($finalized['saved_as'] ?? $safe_name);
+        $diskSavedAs = (string) ($finalized['saved_as'] ?? $diskBasename);
         $saved_path = (string) ($finalized['saved_path'] ?? $dest);
         $saved_ext = (string) ($finalized['saved_ext'] ?? $ext);
+        $saved_name = bandpromo_intake_human_basename($diskSavedAs);
+        if ($saved_name === '') {
+            $saved_name = $safe_name;
+        }
         bandpromo_record_cover_upload_if_needed($root_dir, $saved_path, $saved_name);
         if ($target_hint === 'audio' && in_array($saved_ext, ['flac', 'mp3', 'wav'], true)) {
-            $master = bandpromo_materialize_audio_master_from_original($root_dir, $saved_name);
+            $master = bandpromo_materialize_audio_master_from_original($root_dir, $saved_name, true, $saved_path);
             bandpromo_build_catalog_finalize_audio_upload($root_dir, $saved_name);
             if (empty($master['prepared']) && empty($master['attempted'])) {
                 $master = bandpromo_prepare_audio_master($root_dir, $saved_ext, $saved_name, $saved_path);

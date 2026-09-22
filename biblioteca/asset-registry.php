@@ -3019,14 +3019,17 @@ function bandpromo_reconcile_uncatalogued_audio_masters(string $root): array
 
 function bandpromo_reconcile_uncatalogued_audio_originals(string $root): array
 {
-    require_once __DIR__ . '/audio-master-helpers.php';
     require_once __DIR__ . '/build-required.php';
     require_once __DIR__ . '/campaign-storage.php';
 
+    // Durable leftover originals are reclaim junk (Storage / janitor), not a
+    // preferred heal path. Only attach provenance when a unique empty master
+    // already exists — never mint a new master from durable original/ leftovers.
     $result = [
         'fixed' => [],
         'failed' => [],
         'changed' => 0,
+        'skipped_reclaim' => 0,
     ];
 
     foreach (bandpromo_list_uncatalogued_audio_originals($root) as $item) {
@@ -3039,21 +3042,14 @@ function bandpromo_reconcile_uncatalogued_audio_originals(string $root): array
             continue;
         }
 
-        $materialized = bandpromo_materialize_audio_master_from_original($root, $filename, false);
-        if (!empty($materialized['prepared'])) {
+        $linked = bandpromo_asset_link_original_to_unique_empty_master($root, $filename);
+        if (is_array($linked)) {
             $result['fixed'][] = $filename;
             $result['changed']++;
             continue;
         }
 
-        if (!empty($materialized['attempted'])) {
-            $warning = trim((string) ($materialized['warning'] ?? ''));
-            $result['failed'][] = [
-                'filename' => $filename,
-                'display_title' => trim((string) ($item['display_title'] ?? $filename)),
-                'error' => $warning !== '' ? $warning : 'Could not register audio asset automatically',
-            ];
-        }
+        $result['skipped_reclaim']++;
     }
 
     if ($result['changed'] > 0) {

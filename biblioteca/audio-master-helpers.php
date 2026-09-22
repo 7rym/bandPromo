@@ -1,6 +1,7 @@
 <?php
 
 require_once __DIR__ . '/asset-registry.php';
+require_once __DIR__ . '/media-intake-helpers.php';
 
 if (!function_exists('bandpromo_first_command_path')) {
     function bandpromo_first_command_path(string $raw): string {
@@ -148,6 +149,8 @@ function bandpromo_prepare_audio_master(string $root_dir, string $ext, string $s
                 ];
             }
 
+            bandpromo_intake_discard_after_master($root_dir, 'audio', $safe_name, $master_path);
+
             return [
                 'attempted' => true,
                 'prepared' => true,
@@ -208,6 +211,8 @@ function bandpromo_prepare_audio_master(string $root_dir, string $ext, string $s
             'asset_id' => $asset_id,
         ];
     }
+
+    bandpromo_intake_discard_after_master($root_dir, 'audio', $safe_name, $master_path);
 
     return [
         'attempted' => true,
@@ -282,17 +287,43 @@ function bandpromo_find_audio_master(string $root_dir, string $filename): array 
     ];
 }
 
-function bandpromo_materialize_audio_master_from_original(string $root_dir, string $filename, bool $allow_mint = true): array {
+function bandpromo_materialize_audio_master_from_original(
+    string $root_dir,
+    string $filename,
+    bool $allow_mint = true,
+    string $preferredSource = ''
+): array {
     $safe_name = basename(trim($filename));
     $ext = strtolower((string) pathinfo($safe_name, PATHINFO_EXTENSION));
     if (!in_array($ext, ['flac', 'mp3', 'wav'], true)) {
         return ['attempted' => false, 'prepared' => false, 'warning' => ''];
     }
 
-    $source_path = $root_dir . '/media/audio/original/' . $safe_name;
-    if (!is_file($source_path)) {
+    $source_path = '';
+    $preferredSource = trim($preferredSource);
+    if ($preferredSource !== '' && is_file($preferredSource)) {
+        $source_path = $preferredSource;
+    }
+    if ($source_path === '') {
+        $source_path = bandpromo_intake_resolve_source($root_dir, 'audio', $safe_name);
+    }
+    if ($source_path === '' || !is_file($source_path)) {
         return ['attempted' => false, 'prepared' => false, 'warning' => ''];
     }
+
+    $discardPrepared = static function (array $result) use ($root_dir, $safe_name): array {
+        if (empty($result['prepared'])) {
+            return $result;
+        }
+        $masterFilename = basename(trim((string) ($result['master_filename'] ?? '')));
+        if ($masterFilename === '') {
+            return $result;
+        }
+        $masterPath = $root_dir . '/media/audio/master/' . $masterFilename;
+        bandpromo_intake_discard_after_master($root_dir, 'audio', $safe_name, $masterPath);
+
+        return $result;
+    };
 
     $asset = bandpromo_asset_lookup_by_original_filename($root_dir, $safe_name);
     if ($asset !== null) {
@@ -309,14 +340,14 @@ function bandpromo_materialize_audio_master_from_original(string $root_dir, stri
 
         $master_path = $master_dir . '/' . $master_filename;
         if (is_file($master_path)) {
-            return [
+            return $discardPrepared([
                 'attempted' => false,
                 'prepared' => true,
                 'warning' => '',
                 'master_filename' => $master_filename,
                 'master_format' => $master_format,
                 'asset_id' => (string) ($asset['id'] ?? ''),
-            ];
+            ]);
         }
 
         if ($ext === 'wav' && $master_format === 'flac') {
@@ -342,14 +373,14 @@ function bandpromo_materialize_audio_master_from_original(string $root_dir, stri
             ];
         }
 
-        return [
+        return $discardPrepared([
             'attempted' => true,
             'prepared' => true,
             'warning' => '',
             'master_filename' => $master_filename,
             'master_format' => $master_format,
             'asset_id' => (string) ($asset['id'] ?? ''),
-        ];
+        ]);
     }
 
     $orphan = bandpromo_asset_find_unregistered_master_match($root_dir, $safe_name);
@@ -372,14 +403,14 @@ function bandpromo_materialize_audio_master_from_original(string $root_dir, stri
                 ];
             }
 
-            return [
+            return $discardPrepared([
                 'attempted' => true,
                 'prepared' => true,
                 'warning' => '',
                 'master_filename' => (string) $orphan['master_filename'],
                 'master_format' => (string) $orphan['master_format'],
                 'asset_id' => $assetId,
-            ];
+            ]);
         }
     }
 
@@ -393,7 +424,8 @@ function bandpromo_materialize_audio_master_from_original(string $root_dir, stri
             if (is_array($linked)) {
                 $masterFilename = basename(trim((string) ($linked['master_filename'] ?? '')));
                 $masterFormat = strtolower((string) ($linked['master_format'] ?? pathinfo($masterFilename, PATHINFO_EXTENSION)));
-                return [
+
+                return $discardPrepared([
                     'attempted' => true,
                     'prepared' => true,
                     'warning' => '',
@@ -401,7 +433,7 @@ function bandpromo_materialize_audio_master_from_original(string $root_dir, stri
                     'master_format' => $masterFormat,
                     'asset_id' => (string) ($linked['id'] ?? ''),
                     'linked_existing' => true,
-                ];
+                ]);
             }
 
             return [
@@ -419,7 +451,8 @@ function bandpromo_materialize_audio_master_from_original(string $root_dir, stri
         if (is_array($linked)) {
             $masterFilename = basename(trim((string) ($linked['master_filename'] ?? '')));
             $masterFormat = strtolower((string) ($linked['master_format'] ?? pathinfo($masterFilename, PATHINFO_EXTENSION)));
-            return [
+
+            return $discardPrepared([
                 'attempted' => true,
                 'prepared' => true,
                 'warning' => '',
@@ -427,7 +460,7 @@ function bandpromo_materialize_audio_master_from_original(string $root_dir, stri
                 'master_format' => $masterFormat,
                 'asset_id' => (string) ($linked['id'] ?? ''),
                 'linked_existing' => true,
-            ];
+            ]);
         }
 
         return [

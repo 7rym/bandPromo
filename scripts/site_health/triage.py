@@ -364,7 +364,7 @@ def run_triage(plan, deep=False, suppress_json_drift=False):
                 ).format(len(missing_sfx)),
             )
 
-        # Homeless derived/legacy/junk under media/ (not original/ or icons/).
+        # Homeless derived/legacy/leftover intake/junk under media/ (icons stay ignored).
         try:
             import janitor
             janitor_targets = janitor.probe_janitor_targets(registry)
@@ -378,8 +378,9 @@ def run_triage(plan, deep=False, suppress_json_drift=False):
                 'media_janitor_prune',
                 sample=[t.get('path') for t in janitor_targets],
                 body=(
-                    '{0} leftover file(s) or empty folder(s) that are safe to clear. '
-                    'Your original uploads and icons stay put. Master files are never deleted here.'
+                    '{0} leftover file(s) or empty folder(s) that are safe to clear — '
+                    'including orphan intake uploads and stray ZIP files under media/. '
+                    'Icons stay put. Master files are never deleted here.'
                 ).format(len(janitor_targets)),
             )
 

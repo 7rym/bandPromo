@@ -25,10 +25,10 @@ That is the practical value proposition behind the media-handling model.
 
 ## Core media policy
 
-bandPromo should use three explicit media tiers:
+bandPromo uses **two durable media tiers** plus **ephemeral intake**:
 
-- `original`: write-once **intake** of the exact user upload. Once a master exists it is **disposable** — operators reclaim it from **System → Status → Storage** only. Files never lists, previews, downloads, or toggles to the archival upload. Legal I/O after intake is delete / Storage reclaim only. Site health never auto-discards originals.
-- `master`: a bandPromo-authored canonical asset (`ast_{ULID}`) — **the working copy** and the only Files product
+- `intake` (ephemeral): the exact user upload, staged under `temp/media-intake/{audio|visual|sfx}/` as `{uniq}_{safeName}`. Deleted automatically when the master is successfully on disk. Durable leftovers under `media/*/original/` (and legacy intake dirs) are reclaim junk via **System → Status → Storage** and Site health janitor (Review → Apply) — not an archive tier. Files never lists, previews, or downloads intake. Corrupt master recovery is **re-upload**, not restore-from-original.
+- `master`: a bandPromo-authored canonical asset (`ast_{ULID}`) — **the working copy** and the only Files product (stream-copy / lossless container policy as locked below)
 - `delivery`: publish-ready derivatives generated **from the master** for playback and display
 
 This applies to **audio, Visual, and Sound effects**. Findings and the completion plan: [MASTER-TIER-AUDIT.md](MASTER-TIER-AUDIT.md).
@@ -530,14 +530,14 @@ Once compatibility reads exist, the setup/template path should be updated to gen
 
 Old installs should rely on compatibility reads until their config is rewritten or re-saved through admin tooling.
 
-### Original tier
+### Intake (ephemeral)
 
-The original tier exists for trust, recovery, and future regeneration.
+Intake exists only long enough to create the master.
 
-- never rewritten in place
-- preserved as-uploaded
-- may be weak, incomplete, or inconsistently tagged
-- should remain available as the archival source
+- staged under `temp/media-intake/` (unique basename); never rewritten in place
+- discarded automatically when the master exists and has bytes
+- durable leftovers under `media/*/original/` are reclaim junk (Storage / janitor), not trust archive
+- may be weak, incomplete, or inconsistently tagged — the master is the fidelity record after stream-copy / lossless remux
 
 ### Master tier
 
@@ -571,6 +571,8 @@ This keeps the operator workflow simple:
 - use System → Deliverables (Rebuild all) for site-wide recovery, PWA/social, or when automatic preparation failed
 
 Once the master exists, the intake upload is disposable disk ballast — reclaim it from Status → Storage when host quota is tight. Files has no Original|Master view toggle; pools, pickers, previews, and downloads are masters-only.
+
+**Upload staging (Phase 1–2):** new operator uploads land under `temp/media-intake/{audio|visual|sfx}/` as `{uniq}_{safeName}` so concurrent uploads never collide. Registry `original_filename` stays the human safe name. Materialize resolves temp first (exact or `*_{safeName}`), then durable leftovers (`media/*/original/`, legacy visual buckets). On successful master creation, intake candidates are discarded automatically; Status → Storage still reclaims any leftovers that remain.
 
 ### Delivery tier
 
@@ -655,7 +657,7 @@ to:
 - Size alone does not prove two audio masters are duplicates; unregistered same-size leftovers are never auto-deleted. Apply will not mint a new master from an original when a same-size registered master already exists (links unique empty-`original_filename` matches instead).
 - **Site health dedupe (v0.8):** Quick check groups registered audio + visual (still + video) masters by byte size, then XXH3 of the whole master file within multi-member buckets. Full check fingerprints **content** without tags: **audio** demux-copies the full audio elementary stream and XXH3-hashes it (no duration pre-bucket — dual ID3/APE artwork and skewed tag durations must not hide clones); **video** uses duration buckets then demux-copy into `temp/` with min shared-prefix hash; stills use Pillow RGB within the same pixel dimensions. Findings go through Review → Apply (`dedupe_retarget_and_remove`). **Apply only removes the probe class on the Review plan** (file-hash after Quick; content only after Full put `duplicate_masters_content` on the plan). Remap chains are collapsed before delete. Keep the campaign/playlist-linked `asset_id`, retarget container refs, delete only unreferenced clones. Conflict clusters warn only. After a Quick-only Apply, Activity suggests an optional Full check. Scratch under `temp/` is discarded; HTTP access is denied.
 - **Site health SFX register (v0.8):** Check compares `media/sfx/master/ast_*` to registry `kind=sfx`. Uncatalogued masters (or empty SFX registry with disk masters) get `sfx_register_in_place`. Treat registers in place (no mint), rebuilds Files → Sound effects, then SFX delivery. Force stays blocked while those catalogue findings remain.
-- **Site health media janitor (v0.8):** Check probes homeless items under `media/` and finds `media_janitor_orphans` when anything is removable. Treat `media_janitor_prune` (Review → Apply only — never silent, never on Force alone) deletes orphan listener delivery (`audio`/`sfx` optimal MP3s and `visual/delivery/<id>/` trees with no matching registry asset **and** no master still on disk), unreferenced leftovers under legacy `img`/`photo`/`video`/`special` (and their optimal/poster buckets), empty folders, and non-media junk (`desktop.ini`, `Thumbs.db`, `.DS_Store`, `.gitkeep`). Delivery for an uncatalogued `ast_*` master is left alone until register-in-place. **Ignored forever:** any path under `original/` or `icons/`. **Never deleted here:** masters (`media/*/master/`) — uncatalogued `ast_*` masters stay a register-in-place finding. `/media` is for media only.
+- **Site health media janitor (v0.8):** Check probes homeless items under `media/` and finds `media_janitor_orphans` when anything is removable. Treat `media_janitor_prune` (Review → Apply only — never silent, never on Force alone) deletes orphan listener delivery (`audio`/`sfx` optimal MP3s and `visual/delivery/<id>/` trees with no matching registry asset **and** no master still on disk), leftover durable intake under `media/*/original/` and legacy intake originals (unregistered, or linked when a master already exists), stray `.zip` under `media/`, unreferenced leftovers under legacy `img`/`photo`/`video`/`special` (and their optimal/poster buckets), empty folders, and non-media junk (`desktop.ini`, `Thumbs.db`, `.DS_Store`, `.gitkeep`). Delivery for an uncatalogued `ast_*` master is left alone until register-in-place. **Ignored forever:** any path under `icons/`. **Never deleted here:** masters (`media/*/master/`) — uncatalogued `ast_*` masters stay a register-in-place finding. `/media` is for media only.
 - **Site health storage reclaim (v0.8):** Check finds leftover Site update / export scratch (`.bandpromo-*` workdirs) as `storage_package_scratch` → Treat `storage_package_prune`. Older Ready Jobs archives (Backup / PCF / PBF) appear as `storage_ready_archives` → Treat `storage_archives_prune`, which **keeps the newest Ready job per kind** and removes older Ready jobs only (pending/building skipped). Neither path touches media originals or masters.
 - **Discard archival upload (Status → Storage):** When a master exists on disk, operators may discard the write-once `original/` upload from **System → Status → Storage** (not Files) to reclaim space. Masters and delivery stay. Locked demo media is excluded until unlocked on localhost. **Never** auto-discarded by Site health Treat/Force.
 - **Site health data janitor (v0.8):** Check probes `data/` separately. `data_janitor_ephemeral` → Treat `data_janitor_prune` clears OS junk, stale `upload_tmp` (>24h), and empty scratch folders (keeps structural roots). `data_container_unlinked` → Treat `data_container_relink` registers invisible playlist/gallery/page docs that already have a valid campaign home and drops registry stubs with no document. `data_container_orphans` is Manual: Adopt into a chosen campaign or Delete (named confirms). Never touch `terces`, `.setup_complete`, `install-preferences.json`, `analytics/`, `assets/`, campaign docs, brands, or site-health plan/fingerprint files. Skip locked demo containers and system shell pages (`faq`, `bio`, `gallery`).
@@ -699,7 +701,7 @@ Video master:
 - corrected canonical source for future poster/transcode generation
 - may include normalized naming, poster association, and packaging metadata
 - should not be prematurely flattened into one streaming format if the canonical edited source should remain richer
-- **Container (locked):** remux intake → `media/visual/master/ast_*.mkv` with **stream copy** (no re-encode). Map **video + optional audio only** (drop data/timecode and subtitle tracks — phone/camera MP4/MOV often carry a data stream Matroska rejects). Matroska tags hold title / description / keywords / date. Original intake preserved. **Delivery stays MP4** (`standard-stream.mp4`; silent for brand `role=shell-background-video` and living covers). Upload allowlist may expand to MKV once masters are MKV; browsers never load master MKV.
+- **Container (locked):** remux intake → `media/visual/master/ast_*.mkv` with **stream copy** (no re-encode). Map **video + optional audio only** (drop data/timecode and subtitle tracks — phone/camera MP4/MOV often carry a data stream Matroska rejects). Matroska tags hold title / description / keywords / date. Intake discarded after master success. **Delivery stays MP4** (`standard-stream.mp4`; silent for brand `role=shell-background-video` and living covers). Upload allowlist may expand to MKV once masters are MKV; browsers never load master MKV.
 
 ### Important implementation constraint
 

@@ -33,8 +33,8 @@ function bandpromo_sfx_ensure_dir(string $root): void
 
 function bandpromo_sfx_ensure_tier_dirs(string $root): void
 {
+    // Durable product dirs only — intake is temp/media-intake (original/ is leftover reclaim).
     foreach ([
-        bandpromo_sfx_original_dir($root),
         bandpromo_sfx_master_dir($root),
         bandpromo_sfx_optimal_dir($root),
     ] as $dir) {
@@ -178,6 +178,7 @@ function bandpromo_sfx_materialize_master(string $root, array $asset): array
 {
     require_once __DIR__ . '/asset-registry.php';
     require_once __DIR__ . '/audio-master-helpers.php';
+    require_once __DIR__ . '/media-intake-helpers.php';
 
     $assetId = trim((string) ($asset['id'] ?? ''));
     $originalFilename = basename((string) ($asset['original_filename'] ?? ''));
@@ -191,7 +192,7 @@ function bandpromo_sfx_materialize_master(string $root, array $asset): array
         ? bandpromo_sfx_master_dir($root) . DIRECTORY_SEPARATOR . $existingMaster
         : '';
     $source = $originalFilename !== ''
-        ? bandpromo_sfx_original_dir($root) . DIRECTORY_SEPARATOR . $originalFilename
+        ? bandpromo_intake_resolve_source($root, 'sfx', $originalFilename)
         : '';
     // PRP / masters-only installs have no original; encode delivery from the master.
     if (($source === '' || !is_file($source)) && $existingMasterPath !== '' && is_file($existingMasterPath)) {
@@ -214,7 +215,7 @@ function bandpromo_sfx_materialize_master(string $root, array $asset): array
         return ['ok' => false, 'asset' => $asset, 'warning' => 'Missing sound-effect format.'];
     }
 
-    if (!is_file($source)) {
+    if ($source === '' || !is_file($source)) {
         return ['ok' => false, 'asset' => $asset, 'warning' => 'Sound-effect original missing: ' . $originalFilename];
     }
 
@@ -262,6 +263,10 @@ function bandpromo_sfx_materialize_master(string $root, array $asset): array
             'master_filename' => $masterFilename,
             'master_format' => $format,
         ]);
+    }
+
+    if (is_file($dest)) {
+        bandpromo_intake_discard_after_master($root, 'sfx', $originalFilename, $dest);
     }
 
     return ['ok' => true, 'asset' => $updated, 'path' => $dest];
@@ -780,6 +785,7 @@ function bandpromo_asset_register_sfx(
     array $options = []
 ): array {
     require_once __DIR__ . '/asset-registry.php';
+    require_once __DIR__ . '/media-intake-helpers.php';
 
     $originalFilename = basename(trim($originalFilename));
     if ($originalFilename === '' || !bandpromo_sfx_is_audio_filename($originalFilename)) {
@@ -787,8 +793,8 @@ function bandpromo_asset_register_sfx(
     }
 
     bandpromo_sfx_ensure_tier_dirs($root);
-    $absolute = bandpromo_sfx_original_dir($root) . DIRECTORY_SEPARATOR . $originalFilename;
-    if (!is_file($absolute)) {
+    $absolute = bandpromo_intake_resolve_source($root, 'sfx', $originalFilename);
+    if ($absolute === '' || !is_file($absolute)) {
         throw new RuntimeException('Sound effect file not found: ' . $originalFilename);
     }
 

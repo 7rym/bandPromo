@@ -3,7 +3,8 @@ declare(strict_types=1);
 
 /**
  * Storage report helpers for System → Status → Storage.
- * Disk use + reclaimable archival originals (masters must exist).
+ * Disk use + reclaimable leftover intake (linked originals with a master,
+ * plus unregistered orphan files under original / legacy intake dirs).
  */
 
 require_once __DIR__ . '/environment-report-helpers.php';
@@ -281,6 +282,47 @@ function bandpromo_storage_collect_report(string $root, bool $includeDeveloperSa
         }
     }
 
+    $orphanCount = 0;
+    $orphanBytes = 0;
+    foreach (bandpromo_list_orphan_intake_files($root) as $orphan) {
+        if (!is_array($orphan)) {
+            continue;
+        }
+        $family = (string) ($orphan['family'] ?? '');
+        $target = (string) ($orphan['target'] ?? '');
+        $filename = basename(trim((string) ($orphan['filename'] ?? '')));
+        if ($family === '' || $target === '' || $filename === '') {
+            continue;
+        }
+        if (!isset($byFamily[$family])) {
+            $byFamily[$family] = ['count' => 0, 'bytes' => 0];
+        }
+        $bytes = (int) ($orphan['bytes'] ?? 0);
+        $byFamily[$family]['count']++;
+        $byFamily[$family]['bytes'] += $bytes;
+        $orphanCount++;
+        $orphanBytes += $bytes;
+        $row = [
+            'target' => $target,
+            'filename' => $filename,
+            'asset_id' => '',
+            'family' => $family,
+            'bytes' => $bytes,
+            'orphan' => true,
+            'rel_path' => (string) ($orphan['rel_path'] ?? ''),
+        ];
+        $items[] = $row;
+        if ($includeDeveloperSample && count($sample) < 8) {
+            $sample[] = [
+                'family' => $family,
+                'filename' => $filename,
+                'bytes' => $bytes,
+                'bytes_label' => bandpromo_environment_format_bytes($bytes),
+                'orphan' => true,
+            ];
+        }
+    }
+
     $totalCount = 0;
     $totalBytes = 0;
     foreach ($byFamily as $row) {
@@ -294,8 +336,10 @@ function bandpromo_storage_collect_report(string $root, bool $includeDeveloperSa
         'bytes_label' => bandpromo_environment_format_bytes($totalBytes),
         'by_family' => $byFamily,
         'excluded_locked_demo' => $excludedLocked,
+        'orphan_count' => $orphanCount,
+        'orphan_bytes' => $orphanBytes,
         'items' => $items,
-        'note' => 'Only archival uploads with a master on disk. Locked demo originals are excluded.',
+        'note' => 'Leftover intake and unregistered orphan uploads. Linked originals need a master on disk. Locked demo originals are excluded.',
     ];
     if ($includeDeveloperSample) {
         $reclaimable['sample'] = $sample;

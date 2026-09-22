@@ -86,7 +86,7 @@
         listener_delivery: 'Build missing or outdated streaming audio and artwork for the player (also retries videos that failed to rebuild).',
         audio_fill_display_from_tags: 'Fill empty track title and artist from the file\'s own tags.',
         audio_extract_covers: 'Pull embedded cover art from tracks and link it in Files.',
-        media_janitor_prune: 'Clear the selected leftovers. Your originals and masters stay safe.',
+        media_janitor_prune: 'Clear the selected leftovers — orphan delivery, leftover intake, stray ZIPs, and empty folders. Masters and icons stay safe.',
         data_janitor_prune: 'Clear leftover temporary and junk files from site data storage.',
         storage_package_prune: 'Remove leftover Site update and export folders. Your catalogue and media stay put.',
         storage_archives_prune: 'Remove older Ready archives in Jobs. Keeps the newest Ready Backup, PCF, and PBF.',
@@ -2115,25 +2115,25 @@
             '</article>' +
 
             '<article class="status-storage-card status-storage-card--chart">' +
-            '<h3 class="status-storage-card-title">Archival uploads you can discard</h3>' +
+            '<h3 class="status-storage-card-title">Leftover intake you can clear</h3>' +
             (chartUnavailable
                 ? ('<p class="status-storage-card-body">'
                     + escapeHtml(reclaimCount > 0
                         ? ('About ' + formatStorageBytes(reclaimBytes) + ' across ' + reclaimCount + ' files')
-                        : 'Nothing to discard right now.')
+                        : 'Nothing to clear right now.')
                     + '</p>')
                 : ('<div class="status-storage-chart-wrap status-storage-chart-wrap--gauge">'
-                    + '<canvas id="statusStorageReclaimChart" aria-label="Reclaimable archival uploads by family"></canvas>'
+                    + '<canvas id="statusStorageReclaimChart" aria-label="Reclaimable leftover intake by family"></canvas>'
                     + '</div>')) +
             renderStorageLegend(reclaimCount > 0 ? [
                 { color: STORAGE_CHART_COLORS.audio, label: 'Audio', value: reclaimAudioCount + ' · ' + formatStorageBytes(reclaimAudio) },
                 { color: STORAGE_CHART_COLORS.visual, label: 'Visual', value: reclaimVisualCount + ' · ' + formatStorageBytes(reclaimVisual) },
                 { color: STORAGE_CHART_COLORS.sfx, label: 'Sound effects', value: reclaimSfxCount + ' · ' + formatStorageBytes(reclaimSfx) },
-            ] : [{ label: 'Eligible uploads', value: 'None' }]) +
+            ] : [{ label: 'Leftover intake', value: 'None' }]) +
             '<p class="status-storage-card-note">'
             + (reclaimCount > 0
-                ? 'Masters and player-ready files stay.'
-                : 'Nothing to discard — no spare originals with masters, or only locked demo uploads remain.')
+                ? 'Leftover intake and unregistered junk — not an archive you might want. Masters and player-ready files stay.'
+                : 'Nothing to clear — no leftover intake or unregistered junk, or only locked demo uploads remain.')
             + (locked > 0
                 ? (' ' + locked + ' locked demo upload' + (locked === 1 ? ' is' : 's are') + ' excluded.')
                 : '')
@@ -2240,8 +2240,8 @@
             storageDiscardBtn.hidden = !canDiscard;
             storageDiscardBtn.disabled = storageBusy || !canDiscard;
             storageDiscardBtn.textContent = reclaimCount > 0
-                ? ('Discard eligible archival uploads (' + formatStorageBytes(reclaimBytes) + ')')
-                : 'Discard eligible archival uploads';
+                ? ('Discard leftover intake (' + formatStorageBytes(reclaimBytes) + ')')
+                : 'Discard leftover intake';
         }
 
         if (storageDevDetailEl && storageDevSampleEl) {
@@ -2302,15 +2302,15 @@
         const totalBytes = Number(report.reclaimable.bytes) || 0;
         const count = items.length;
         const body = count === 1
-            ? ('Remove 1 archival upload (about ' + formatStorageBytes(totalBytes)
-                + ')? The master and player-ready files stay.')
-            : ('Remove ' + count + ' archival uploads (about ' + formatStorageBytes(totalBytes)
+            ? ('Remove 1 leftover intake file (about ' + formatStorageBytes(totalBytes)
+                + ')? Masters and player-ready files stay.')
+            : ('Remove ' + count + ' leftover intake files (about ' + formatStorageBytes(totalBytes)
                 + ')? Masters and player-ready files stay.');
         const confirmed = typeof window.bandpromoConfirm === 'function'
             ? await window.bandpromoConfirm({
-                title: count === 1 ? 'Discard archival upload?' : 'Discard archival uploads?',
+                title: count === 1 ? 'Discard leftover intake?' : 'Discard leftover intake?',
                 body: body,
-                confirmLabel: count === 1 ? 'Discard upload' : 'Discard uploads',
+                confirmLabel: count === 1 ? 'Discard file' : 'Discard files',
                 tone: 'warn',
             })
             : window.confirm(body);
@@ -2325,7 +2325,7 @@
         if (storageRefreshBtn) {
             storageRefreshBtn.disabled = true;
         }
-        setStorageStatus('Discarding archival uploads…');
+        setStorageStatus('Discarding leftover intake…');
 
         const byTarget = new Map();
         items.forEach((item) => {
@@ -2340,6 +2340,8 @@
             byTarget.get(target).push({
                 name: filename,
                 asset_id: String(item.asset_id || '').trim(),
+                orphan: !!item.orphan,
+                rel_path: String(item.rel_path || '').trim(),
             });
         });
 
@@ -2352,6 +2354,24 @@
                 const chunk = rows.slice(offset, offset + 40);
                 try {
                     const csrfToken = await getAdminCsrfToken();
+                    const body = {
+                        target: target,
+                        filenames: chunk.map((row) => row.name),
+                        csrf_token: csrfToken,
+                    };
+                    if (chunk.length === 1) {
+                        if (chunk[0].asset_id) {
+                            body.asset_id = chunk[0].asset_id;
+                        }
+                        if (chunk[0].orphan) {
+                            body.orphan = true;
+                        }
+                        if (chunk[0].rel_path) {
+                            body.rel_path = chunk[0].rel_path;
+                        }
+                    } else if (chunk.every((row) => row.orphan)) {
+                        body.orphan = true;
+                    }
                     const resp = await fetch('/biblioteca/discard-original.php', {
                         method: 'POST',
                         headers: {
@@ -2359,21 +2379,16 @@
                             ...(csrfToken ? { 'X-CSRF-Token': csrfToken } : {}),
                         },
                         credentials: 'same-origin',
-                        body: JSON.stringify({
-                            target: target,
-                            filenames: chunk.map((row) => row.name),
-                            asset_id: chunk.length === 1 ? chunk[0].asset_id : '',
-                            csrf_token: csrfToken,
-                        }),
+                        body: JSON.stringify(body),
                     });
                     const data = await resp.json().catch(() => ({}));
                     discarded += Number(data.discarded) || 0;
                     freed += Number(data.bytes_freed) || 0;
                     if (!resp.ok || data.ok === false) {
-                        errors.push(String(data.error || 'Could not discard archival upload'));
+                        errors.push(String(data.error || 'Could not discard leftover intake'));
                     }
                 } catch (err) {
-                    errors.push(String((err && err.message) || err || 'Could not discard archival upload'));
+                    errors.push(String((err && err.message) || err || 'Could not discard leftover intake'));
                 }
             }
         }
@@ -2385,7 +2400,7 @@
 
         if (discarded > 0) {
             setStorageStatus(
-                'Discarded ' + discarded + ' archival upload' + (discarded === 1 ? '' : 's')
+                'Discarded ' + discarded + ' leftover file' + (discarded === 1 ? '' : 's')
                 + (freed > 0 ? (' · freed ' + formatStorageBytes(freed)) : '')
                 + '.',
                 errors.length ? 'warn' : 'success'

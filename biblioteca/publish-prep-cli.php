@@ -138,7 +138,7 @@ if ($inventoryOnly) {
     $pendingAudioOriginals = bandpromo_list_uncatalogued_audio_originals($root);
     $pendingVisualMasters = bandpromo_list_uncatalogued_visual_masters($root);
     $logLine('[inventory] Uncatalogued audio masters: ' . count($pendingAudioMasters));
-    $logLine('[inventory] Waiting audio uploads: ' . count($pendingAudioOriginals));
+    $logLine('[inventory] Leftover audio intake (reclaim via Storage / janitor): ' . count($pendingAudioOriginals));
     $logLine('[inventory] Uncatalogued visual masters: ' . count($pendingVisualMasters));
     if ($pendingAudioMasters !== []) {
         $logLine('[inventory] Audio masters need Repair Apply (register in place) — sample:');
@@ -245,34 +245,31 @@ if (bandpromo_job_stop_requested($root, $jobKey)) {
 
 try {
     require_once __DIR__ . '/asset-registry.php';
-    $touchMeta('prep', 'Finishing uploads that never registered...');
-    $logLine('[prep] Checking uploads still waiting to register...');
+    $touchMeta('prep', 'Linking leftover audio intake when a master already exists...');
+    $logLine('[prep] Checking leftover audio intake (link-only; unmatched stay for Storage reclaim)...');
     $originalReconcile = bandpromo_reconcile_uncatalogued_audio_originals($root);
     $origFixed = (int) ($originalReconcile['changed'] ?? 0);
+    $origSkipped = (int) ($originalReconcile['skipped_reclaim'] ?? 0);
     if ($origFixed > 0) {
-        $logLine('[audio uploads] Registered ' . $origFixed . ' waiting upload(s) into the catalogue.');
+        $logLine('[audio intake] Linked ' . $origFixed . ' leftover upload(s) to existing master(s).');
         foreach (($originalReconcile['fixed'] ?? []) as $fixedName) {
             if (!is_string($fixedName) || trim($fixedName) === '') {
                 continue;
             }
-            $logLine('[audio uploads] + ' . $fixedName);
+            $logLine('[audio intake] + ' . $fixedName);
         }
     } else {
-        $logLine('[audio uploads] No waiting uploads to register.');
+        $logLine('[audio intake] No leftover uploads to link.');
     }
-    foreach (($originalReconcile['failed'] ?? []) as $failure) {
-        if (!is_array($failure)) {
-            continue;
-        }
+    if ($origSkipped > 0) {
         $logLine(
-            '[audio uploads] Could not register '
-            . (string) ($failure['filename'] ?? '?')
-            . ': '
-            . (string) ($failure['error'] ?? ($failure['warning'] ?? 'unknown'))
+            '[audio intake] Left '
+            . $origSkipped
+            . ' unmatched leftover file(s) for Status → Storage / Site health janitor reclaim.'
         );
     }
 } catch (Throwable $throwable) {
-    $logLine('[audio uploads] Reconcile skipped: ' . $throwable->getMessage());
+    $logLine('[audio intake] Link pass skipped: ' . $throwable->getMessage());
 }
 
 $logLine('[prep] Checking visual masters...');

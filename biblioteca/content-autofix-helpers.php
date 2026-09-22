@@ -278,12 +278,14 @@ function bandpromo_content_autofix_log_finish(string $root, array $report): void
 }
 
 /**
- * One-shot original→master repair for operator Content autofix / Publish recovery.
+ * Link-only salvage for durable leftover audio intake.
+ * Never mints a new master from durable original/ leftovers — unmatched files
+ * stay for Status → Storage / Site health janitor reclaim.
  * Do not wire new runtime original-directory scans into hot paths (list/play/login).
  */
 function bandpromo_content_autofix_materialize_audio_masters(string $root, bool $dryRun): array
 {
-    $step = bandpromo_content_autofix_step_result('materialize_masters', 'Prepare missing audio masters');
+    $step = bandpromo_content_autofix_step_result('materialize_masters', 'Link leftover audio intake to existing masters');
     $originalDir = $root . '/media/audio/original';
     if (!is_dir($originalDir)) {
         return $step;
@@ -310,8 +312,7 @@ function bandpromo_content_autofix_materialize_audio_masters(string $root, bool 
             ? bandpromo_asset_registered_audio_masters_with_size($root, (int) $sourceSize)
             : [];
 
-        // After masters-only recover, leftover originals often lack original_filename
-        // links. Prefer linking (unique empty match) or skipping over minting duplicates.
+        // Prefer linking (unique empty match). Never mint from durable leftovers.
         if ($sameSizeMasters !== []) {
             $emptyOriginalMatches = [];
             foreach ($sameSizeMasters as $asset) {
@@ -335,26 +336,12 @@ function bandpromo_content_autofix_materialize_audio_masters(string $root, bool 
                     continue;
                 }
             }
-            // Ambiguous or already-labelled same-size master: do not create another.
             $step['skipped']++;
             continue;
         }
 
-        if ($dryRun) {
-            $step['changed']++;
-            $step['items'][] = $entry;
-            continue;
-        }
-
-        $prepared = bandpromo_materialize_audio_master_from_original($root, $entry);
-        if (!empty($prepared['prepared'])) {
-            $step['changed']++;
-            $step['items'][] = $entry;
-        } elseif (!empty($prepared['warning'])) {
-            $step['errors'][] = $entry . ': ' . (string) $prepared['warning'];
-        } else {
-            $step['skipped']++;
-        }
+        // No matching master on disk — leave for Storage / janitor reclaim.
+        $step['skipped']++;
     }
 
     return $step;
@@ -1676,14 +1663,7 @@ function bandpromo_content_autofix_run(string $root, bool $dryRun = false, strin
                     'items' => array_map(static fn(array $item): string => (string) ($item['master_filename'] ?? ''), $pendingMasters),
                 ]);
             }
-            $pending = bandpromo_list_uncatalogued_audio_originals($root);
-            $changedTotal += count($pending);
-            if ($pending !== []) {
-                $steps[] = bandpromo_content_autofix_step_result('auto_register_audio', 'Register uncatalogued audio uploads', [
-                    'changed' => count($pending),
-                    'items' => array_map(static fn(array $item): string => (string) ($item['filename'] ?? ''), $pending),
-                ]);
-            }
+            // Durable leftover originals are Storage / janitor reclaim — not autofix register.
             $pendingVisual = bandpromo_list_uncatalogued_visual_masters($root);
             $changedTotal += count($pendingVisual);
             if ($pendingVisual !== []) {
@@ -1721,21 +1701,15 @@ function bandpromo_content_autofix_run(string $root, bool $dryRun = false, strin
                     $errors[] = (string) ($failure['filename'] ?? 'audio') . ': ' . (string) ($failure['error'] ?? 'Could not register audio master');
                 }
             }
+            // Link-only: attach leftover durable originals to a unique empty master.
+            // Unmatched leftovers stay for Status → Storage / Site health janitor.
             $reconcile = bandpromo_reconcile_uncatalogued_audio_originals($root);
             if (!empty($reconcile['changed'])) {
                 $changedTotal += (int) $reconcile['changed'];
-                $steps[] = bandpromo_content_autofix_step_result('auto_register_audio', 'Register uncatalogued audio uploads', [
+                $steps[] = bandpromo_content_autofix_step_result('auto_link_audio_originals', 'Link leftover audio intake to existing masters', [
                     'changed' => (int) $reconcile['changed'],
                     'items' => $reconcile['fixed'],
                 ]);
-            }
-            if (!empty($reconcile['failed'])) {
-                foreach ($reconcile['failed'] as $failure) {
-                    if (!is_array($failure)) {
-                        continue;
-                    }
-                    $errors[] = (string) ($failure['filename'] ?? 'audio') . ': ' . (string) ($failure['error'] ?? 'Could not register automatically');
-                }
             }
             $reconcileVisual = bandpromo_reconcile_uncatalogued_visual_masters($root);
             if (!empty($reconcileVisual['changed']) || !empty($reconcileVisual['index_rebuilt'])) {

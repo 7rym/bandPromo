@@ -2,12 +2,13 @@
 declare(strict_types=1);
 
 /**
- * Discard archival original uploads while keeping master + delivery.
+ * Discard leftover intake uploads while keeping master + delivery.
  * Called from System → Status → Storage only — never from Site health Treat.
  *
  * POST JSON:
  *   { target, filename } or { target, filenames: [...] }
  *   optional asset_id
+ *   optional orphan / rel_path for unregistered intake files
  */
 require_once __DIR__ . '/admin-audit.php';
 require_once __DIR__ . '/admin-api-guard.php';
@@ -59,13 +60,127 @@ if ($requested === []) {
 }
 
 /**
- * @return array{ok:bool,filename?:string,error?:string,bytes_freed?:int,paths_removed?:list<string>,has_original?:bool,has_master?:bool}
+ * Discard an unregistered orphan intake file under a known original / legacy dir.
+ *
+ * @return array{ok:bool,filename?:string,error?:string,bytes_freed?:int,paths_removed?:list<string>,orphan?:bool}
  */
-function bandpromo_discard_original_one(string $root, string $target, string $safe, string $assetIdHint = ''): array
-{
+function bandpromo_discard_orphan_intake_one(
+    string $root,
+    string $target,
+    string $safe,
+    string $relPathHint = ''
+): array {
+    $safe = basename(trim($safe));
+    if ($safe === '' || strpbrk($safe, '/\\') !== false) {
+        return ['ok' => false, 'filename' => $safe, 'error' => 'Invalid filename', 'orphan' => true];
+    }
+
+    $candidates = [];
+    $relHint = str_replace('\\', '/', trim($relPathHint));
+    if ($relHint !== '' && !str_contains($relHint, '..')) {
+        $hintAbs = rtrim(str_replace('\\', '/', $root), '/') . '/' . ltrim($relHint, '/');
+        if (is_file($hintAbs) && strcasecmp(basename($hintAbs), $safe) === 0) {
+            $candidates[] = $hintAbs;
+        }
+    }
+    foreach (bandpromo_discard_original_candidate_paths($root, $target, $safe) as $path) {
+        $candidates[] = $path;
+    }
+
+    $existing = [];
+    $seen = [];
+    foreach ($candidates as $path) {
+        $norm = str_replace('\\', '/', $path);
+        if ($norm === '' || isset($seen[$norm]) || !is_file($norm)) {
+            continue;
+        }
+        if (!bandpromo_orphan_intake_path_is_discardable($root, $norm)) {
+            continue;
+        }
+        $seen[$norm] = true;
+        $existing[] = [
+            'path' => $norm,
+            'size' => (int) filesize($norm),
+        ];
+    }
+
+    if ($existing === []) {
+        return [
+            'ok' => false,
+            'filename' => $safe,
+            'error' => 'No unregistered leftover intake file was found for this name.',
+            'orphan' => true,
+            'bytes_freed' => 0,
+        ];
+    }
+
+    $removed = [];
+    $bytesFreed = 0;
+    foreach ($existing as $row) {
+        $path = (string) ($row['path'] ?? '');
+        if ($path === '') {
+            continue;
+        }
+        if (@unlink($path)) {
+            $removed[] = $path;
+            $bytesFreed += (int) ($row['size'] ?? 0);
+        }
+    }
+
+    if ($removed === []) {
+        return [
+            'ok' => false,
+            'filename' => $safe,
+            'error' => 'Could not remove the leftover intake file from disk.',
+            'orphan' => true,
+        ];
+    }
+
+    bandpromo_admin_audit_log('media_discard_orphan_intake', [
+        'target' => $target,
+        'filename' => $safe,
+        'bytes_freed' => $bytesFreed,
+        'paths' => array_map(static function (string $path) use ($root): string {
+            $norm = str_replace('\\', '/', $path);
+            $rootNorm = rtrim(str_replace('\\', '/', $root), '/') . '/';
+            if (str_starts_with($norm, $rootNorm)) {
+                return substr($norm, strlen($rootNorm));
+            }
+
+            return basename($norm);
+        }, $removed),
+    ]);
+
+    return [
+        'ok' => true,
+        'filename' => $safe,
+        'original_filename' => $safe,
+        'bytes_freed' => $bytesFreed,
+        'paths_removed' => $removed,
+        'orphan' => true,
+        'has_original' => false,
+        'has_master' => false,
+    ];
+}
+
+/**
+ * @return array{ok:bool,filename?:string,error?:string,bytes_freed?:int,paths_removed?:list<string>,has_original?:bool,has_master?:bool,orphan?:bool}
+ */
+function bandpromo_discard_original_one(
+    string $root,
+    string $target,
+    string $safe,
+    string $assetIdHint = '',
+    bool $preferOrphan = false,
+    string $relPathHint = ''
+): array {
     $safe = basename(trim($safe));
     if ($safe === '' || strpbrk($safe, '/\\') !== false) {
         return ['ok' => false, 'filename' => $safe, 'error' => 'Invalid filename'];
+    }
+
+    if ($preferOrphan) {
+        return bandpromo_discard_orphan_intake_one($root, $target, $safe, $relPathHint);
     }
 
     $asset = null;
@@ -77,11 +192,8 @@ function bandpromo_discard_original_one(string $root, string $target, string $sa
             ?? bandpromo_asset_lookup_by_original_filename($root, $safe);
     }
     if (!is_array($asset)) {
-        return [
-            'ok' => false,
-            'filename' => $safe,
-            'error' => 'Register this file first — discard archival upload needs a master.',
-        ];
+        // Unregistered leftover under original / legacy intake — reclaim without a registry row.
+        return bandpromo_discard_orphan_intake_one($root, $target, $safe, $relPathHint);
     }
 
     $assetId = trim((string) ($asset['id'] ?? ''));
@@ -101,7 +213,7 @@ function bandpromo_discard_original_one(string $root, string $target, string $sa
         return [
             'ok' => false,
             'filename' => $safe,
-            'error' => 'A master file must exist before the archival upload can be discarded.',
+            'error' => 'A master file must exist before the leftover intake can be discarded.',
             'has_master' => false,
             'has_original' => !empty($status['has_original']),
         ];
@@ -119,7 +231,7 @@ function bandpromo_discard_original_one(string $root, string $target, string $sa
             return [
                 'ok' => false,
                 'filename' => $safe,
-                'error' => 'This file belongs to the locked demo release. Unlock the demo release on localhost before discarding its archival upload.',
+                'error' => 'This file belongs to the locked demo release. Unlock the demo release on localhost before discarding its leftover intake.',
             ];
         }
     }
@@ -128,7 +240,7 @@ function bandpromo_discard_original_one(string $root, string $target, string $sa
         return [
             'ok' => false,
             'filename' => $safe,
-            'error' => 'No archival upload is on disk for this file.',
+            'error' => 'No leftover intake file is on disk for this entry.',
             'has_original' => false,
             'has_master' => true,
             'bytes_freed' => 0,
@@ -163,7 +275,7 @@ function bandpromo_discard_original_one(string $root, string $target, string $sa
         return [
             'ok' => false,
             'filename' => $safe,
-            'error' => 'Could not remove the archival upload from disk.',
+            'error' => 'Could not remove the leftover intake file from disk.',
             'has_original' => true,
             'has_master' => true,
         ];
@@ -211,11 +323,20 @@ function bandpromo_discard_original_one(string $root, string $target, string $sa
 }
 
 $assetIdHint = trim((string) ($body['asset_id'] ?? ''));
+$preferOrphan = !empty($body['orphan']);
+$relPathHint = trim((string) ($body['rel_path'] ?? ''));
 $results = [];
 $freed = 0;
 $okCount = 0;
 foreach ($requested as $filename) {
-    $result = bandpromo_discard_original_one($root, $target, $filename, $assetIdHint);
+    $result = bandpromo_discard_original_one(
+        $root,
+        $target,
+        $filename,
+        $assetIdHint,
+        $preferOrphan,
+        $relPathHint
+    );
     $results[] = $result;
     if (!empty($result['ok'])) {
         $okCount++;
@@ -232,5 +353,5 @@ echo json_encode([
     'results' => $results,
     'error' => $failed === []
         ? ''
-        : (string) ($failed[0]['error'] ?? 'Could not discard archival upload'),
+        : (string) ($failed[0]['error'] ?? 'Could not discard leftover intake'),
 ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);

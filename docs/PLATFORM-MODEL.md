@@ -1036,6 +1036,6 @@ These behaviours come from the old single-playlist / filename-key model and must
 - [ACCESS-MODEL.md](ACCESS-MODEL.md) — access tiers and login
 - [DELIVERY-ARCHITECTURE.md](DELIVERY-ARCHITECTURE.md) — playback delivery and PWA
 - [PORTABILITY.md](PORTABILITY.md) — backup and migration
-- [MEDIA-HANDLING.md](MEDIA-HANDLING.md) — original/master/delivery tiers and validation
+- [MEDIA-HANDLING.md](MEDIA-HANDLING.md) — master + delivery (+ ephemeral intake) and validation
 - [FEATURES.md](FEATURES.md) — operator-facing feature list
 - [ADMIN-UI.md](ADMIN-UI.md) — admin chrome design system
