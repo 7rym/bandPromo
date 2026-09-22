@@ -92,8 +92,16 @@ function bandpromo_media_reference_path_matches_prefix(?string $raw, string $pre
         return true;
     }
 
-    // Accept legacy intake paths while leftovers remain on disk.
-    foreach (['media/img/original', 'media/photo/original', 'media/video/original', 'media/special'] as $legacy) {
+    // Accept unified Visual + leftover legacy intake paths while leftovers remain on disk.
+    foreach ([
+        'media/visual/original',
+        'media/visual/master',
+        'media/visual/delivery',
+        'media/img/original',
+        'media/photo/original',
+        'media/video/original',
+        'media/special',
+    ] as $legacy) {
         if (stripos($value, $legacy . '/') === 0) {
             return true;
         }

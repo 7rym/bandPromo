@@ -450,7 +450,7 @@ function bandpromo_media_is_operator_upload_filename(string $root, string $targe
 
 function bandpromo_media_install_has_operator_uploads(string $root): bool
 {
-    foreach (['audio', 'illustrations', 'photos', 'special'] as $target) {
+    foreach (['audio', 'illustrations', 'photos', 'video', 'sfx'] as $target) {
         if (bandpromo_media_target_has_operator_uploads($root, $target)) {
             return true;
         }
@@ -925,6 +925,16 @@ function bandpromo_media_files_index_sync_file(string $root, string $target, str
         $entry['delivery_pending'] = !empty($videoMeta['needs_delivery']);
     }
 
+    require_once __DIR__ . '/discard-original-helpers.php';
+    require_once __DIR__ . '/asset-registry.php';
+    $assetForStatus = bandpromo_asset_lookup_by_master_filename($root, $listingName)
+        ?? bandpromo_asset_lookup_by_original_filename($root, $originalLabel !== '' ? $originalLabel : $listingName);
+    $archival = bandpromo_media_archival_status($root, $target, $entry, is_array($assetForStatus) ? $assetForStatus : null);
+    $entry['has_original'] = !empty($archival['has_original']);
+    $entry['has_master'] = !empty($archival['has_master']);
+    $entry['original_bytes'] = (int) ($archival['original_bytes'] ?? 0);
+    $entry['can_discard_original'] = !empty($archival['can_discard_original']);
+
     if (!$persist) {
         return $entry;
     }
@@ -1042,15 +1052,10 @@ function bandpromo_media_files_index_rebuild_registry_rows(
             if (($asset['kind'] ?? '') !== 'visual') {
                 continue;
             }
-            $intake = bandpromo_asset_normalize_intake_bucket((string) ($asset['intake_bucket'] ?? ''));
-            $role = bandpromo_asset_normalize_visual_role((string) ($asset['role'] ?? 'unassigned'));
-            $brandRoles = [
-                'brand-logo',
-                'brand-portrait',
-                'shell-background-image',
-                'shell-background-video',
-            ];
-            if ($intake !== 'special' && !in_array($role, $brandRoles, true)) {
+            // Branding-internal filter index: shell roles only (never bare intake=special).
+            $role = strtolower(trim((string) ($asset['role'] ?? 'unassigned')));
+            require_once __DIR__ . '/asset-registry.php';
+            if (!bandpromo_asset_visual_role_is_brand_shell($role)) {
                 continue;
             }
             $listing = basename(trim((string) ($asset['master_filename'] ?? '')));
@@ -1164,15 +1169,18 @@ function bandpromo_media_files_index_registry_expected_count(string $root, strin
             if (($asset['kind'] ?? '') !== 'visual') {
                 continue;
             }
-            $intake = bandpromo_asset_normalize_intake_bucket((string) ($asset['intake_bucket'] ?? ''));
-            $role = bandpromo_asset_normalize_visual_role((string) ($asset['role'] ?? 'unassigned'));
-            $brandRoles = [
-                'brand-logo',
-                'brand-portrait',
-                'shell-background-image',
-                'shell-background-video',
-            ];
-            if ($intake === 'special' || in_array($role, $brandRoles, true)) {
+            $role = strtolower(trim((string) ($asset['role'] ?? 'unassigned')));
+            require_once __DIR__ . '/asset-registry.php';
+            if (!bandpromo_asset_visual_role_is_brand_shell($role)) {
+                continue;
+            }
+            $listing = basename(trim((string) ($asset['master_filename'] ?? '')));
+            if ($listing === '') {
+                $listing = basename(trim((string) ($asset['original_filename'] ?? '')));
+            }
+            if ($listing !== ''
+                && bandpromo_media_files_index_resolve_source($root, 'special', $listing) !== null
+            ) {
                 $count++;
             }
             continue;
@@ -1227,7 +1235,25 @@ function bandpromo_media_files_index_rebuild_target(string $root, string $target
             $originSnapshot
         );
 
-        $acceptOrphan = static function (string $name) use ($root, $target, &$files, &$count, $originSnapshot): void {
+        require_once __DIR__ . '/demo-catalog-state.php';
+        $demoHidden = bandpromo_demo_campaign_is_hidden($root);
+
+        $acceptOrphan = static function (string $name) use ($root, $target, &$files, &$count, $originSnapshot, $demoHidden): void {
+            // Unregistered bandPromo_* seed leftovers reappear on every rebuild while the
+            // file remains on disk. When the demo campaign is hidden, do not index them —
+            // demo-hide treats them as demo-owned (see owns_media_file).
+            if ($demoHidden && bandpromo_media_is_bundled_placeholder($name)) {
+                $priorOrigin = '';
+                $priorKey = bandpromo_media_files_index_key($target, $name);
+                if (is_array($originSnapshot[$priorKey] ?? null)) {
+                    $priorOrigin = trim((string) ($originSnapshot[$priorKey]['origin'] ?? ''));
+                }
+                if ($priorOrigin !== 'user-upload') {
+                    unset($files[$priorKey]);
+
+                    return;
+                }
+            }
             $entry = bandpromo_media_files_index_sync_file($root, $target, $name, [
                 'persist' => false,
                 'files_snapshot' => $originSnapshot,
@@ -1345,6 +1371,10 @@ function bandpromo_media_files_index_rebuild_target(string $root, string $target
 
 function bandpromo_media_files_index_rebuild_all(string $root): array
 {
+    require_once __DIR__ . '/asset-registry.php';
+    // Before indexing: campaign covers mis-stamped special must land in illustrations|video.
+    bandpromo_asset_heal_misfiled_special_intake($root);
+
     bandpromo_media_prune_generated_visual_artifacts($root);
 
     $counts = [];

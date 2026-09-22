@@ -83,7 +83,7 @@ function bandpromo_audio_master_resolve_current_cover_url(?string $cover): strin
 }
 
 /**
- * Absolute path for a track-cover pool file (img / photo / special).
+ * Absolute path for a track-cover pool file (Visual original / legacy img|photo|special).
  */
 function bandpromo_audio_master_resolve_pool_cover_path(string $root, string $coverFilename): string
 {
@@ -117,6 +117,7 @@ function bandpromo_audio_master_resolve_pool_cover_path(string $root, string $co
         $root . '/media/visual/original/' . $coverFilename,
         $root . '/media/img/original/' . $coverFilename,
         $root . '/media/photo/original/' . $coverFilename,
+        // Legacy dual-read only — product path is visual/original.
         $root . '/media/special/' . $coverFilename,
     ] as $candidate) {
         if (is_file($candidate)) {
@@ -714,14 +715,18 @@ function bandpromo_audio_master_apply_cover_selection(string $root, string $audi
     $targetKey = '';
     $filename = '';
 
-    if ($firstDir === 'img' && $secondDir === 'original' && count($parts) >= 4) {
+    if ($firstDir === 'visual' && $secondDir === 'original' && count($parts) >= 4) {
+        $targetKey = 'illustrations';
+        $filename = basename($parts[3]);
+    } elseif ($firstDir === 'img' && $secondDir === 'original' && count($parts) >= 4) {
         $targetKey = 'illustrations';
         $filename = basename($parts[3]);
     } elseif ($firstDir === 'photo' && $secondDir === 'original' && count($parts) >= 4) {
         $targetKey = 'photos';
         $filename = basename($parts[3]);
     } elseif ($firstDir === 'special' && count($parts) >= 3) {
-        $targetKey = 'special';
+        // Legacy path — treat as Visual illustrations, never Brand-assets special index.
+        $targetKey = 'illustrations';
         $filename = basename($parts[2]);
     }
 
@@ -756,6 +761,12 @@ function bandpromo_audio_master_apply_cover_selection(string $root, string $audi
     }
 
     $sourcePath = $sourceDir . '/' . $filename;
+    if (!is_file($sourcePath) && $firstDir === 'special') {
+        $legacySpecial = $root . '/media/special/' . $filename;
+        if (is_file($legacySpecial)) {
+            $sourcePath = $legacySpecial;
+        }
+    }
     if (!is_file($sourcePath)) {
         return [
             'ok' => false,

@@ -362,7 +362,13 @@ function bandpromo_campaign_normalize_poster_asset_id(?string $root, mixed $valu
 
 function bandpromo_campaign_visual_media_bases(): array
 {
-    return ['/media/img/original', '/media/photo/original', '/media/special'];
+    return [
+        '/media/visual/original',
+        '/media/visual/master',
+        '/media/img/original',
+        '/media/photo/original',
+        '/media/special',
+    ];
 }
 
 function bandpromo_campaign_poster_filename_candidates(string $reference, ?array $asset = null): array

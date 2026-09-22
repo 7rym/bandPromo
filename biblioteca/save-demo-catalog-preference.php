@@ -62,18 +62,6 @@ if (!bandpromo_demo_catalog_set_visible($root, $visible)) {
 }
 
 $keptVisible = $hidden ? bandpromo_demo_campaign_assets_kept_visible($root) : [];
-$keptOperator = 0;
-$keptBrand = 0;
-foreach ($keptVisible as $row) {
-    if (!is_array($row)) {
-        continue;
-    }
-    if (($row['reason'] ?? '') === 'brand') {
-        $keptBrand++;
-    } else {
-        $keptOperator++;
-    }
-}
 
 bandpromo_admin_audit_log($visible ? 'demo_catalog_shown' : 'demo_catalog_hidden', [
     'target_type' => 'install_preference',
@@ -87,22 +75,6 @@ bandpromo_admin_audit_log($visible ? 'demo_catalog_shown' : 'demo_catalog_hidden
     ],
 ]);
 
-$warning = '';
-if ($hidden && ($keptOperator > 0 || $keptBrand > 0)) {
-    $parts = [];
-    if ($keptOperator > 0) {
-        $parts[] = $keptOperator === 1
-            ? '1 demo asset stays visible because your catalogue still uses it'
-            : $keptOperator . ' demo assets stay visible because your catalogue still uses them';
-    }
-    if ($keptBrand > 0) {
-        $parts[] = $keptBrand === 1
-            ? '1 demo Brand shell asset stays visible while a Brand still uses it'
-            : $keptBrand . ' demo Brand shell assets stay visible while Brands still use them';
-    }
-    $warning = implode('. ', $parts) . '.';
-}
-
 echo json_encode([
     'ok' => true,
     'demo_catalog_visible' => $visible,
@@ -111,5 +83,5 @@ echo json_encode([
     'demo_campaign_id' => bandpromo_demo_campaign_id($root),
     'kept_visible' => $keptVisible,
     'kept_visible_count' => count($keptVisible),
-    'warning' => $warning,
+    'warning' => '',
 ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);

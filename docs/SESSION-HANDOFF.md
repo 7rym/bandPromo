@@ -2,9 +2,9 @@
 
 ## Resume point
 
-Session ended and **published** **v0.8.93 build 578** (`v0.8.93-build-578`): From brand clears slots + membership-only brands + In brand chip; video MKV remux (drop data tracks) + Windows ffmpeg UTF-8 capture; sticky Notifications playlist-scan heal.
+Session ending / publishing **storage reclaim + discard archival originals** (with prior demo-hide / special-intake cleanup from this session): Site health package scratch + older Ready archives Treat; Files Discard archival upload; demo ownership hide; findings 2–13 special-intake cleanup.
 
-**Next:** Optional: Files pool compactness; featured/remix player display. Testers: Dashboard → Site update.
+**Next after publish:** Testers: Dashboard → Site update. HITZ: Check → Review → Apply storage reclaim findings first. Optional: Files pool compactness; featured/remix player display.
 
 ### Policy locked (do not reopen)
 

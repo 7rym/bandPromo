@@ -27,7 +27,7 @@ That is the practical value proposition behind the media-handling model.
 
 bandPromo should use three explicit media tiers:
 
-- `original`: the exact user upload, preserved untouched (**write-once**; legal I/O after intake is download/delete/provenance only)
+- `original`: the exact user upload, preserved untouched (**write-once**; legal I/O after intake is download/delete/provenance only). Operators may **manually** discard the archival upload when a master exists (Files → Discard archival upload) to free host disk; Site health never does this automatically.
 - `master`: a bandPromo-authored canonical asset (`ast_{ULID}`) — **the working copy**
 - `delivery`: publish-ready derivatives generated **from the master** for playback and display
 
@@ -656,6 +656,8 @@ to:
 - **Site health dedupe (v0.8):** Quick check groups registered audio + visual (still + video) masters by byte size, then XXH3 of the whole master file within multi-member buckets. Full check fingerprints **content** without tags: **audio** demux-copies the full audio elementary stream and XXH3-hashes it (no duration pre-bucket — dual ID3/APE artwork and skewed tag durations must not hide clones); **video** uses duration buckets then demux-copy into `temp/` with min shared-prefix hash; stills use Pillow RGB within the same pixel dimensions. Findings go through Review → Apply (`dedupe_retarget_and_remove`). **Apply only removes the probe class on the Review plan** (file-hash after Quick; content only after Full put `duplicate_masters_content` on the plan). Remap chains are collapsed before delete. Keep the campaign/playlist-linked `asset_id`, retarget container refs, delete only unreferenced clones. Conflict clusters warn only. After a Quick-only Apply, Activity suggests an optional Full check. Scratch under `temp/` is discarded; HTTP access is denied.
 - **Site health SFX register (v0.8):** Check compares `media/sfx/master/ast_*` to registry `kind=sfx`. Uncatalogued masters (or empty SFX registry with disk masters) get `sfx_register_in_place`. Treat registers in place (no mint), rebuilds Files → Sound effects, then SFX delivery. Force stays blocked while those catalogue findings remain.
 - **Site health media janitor (v0.8):** Check probes homeless items under `media/` and finds `media_janitor_orphans` when anything is removable. Treat `media_janitor_prune` (Review → Apply only — never silent, never on Force alone) deletes orphan listener delivery (`audio`/`sfx` optimal MP3s and `visual/delivery/<id>/` trees with no matching registry asset **and** no master still on disk), unreferenced leftovers under legacy `img`/`photo`/`video`/`special` (and their optimal/poster buckets), empty folders, and non-media junk (`desktop.ini`, `Thumbs.db`, `.DS_Store`, `.gitkeep`). Delivery for an uncatalogued `ast_*` master is left alone until register-in-place. **Ignored forever:** any path under `original/` or `icons/`. **Never deleted here:** masters (`media/*/master/`) — uncatalogued `ast_*` masters stay a register-in-place finding. `/media` is for media only.
+- **Site health storage reclaim (v0.8):** Check finds leftover Site update / export scratch (`.bandpromo-*` workdirs) as `storage_package_scratch` → Treat `storage_package_prune`. Older Ready Jobs archives (Backup / PCF / PBF) appear as `storage_ready_archives` → Treat `storage_archives_prune`, which **keeps the newest Ready job per kind** and removes older Ready jobs only (pending/building skipped). Neither path touches media originals or masters.
+- **Discard archival upload (manual Files action):** When a master exists on disk, operators may discard the write-once `original/` upload (editor button or bulk **Discard upload**) to reclaim space. Master and delivery stay; “Download original” becomes unavailable (honest 404). Locked demo media refuses discard until unlocked on localhost. **Never** auto-discarded by Site health Treat/Force.
 - **Site health data janitor (v0.8):** Check probes `data/` separately. `data_janitor_ephemeral` → Treat `data_janitor_prune` clears OS junk, stale `upload_tmp` (>24h), and empty scratch folders (keeps structural roots). `data_container_unlinked` → Treat `data_container_relink` registers invisible playlist/gallery/page docs that already have a valid campaign home and drops registry stubs with no document. `data_container_orphans` is Manual: Adopt into a chosen campaign or Delete (named confirms). Never touch `terces`, `.setup_complete`, `install-preferences.json`, `analytics/`, `assets/`, campaign docs, brands, or site-health plan/fingerprint files. Skip locked demo containers and system shell pages (`faq`, `bio`, `gallery`).
 - `media/sfx/{original,master,optimal}/` — Sound effects
 
@@ -757,11 +759,10 @@ The current `bandPromo_*` naming convention may be used as a temporary implement
 
 ### Admin visibility rule
 
-**Campaign demo media** (Audio / Visual pools owned by the install’s protected demo campaign — see `demo_campaign_id` / `demo_release_hidden` in `data/install-preferences.json`) follows **Hide bandPromo demo campaign**. When the demo campaign is hidden:
+**Campaign demo media** (Files pools owned by the install’s protected demo campaign or demo brand — see `demo_campaign_id` / `demo_release_hidden` in `data/install-preferences.json`) follows **Hide bandPromo demo campaign**. When the demo campaign is hidden:
 
-- Unused demo campaign files leave Files → Audio / Visual and pickers (including demo Brand library members).
-- Demo assets still referenced by a non-demo playlist, gallery, page, or campaign stay visible (`kept_visible` soft warning on save).
-- Demo Brand shell (Visual/SFX library members and logo / poster / still / living slots) stay visible while the **Base** brand or another non-demo brand references them. Operator-uploaded brand media is untouched.
+- Demo-owned files leave Files pools and pickers (catalogue home is the demo campaign, or the asset belongs to the demo brand via stamp / library / slots).
+- No Base-reference keep-visible exception for demo Brand shell / SFX in Files.
 - Filename prefixes such as `bandPromo_*` are **not** the hide gate.
 
 **Locked demo delete:** deleting campaign media that belongs to the locked demo campaign is denied until the demo campaign is unlocked on localhost.
@@ -775,14 +776,14 @@ Deleting media from Admin is a real delete (unlink), subject to:
 - locked demo campaign ownership guards
 - in-use / multi-reference detach requirements
 
-Demo campaign visibility is **preference-level** (`demo_release_hidden`) with Files filtering by **catalogue home** (demo campaign id). Base brand shell assets stay visible while referenced. Do not use filename-prefix (`bandPromo_*`) soft-hide as a substitute. Registry identity is `ast_*`; filename prefixes are provenance/display hints only.
+Demo campaign visibility is **preference-level** (`demo_release_hidden`) with Files filtering by **demo ownership only** (demo campaign catalogue home **or** demo brand membership). Misfiled `special` stamps on non-shell visuals heal to `img`/`video` on Files index rebuild and catalogue Repair. Do not use filename-prefix (`bandPromo_*`) soft-hide as a substitute. Registry identity is `ast_*`; filename prefixes are provenance/display hints only.
 
 ### Recommended first implementation shape
 
 Per-install soft-hide maps for bundled placeholders are retired. Prefer:
 
 - campaign ownership + lock for demo media
-- `demo_release_hidden` for operator hide of that campaign (catalogue-home Files filter + Base shell exception)
+- `demo_release_hidden` for operator hide of that campaign (Files filter by demo campaign / demo brand ownership)
 - registry `origin` for provenance badges (not hide/delete policy)
 
 That keeps Files pools and media pickers consistent without a second hide system.

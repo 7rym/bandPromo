@@ -289,23 +289,76 @@ function bandpromo_demo_campaign_container_is_visible(string $root, string $cont
 }
 
 /**
- * Brand-shell asset kinds/buckets stay visible even when demo campaign is hidden.
+ * Brand document linked to the install demo campaign (empty when unset).
  */
-function bandpromo_demo_campaign_asset_is_brand_shell(array $asset): bool
+function bandpromo_demo_brand_id(string $root): string
 {
-    $kind = strtolower(trim((string) ($asset['kind'] ?? '')));
-    if ($kind === 'sfx') {
+    require_once __DIR__ . '/brand-storage.php';
+    require_once __DIR__ . '/campaign-storage.php';
+
+    $demoId = bandpromo_demo_campaign_id($root);
+    if ($demoId === '') {
+        return '';
+    }
+
+    try {
+        $release = bandpromo_campaign_load_document($root, $demoId);
+        $brandId = bandpromo_brand_canonical_id((string) ($release['brand_id'] ?? ''));
+        if ($brandId !== '') {
+            return $brandId;
+        }
+    } catch (Throwable $throwable) {
+        // Campaign optional during bootstrap.
+    }
+
+    return '';
+}
+
+/**
+ * True when a registry asset belongs to the demo campaign (catalogue home)
+ * or the demo brand (brand_id stamp / library / shell slots).
+ */
+function bandpromo_demo_asset_is_owned(string $root, array $asset): bool
+{
+    require_once __DIR__ . '/campaign-storage.php';
+    require_once __DIR__ . '/brand-storage.php';
+
+    $demoId = bandpromo_demo_campaign_id($root);
+    $demoBrandId = bandpromo_demo_brand_id($root);
+
+    $home = bandpromo_campaign_normalize_id((string) ($asset['release_id'] ?? ''));
+    if ($home === BANDPROMO_CAMPAIGN_DEFAULT_ID) {
+        $home = '';
+    }
+    if ($demoId !== '' && $home !== '' && $home === $demoId) {
         return true;
     }
 
-    $intake = strtolower(trim((string) ($asset['intake_bucket'] ?? '')));
-    if ($intake === 'special' || $intake === 'sfx') {
+    $assetBrandId = bandpromo_brand_canonical_id((string) ($asset['brand_id'] ?? ''));
+    if ($demoBrandId !== '' && $assetBrandId !== '' && $assetBrandId === $demoBrandId) {
         return true;
     }
 
-    $role = strtolower(trim((string) ($asset['role'] ?? '')));
-    if (in_array($role, ['logo', 'poster', 'share', 'background', 'background_image', 'background_video', 'sfx', 'welcome', 'loggedin'], true)) {
-        return true;
+    $assetId = trim((string) ($asset['id'] ?? ''));
+    if ($assetId === '' || $demoBrandId === '') {
+        return false;
+    }
+
+    try {
+        $brand = bandpromo_brand_load_document($root, $demoBrandId);
+    } catch (Throwable $throwable) {
+        return false;
+    }
+
+    foreach (is_array($brand['library_asset_ids'] ?? null) ? $brand['library_asset_ids'] : [] as $libraryId) {
+        if (trim((string) $libraryId) === $assetId) {
+            return true;
+        }
+    }
+    foreach (is_array($brand['asset_ids'] ?? null) ? $brand['asset_ids'] : [] as $slotId) {
+        if (trim((string) $slotId) === $assetId) {
+            return true;
+        }
     }
 
     return false;
@@ -325,9 +378,6 @@ function bandpromo_demo_campaign_asset_files_target(array $asset): string
     }
 
     $intake = strtolower(trim((string) ($asset['intake_bucket'] ?? '')));
-    if ($intake === 'special') {
-        return 'special';
-    }
     if ($intake === 'sfx') {
         return 'sfx';
     }
@@ -341,6 +391,7 @@ function bandpromo_demo_campaign_asset_files_target(array $asset): string
         return 'illustrations';
     }
 
+    // Leftover special stamps index with Visual by media type (not a Brand-assets pool).
     $mediaType = strtolower(trim((string) ($asset['media_type'] ?? '')));
     if ($mediaType === 'video') {
         return 'video';
@@ -360,13 +411,12 @@ function &bandpromo_demo_campaign_asset_set_cache(): array
 }
 
 /**
- * Request-scoped demo workspace asset set (campaign media + demo brand library/shell).
+ * Request-scoped demo-owned asset set (demo campaign catalogue + demo brand membership).
  *
  * @return array{
  *   asset_ids:array<string,true>,
  *   file_keys:array<string,true>,
- *   files:list<array{asset_id:string,target:string,filename:string,shell:bool}>,
- *   shell_asset_ids:array<string,true>
+ *   files:list<array{asset_id:string,target:string,filename:string}>
  * }
  */
 function bandpromo_demo_campaign_asset_set(string $root): array
@@ -385,7 +435,6 @@ function bandpromo_demo_campaign_asset_set(string $root): array
         'asset_ids' => [],
         'file_keys' => [],
         'files' => [],
-        'shell_asset_ids' => [],
     ];
 
     $demoId = bandpromo_demo_campaign_id($root);
@@ -395,52 +444,19 @@ function bandpromo_demo_campaign_asset_set(string $root): array
         return $empty;
     }
 
-    $demoBrandId = '';
-    $shellSlotIds = [];
-    try {
-        $release = bandpromo_campaign_load_document($root, $demoId);
-        $demoBrandId = trim((string) ($release['brand_id'] ?? ''));
-        if ($demoBrandId !== '') {
-            $brand = bandpromo_brand_load_document($root, $demoBrandId);
-            foreach (bandpromo_campaign_visual_shell_slot_asset_ids($root, $brand) as $slotAssetId) {
-                $slotAssetId = trim((string) $slotAssetId);
-                if ($slotAssetId !== '') {
-                    $shellSlotIds[$slotAssetId] = true;
-                }
-            }
-        }
-    } catch (Throwable $throwable) {
-        // Brand optional.
-    }
-
+    $demoBrandId = bandpromo_demo_brand_id($root);
     $assetIds = [];
-    $shellAssetIds = [];
     $fileKeys = [];
     $files = [];
 
-    $addAsset = static function (string $assetId, bool $forceShell = false) use (
+    $addAsset = static function (string $assetId) use (
         $root,
         &$assetIds,
-        &$shellAssetIds,
         &$fileKeys,
-        &$files,
-        $shellSlotIds
+        &$files
     ): void {
         $assetId = trim($assetId);
-        if ($assetId === '') {
-            return;
-        }
-
-        if (isset($assetIds[$assetId])) {
-            if ($forceShell || isset($shellSlotIds[$assetId])) {
-                $shellAssetIds[$assetId] = true;
-                foreach ($files as $index => $file) {
-                    if (($file['asset_id'] ?? '') === $assetId) {
-                        $files[$index]['shell'] = true;
-                    }
-                }
-            }
-
+        if ($assetId === '' || isset($assetIds[$assetId])) {
             return;
         }
 
@@ -450,16 +466,7 @@ function bandpromo_demo_campaign_asset_set(string $root): array
         }
 
         $target = bandpromo_demo_campaign_asset_files_target($asset);
-        $isShell = $forceShell
-            || isset($shellSlotIds[$assetId])
-            || bandpromo_demo_campaign_asset_is_brand_shell($asset)
-            || $target === 'special'
-            || $target === 'sfx';
-
         $assetIds[$assetId] = true;
-        if ($isShell) {
-            $shellAssetIds[$assetId] = true;
-        }
 
         foreach (['original_filename', 'master_filename'] as $field) {
             $filename = basename(trim((string) ($asset[$field] ?? '')));
@@ -475,44 +482,36 @@ function bandpromo_demo_campaign_asset_set(string $root): array
                 'asset_id' => $assetId,
                 'target' => $target,
                 'filename' => $filename,
-                'shell' => $isShell,
             ];
         }
     };
 
     foreach (bandpromo_campaign_collect_asset_ids($root, $demoId) as $assetId) {
-        $addAsset((string) $assetId, false);
+        $addAsset((string) $assetId);
     }
 
-    // Demo brand library / slots even when collect missed an orphan row.
     if ($demoBrandId !== '') {
         try {
             $brand = bandpromo_brand_load_document($root, $demoBrandId);
             foreach (is_array($brand['library_asset_ids'] ?? null) ? $brand['library_asset_ids'] : [] as $libraryId) {
-                $addAsset((string) $libraryId, false);
+                $addAsset((string) $libraryId);
             }
             foreach (is_array($brand['asset_ids'] ?? null) ? $brand['asset_ids'] : [] as $slotId) {
-                $addAsset((string) $slotId, true);
+                $addAsset((string) $slotId);
             }
         } catch (Throwable $throwable) {
             // Brand optional.
         }
     }
 
-    // Registry rows still tagged to the demo campaign.
+    // Registry rows owned by the demo campaign home or demo brand stamp.
     $registry = bandpromo_asset_load_registry($root);
     foreach (is_array($registry['assets'] ?? null) ? $registry['assets'] : [] as $assetId => $asset) {
         if (!is_array($asset)) {
             continue;
         }
-        $owner = '';
-        if (function_exists('bandpromo_document_campaign_id')) {
-            $owner = bandpromo_document_campaign_id($asset);
-        } else {
-            $owner = trim((string) ($asset['campaign_id'] ?? $asset['release_id'] ?? ''));
-        }
-        if ($owner !== '' && $owner === $demoId) {
-            $addAsset((string) $assetId, false);
+        if (bandpromo_demo_asset_is_owned($root, $asset)) {
+            $addAsset((string) $assetId);
         }
     }
 
@@ -520,7 +519,6 @@ function bandpromo_demo_campaign_asset_set(string $root): array
         'asset_ids' => $assetIds,
         'file_keys' => $fileKeys,
         'files' => $files,
-        'shell_asset_ids' => $shellAssetIds,
     ];
 
     return $cache[$root];
@@ -538,7 +536,7 @@ function bandpromo_demo_campaign_invalidate_asset_set_cache(?string $root = null
 }
 
 /**
- * @param array{asset_ids?:array<string,true>,file_keys?:array<string,true>,shell_asset_ids?:array<string,true>}|null $precomputedSet
+ * @param array{asset_ids?:array<string,true>,file_keys?:array<string,true>}|null $precomputedSet
  */
 function bandpromo_demo_campaign_owns_media_file(
     string $root,
@@ -559,6 +557,7 @@ function bandpromo_demo_campaign_owns_media_file(
     }
 
     require_once __DIR__ . '/asset-registry.php';
+    require_once __DIR__ . '/media-library-state.php';
     $asset = bandpromo_asset_lookup_by_original_filename($root, $filename)
         ?? bandpromo_asset_lookup_by_master_filename($root, $filename);
     if (is_array($asset)) {
@@ -566,60 +565,37 @@ function bandpromo_demo_campaign_owns_media_file(
         if ($assetId !== '' && !empty($set['asset_ids'][$assetId])) {
             return true;
         }
+        if (bandpromo_demo_asset_is_owned($root, $asset)) {
+            return true;
+        }
     }
 
     require_once __DIR__ . '/campaign-storage.php';
     $demoId = bandpromo_demo_campaign_id($root);
-    if ($demoId === '') {
-        return false;
-    }
-    $releaseId = bandpromo_campaign_id_for_media_file($root, $target, $filename);
-
-    return $releaseId !== '' && $releaseId === $demoId;
-}
-
-/**
- * True when any brand that still counts while demo is hidden references this asset.
- * Demo-owned brands (and the locked platform default when it is not Base) do not keep shell media visible.
- */
-function bandpromo_demo_asset_referenced_by_any_brand(string $root, string $assetId): bool
-{
-    $assetId = trim($assetId);
-    if ($assetId === '') {
-        return false;
+    if ($demoId !== '') {
+        $releaseId = bandpromo_campaign_id_for_media_file($root, $target, $filename);
+        if ($releaseId !== '' && $releaseId === $demoId) {
+            return true;
+        }
     }
 
-    require_once __DIR__ . '/brand-storage.php';
-    foreach (bandpromo_brand_registry_entries($root) as $entry) {
-        if (!is_array($entry)) {
-            continue;
+    // Unregistered bundled seed leftovers (e.g. bandPromo_cover.png in visual/original)
+    // have no catalogue home — treat as demo-owned unless the Files index marks an
+    // operator re-upload of the same name.
+    if (!is_array($asset) && bandpromo_media_is_bundled_placeholder($filename)) {
+        $origin = bandpromo_media_resolved_origin($target, $filename);
+        if ($origin === 'user-upload') {
+            return false;
         }
-        $brandId = trim((string) ($entry['id'] ?? ''));
-        if ($brandId === '' || !bandpromo_demo_brand_keeps_shell_visible($root, $brandId)) {
-            continue;
-        }
-        try {
-            $document = bandpromo_brand_load_document($root, $brandId);
-        } catch (Throwable $throwable) {
-            continue;
-        }
-        foreach (is_array($document['asset_ids'] ?? null) ? $document['asset_ids'] : [] as $slotId) {
-            if (trim((string) $slotId) === $assetId) {
-                return true;
-            }
-        }
-        foreach (is_array($document['library_asset_ids'] ?? null) ? $document['library_asset_ids'] : [] as $libraryId) {
-            if (trim((string) $libraryId) === $assetId) {
-                return true;
-            }
-        }
+
+        return true;
     }
 
     return false;
 }
 
 /**
- * Whether a brand should still surface (and keep shell media visible) while the demo campaign is hidden.
+ * Whether a brand document should still surface in Branding / PBF while the demo campaign is hidden.
  * Base brand always stays. Platform default and demo-owned brands hide when they are not Base.
  */
 function bandpromo_demo_brand_keeps_shell_visible(string $root, string $brandId): bool
@@ -746,8 +722,8 @@ function bandpromo_demo_media_non_demo_references(
 
 /**
  * Whether a Files-pool row should be omitted while the demo campaign is hidden.
- * Audio/Visual hide when catalogue home is the demo campaign.
- * Brand shell / SFX stay visible while Base (or another non-demo brand) still references them.
+ * Hide only demo-owned media: catalogue home is the demo campaign, or the asset
+ * belongs to the demo brand (stamp / library / slots). No shell/special exceptions.
  */
 function bandpromo_demo_workspace_media_should_hide(
     string $root,
@@ -759,104 +735,20 @@ function bandpromo_demo_workspace_media_should_hide(
         return false;
     }
 
-    $target = trim($target);
-    $filename = basename(trim($filename));
-    if ($target === '' || $filename === '') {
-        return false;
-    }
-
-    require_once __DIR__ . '/asset-registry.php';
-    $asset = bandpromo_asset_lookup_by_original_filename($root, $filename)
-        ?? bandpromo_asset_lookup_by_master_filename($root, $filename);
-    $assetId = is_array($asset) ? trim((string) ($asset['id'] ?? '')) : '';
-    $demoId = bandpromo_demo_campaign_id($root);
-
-    $set = is_array($precomputedSet) ? $precomputedSet : bandpromo_demo_campaign_asset_set($root);
-    $isShell = ($target === 'special' || $target === 'sfx')
-        || ($assetId !== '' && !empty($set['shell_asset_ids'][$assetId]))
-        || (is_array($asset) && bandpromo_demo_campaign_asset_is_brand_shell($asset));
-
-    if ($isShell) {
-        if ($assetId === '') {
-            return true;
-        }
-
-        return !bandpromo_demo_asset_referenced_by_any_brand($root, $assetId);
-    }
-
-    if ($demoId === '' || !is_array($asset)) {
-        return false;
-    }
-
-    require_once __DIR__ . '/campaign-storage.php';
-    $home = bandpromo_campaign_normalize_id((string) ($asset['release_id'] ?? ''));
-    if ($home === BANDPROMO_CAMPAIGN_DEFAULT_ID) {
-        $home = '';
-    }
-
-    return $home !== '' && $home === $demoId;
+    return bandpromo_demo_campaign_owns_media_file($root, $target, $filename, $precomputedSet);
 }
 
 /**
- * Demo workspace assets that stay visible while hide is on (operator/brand still use them).
+ * Soft inventory of demo assets still referenced by operator containers after hide.
+ * Files pools no longer keep demo Brand shell media visible — ownership hide is absolute.
  *
  * @return list<array{asset_id:string,target:string,filename:string,kind:string,label:string,container_id:string,scope:string,detail:string,href:string,reason:string}>
  */
 function bandpromo_demo_campaign_assets_kept_visible(string $root): array
 {
-    require_once __DIR__ . '/media-reference-helpers.php';
-    require_once __DIR__ . '/playlist-storage.php';
+    unset($root);
 
-    $demoId = bandpromo_demo_campaign_id($root);
-    if ($demoId === '') {
-        return [];
-    }
-
-    $set = bandpromo_demo_campaign_asset_set($root);
-    $kept = [];
-    $seen = [];
-
-    foreach ($set['files'] as $file) {
-        if (!is_array($file)) {
-            continue;
-        }
-        $target = (string) ($file['target'] ?? '');
-        $filename = (string) ($file['filename'] ?? '');
-        $assetId = (string) ($file['asset_id'] ?? '');
-        $isShell = !empty($file['shell']) || $target === 'special' || $target === 'sfx'
-            || ($assetId !== '' && !empty($set['shell_asset_ids'][$assetId]));
-        if ($target === '' || $filename === '') {
-            continue;
-        }
-
-        if ($isShell) {
-            if ($assetId === '' || !bandpromo_demo_asset_referenced_by_any_brand($root, $assetId)) {
-                continue;
-            }
-            $dedupe = $assetId . '|shell';
-            if (isset($seen[$dedupe])) {
-                continue;
-            }
-            $seen[$dedupe] = true;
-            $kept[] = [
-                'asset_id' => $assetId,
-                'target' => $target,
-                'filename' => $filename,
-                'kind' => 'brand-shell',
-                'label' => $filename,
-                'container_id' => '',
-                'scope' => 'brand',
-                'detail' => 'Still used by a Brand shell or Brand library — kept visible.',
-                'href' => '?tab=content&cntab=branding',
-                'reason' => 'brand',
-            ];
-            continue;
-        }
-
-        // Demo-homed Audio/Visual hide with the campaign; no unused-only keep list.
-    }
-
-    return $kept;
+    return [];
 }
 
 /**
@@ -1019,8 +911,8 @@ function bandpromo_demo_campaign_reference_is_demo_owned(string $root, array $re
 }
 
 /**
- * Assets that remain visible after hide because an operator container still uses them.
- * Soft inventory only — hide is no longer refused when non-empty.
+ * Soft inventory stub — Files pools no longer keep demo-owned media visible after hide.
+ * Retained so hide-preference API / hide_blockers callers stay stable (always empty).
  *
  * @return list<array{asset_id:string,target:string,filename:string,kind:string,label:string,container_id:string,scope:string,detail:string,href:string}>
  */

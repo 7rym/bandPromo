@@ -244,6 +244,50 @@ def run_investigate(plan, deep=False):
                 finding['items_sample'] = [t.get('path') for t in targets[:12]]
                 finding['count'] = len(targets)
                 log.items('Investigate data janitor leftovers', [t.get('path') for t in targets])
+            elif fid == 'storage_package_scratch':
+                try:
+                    import storage_reclaim
+                    targets = storage_reclaim.probe_package_scratch()
+                except Exception:
+                    targets = []
+                finding['items_sample'] = [t.get('path') for t in targets[:12]]
+                finding['count'] = len(targets)
+                log.items(
+                    'Investigate package scratch',
+                    [
+                        '{0} ({1})'.format(t.get('path'), t.get('size_label') or '')
+                        for t in targets
+                    ],
+                )
+            elif fid == 'storage_ready_archives':
+                try:
+                    import storage_reclaim
+                    probe = storage_reclaim.probe_ready_archives()
+                except Exception:
+                    probe = {'removable': [], 'kept': []}
+                removable = probe.get('removable') or []
+                kept = probe.get('kept') or []
+                finding['items_sample'] = [
+                    '{0}/{1} ({2})'.format(
+                        r.get('kind_label'), r.get('job_id'), r.get('size_label') or '',
+                    )
+                    for r in removable[:12]
+                ]
+                finding['count'] = len(removable)
+                log.items(
+                    'Investigate older Ready archives',
+                    finding['items_sample'],
+                )
+                if kept:
+                    log.items(
+                        'Keeping newest Ready archive per kind',
+                        [
+                            '{0}/{1} ({2})'.format(
+                                k.get('kind_label'), k.get('job_id'), k.get('size_label') or '',
+                            )
+                            for k in kept
+                        ],
+                    )
             elif fid == 'data_container_unlinked':
                 try:
                     import data_janitor

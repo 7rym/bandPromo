@@ -990,7 +990,7 @@ function bandpromo_content_autofix_sync_brand_asset_ids(string $root, bool $dryR
 }
 
 /**
- * Reseed Brand libraries emptied by dead membership ids (Files → Brand assets blank).
+ * Reseed Brand libraries emptied by dead membership ids (Branding library blank).
  */
 function bandpromo_content_autofix_heal_brand_libraries(string $root, bool $dryRun): array
 {
@@ -1388,6 +1388,64 @@ function bandpromo_content_autofix_sync_audio_visual_refs(string $root, bool $dr
 }
 
 /**
+ * Reclassify campaign/cover visuals wrongly stamped intake_bucket=special so they
+ * stay in Files → Visual when the demo campaign is hidden.
+ */
+function bandpromo_content_autofix_heal_misfiled_special_intake(string $root, bool $dryRun): array
+{
+    require_once __DIR__ . '/asset-registry.php';
+
+    $step = bandpromo_content_autofix_step_result(
+        'special_intake_heal',
+        'Move misfiled special visuals into the Visual pool (img/video)'
+    );
+
+    $registry = bandpromo_asset_load_registry($root);
+    $pendingIds = [];
+    foreach ($registry['assets'] as $assetId => $asset) {
+        if (!is_array($asset) || ($asset['kind'] ?? '') !== 'visual') {
+            continue;
+        }
+        $intake = bandpromo_asset_normalize_intake_bucket((string) ($asset['intake_bucket'] ?? ''));
+        if ($intake !== 'special') {
+            continue;
+        }
+        $role = strtolower(trim((string) ($asset['role'] ?? '')));
+        if (bandpromo_asset_visual_role_is_brand_shell($role)) {
+            continue;
+        }
+        $pendingIds[] = (string) $assetId;
+    }
+
+    if ($pendingIds === []) {
+        $step['skipped'] = 1;
+
+        return $step;
+    }
+
+    $step['changed'] = count($pendingIds);
+    $step['items'][] = ['pending' => count($pendingIds)];
+    if ($dryRun) {
+        return $step;
+    }
+
+    $result = bandpromo_asset_heal_misfiled_special_intake($root);
+    $step['changed'] = (int) ($result['changed'] ?? 0);
+    $step['items'] = [['healed' => $step['changed']]];
+    if ($step['changed'] > 0) {
+        require_once __DIR__ . '/media-library-state.php';
+        // Refresh Visual + special indexes so pool lists match the healed stamps.
+        bandpromo_media_files_index_rebuild_target($root, 'illustrations');
+        bandpromo_media_files_index_rebuild_target($root, 'video');
+        bandpromo_media_files_index_rebuild_target($root, 'special');
+    } else {
+        $step['skipped'] = 1;
+    }
+
+    return $step;
+}
+
+/**
  * Heal empty visual display by inventing title/captured_at in the registry.
  * Bulk Apply does not remux video masters (that timed out shared-host requests).
  */
@@ -1724,6 +1782,7 @@ function bandpromo_content_autofix_run(string $root, bool $dryRun = false, strin
         'bandpromo_content_autofix_canonicalize_master_filenames',
         'bandpromo_content_autofix_materialize_visual_masters',
         'bandpromo_content_autofix_backfill_visual_content_hashes',
+        'bandpromo_content_autofix_heal_misfiled_special_intake',
         'bandpromo_content_autofix_heal_visual_display',
         'bandpromo_content_autofix_orphan_primary_uploads',
         'bandpromo_content_autofix_orphan_visual_delivery',

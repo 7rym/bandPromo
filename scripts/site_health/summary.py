@@ -25,6 +25,8 @@ from paths import (
 UGLY_FINDING_IDS = frozenset({
     'media_janitor_orphans',
     'data_janitor_ephemeral',
+    'storage_package_scratch',
+    'storage_ready_archives',
 })
 
 # Container registries: (dir under data/, registry list key, operator label).

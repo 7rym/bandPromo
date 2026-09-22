@@ -190,6 +190,43 @@ function bandpromo_delivery_count_visible_media(string $root, string $target): i
     return $count;
 }
 
+/**
+ * Count Visual registry assets with brand-shell roles (inventory "theme assets").
+ * Does not use the retired Files → Brand assets / special index.
+ */
+function bandpromo_delivery_count_shell_role_visuals(string $root): int
+{
+    require_once __DIR__ . '/asset-registry.php';
+    require_once __DIR__ . '/media-library-state.php';
+
+    $count = 0;
+    $registry = bandpromo_asset_load_registry($root);
+    foreach (is_array($registry['assets'] ?? null) ? $registry['assets'] : [] as $asset) {
+        if (!is_array($asset) || ($asset['kind'] ?? '') !== 'visual') {
+            continue;
+        }
+        $role = strtolower(trim((string) ($asset['role'] ?? '')));
+        if (!bandpromo_asset_visual_role_is_brand_shell($role)) {
+            continue;
+        }
+        $listing = basename(trim((string) ($asset['master_filename'] ?? '')));
+        if ($listing === '') {
+            $listing = basename(trim((string) ($asset['original_filename'] ?? '')));
+        }
+        if ($listing === '') {
+            continue;
+        }
+        $mediaType = strtolower(trim((string) ($asset['media_type'] ?? 'image')));
+        $target = $mediaType === 'video' ? 'video' : 'illustrations';
+        if (bandpromo_media_is_effectively_hidden_for_install($target, $listing)) {
+            continue;
+        }
+        $count++;
+    }
+
+    return $count;
+}
+
 function bandpromo_delivery_inventory_counts_compute(string $root): array
 {
     require_once __DIR__ . '/campaign-storage.php';
@@ -339,7 +376,7 @@ function bandpromo_delivery_inventory_counts_compute(string $root): array
     $photos = bandpromo_delivery_count_visible_media($root, 'photos');
     $images = $illustrations + $photos;
     $videos = bandpromo_delivery_count_visible_media($root, 'video');
-    $themeAssets = bandpromo_delivery_count_visible_media($root, 'special');
+    $themeAssets = bandpromo_delivery_count_shell_role_visuals($root);
     $operatorMedia = bandpromo_media_install_has_operator_uploads($root);
 
     return [

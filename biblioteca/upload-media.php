@@ -159,16 +159,31 @@ function resolve_upload_destination(string $root_dir, string $target_hint, strin
 /**
  * Resolve the on-disk files-index bucket for an upload.
  * Operator UI may send target=visual; index rows still live under illustrations|photos|video|…
+ * Bare target=special without a brand-shell role indexes as illustrations|video (not special).
  */
 function bandpromo_upload_resolve_files_index_target(string $target_hint, string $ext, string $saved_path): string
 {
     $hint = trim($target_hint);
-    if (in_array($hint, ['audio', 'special', 'sfx', 'illustrations', 'photos', 'video'], true)) {
+    $ext = strtolower(trim($ext));
+    $role = isset($_POST['role']) ? strtolower(trim((string) $_POST['role'])) : '';
+
+    if ($hint === 'special') {
+        require_once __DIR__ . '/asset-registry.php';
+        if (in_array($ext, ['flac', 'mp3', 'wav', 'ogg', 'm4a'], true)) {
+            return 'sfx';
+        }
+        if (bandpromo_asset_visual_role_is_brand_shell($role)) {
+            return 'special';
+        }
+
+        return bandpromo_is_video_extension($ext) ? 'video' : 'illustrations';
+    }
+
+    if (in_array($hint, ['audio', 'sfx', 'illustrations', 'photos', 'video'], true)) {
         return $hint;
     }
 
-    $ext = strtolower(trim($ext));
-    if (in_array($ext, ['mp4', 'webm', 'mov'], true)) {
+    if (in_array($ext, ['mp4', 'webm', 'mov', 'mkv'], true)) {
         return 'video';
     }
     if (in_array($ext, ['flac', 'mp3', 'wav'], true)) {
@@ -186,8 +201,7 @@ function bandpromo_upload_resolve_files_index_target(string $target_hint, string
         return 'sfx';
     }
     if (stripos($normalized, '/media/visual/') !== false || stripos($normalized, '/media/special/') !== false) {
-        // Brand uploads land in visual/original; Brand tab still indexes as special for filter UI.
-        return $hint === 'special' ? 'special' : 'illustrations';
+        return 'illustrations';
     }
     if (stripos($normalized, '/media/img/') !== false) {
         return 'illustrations';
@@ -317,8 +331,8 @@ function bandpromo_upload_index_operator_file(
         'origin' => 'user-upload',
     ]);
 
-    // Brand visuals also appear in the Visual pool (illustrations|video).
-    if ($target_hint === 'special' && !in_array(strtolower($saved_ext), ['flac', 'mp3', 'wav', 'ogg', 'm4a'], true)) {
+    // Brand-shell role uploads also appear in the Visual pool (illustrations|video).
+    if ($indexTarget === 'special' && !in_array(strtolower($saved_ext), ['flac', 'mp3', 'wav', 'ogg', 'm4a'], true)) {
         $visualTarget = bandpromo_is_video_extension($saved_ext) ? 'video' : 'illustrations';
         bandpromo_media_set_hidden_for_install($visualTarget, $listingName, false);
         bandpromo_media_files_index_sync_file($root_dir, $visualTarget, $listingName, [
@@ -358,14 +372,21 @@ function bandpromo_register_visual_upload_if_needed(
 
     $indexTarget = bandpromo_upload_resolve_files_index_target($target_hint, $saved_ext, $saved_path);
     $intakeBucket = bandpromo_asset_intake_bucket_for_files_index_target($indexTarget);
-    if ($intakeBucket === '' && $target_hint === 'special') {
+    $role = isset($_POST['role']) ? (string) $_POST['role'] : 'unassigned';
+    if ($intakeBucket === '' && $indexTarget === 'special') {
         $intakeBucket = 'special';
+    }
+    if ($intakeBucket === '' && $target_hint === 'special') {
+        // Bare special without shell role → Visual by media type.
+        $intakeBucket = $mediaType === 'video' ? 'video' : 'img';
+    }
+    if ($intakeBucket === 'special' && !bandpromo_asset_visual_role_is_brand_shell($role)) {
+        $intakeBucket = $mediaType === 'video' ? 'video' : 'img';
     }
     if ($intakeBucket === '') {
         return null;
     }
 
-    $role = isset($_POST['role']) ? (string) $_POST['role'] : 'unassigned';
     $brandId = isset($_POST['brand_id']) ? trim((string) $_POST['brand_id']) : '';
 
     require_once __DIR__ . '/media-delivery-helpers.php';

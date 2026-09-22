@@ -60,15 +60,14 @@ The **first PCF imported at setup** becomes this install’s protected fallback 
 
 **Lock:** the demo campaign stays locked for operators. **Localhost only** may unlock, edit, and re-export the PCF. Remote HTTP may re-lock if somehow unlocked. No `system_managed` freeze beyond `locked`.
 
-**Hide (catalogue home):** operators may hide that demo campaign’s containers (playlists / pages / galleries) and Files media whose **catalogue home** is the demo campaign (`assets[].release_id` == `demo_campaign_id`). Hide is offered only after the install has **operator catalogue**: an operator-created campaign that contains at least one track **and** a non-demo playlist that exposes that track. Hide is **always allowed** once that gate passes.
+**Hide (ownership):** operators may hide that demo campaign’s containers (playlists / pages / galleries) and Files media **owned by the demo campaign or the demo brand** (catalogue home `assets[].release_id` == `demo_campaign_id`, or demo-brand stamp / library / shell slots). Hide is offered only after the install has **operator catalogue**: an operator-created campaign that contains at least one track **and** a non-demo playlist that exposes that track. Hide is **always allowed** once that gate passes.
 
-- Demo Audio/Visual with demo catalogue home leave Files → Audio / Visual and pickers when hidden.
+- Demo-owned Audio / Visual / SFX leave Files pools and pickers when hidden — no Base-reference keep-visible exception.
 - Demo Brand documents (including locked `bandpromo-default` when it is not Base) leave Branding and PBF export when hidden.
-- **Base shell exception:** Demo Brand shell assets (Brand assets / Sound effects) stay listable while the **Base** brand (or another non-demo brand) still references them, so player chrome does not go blank. Operator-uploaded brand media is untouched.
 - Demo pages (e.g. Band Bio / Gallery) leave Content → Pages; FAQ stays (install-owned).
 - If the operator later deletes that catalogue so the gate no longer passes, **show the demo campaign again** (`demo_release_hidden=false`).
 
-**Filename prefixes are not policy:** `bandPromo_*` and `bundled-placeholder` are display/provenance only. Hide/lock/delete enforcement uses campaign ownership + the prefs above.
+**Filename prefixes are not policy:** `bandPromo_*` and `bundled-placeholder` are display/provenance only. Hide/lock/delete enforcement uses campaign/brand ownership + the prefs above.
 
 **Upgrade safety:** if prefs are missing, derive `demo_campaign_id` from the installed platform demo campaign, default `demo_release_hidden=false`, and persist. Setup / ensure-demo and Admin bootstrap run that init after the Demo PCF is present. After **Site update**, when the published Demo PCF SHA differs from the install marker, the locked platform demo is refreshed (overwrite); hide preference is preserved; unlocked localhost authoring skips the refresh.
 
@@ -80,7 +79,7 @@ The **first PCF imported at setup** becomes this install’s protected fallback 
 |------|----------|------------|
 | **Orphan / upload bucket** | `primary` | **Invisible** catch-all for media not yet on a real campaign. Operators never manage or “see” this as a campaign — they only see audio/visual pools. **Not** demo; **not** “most important album.” |
 | **Operator catalogue** | Any id they create (or import via PCF) | Real campaigns, playlists, galleries, pages, brands ("Winter Party", "the Retroscopy hour", etc.) |
-| **Platform demo** | `bandpromo-demo` (persisted as `demo_campaign_id`) | Locked campaign from **`bandPromo-demo.pcf`** at setup (normal PCF import, then locked). Operators may hide / duplicate. Hide applies to demo containers + demo-homed Files media; Base-referenced shell stays visible. **Localhost** may unlock to edit and re-export the PCF. Remote HTTP may re-lock if somehow unlocked. No track sync, template seed, or `system_managed` freeze beyond `locked`. |
+| **Platform demo** | `bandpromo-demo` (persisted as `demo_campaign_id`) | Locked campaign from **`bandPromo-demo.pcf`** at setup (normal PCF import, then locked). Operators may hide / duplicate. Hide applies to demo containers + Files media owned by the demo campaign or demo brand. **Localhost** may unlock to edit and re-export the PCF. Remote HTTP may re-lock if somehow unlocked. No track sync, template seed, or `system_managed` freeze beyond `locked`. |
 
 ### Asset provenance (orthogonal to actor)
 
@@ -155,6 +154,8 @@ Worked examples: [USE-CASES.md](USE-CASES.md).
 
 **Data janitor (v0.8):** Site health also probes `data/` (separate from the media janitor). Ephemeral leftovers (`data_janitor_ephemeral` → Treat `data_janitor_prune`) clear OS junk, stale `upload_tmp` files older than 24h, and empty scratch folders — never `terces`, setup markers, install prefs, analytics, assets, campaigns, brands, or site-health plan files. Invisible playlist/gallery/page docs that already stamp a valid campaign home (`data_container_unlinked` → `data_container_relink`) are registered into their type registry (and registry stubs with no document are dropped). Orphan/unowned containers (`data_container_orphans`) stay Manual in Proposed treatment: **Adopt** into a chosen campaign or **Delete** with a named confirm — Site health never auto-guesses. System shell pages (`faq`, `bio`, `gallery`) and locked demo containers are skipped.
 
+**Storage reclaim (v0.8):** Separate from media/data janitors. Check finds stuck package scratch (`.bandpromo-*` Site update / export workdirs) and older Ready Jobs archives; Treat clears scratch and removes older Ready Backup/PCF/PBF jobs while keeping the newest Ready job of each kind. Media `original/` and masters are never touched here — operators may manually **Discard archival upload** in Files when a master exists.
+
 **PCF membership:** Pack all audio/visual rows whose home is the campaign, plus owned brand library/slots and container-referenced masters (foreign homes travel as dependencies). Site health heals empty homes before relying on home-only collect.
 
 **Base brand vs release brand:**
@@ -163,7 +164,7 @@ Worked examples: [USE-CASES.md](USE-CASES.md).
 |-------|------|
 | Install **base** brand (`install.pointers.active_brand_id` / legacy `active_theme_id`) | Login chrome; shell media paths synced into `web-config.json`; fallback when a playlist’s owning release has no valid `brand_id`. Operator UI label: **Base** (storage key unchanged). |
 | Release brand (`release.brand_id`) | Player **CSS tokens** for playlists owned by that release (`playlist.campaign_id` → release brand). Tracks do not carry player brand. |
-| Demo `bandpromo-default` / demo brand | Seeded from **`bandPromo-demo.pcf`** as install **base shell**; locked after import (localhost may edit for PCF authoring). Fresh installs keep this as Base until the operator **duplicates** it in Branding — setup does not auto-create “Your own brand”. Demo Brand shell media under Files → Visual / Sound effects stays listable while Base (or another non-demo brand) references it; otherwise hides with **Hide bandPromo demo campaign**. |
+| Demo `bandpromo-default` / demo brand | Seeded from **`bandPromo-demo.pcf`** as install **base shell**; locked after import (localhost may edit for PCF authoring). Fresh installs keep this as Base until the operator **duplicates** it in Branding — setup does not auto-create “Your own brand”. Demo-owned media under Files hides with **Hide bandPromo demo campaign** (demo campaign home or demo brand ownership). Player chrome still resolves Base brand document slots on disk. |
 
 Selecting a **campaign** (and its playlist) applies that campaign’s **CSS tokens and visual shell** (logo, still/living backgrounds). It does **not** rewrite the base brand or `web-config.json` unless the operator changes Base. Welcome/Logged-in SFX stay on the base brand (login).
 

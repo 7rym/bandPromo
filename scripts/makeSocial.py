@@ -12,7 +12,8 @@ from pathlib import Path
 SCRIPT_DIR  = Path(__file__).parent
 ROOT_DIR    = SCRIPT_DIR.parent
 CONFIG_FILE = ROOT_DIR / 'web-config.json'
-SPECIAL_DIR = ROOT_DIR / 'media' / 'special'
+SPECIAL_DIR = ROOT_DIR / 'media' / 'special'  # legacy dual-read only
+VISUAL_ORIGINAL_DIR = ROOT_DIR / 'media' / 'visual' / 'original'
 SHARE_DIR = ROOT_DIR / 'media' / 'share'
 BRANDS_DIR  = ROOT_DIR / 'data' / 'brands'
 ASSETS_REGISTRY = ROOT_DIR / 'data' / 'assets' / 'registry.json'
@@ -162,7 +163,7 @@ def resolve_share_image(config):
             if candidate.is_file():
                 return candidate
 
-    path_str = config_get(config, 'social.share_image', '/media/special/bandPromo_share.png')
+    path_str = config_get(config, 'social.share_image', '/media/visual/original/bandPromo_share.png')
     path_str = normalize_media_path(path_str)
     # Bare asset ids occasionally land in config during migration.
     if str(path_str).startswith('ast_') or str(path_str).lstrip('/').startswith('ast_'):
@@ -219,21 +220,27 @@ def config_keys_pointing_at(config, path_str):
 
 
 def suggest_special_images(limit=8):
-    if not SPECIAL_DIR.is_dir():
-        return []
+    """Suggest candidate share images from Visual original, then legacy special/."""
     names = []
-    for path in sorted(SPECIAL_DIR.iterdir()):
-        if not path.is_file():
+    seen = set()
+    for folder in (VISUAL_ORIGINAL_DIR, SPECIAL_DIR):
+        if not folder.is_dir():
             continue
-        if path.suffix.lower() not in ('.png', '.jpg', '.jpeg', '.webp'):
-            continue
-        # Skip generated platform crops
-        stem = path.stem.lower()
-        if stem.endswith('_facebook') or stem.endswith('_twitter'):
-            continue
-        names.append(path.name)
-        if len(names) >= limit:
-            break
+        for path in sorted(folder.iterdir()):
+            if not path.is_file():
+                continue
+            if path.suffix.lower() not in ('.png', '.jpg', '.jpeg', '.webp'):
+                continue
+            # Skip generated platform crops
+            stem = path.stem.lower()
+            if stem.endswith('_facebook') or stem.endswith('_twitter'):
+                continue
+            if path.name in seen:
+                continue
+            seen.add(path.name)
+            names.append(path.name)
+            if len(names) >= limit:
+                return names
     return names
 
 
@@ -245,7 +252,7 @@ def print_missing_share_image_help(config, src_image):
         relative = str(src_image)
 
     configured = normalize_media_path(
-        config_get(config, 'social.share_image', '/media/special/bandPromo_share.png')
+        config_get(config, 'social.share_image', '/media/visual/original/bandPromo_share.png')
     )
     matching_keys = config_keys_pointing_at(config, configured)
     brand_id = active_brand_id(config)
@@ -280,7 +287,7 @@ def print_missing_share_image_help(config, src_image):
                 print('     (Poster sync writes this path into social.share_image / media.cover.)')
     if Path(relative).name.lower().startswith('bandpromo_'):
         print('     Note: bandPromo_* names are bundled demo/seed filenames, not operator upload names.')
-        print('           The default-theme package normally installs them under media/special/.')
+        print('           The starter pack normally installs them under media/visual/original/.')
 
     print('')
     print('  Fix (operator):')
@@ -292,7 +299,7 @@ def print_missing_share_image_help(config, src_image):
         print('     A) Content → Branding → edit YOUR brand (a duplicate) → Shell media → Poster,')
         print('        Save, then Set as base on that brand so Publish uses it.')
         print('     B) Restore the missing starter file (Dashboard → Site update / reinstall starter')
-        print('        pack, or for local source trees restore media/special/bandPromo_cover.png).')
+        print('        pack, or for local source trees restore media/visual/original/bandPromo_cover.png).')
         editable = []
         registry_path = BRANDS_DIR / 'registry.json'
         if registry_path.is_file():
@@ -324,14 +331,14 @@ def print_missing_share_image_help(config, src_image):
     suggestions = suggest_special_images()
     if suggestions:
         print('')
-        print('  Images already in media/special/ you can point at:')
+        print('  Images already in Files → Visual you can point at:')
         for name in suggestions:
             marker = ' ← likely share/poster candidate' if 'share' in name.lower() else ''
             print(f'     - {name}{marker}')
     else:
         print('')
-        print('  media/special/ has no usable image files right now — upload one via Files → Brand assets')
-        print('  (or Visual) before assigning the Branding poster slot.')
+        print('  Files → Visual has no usable image files right now — upload one via Files → Visual')
+        print('  (or Use in brand) before assigning the Branding poster slot.')
 
     print('')
     print('  Fix (developer / local install):')
@@ -505,7 +512,7 @@ def main():
     # Warn if old legacy file still exists
     legacy = ROOT_DIR / 'media' / 'share.jpg'
     if legacy.exists():
-        print(f"\n  ⚠️  Legacy media/share.jpg found — safe to delete (replaced by media/special/)")
+        print(f"\n  ⚠️  Legacy media/share.jpg found — safe to delete (replaced by media/share/)")
 
     print(f"\n── Summary ────────────────────────────────────────────────────────────")
     if all_ok:

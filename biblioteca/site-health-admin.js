@@ -75,6 +75,8 @@
         audio_extract_covers: 'Pull embedded cover art from tracks and link it in Files.',
         media_janitor_prune: 'Clear the selected leftovers. Your originals and masters stay safe.',
         data_janitor_prune: 'Clear leftover temporary and junk files from site data storage.',
+        storage_package_prune: 'Remove leftover Site update and export folders. Your catalogue and media stay put.',
+        storage_archives_prune: 'Remove older Ready archives in Jobs. Keeps the newest Ready Backup, PCF, and PBF.',
         data_container_relink: 'Reconnect playlists, galleries, and pages that already belong to a campaign.',
         dedupe_retarget_and_remove: 'Keep one copy of duplicate masters and remove unused clones.',
         files_index_rebuild: 'Refresh the Files → Audio list so it matches what is catalogued.',

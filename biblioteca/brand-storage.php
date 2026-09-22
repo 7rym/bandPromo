@@ -1727,21 +1727,20 @@ function bandpromo_brand_shell_role_to_slot(string $role): string
 }
 
 /**
- * True when a Files → Brand assets row is brand-library eligible (not a track cover dump).
+ * True when a Branding / brand-library list row is brand-eligible (not a track-cover dump).
+ * Eligibility is shell role, brand slot mapping, or an explicit brand_id stamp — never intake alone.
  *
  * @param array<string, mixed> $entry
  */
 function bandpromo_brand_list_entry_is_library_eligible(array $entry): bool
 {
+    require_once __DIR__ . '/asset-registry.php';
+
     $role = strtolower(trim((string) ($entry['role'] ?? '')));
     if (bandpromo_brand_shell_role_to_slot($role) !== '') {
         return true;
     }
-    if (in_array($role, ['brand-logo', 'brand-portrait', 'shell-background-image', 'shell-background-video'], true)) {
-        return true;
-    }
-    $intake = strtolower(trim((string) ($entry['intake_bucket'] ?? $entry['target'] ?? '')));
-    if ($intake === 'special' || $intake === 'sfx') {
+    if (bandpromo_asset_visual_role_is_brand_shell($role)) {
         return true;
     }
     if (bandpromo_brand_canonical_id((string) ($entry['brand_id'] ?? '')) !== '') {
@@ -2087,17 +2086,22 @@ function bandpromo_brand_shell_seed_fallback_paths(): array
 {
     return [
         'logo' => [
+            '/media/visual/original/bandPromo_logo.png',
             '/media/special/bandPromo_logo.png',
             '/media/special/bandPromo_logo_simplified.png',
         ],
         'poster' => [
+            '/media/visual/original/bandPromo_cover.png',
+            '/media/visual/original/bandPromo_share.png',
             '/media/special/bandPromo_cover.png',
             '/media/special/bandPromo_share.png',
         ],
         'background_image' => [
+            '/media/visual/original/bandPromo_background.png',
             '/media/special/bandPromo_background.png',
         ],
         'background_video' => [
+            '/media/visual/original/bandPromo_background.mp4',
             '/media/special/bandPromo_background.mp4',
         ],
         'welcome_audio' => [
@@ -3094,12 +3098,12 @@ function bandpromo_brand_migrate_from_config(string $root): void
  *
  * Once `library_asset_ids` exists (even as []), the one-time migrate never
  * reseeds. Shell heal / Branding saves can wipe slot asset_ids while leaving
- * an empty library — Files → Brand assets then shows nothing under All brands
+ * an empty library — Branding / Use in brand then shows nothing under All brands
  * and dumps track covers into Orphans. This heal:
  * - recovers missing shell slot asset_ids from registry shell roles
  * - always merges active slots into the library
  * - when the library is empty, reseeds brand-eligible owned assets only
- *   (shell roles / special / sfx — not every Visual with brand_id)
+ *   (shell roles / SFX — not every Visual with brand_id)
  *
  * @return list<string>
  */

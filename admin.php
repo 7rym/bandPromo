@@ -822,7 +822,7 @@ if ($tab === 'analytics') {
             <div class="card welcome-demo-catalog-card" id="welcomeDemoCatalogCard">
                 <h2>🎭 bandPromo demo campaign</h2>
                 <p class="card-note">
-                    You have a campaign with a track on a playlist. You can hide the shipped <strong>bandPromo demo</strong> campaign and its catalogue media from the player, content editors, Files, and pickers. Demo Brand shell assets stay visible while Base (or another non-demo brand) still uses them. Files remain on disk and continue to build normally. If you later delete that operator catalogue, the demo is shown again automatically.
+                    You have a campaign with a track on a playlist. You can hide the shipped <strong>bandPromo demo</strong> campaign and its catalogue media from the player, content editors, Files, and pickers. Files whose catalogue home is the demo campaign, and media owned by the demo brand, leave the pools. Files remain on disk and continue to build normally. If you later delete that operator catalogue, the demo is shown again automatically.
                 </p>
                 <div class="card-actions">
                     <button type="button" class="btn btn-good" id="demoCatalogHideBtn">Hide demo campaign</button>
@@ -916,7 +916,7 @@ if ($tab === 'analytics') {
             <div class="card welcome-demo-catalog-card" id="welcomeDemoCatalogCard">
                 <h2>🎭 bandPromo demo campaign</h2>
                 <p class="card-note">
-                    You have a campaign with a track on a playlist. You can hide the shipped <strong>bandPromo demo</strong> campaign and its catalogue media from the player, content editors, Files, and pickers. Demo Brand shell assets stay visible while Base (or another non-demo brand) still uses them. Files remain on disk and continue to build normally. If you later delete that operator catalogue, the demo is shown again automatically.
+                    You have a campaign with a track on a playlist. You can hide the shipped <strong>bandPromo demo</strong> campaign and its catalogue media from the player, content editors, Files, and pickers. Files whose catalogue home is the demo campaign, and media owned by the demo brand, leave the pools. Files remain on disk and continue to build normally. If you later delete that operator catalogue, the demo is shown again automatically.
                 </p>
                 <div class="card-actions">
                     <button type="button" class="btn btn-good" id="demoCatalogHideBtn">Hide demo campaign</button>
@@ -1296,6 +1296,7 @@ if ($tab === 'analytics') {
                             </div>
                             <div class="media-action-group" role="group" aria-label="Export and delete">
                                 <button type="button" class="icon-btn media-action-btn media-action-good media-group-action-btn media-labeled-action-btn media-bulk-download-btn" data-bulk-download-target="audio" data-download-variant="master" disabled aria-label="Download selected audio files" title="Download selected audio files"><span class="media-labeled-action-icon" aria-hidden="true">⬇</span><span>Download</span></button>
+                                <button type="button" class="icon-btn media-action-btn media-action-good media-group-action-btn media-labeled-action-btn media-bulk-discard-original-btn" data-bulk-discard-original-target="audio" disabled aria-label="Discard archival uploads for selected audio" title="Select files that still have an archival upload"><span class="media-labeled-action-icon" aria-hidden="true">📦</span><span>Discard upload</span></button>
                                 <button type="button" class="icon-btn media-action-btn media-action-good media-group-action-btn media-labeled-action-btn media-bulk-delete-btn" data-bulk-delete-target="audio" disabled aria-label="Delete selected audio files" title="Delete selected audio files"><span class="media-labeled-action-icon" aria-hidden="true">🗑️</span><span>Delete</span></button>
                             </div>
                         </div>
@@ -1386,6 +1387,7 @@ if ($tab === 'analytics') {
                         </div>
                         <div class="media-action-group" role="group" aria-label="Export and delete">
                             <button type="button" class="icon-btn media-action-btn media-action-good media-group-action-btn media-labeled-action-btn media-bulk-download-btn" data-bulk-download-target="visual" data-download-variant="original" disabled aria-label="Download selected files" title="Download selected files"><span class="media-labeled-action-icon" aria-hidden="true">⬇</span><span>Download</span></button>
+                            <button type="button" class="icon-btn media-action-btn media-action-good media-group-action-btn media-labeled-action-btn media-bulk-discard-original-btn" data-bulk-discard-original-target="visual" disabled aria-label="Discard archival uploads for selected files" title="Select files that still have an archival upload"><span class="media-labeled-action-icon" aria-hidden="true">📦</span><span>Discard upload</span></button>
                             <button type="button" class="icon-btn media-action-btn media-action-good media-group-action-btn media-labeled-action-btn media-bulk-delete-btn" data-bulk-delete-target="visual" disabled aria-label="Delete selected files" title="Delete selected files"><span class="media-labeled-action-icon" aria-hidden="true">🗑️</span><span>Delete</span></button>
                         </div>
                     </div>
@@ -1442,6 +1444,7 @@ if ($tab === 'analytics') {
                         </div>
                         <div class="media-action-group" role="group" aria-label="Export and delete">
                             <button type="button" class="icon-btn media-action-btn media-action-good media-group-action-btn media-labeled-action-btn media-bulk-download-btn" data-bulk-download-target="sfx" data-download-variant="original" disabled aria-label="Download selected sound effects" title="Download selected sound effects"><span class="media-labeled-action-icon" aria-hidden="true">⬇</span><span>Download</span></button>
+                            <button type="button" class="icon-btn media-action-btn media-action-good media-group-action-btn media-labeled-action-btn media-bulk-discard-original-btn" data-bulk-discard-original-target="sfx" disabled aria-label="Discard archival uploads for selected sound effects" title="Select files that still have an archival upload"><span class="media-labeled-action-icon" aria-hidden="true">📦</span><span>Discard upload</span></button>
                             <button type="button" class="icon-btn media-action-btn media-action-good media-group-action-btn media-labeled-action-btn media-bulk-delete-btn" data-bulk-delete-target="sfx" disabled aria-label="Delete selected sound effects" title="Delete selected sound effects"><span class="media-labeled-action-icon" aria-hidden="true">🗑️</span><span>Delete</span></button>
                         </div>
                     </div>
@@ -1681,6 +1684,7 @@ if ($tab === 'analytics') {
                     </div>
                     <div class="modal-actions visual-asset-modal-actions">
                         <button type="button" class="btn btn-available" id="poolAssetDownloadBtn">Download</button>
+                        <button type="button" class="btn btn-available" id="poolAssetDiscardOriginalBtn" hidden title="Remove the archival upload; keep the master and player files">Discard archival upload</button>
                         <button type="button" class="btn btn-available" id="poolAssetDeleteBtn" title="Delete this file">Delete</button>
                         <button type="button" class="btn btn-available" id="poolAssetAbortBtn" title="Close without saving">Abort</button>
                         <button type="button" class="btn btn-good" id="poolAssetDoneBtn" title="Save and close">Save</button>
@@ -2725,7 +2729,7 @@ if ($tab === 'analytics') {
                     <ul>
                         <li>Basics holds your public site title, URL, description, author, and contact. Contact is suggested from author + site URL until you edit it manually.</li>
                         <li><strong>Save validates only the basics fields</strong>, then writes them back into the full config. If internal config sections are missing, use the <strong>Repair</strong> link to restore them from the config template.</li>
-                        <li>Use <strong>Demo campaign</strong> below to hide the shipped demo campaign and its catalogue media from your workspace (Base brand shell assets stay visible while still referenced).</li>
+                        <li>Use <strong>Demo campaign</strong> below to hide the shipped demo campaign, its catalogue media, and demo-brand media from your workspace.</li>
                     </ul>
                 <?php elseif ($configTab === 'support'): ?>
                     <ul>
@@ -2844,7 +2848,7 @@ if ($tab === 'analytics') {
             <div class="card">
                 <h3>🎭 Demo campaign</h3>
                 <p class="card-note">
-                    Hide is available after you have an operator-created campaign with a track and a playlist that exposes that track. When hidden, the shipped <strong>bandPromo demo</strong> campaign and its playlists, galleries, pages, and Audio/Visual media whose catalogue home is that campaign leave the player, content editors, Files pools, and pickers. Demo Brands leave Branding and brand export unless that brand is still your Base brand. Demo Brand shell assets stay visible only while your Base brand (or another non-demo brand) still uses them. Files remain on disk and publish builds still process them. If you later delete that operator catalogue, the demo is shown again automatically.
+                    Hide is available after you have an operator-created campaign with a track and a playlist that exposes that track. When hidden, the shipped <strong>bandPromo demo</strong> campaign and its playlists, galleries, pages, and Files media owned by that campaign or the demo brand leave the player, content editors, Files pools, and pickers. Demo Brands leave Branding and brand export unless that brand is still your Base brand. Files remain on disk and publish builds still process them. If you later delete that operator catalogue, the demo is shown again automatically.
                 </p>
                 <label class="config-checkbox-row">
                     <input type="checkbox" id="cfgDemoCatalogHidden"<?php echo !empty($demoCatalogHidden) ? ' checked' : ''; ?>>

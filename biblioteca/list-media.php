@@ -3,7 +3,9 @@
  * List media files for a given target directory.
  * Query param: ?target=audio|illustrations|photos|video|special|sfx|visual
  * visual = merged illustrations + photos + video (operator Visual pool).
- * special = cross-media Brand assets library (Visual + SFX).
+ * special = Branding-internal brand-library filter (shell-role Visual rows only).
+ *   Files → Brand assets tab is retired; admin UI remaps fpanel=special → visual.
+ *   Prefer Files → Visual + Use in brand / Branding shell slots for operators.
  * sfx = Sound effects pool (brand UI audio).
  * Reads the media files index only — no DirectoryIterator / filesize on GET.
  * Admin-only.
@@ -20,6 +22,7 @@ require_once __DIR__ . '/media-delivery-helpers.php';
 require_once __DIR__ . '/auto-build-tasks.php';
 require_once __DIR__ . '/playlist-storage.php';
 require_once __DIR__ . '/cover-art-helpers.php';
+require_once __DIR__ . '/discard-original-helpers.php';
 
 header('Content-Type: application/json; charset=utf-8');
 
@@ -563,6 +566,38 @@ function bandpromo_list_media_build_entry(
         if (trim((string) ($entry['stream_url'] ?? '')) === '' && trim((string) ($entry['preview_url'] ?? '')) !== '') {
             $entry['stream_url'] = (string) $entry['preview_url'];
         }
+    }
+
+    // Prefer index stamps (set on sync/rebuild). Fall back to a single-file probe when missing.
+    if (array_key_exists('has_original', $indexed) || array_key_exists('has_master', $indexed)) {
+        $entry['has_original'] = !empty($indexed['has_original']);
+        $entry['has_master'] = !empty($indexed['has_master']);
+        $entry['original_bytes'] = max(0, (int) ($indexed['original_bytes'] ?? 0));
+        $entry['can_discard_original'] = !empty($indexed['can_discard_original'])
+            || (!empty($entry['has_original']) && !empty($entry['has_master']));
+    } else {
+        $assetForStatus = null;
+        $assetId = trim((string) ($entry['asset_id'] ?? ''));
+        if ($assetId !== '') {
+            $assetForStatus = bandpromo_asset_lookup_by_id($root, $assetId);
+        }
+        if (!is_array($assetForStatus)) {
+            $assetForStatus = bandpromo_asset_lookup_by_master_filename($root, $filename)
+                ?? bandpromo_asset_lookup_by_original_filename(
+                    $root,
+                    (string) ($entry['original_filename'] ?? $filename)
+                );
+        }
+        $archival = bandpromo_media_archival_status(
+            $root,
+            $bucket,
+            $entry,
+            is_array($assetForStatus) ? $assetForStatus : null
+        );
+        $entry['has_original'] = !empty($archival['has_original']);
+        $entry['has_master'] = !empty($archival['has_master']);
+        $entry['original_bytes'] = (int) ($archival['original_bytes'] ?? 0);
+        $entry['can_discard_original'] = !empty($archival['can_discard_original']);
     }
 
     return $entry;

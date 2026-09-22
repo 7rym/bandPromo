@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-09-22 16:50 - Storage reclaim + discard archival originals: Site health Check/Treat clears stuck `.bandpromo-*` package folders and older Ready Jobs archives (keeps newest Backup/PCF/PBF each); Files gains Discard archival upload (editor + bulk) when a master exists — originals never auto-deleted.
+
+2026-09-22 16:30 - Findings 11–13 + recurring Unused image orphan: makeSocial / Brand seed fallbacks prefer Files → Visual (retire Brand assets copy); page-image picker drops “legacy brand intake” group; track-cover assign accepts `visual/original` and maps legacy `/media/special` to illustrations. Unregistered `bandPromo_*` disk leftovers are demo-owned when demo is hidden (skip Files index orphan re-ingest; stamp demo home on heavy visual backfill).
+
+2026-09-22 15:20 - Legacy special intake cleanup (findings 2–9): stop heavy backfill re-stamping unified originals as `special`; brand-library eligibility and upload stamps require shell roles; `special` Files index is shell-role only; Python Site health heals misfiled special before rebuild; campaign poster bases prefer `visual/`; inventory theme_assets counts shell roles; operator-upload probe includes video.
+
+2026-09-22 15:05 - Demo hide is ownership-only: Files omit media owned by the demo campaign (catalogue home) or the demo brand (stamp / library / slots). Removed Base-reference shell keep-visible, special/SFX shell heuristics, and related warnings.
+
+2026-09-22 13:20 - Demo hide no longer treats every `intake_bucket=special` visual as unused brand shell (that hid Retroscopy/Spandexual covers from Files → Visual). Heal misfiled special stamps to `img`/`video` (brand-shell roles stay special) on Files index rebuild and catalogue Repair.
+
 2026-09-21 23:50 - Published **v0.8.93 build 578** (`v0.8.93-build-578`): From brand slot clear + membership-only From brand + In brand chip; video remux/UTF-8 prep; sticky playlist-scan Notifications heal.
 
 2026-09-21 23:45 - Notifications: sticky “Saved changes are not live yet / Check the playlist order” after import no longer survives forever — opening the bell (full refresh) or starting Site health Check/Treat/Force heals playlist-scan and clears idle auto-delivery leftovers.

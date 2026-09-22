@@ -409,6 +409,53 @@ def run_triage(plan, deep=False, suppress_json_drift=False):
                     'Your catalogue documents, analytics, and install settings stay put.'
                 ).format(len(ephemeral)),
             )
+
+        # Stuck Site update / package export scratch + older Ready Jobs archives.
+        try:
+            import storage_reclaim
+            package_scratch = storage_reclaim.probe_package_scratch()
+            archives_probe = storage_reclaim.probe_ready_archives()
+        except Exception as exc:
+            log.info('Storage reclaim probe skipped: {0}'.format(exc))
+            package_scratch = []
+            archives_probe = {'removable': [], 'kept': []}
+        if package_scratch:
+            pkg_bytes = storage_reclaim.total_size_bytes(package_scratch)
+            plan_mod.add_finding(
+                plan, 'storage_package_scratch', 'attention',
+                'Leftover package folders can free disk space', len(package_scratch),
+                'storage_package_prune',
+                sample=[t.get('path') for t in package_scratch],
+                body=(
+                    '{0} leftover Site update or export folder(s) ({1}) that are safe to clear. '
+                    'Your catalogue and media library stay put.'
+                ).format(len(package_scratch), storage_reclaim.format_bytes(pkg_bytes)),
+            )
+        removable_archives = archives_probe.get('removable') or []
+        if removable_archives:
+            arc_bytes = storage_reclaim.total_size_bytes(removable_archives)
+            kept = archives_probe.get('kept') or []
+            kept_note = ''
+            if kept:
+                kept_note = ' Keeps the newest Ready Backup, PCF, and PBF on the server.'
+            plan_mod.add_finding(
+                plan, 'storage_ready_archives', 'attention',
+                'Older Ready archives can free disk space', len(removable_archives),
+                'storage_archives_prune',
+                sample=[
+                    '{0}/{1}'.format(r.get('kind_label'), r.get('job_id'))
+                    for r in removable_archives
+                ],
+                body=(
+                    '{0} older Ready archive(s) in Jobs ({1}) can be removed.'
+                    '{2}'
+                ).format(
+                    len(removable_archives),
+                    storage_reclaim.format_bytes(arc_bytes),
+                    kept_note,
+                ),
+            )
+
         relink_count = len(relinkable) + len(stubs)
         if relink_count:
             sample = [

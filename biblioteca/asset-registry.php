@@ -68,6 +68,87 @@ function bandpromo_asset_normalize_visual_role(string $role): string
     return $role;
 }
 
+/**
+ * Roles that mean brand-shell media (logo / portrait / shell backgrounds).
+ * Includes a few legacy theme/config role stamps that never joined the modern enum.
+ */
+function bandpromo_asset_visual_role_is_brand_shell(string $role): bool
+{
+    $role = strtolower(trim($role));
+    if ($role === '') {
+        return false;
+    }
+
+    if (in_array($role, [
+        'brand-logo',
+        'brand-portrait',
+        'shell-background-image',
+        'shell-background-video',
+    ], true)) {
+        return true;
+    }
+
+    // Legacy stamps from older theme/config / special-folder eras.
+    return in_array($role, [
+        'logo',
+        'poster',
+        'share',
+        'background',
+        'background_image',
+        'background_video',
+        'sfx',
+        'welcome',
+        'loggedin',
+    ], true);
+}
+
+/**
+ * Reclassify campaign/cover visuals wrongly stamped intake_bucket=special.
+ * True brand-shell roles keep special; everything else becomes img or video by media_type.
+ *
+ * @param array<string, mixed>|null $registry When passed, mutate in place and do not write.
+ * @return array{changed:int,asset_ids:list<string>}
+ */
+function bandpromo_asset_heal_misfiled_special_intake(string $root, ?array &$registry = null): array
+{
+    $persist = $registry === null;
+    if ($persist) {
+        $registry = bandpromo_asset_load_registry($root);
+    }
+    if (!is_array($registry) || !isset($registry['assets']) || !is_array($registry['assets'])) {
+        return ['changed' => 0, 'asset_ids' => []];
+    }
+
+    $changedIds = [];
+    foreach ($registry['assets'] as $assetId => $asset) {
+        if (!is_array($asset) || ($asset['kind'] ?? '') !== 'visual') {
+            continue;
+        }
+        $intake = bandpromo_asset_normalize_intake_bucket((string) ($asset['intake_bucket'] ?? ''));
+        if ($intake !== 'special') {
+            continue;
+        }
+        $role = strtolower(trim((string) ($asset['role'] ?? '')));
+        if (bandpromo_asset_visual_role_is_brand_shell($role)) {
+            continue;
+        }
+
+        $mediaType = strtolower(trim((string) ($asset['media_type'] ?? 'image')));
+        $next = $mediaType === 'video' ? 'video' : 'img';
+        $registry['assets'][$assetId]['intake_bucket'] = $next;
+        $changedIds[] = (string) $assetId;
+    }
+
+    if ($persist && $changedIds !== []) {
+        bandpromo_asset_write_registry($root, $registry);
+    }
+
+    return [
+        'changed' => count($changedIds),
+        'asset_ids' => $changedIds,
+    ];
+}
+
 function bandpromo_asset_normalize_intake_bucket(string $bucket): string
 {
     $bucket = strtolower(trim($bucket));
@@ -2029,7 +2110,9 @@ function bandpromo_asset_reconcile_audio_originals(string $root): void
 }
 
 /**
- * Backfill visual assets from legacy intake folders.
+ * Backfill visual assets from the unified Visual original tree and legacy intake leftovers.
+ * Never assigns intake_bucket=special from disk scans (shell stamps come from brand clone only).
+ * Never overwrites an existing asset's intake_bucket (heal_misfiled_special_intake owns that).
  *
  * @return bool True when the registry was modified.
  */
@@ -2042,18 +2125,30 @@ function bandpromo_asset_registry_backfill_visuals(string $root, array &$registr
     $changed = false;
     $brandId = bandpromo_asset_active_brand_id($root);
 
-    $buckets = [
-        'img' => $imageExts,
-        'photo' => $imageExts,
-        'video' => $videoExts,
-        'special' => array_merge($imageExts, $videoExts),
+    // Unified original once (product path). Legacy folders dual-read only.
+    $scanDirs = [
+        ['dir' => bandpromo_asset_visual_original_dir($root, 'img'), 'allowed' => array_merge($imageExts, $videoExts), 'force_bucket' => ''],
+        ['dir' => bandpromo_asset_visual_legacy_intake_dir($root, 'img'), 'allowed' => $imageExts, 'force_bucket' => 'img'],
+        ['dir' => bandpromo_asset_visual_legacy_intake_dir($root, 'photo'), 'allowed' => $imageExts, 'force_bucket' => 'photo'],
+        ['dir' => bandpromo_asset_visual_legacy_intake_dir($root, 'video'), 'allowed' => $videoExts, 'force_bucket' => 'video'],
+        // Leftover media/special/: register as img/video by type — never special.
+        ['dir' => bandpromo_asset_visual_legacy_intake_dir($root, 'special'), 'allowed' => array_merge($imageExts, $videoExts), 'force_bucket' => ''],
     ];
 
-    foreach ($buckets as $intakeBucket => $allowedExts) {
-        $dir = bandpromo_asset_visual_original_dir($root, $intakeBucket);
+    $seenDirs = [];
+    foreach ($scanDirs as $scan) {
+        $dir = (string) ($scan['dir'] ?? '');
         if ($dir === '' || !is_dir($dir)) {
             continue;
         }
+        $real = realpath($dir) ?: $dir;
+        if (isset($seenDirs[$real])) {
+            continue;
+        }
+        $seenDirs[$real] = true;
+
+        $allowedExts = is_array($scan['allowed'] ?? null) ? $scan['allowed'] : [];
+        $forceBucket = (string) ($scan['force_bucket'] ?? '');
 
         foreach (scandir($dir) ?: [] as $entry) {
             if ($entry === '.' || $entry === '..' || strcasecmp($entry, 'desktop.ini') === 0) {
@@ -2073,9 +2168,11 @@ function bandpromo_asset_registry_backfill_visuals(string $root, array &$registr
             }
 
             $mediaType = in_array($ext, $videoExts, true) ? 'video' : 'image';
+            $intakeBucket = $forceBucket;
+            if ($intakeBucket === '') {
+                $intakeBucket = $mediaType === 'video' ? 'video' : 'img';
+            }
 
-            // Prefer any existing visual with this basename (any bucket) — never mint
-            // another ast_ ID when the index points at a different intake folder.
             $existingId = '';
             $existing = null;
             $indexedId = trim((string) ($registry['by_original_filename'][$entry] ?? ''));
@@ -2099,10 +2196,7 @@ function bandpromo_asset_registry_backfill_visuals(string $root, array &$registr
             }
 
             if ($existing !== null && $existingId !== '') {
-                if (($existing['intake_bucket'] ?? '') !== $intakeBucket) {
-                    $registry['assets'][$existingId]['intake_bucket'] = $intakeBucket;
-                    $changed = true;
-                }
+                // Do not overwrite intake_bucket — misfiled special is healed elsewhere.
                 $registry['by_original_filename'][$entry] = $existingId;
                 $existingMaster = basename(trim((string) ($existing['master_filename'] ?? '')));
                 if ($existingMaster !== '' && bandpromo_asset_is_asset_id((string) pathinfo($existingMaster, PATHINFO_FILENAME))) {
@@ -2115,13 +2209,26 @@ function bandpromo_asset_registry_backfill_visuals(string $root, array &$registr
 
             $assetId = bandpromo_generate_asset_id();
             $masterFilename = bandpromo_asset_master_filename_for_ulid($assetId, $ext);
+            $releaseId = '';
+            $entryBrandId = $brandId;
+            if (bandpromo_media_is_bundled_placeholder($entry)) {
+                require_once __DIR__ . '/demo-catalog-state.php';
+                $demoId = bandpromo_demo_campaign_id($root);
+                if ($demoId !== '') {
+                    $releaseId = $demoId;
+                }
+                $demoBrandId = bandpromo_demo_brand_id($root);
+                if ($demoBrandId !== '') {
+                    $entryBrandId = $demoBrandId;
+                }
+            }
             $normalized = bandpromo_asset_normalize_entry([
                 'id' => $assetId,
                 'kind' => 'visual',
                 'media_type' => $mediaType,
                 'intake_bucket' => $intakeBucket,
-                'brand_id' => $brandId,
-                'release_id' => '',
+                'brand_id' => $entryBrandId,
+                'release_id' => $releaseId,
                 'role' => 'unassigned',
                 'has_alpha' => false,
                 'original_filename' => $entry,

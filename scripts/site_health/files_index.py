@@ -45,6 +45,27 @@ VISUAL_TARGETS = ('illustrations', 'photos', 'video')
 SFX_TARGETS = ('sfx',)
 ALL_TREAT_TARGETS = AUDIO_TARGETS + VISUAL_TARGETS + SFX_TARGETS
 
+# Keep in sync with bandpromo_asset_visual_role_is_brand_shell() in asset-registry.php.
+_BRAND_SHELL_ROLES = frozenset([
+    'brand-logo',
+    'brand-portrait',
+    'shell-background-image',
+    'shell-background-video',
+    'logo',
+    'poster',
+    'share',
+    'background',
+    'background_image',
+    'background_video',
+    'sfx',
+    'welcome',
+    'loggedin',
+])
+
+
+def _role_is_brand_shell(role):
+    return str(role or '').strip().lower() in _BRAND_SHELL_ROLES
+
 
 class IndexLock(object):
     """Exclusive lock matching PHP flock on media-library-state.lock."""
@@ -139,6 +160,44 @@ def _normalize_intake(bucket):
         'special': 'special',
     }
     return aliases.get(bucket, '')
+
+
+def heal_misfiled_special_intake(registry=None, persist=True):
+    """
+    Reclassify non-shell visuals wrongly stamped intake_bucket=special → img|video.
+    Mirrors bandpromo_asset_heal_misfiled_special_intake().
+    Returns number of assets changed.
+    """
+    own_registry = registry is None
+    if own_registry:
+        registry, status = reg.load_registry()
+        if status not in ('ok', 'missing'):
+            return 0
+        if status == 'missing':
+            registry = reg.empty_registry()
+
+    assets = registry.get('assets') if isinstance(registry.get('assets'), dict) else {}
+    changed = 0
+    for asset_id, asset in list(assets.items()):
+        if not isinstance(asset, dict):
+            continue
+        if str(asset.get('kind') or '') != 'visual':
+            continue
+        intake = _normalize_intake(asset.get('intake_bucket'))
+        if intake != 'special':
+            continue
+        if _role_is_brand_shell(asset.get('role')):
+            continue
+        media_type = str(asset.get('media_type') or 'image').strip().lower()
+        asset['intake_bucket'] = 'video' if media_type == 'video' else 'img'
+        assets[asset_id] = asset
+        changed += 1
+
+    if changed and persist:
+        registry['assets'] = assets
+        reg.write_registry(registry)
+
+    return changed
 
 
 def _target_for_visual_asset(asset):
@@ -499,6 +558,15 @@ def rebuild_targets(targets):
         return {}
     if status == 'missing':
         registry = reg.empty_registry()
+    # Match PHP rebuild_all: heal misfiled special stamps before indexing Visual.
+    healed = heal_misfiled_special_intake(registry=registry, persist=True)
+    if healed:
+        log.info('Healed {0} misfiled special intake stamp(s) before Files index rebuild'.format(healed))
+        registry, status = reg.load_registry()
+        if status not in ('ok', 'missing'):
+            return {}
+        if status == 'missing':
+            registry = reg.empty_registry()
     results = {}
     for target in targets:
         results[target] = rebuild_target(target, registry=registry)
@@ -509,6 +577,10 @@ def rebuild_audio():
     return rebuild_target('audio')
 
 
+def rebuild_visual():
+    return rebuild_targets(list(VISUAL_TARGETS))
+
+
 def count_target_rows(target):
     """Count Files index rows for one target (read-only)."""
     target = str(target or '').strip().lower()
@@ -516,10 +588,6 @@ def count_target_rows(target):
     files = state.get('files') if isinstance(state.get('files'), dict) else {}
     prefix = target + '/'
     return sum(1 for key in files if str(key).startswith(prefix))
-
-
-def rebuild_visual():
-    return rebuild_targets(['illustrations', 'photos', 'video'])
 
 
 def rebuild_sfx():

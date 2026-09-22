@@ -350,6 +350,30 @@ def run_treat():
         touch_heartbeat(ROOT_DIR, stage='idle', message='Treat stopped', name=META_NAME)
         return 0
 
+    if 'storage_package_prune' in ids:
+        import treat_storage_reclaim
+        _removed, storage_pkg_failed = treat_storage_reclaim.treat_storage_package_prune()
+        if storage_pkg_failed > 0:
+            treat_ok = False
+
+    if stop_requested():
+        log.info('Stop requested after package scratch prune.')
+        followup.run_followup('treat')
+        touch_heartbeat(ROOT_DIR, stage='idle', message='Treat stopped', name=META_NAME)
+        return 0
+
+    if 'storage_archives_prune' in ids:
+        import treat_storage_reclaim
+        _removed, storage_arc_failed = treat_storage_reclaim.treat_storage_archives_prune()
+        if storage_arc_failed > 0:
+            treat_ok = False
+
+    if stop_requested():
+        log.info('Stop requested after Ready archive prune.')
+        followup.run_followup('treat')
+        touch_heartbeat(ROOT_DIR, stage='idle', message='Treat stopped', name=META_NAME)
+        return 0
+
     need_links = any(tid in ids for tid in ('container_links', 'files_index_rebuild'))
     if treat_ok and (need_links or did_register):
         import treat_links
