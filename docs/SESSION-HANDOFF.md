@@ -2,9 +2,9 @@
 
 ## Resume point
 
-Session ended and **published** **v0.8.95 build 580** (`v0.8.95-build-580`): Status → Storage panel (disk use + discard eligible archival originals). Files no longer offers Discard upload — reclaim lives only under System → Status → Storage.
+Session ended and **published** **v0.8.95 build 581** (`v0.8.95-build-581`): Status → Storage Chart.js gauges (host / install / reclaim) + load Chart.js on Status; session VERSION bump is opt-in (`-BumpSession` / `/bandpromo-session-start` only).
 
-**Next:** Testers: Dashboard → Site update. HITZ: open Status → Storage to see freeable originals, then Discard eligible archival uploads if quota still tight (after Site health package/archive Treat if needed). Optional: Files pool compactness; featured/remix player display.
+**Next:** Testers: Dashboard → Site update. HITZ: Status → Storage to discard eligible archival uploads if quota is still tight. Optional: Files pool compactness; featured/remix player display.
 
 ### Policy locked (do not reopen)
 
@@ -32,6 +32,7 @@ Session ended and **published** **v0.8.95 build 580** (`v0.8.95-build-580`): Sta
 - ffmpeg capture must decode stderr as UTF-8 with replace (Windows charmap)
 - Sticky playlist-scan Notifications heal on bell (full) or Site health Check start
 - Archival original discard lives under **System → Status → Storage** only (not Files)
+- VERSION **session** number bumps only when the operator explicitly starts a session (`session-start.ps1 -BumpSession` / `/bandpromo-session-start`); agent resume must not bump
 
 ### Local workspace
 

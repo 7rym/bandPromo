@@ -5912,6 +5912,10 @@ canvas { max-width: 100%; height: auto; }
     gap: 10px;
 }
 
+.status-storage-cards--charts {
+    align-items: stretch;
+}
+
 .status-storage-card {
     margin: 0;
     padding: 12px 14px;
@@ -5920,8 +5924,15 @@ canvas { max-width: 100%; height: auto; }
     background: var(--surface);
 }
 
+.status-storage-card--chart {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    min-width: 0;
+}
+
 .status-storage-card-title {
-    margin: 0 0 6px;
+    margin: 0;
     font-size: 14px;
     font-weight: 700;
     color: var(--text);
@@ -5931,6 +5942,78 @@ canvas { max-width: 100%; height: auto; }
     margin: 0;
     font-size: 13px;
     line-height: 1.45;
+    color: var(--text-muted, #999);
+}
+
+.status-storage-card-note {
+    margin: 0;
+    font-size: 12px;
+    line-height: 1.4;
+    color: var(--text-muted, #999);
+}
+
+.status-storage-chart-wrap {
+    position: relative;
+    width: 100%;
+    height: 160px;
+}
+
+.status-storage-chart-wrap--gauge {
+    height: 180px;
+}
+
+.status-storage-chart-wrap--bar {
+    height: 140px;
+}
+
+.status-storage-chart-wrap canvas {
+    display: block;
+    width: 100% !important;
+    height: 100% !important;
+    max-width: none;
+}
+
+.status-storage-legend {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.status-storage-legend li {
+    display: grid;
+    grid-template-columns: 10px minmax(0, 1fr) auto;
+    gap: 8px;
+    align-items: center;
+    font-size: 12px;
+    line-height: 1.3;
+    color: var(--text-muted, #999);
+}
+
+.status-storage-legend-swatch {
+    width: 10px;
+    height: 10px;
+    border-radius: 2px;
+    flex-shrink: 0;
+}
+
+.status-storage-legend-swatch[data-empty="1"] {
+    visibility: hidden;
+}
+
+.status-storage-legend-label {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: var(--text);
+}
+
+.status-storage-legend-value {
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
     color: var(--text-muted, #999);
 }
 
@@ -5975,6 +6058,12 @@ canvas { max-width: 100%; height: auto; }
     white-space: pre-wrap;
     background: var(--admin-sticky-chrome-bg, #0f172a);
     border-radius: 6px;
+}
+
+@media (max-width: 900px) {
+    .status-storage-cards--charts {
+        grid-template-columns: 1fr;
+    }
 }
 
 .site-health-hub-guide {

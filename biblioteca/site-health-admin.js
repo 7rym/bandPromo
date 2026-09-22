@@ -68,6 +68,8 @@
     /** @type {object|null} */
     let lastStorageReport = null;
     let storageBusy = false;
+    /** @type {{host: object|null, install: object|null, tiers: object|null, reclaim: object|null}} */
+    let storageCharts = { host: null, install: null, tiers: null, reclaim: null };
     try {
         const storedExam = sessionStorage.getItem(EXAM_LABEL_KEY);
         if (storedExam) {
@@ -644,6 +646,9 @@
         }
         if (storagePanelEl) {
             storagePanelEl.hidden = !showStorage;
+            if (!showStorage) {
+                destroyStorageCharts();
+            }
         }
         if (hubEl) {
             // Hide Action hub guides while a checklist run is in progress.
@@ -1798,6 +1803,167 @@
         return '';
     }
 
+    function destroyStorageCharts() {
+        ['host', 'install', 'tiers', 'reclaim'].forEach((key) => {
+            const chart = storageCharts[key];
+            if (chart && typeof chart.destroy === 'function') {
+                try {
+                    chart.destroy();
+                } catch (err) {
+                    // Ignore destroy races while re-rendering.
+                }
+            }
+            storageCharts[key] = null;
+        });
+    }
+
+    const STORAGE_CHART_COLORS = {
+        free: '#3d9a5f',
+        used: '#64748b',
+        audio: '#3a6a94',
+        visual: '#5b8fb8',
+        sfx: '#8fb4d4',
+        backups: '#94a3b8',
+        data: '#475569',
+        legacy: '#78716c',
+        original: '#c9a227',
+        master: '#3a6a94',
+        delivery: '#3d9a5f',
+        muted: 'rgba(148, 163, 184, 0.35)',
+        text: '#e2e8f0',
+        mutedText: '#94a3b8',
+    };
+
+    function storageChartCentrePlugin(lines) {
+        const rows = Array.isArray(lines) ? lines.filter(Boolean) : [];
+        return {
+            id: 'statusStorageCentreText',
+            afterDraw: function (chart) {
+                if (!rows.length) {
+                    return;
+                }
+                const meta = chart.getDatasetMeta(0);
+                if (!meta || !meta.data || !meta.data[0]) {
+                    return;
+                }
+                const { x, y } = meta.data[0];
+                const ctx = chart.ctx;
+                ctx.save();
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                const primary = String(rows[0] || '');
+                const secondary = String(rows[1] || '');
+                ctx.fillStyle = STORAGE_CHART_COLORS.text;
+                ctx.font = '700 16px system-ui, sans-serif';
+                ctx.fillText(primary, x, secondary ? y - 8 : y);
+                if (secondary) {
+                    ctx.fillStyle = STORAGE_CHART_COLORS.mutedText;
+                    ctx.font = '12px system-ui, sans-serif';
+                    ctx.fillText(secondary, x, y + 12);
+                }
+                ctx.restore();
+            },
+        };
+    }
+
+    function makeStorageDoughnut(canvas, config) {
+        if (!canvas || typeof Chart === 'undefined') {
+            return null;
+        }
+        const labels = config.labels || [];
+        const values = config.values || [];
+        const colors = config.colors || [];
+        const hasData = values.some((n) => Number(n) > 0);
+        return new Chart(canvas.getContext('2d'), {
+            type: 'doughnut',
+            data: {
+                labels: hasData ? labels : ['No data'],
+                datasets: [{
+                    data: hasData ? values : [1],
+                    backgroundColor: hasData ? colors : [STORAGE_CHART_COLORS.muted],
+                    borderWidth: 0,
+                    hoverOffset: hasData ? 4 : 0,
+                }],
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                cutout: config.cutout || '68%',
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        enabled: hasData,
+                        callbacks: {
+                            label: function (context) {
+                                const label = context.label || '';
+                                const raw = Number(context.raw) || 0;
+                                if (config.valueKind === 'count') {
+                                    return label + ': ' + raw;
+                                }
+                                return label + ': ' + formatStorageBytes(raw);
+                            },
+                        },
+                    },
+                },
+            },
+            plugins: config.centreLines ? [storageChartCentrePlugin(config.centreLines)] : [],
+        });
+    }
+
+    function makeStorageStackedBar(canvas, config) {
+        if (!canvas || typeof Chart === 'undefined') {
+            return null;
+        }
+        return new Chart(canvas.getContext('2d'), {
+            type: 'bar',
+            data: {
+                labels: config.labels || [],
+                datasets: config.datasets || [],
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                indexAxis: 'y',
+                plugins: {
+                    legend: {
+                        display: true,
+                        position: 'bottom',
+                        labels: {
+                            color: STORAGE_CHART_COLORS.mutedText,
+                            boxWidth: 10,
+                            font: { size: 11 },
+                        },
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function (context) {
+                                return (context.dataset.label || '') + ': '
+                                    + formatStorageBytes(Number(context.raw) || 0);
+                            },
+                        },
+                    },
+                },
+                scales: {
+                    x: {
+                        stacked: true,
+                        ticks: {
+                            color: STORAGE_CHART_COLORS.mutedText,
+                            callback: function (value) {
+                                return formatStorageBytes(Number(value) || 0);
+                            },
+                        },
+                        grid: { color: 'rgba(148, 163, 184, 0.12)' },
+                    },
+                    y: {
+                        stacked: true,
+                        ticks: { color: STORAGE_CHART_COLORS.mutedText },
+                        grid: { display: false },
+                    },
+                },
+            },
+        });
+    }
+
     function formatStorageBytes(bytes) {
         if (bytes === null || bytes === undefined || !Number.isFinite(Number(bytes))) {
             return '(unknown)';
@@ -1829,95 +1995,219 @@
         storageStatusEl.setAttribute('data-tone', String(tone || ''));
     }
 
+    function renderStorageLegend(items) {
+        const rows = (Array.isArray(items) ? items : []).filter((row) => row && row.label);
+        if (!rows.length) {
+            return '';
+        }
+        return '<ul class="status-storage-legend">' + rows.map((row) => {
+            const swatch = '<span class="status-storage-legend-swatch"'
+                + (row.color
+                    ? (' style="background:' + escapeHtml(row.color) + '"')
+                    : ' data-empty="1"')
+                + '></span>';
+            return '<li>' + swatch
+                + '<span class="status-storage-legend-label">' + escapeHtml(row.label) + '</span>'
+                + '<span class="status-storage-legend-value">' + escapeHtml(row.value || '') + '</span>'
+                + '</li>';
+        }).join('') + '</ul>';
+    }
+
     function renderStorageSummary(report) {
         if (!storageSummaryEl) {
             return;
         }
+        destroyStorageCharts();
+
         const disk = (report && report.disk) || {};
         const install = (report && report.install) || {};
         const reclaim = (report && report.reclaimable) || {};
         const media = install.media || {};
         const byFamily = reclaim.by_family || {};
 
-        const freeLabel = disk.free_label || formatStorageBytes(disk.free_bytes);
-        const totalLabel = disk.total_label || formatStorageBytes(disk.total_bytes);
-        const hostBody = (disk.free_bytes == null && disk.total_bytes == null)
-            ? 'Could not read host disk space for this install.'
-            : (freeLabel + ' free of ' + totalLabel);
+        const freeBytes = disk.free_bytes == null ? null : Number(disk.free_bytes);
+        const totalBytes = disk.total_bytes == null ? null : Number(disk.total_bytes);
+        const usedBytes = (freeBytes != null && totalBytes != null)
+            ? Math.max(0, totalBytes - freeBytes)
+            : null;
+        const freeLabel = disk.free_label || formatStorageBytes(freeBytes);
+        const totalLabel = disk.total_label || formatStorageBytes(totalBytes);
+        const usedLabel = formatStorageBytes(usedBytes);
+        const hostKnown = freeBytes != null && totalBytes != null && totalBytes > 0;
+        const usedPct = hostKnown ? Math.round((usedBytes / totalBytes) * 100) : null;
 
-        const mediaParts = [];
-        ['audio', 'visual', 'sfx'].forEach((family) => {
-            const row = media[family] || {};
-            const label = family === 'sfx' ? 'Sound effects' : (family.charAt(0).toUpperCase() + family.slice(1));
-            const total = Number(row.total_bytes) || 0;
-            if (total <= 0) {
-                return;
-            }
-            mediaParts.push(
-                label + ': ' + formatStorageBytes(total)
-                + ' (uploads ' + formatStorageBytes(row.original_bytes)
-                + ' · masters ' + formatStorageBytes(row.master_bytes)
-                + ' · player ' + formatStorageBytes(row.delivery_bytes) + ')'
-            );
-        });
-        if (Number(install.media_legacy_bytes) > 0) {
-            mediaParts.push('Legacy folders: ' + formatStorageBytes(install.media_legacy_bytes));
-        }
-
-        let installBody = 'Media ' + (install.media_label || formatStorageBytes(install.media_bytes))
-            + ' · Backups ' + (install.backups_label || formatStorageBytes(install.backups_bytes))
-            + ' · Data ' + (install.data_label || formatStorageBytes(install.data_bytes));
-        if (mediaParts.length) {
-            installBody += '. ' + mediaParts.join('; ') + '.';
-        }
-        if (install.partial) {
-            installBody += ' (partial measure — large tree timed out)';
-        }
+        const audioBytes = Number((media.audio && media.audio.total_bytes) || 0);
+        const visualBytes = Number((media.visual && media.visual.total_bytes) || 0);
+        const sfxBytes = Number((media.sfx && media.sfx.total_bytes) || 0);
+        const backupsBytes = Number(install.backups_bytes) || 0;
+        const dataBytes = Number(install.data_bytes) || 0;
+        const legacyBytes = Number(install.media_legacy_bytes) || 0;
+        const installTotal = Number(install.approx_total_bytes)
+            || (audioBytes + visualBytes + sfxBytes + backupsBytes + dataBytes + legacyBytes);
 
         const reclaimCount = Number(reclaim.count) || 0;
         const reclaimBytes = Number(reclaim.bytes) || 0;
-        const familyBits = [];
-        ['audio', 'visual', 'sfx'].forEach((family) => {
-            const row = byFamily[family] || {};
-            const count = Number(row.count) || 0;
-            if (count <= 0) {
-                return;
-            }
-            const label = family === 'sfx' ? 'sound effects' : family;
-            familyBits.push(count + ' ' + label + ' (' + formatStorageBytes(row.bytes) + ')');
-        });
-        let reclaimBody;
-        if (reclaimCount <= 0) {
-            reclaimBody = 'Nothing to discard right now — every archival upload already has no spare original, or only locked demo originals remain.';
-        } else {
-            reclaimBody = 'About ' + (reclaim.bytes_label || formatStorageBytes(reclaimBytes))
-                + ' across ' + reclaimCount + ' file' + (reclaimCount === 1 ? '' : 's');
-            if (familyBits.length) {
-                reclaimBody += ': ' + familyBits.join(', ');
-            }
-            reclaimBody += '. Masters and player-ready files stay.';
-            const locked = Number(reclaim.excluded_locked_demo) || 0;
-            if (locked > 0) {
-                reclaimBody += ' ' + locked + ' locked demo upload'
-                    + (locked === 1 ? ' is' : 's are') + ' excluded.';
-            }
-        }
+        const reclaimAudio = Number((byFamily.audio && byFamily.audio.bytes) || 0);
+        const reclaimVisual = Number((byFamily.visual && byFamily.visual.bytes) || 0);
+        const reclaimSfx = Number((byFamily.sfx && byFamily.sfx.bytes) || 0);
+        const reclaimAudioCount = Number((byFamily.audio && byFamily.audio.count) || 0);
+        const reclaimVisualCount = Number((byFamily.visual && byFamily.visual.count) || 0);
+        const reclaimSfxCount = Number((byFamily.sfx && byFamily.sfx.count) || 0);
+        const locked = Number(reclaim.excluded_locked_demo) || 0;
+
+        const chartUnavailable = typeof Chart === 'undefined';
+        const hostBodyFallback = hostKnown
+            ? (freeLabel + ' free of ' + totalLabel)
+            : 'Could not read host disk space for this install.';
 
         storageSummaryEl.innerHTML =
-            '<div class="status-storage-cards">' +
-            '<article class="status-storage-card">' +
+            '<div class="status-storage-cards status-storage-cards--charts">' +
+            '<article class="status-storage-card status-storage-card--chart">' +
             '<h3 class="status-storage-card-title">Host space</h3>' +
-            '<p class="status-storage-card-body">' + escapeHtml(hostBody) + '</p>' +
+            (chartUnavailable
+                ? ('<p class="status-storage-card-body">' + escapeHtml(hostBodyFallback) + '</p>')
+                : ('<div class="status-storage-chart-wrap status-storage-chart-wrap--gauge">'
+                    + '<canvas id="statusStorageHostChart" aria-label="Host disk used versus free"></canvas>'
+                    + '</div>')) +
+            renderStorageLegend(hostKnown ? [
+                { color: STORAGE_CHART_COLORS.used, label: 'Used on host', value: usedLabel + (usedPct != null ? (' · ' + usedPct + '%') : '') },
+                { color: STORAGE_CHART_COLORS.free, label: 'Free', value: freeLabel },
+                { label: 'Total', value: totalLabel },
+            ] : [{ label: 'Host disk', value: 'Unavailable' }]) +
+            '<p class="status-storage-card-note">May be an account quota, not the whole server.</p>' +
             '</article>' +
-            '<article class="status-storage-card">' +
+
+            '<article class="status-storage-card status-storage-card--chart">' +
             '<h3 class="status-storage-card-title">This install (approx)</h3>' +
-            '<p class="status-storage-card-body">' + escapeHtml(installBody) + '</p>' +
+            (chartUnavailable
+                ? ('<p class="status-storage-card-body">' + escapeHtml(formatStorageBytes(installTotal)) + '</p>')
+                : ('<div class="status-storage-chart-wrap">'
+                    + '<canvas id="statusStorageInstallChart" aria-label="Install storage by family"></canvas>'
+                    + '</div>'
+                    + '<div class="status-storage-chart-wrap status-storage-chart-wrap--bar">'
+                    + '<canvas id="statusStorageTierChart" aria-label="Media tiers by family"></canvas>'
+                    + '</div>')) +
+            renderStorageLegend([
+                { color: STORAGE_CHART_COLORS.audio, label: 'Audio', value: formatStorageBytes(audioBytes) },
+                { color: STORAGE_CHART_COLORS.visual, label: 'Visual', value: formatStorageBytes(visualBytes) },
+                { color: STORAGE_CHART_COLORS.sfx, label: 'Sound effects', value: formatStorageBytes(sfxBytes) },
+                { color: STORAGE_CHART_COLORS.backups, label: 'Backups', value: formatStorageBytes(backupsBytes) },
+                { color: STORAGE_CHART_COLORS.data, label: 'Data', value: formatStorageBytes(dataBytes) },
+            ].concat(legacyBytes > 0
+                ? [{ color: STORAGE_CHART_COLORS.legacy, label: 'Legacy folders', value: formatStorageBytes(legacyBytes) }]
+                : [])) +
+            (install.partial
+                ? '<p class="status-storage-card-note">Partial measure — a large folder timed out.</p>'
+                : '<p class="status-storage-card-note">Uploads · masters · player-ready shown in the bar.</p>') +
             '</article>' +
-            '<article class="status-storage-card">' +
+
+            '<article class="status-storage-card status-storage-card--chart">' +
             '<h3 class="status-storage-card-title">Archival uploads you can discard</h3>' +
-            '<p class="status-storage-card-body">' + escapeHtml(reclaimBody) + '</p>' +
+            (chartUnavailable
+                ? ('<p class="status-storage-card-body">'
+                    + escapeHtml(reclaimCount > 0
+                        ? ('About ' + formatStorageBytes(reclaimBytes) + ' across ' + reclaimCount + ' files')
+                        : 'Nothing to discard right now.')
+                    + '</p>')
+                : ('<div class="status-storage-chart-wrap status-storage-chart-wrap--gauge">'
+                    + '<canvas id="statusStorageReclaimChart" aria-label="Reclaimable archival uploads by family"></canvas>'
+                    + '</div>')) +
+            renderStorageLegend(reclaimCount > 0 ? [
+                { color: STORAGE_CHART_COLORS.audio, label: 'Audio', value: reclaimAudioCount + ' · ' + formatStorageBytes(reclaimAudio) },
+                { color: STORAGE_CHART_COLORS.visual, label: 'Visual', value: reclaimVisualCount + ' · ' + formatStorageBytes(reclaimVisual) },
+                { color: STORAGE_CHART_COLORS.sfx, label: 'Sound effects', value: reclaimSfxCount + ' · ' + formatStorageBytes(reclaimSfx) },
+            ] : [{ label: 'Eligible uploads', value: 'None' }]) +
+            '<p class="status-storage-card-note">'
+            + (reclaimCount > 0
+                ? 'Masters and player-ready files stay.'
+                : 'Nothing to discard — no spare originals with masters, or only locked demo uploads remain.')
+            + (locked > 0
+                ? (' ' + locked + ' locked demo upload' + (locked === 1 ? ' is' : 's are') + ' excluded.')
+                : '')
+            + '</p>' +
             '</article>' +
             '</div>';
+
+        if (!chartUnavailable) {
+            const hostCanvas = document.getElementById('statusStorageHostChart');
+            storageCharts.host = makeStorageDoughnut(hostCanvas, {
+                labels: ['Used on host', 'Free'],
+                values: hostKnown ? [usedBytes, freeBytes] : [],
+                colors: [STORAGE_CHART_COLORS.used, STORAGE_CHART_COLORS.free],
+                centreLines: hostKnown
+                    ? [freeLabel + ' free', 'of ' + totalLabel]
+                    : ['Unavailable'],
+            });
+
+            const installCanvas = document.getElementById('statusStorageInstallChart');
+            const installLabels = ['Audio', 'Visual', 'Sound effects', 'Backups', 'Data'];
+            const installValues = [audioBytes, visualBytes, sfxBytes, backupsBytes, dataBytes];
+            const installColors = [
+                STORAGE_CHART_COLORS.audio,
+                STORAGE_CHART_COLORS.visual,
+                STORAGE_CHART_COLORS.sfx,
+                STORAGE_CHART_COLORS.backups,
+                STORAGE_CHART_COLORS.data,
+            ];
+            if (legacyBytes > 0) {
+                installLabels.push('Legacy');
+                installValues.push(legacyBytes);
+                installColors.push(STORAGE_CHART_COLORS.legacy);
+            }
+            storageCharts.install = makeStorageDoughnut(installCanvas, {
+                labels: installLabels,
+                values: installValues,
+                colors: installColors,
+                centreLines: [
+                    formatStorageBytes(installTotal),
+                    'this install',
+                ],
+            });
+
+            const tiersCanvas = document.getElementById('statusStorageTierChart');
+            const tierFamilies = [
+                { key: 'audio', label: 'Audio' },
+                { key: 'visual', label: 'Visual' },
+                { key: 'sfx', label: 'SFX' },
+            ];
+            storageCharts.tiers = makeStorageStackedBar(tiersCanvas, {
+                labels: tierFamilies.map((row) => row.label),
+                datasets: [
+                    {
+                        label: 'Uploads',
+                        data: tierFamilies.map((row) => Number((media[row.key] && media[row.key].original_bytes) || 0)),
+                        backgroundColor: STORAGE_CHART_COLORS.original,
+                        borderWidth: 0,
+                    },
+                    {
+                        label: 'Masters',
+                        data: tierFamilies.map((row) => Number((media[row.key] && media[row.key].master_bytes) || 0)),
+                        backgroundColor: STORAGE_CHART_COLORS.master,
+                        borderWidth: 0,
+                    },
+                    {
+                        label: 'Player',
+                        data: tierFamilies.map((row) => Number((media[row.key] && media[row.key].delivery_bytes) || 0)),
+                        backgroundColor: STORAGE_CHART_COLORS.delivery,
+                        borderWidth: 0,
+                    },
+                ],
+            });
+
+            const reclaimCanvas = document.getElementById('statusStorageReclaimChart');
+            storageCharts.reclaim = makeStorageDoughnut(reclaimCanvas, {
+                labels: ['Audio', 'Visual', 'Sound effects'],
+                values: reclaimCount > 0 ? [reclaimAudio, reclaimVisual, reclaimSfx] : [],
+                colors: [
+                    STORAGE_CHART_COLORS.audio,
+                    STORAGE_CHART_COLORS.visual,
+                    STORAGE_CHART_COLORS.sfx,
+                ],
+                centreLines: reclaimCount > 0
+                    ? [formatStorageBytes(reclaimBytes), reclaimCount + ' file' + (reclaimCount === 1 ? '' : 's')]
+                    : ['0 B', 'nothing to free'],
+            });
+        }
 
         if (storageDiscardBtn) {
             const canDiscard = reclaimCount > 0 && reclaimBytes >= 0;
@@ -1948,6 +2238,7 @@
         if (!storageSummaryEl) {
             return;
         }
+        destroyStorageCharts();
         storageSummaryEl.innerHTML = '<p class="publish-status-empty">Measuring storage…</p>';
         setStorageStatus('');
         if (storageDiscardBtn) {

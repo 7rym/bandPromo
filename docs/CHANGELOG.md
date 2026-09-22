@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-09-22 20:15 - Status → Storage: load Chart.js on the Status tab (was Analytics-only), so host/install/reclaim gauges actually render; legend rows keep a swatch column so Total aligns.
+
+2026-09-22 20:10 - Status → Storage: Chart.js gauges and charts for host free space, install mix, media tiers, and reclaimable archival uploads (legends keep the exact sizes).
+
+2026-09-22 20:05 - Session VERSION bump is opt-in: `session-start.ps1` no longer increments the session number by default (agents resume without bumping). Pass `-BumpSession` only when the operator explicitly starts a session (`/bandpromo-session-start`).
+
 2026-09-22 19:55 - Status → Storage: disk use + reclaimable archival originals live under System → Status (peer tool card to Site health). Discard eligible uploads only from that panel; Files toolbars and Visual/SFX editors no longer offer Discard upload.
 
 2026-09-22 16:50 - Storage reclaim + discard archival originals: Site health Check/Treat clears stuck `.bandpromo-*` package folders and older Ready Jobs archives (keeps newest Backup/PCF/PBF each); Files gains Discard archival upload (editor + bulk) when a master exists — originals never auto-deleted.

@@ -43,13 +43,14 @@ Do not add a PHP router script to mimic `.htaccess` in dev — it duplicates pro
 
 ## Common Commands
 
-- Bump session number at session start:
-  - `python scripts/bump_session.py`
+- Bump session number only when the operator explicitly starts a session:
+  - `powershell -ExecutionPolicy Bypass -File scripts/session-start.ps1 -BumpSession`
+  - or `python scripts/bump_session.py`
 - Bump build number before checkpoint/push:
   - `python scripts/bump_version.py`
 - Run a build from the repository:
   - `python scripts/build.py`
-- Start a dev session:
+- Resume / sync without bumping session (agent default):
   - `powershell -ExecutionPolicy Bypass -File scripts/session-start.ps1`
 - End a dev session / checkpoint:
   - `powershell -ExecutionPolicy Bypass -File scripts/session-end.ps1 -CommitMessage "..." -Push -Publish -ReleaseSummary "..."`
@@ -64,17 +65,18 @@ Use the session scripts when opening or closing repository work.
 
 ### Session start
 
-- CLI: `powershell -ExecutionPolicy Bypass -File scripts/session-start.ps1`
-- Cursor chat slash prompt: `/bandpromo-session-start`
+- Resume / sync (no VERSION bump): `powershell -ExecutionPolicy Bypass -File scripts/session-start.ps1`
+- Explicit new work session (bumps session): `powershell -ExecutionPolicy Bypass -File scripts/session-start.ps1 -BumpSession`
+- Cursor chat slash prompt: `/bandpromo-session-start` (uses `-BumpSession`)
 
 Session start:
 
 1. `git pull --ff-only origin main`
-2. bumps the **session** number in `VERSION` (`v0.8.4` → `v0.8.5`, build unchanged)
+2. optionally bumps the **session** number in `VERSION` (`v0.8.4` → `v0.8.5`, build unchanged) — **only** with `-BumpSession` / operator request
 3. starts the PHP dev server in the background (`scripts/start-dev-server.ps1`)
 4. prints environment context, git state, backlog, and a recommended next focus
 
-Flags: `-SkipPull`, `-SkipSessionBump`, `-SkipDevServer`
+Flags: `-BumpSession`, `-SkipPull`, `-SkipDevServer` (`-SkipSessionBump` is a deprecated no-op; default is already no bump)
 
 ### Session end
 

@@ -2,6 +2,9 @@
 param(
     [int]$TodoLimit = 4,
     [int]$ChangelogLimit = 3,
+    # Opt-in: only bump the VERSION session number when the operator asks to start a session.
+    [switch]$BumpSession,
+    # Deprecated alias — default is already no bump. Kept so older calls do not fail.
     [switch]$SkipSessionBump,
     [switch]$SkipDevServer,
     [switch]$SkipPull
@@ -210,7 +213,8 @@ if (-not $SkipPull) {
 }
 
 $previousVersion = Get-VersionLine -VersionPath $versionPath
-if (-not $SkipSessionBump) {
+$shouldBumpSession = $BumpSession -and -not $SkipSessionBump
+if ($shouldBumpSession) {
     Write-Output 'Session version'
     if ($previousVersion) {
         Write-Output ('  Previous: {0}' -f $previousVersion)
@@ -224,6 +228,12 @@ if (-not $SkipSessionBump) {
         Write-Output ('  Current:  {0}' -f ($bumpOutput | Select-Object -Last 1))
         Write-Output '  Build number is unchanged until session end checkpoint.'
     }
+    Write-Output ''
+}
+elseif ($previousVersion) {
+    Write-Output 'Session version'
+    Write-Output ('  Current:  {0}' -f $previousVersion)
+    Write-Output '  Session number unchanged (pass -BumpSession only when starting a real work session).'
     Write-Output ''
 }
 

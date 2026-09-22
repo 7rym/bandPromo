@@ -693,7 +693,7 @@ if ($tab === 'analytics') {
     <title>Admin Panel</title>
     <link rel="stylesheet" href="biblioteca/admin.css?v=<?php echo filemtime(__DIR__ . '/biblioteca/admin.css'); ?>">
     <?php echo bandpromo_brand_render_css(__DIR__); ?>
-    <?php if ($tab === 'analytics'): ?>
+    <?php if ($tab === 'analytics' || ($tab === 'system' && $systemTab === 'deliverables')): ?>
     <script src="vendor/chart.js/chart.umd.min.js?v=<?php echo filemtime(__DIR__ . '/vendor/chart.js/chart.umd.min.js'); ?>"></script>
     <?php endif; ?>
     <?php if ($tab === 'content' && in_array($contentTab, ['pages', 'campaign', 'playlist', 'gallery', 'branding'], true)): ?>
