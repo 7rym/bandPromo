@@ -280,10 +280,10 @@ if (isset($_POST['chunk_index'], $_POST['filename'])) {
         echo json_encode([
             'ok' => true,
             'queued' => true,
-            'message' => 'Portable Brand File import queued. Progress appears under Jobs — leave Backup open until Imported.',
+            'message' => 'Upload complete. Import started. Check Jobs panel for progress.',
             'job' => $job,
         ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
-        bandpromo_site_backup_finish_response_and_dispatch($root, (string) $job['id']);
+        bandpromo_site_backup_start_package_import_worker($root, (string) $job['id']);
         exit;
     } catch (InvalidArgumentException $throwable) {
         bandpromo_brand_import_json_exit(['ok' => false, 'error' => $throwable->getMessage()], 400);

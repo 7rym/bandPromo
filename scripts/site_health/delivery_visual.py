@@ -78,6 +78,8 @@ def run_visual_still_delivery(force=False):
             log.info('Stop requested — visual delivery interrupted.')
             return False
         label = asset.get('original_filename') or asset.get('id') or ''
+        log.info('Visual still delivery {0}/{1}: {2}'.format(index, total, label))
+        _heartbeat('Visual delivery {0}/{1}'.format(index, total))
         result = None
         try:
             result = om.process_visual_image_asset(asset, quiet_skip=True)
@@ -111,7 +113,6 @@ def run_visual_still_delivery(force=False):
                 total,
                 '{0} built, {1} kept, {2} failed'.format(built, skipped, failed),
             )
-            _heartbeat('Visual delivery {0}/{1}'.format(index, total))
 
     log.info(
         'Visual still delivery done: {0} built, {1} kept, {2} failed.'.format(

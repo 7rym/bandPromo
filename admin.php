@@ -3313,7 +3313,8 @@ if ($tab === 'analytics') {
             <div class="card site-backup-card">
                 <h3>📦 Jobs</h3>
                 <p class="card-note backup-builder-note">
-                    Keep this Backup tab open while a job builds — the browser polls Jobs to advance each slice on shared hosts.
+                    Keep this Backup tab open while an <strong>export</strong> builds — the browser polls Jobs to advance each slice on shared hosts.
+                    Portable Campaign/Brand <strong>imports</strong> start in the background after upload; you can leave this page and watch progress under Jobs (or Open Status for player-ready files).
                     You get a toast when an export is Ready to download. Archives stay until you download or delete them.
                 </p>
                 <div id="siteBackupJobsWrap" class="site-backup-jobs-wrap">

@@ -428,7 +428,11 @@ function bandpromo_site_backup_list_jobs(string $root): array
         if ($job === null) {
             continue;
         }
-        $jobs[] = bandpromo_site_backup_normalize_job($root, $job);
+        $normalized = bandpromo_site_backup_normalize_job($root, $job);
+        if (strtolower(trim((string) ($normalized['delivery_status'] ?? ''))) === 'running') {
+            $normalized = bandpromo_site_backup_reconcile_delivery_status($root, $normalized);
+        }
+        $jobs[] = $normalized;
     }
 
     usort($jobs, static function (array $a, array $b): int {
@@ -688,6 +692,8 @@ function bandpromo_site_backup_normalize_job(string $root, array $job): array
         'import_summary' => (string) ($job['import_summary'] ?? ''),
         'import_followup_href' => (string) ($job['import_followup_href'] ?? ''),
         'import_followup_label' => (string) ($job['import_followup_label'] ?? ''),
+        'delivery_status' => (string) ($job['delivery_status'] ?? ''),
+        'delivery_run_id' => (string) ($job['delivery_run_id'] ?? ''),
         'include_log' => in_array(BANDPROMO_SITE_BACKUP_COMPONENT_LOGS, $components, true),
         'created_at_utc' => (string) ($job['created_at_utc'] ?? ''),
         'started_at_utc' => (string) ($job['started_at_utc'] ?? ''),
@@ -1956,6 +1962,120 @@ function bandpromo_site_backup_finish_response_and_dispatch(string $root, string
     bandpromo_site_backup_dispatch_job($root, $jobId);
 }
 
+/**
+ * Start a CLI worker for a queued PCF/PBF import (no Backup-tab poll required).
+ */
+function bandpromo_site_backup_spawn_package_import(string $root, string $jobId): bool
+{
+    $jobId = trim($jobId);
+    if ($jobId === '') {
+        return false;
+    }
+
+    require_once __DIR__ . '/light-build-tasks.php';
+    require_once __DIR__ . '/build-launcher.php';
+
+    $php = bandpromo_resolve_php_cli();
+    if ($php === '') {
+        return false;
+    }
+
+    $script = __DIR__ . DIRECTORY_SEPARATOR . 'run-package-import-cli.php';
+    if (!is_file($script)) {
+        return false;
+    }
+
+    $isWindows = strtoupper(substr(PHP_OS_FAMILY, 0, 3)) === 'WIN';
+    $phpArg = $php;
+    $scriptArg = $script;
+    $rootArg = $root;
+    $jobArg = $jobId;
+
+    if ($isWindows) {
+        if (!function_exists('popen') && !bandpromo_can_proc_open()) {
+            return false;
+        }
+        $cmd = 'start /B "" '
+            . escapeshellarg($phpArg)
+            . ' -d max_execution_time=0 '
+            . escapeshellarg($scriptArg)
+            . ' --job-id=' . escapeshellarg($jobArg)
+            . ' --root=' . escapeshellarg($rootArg);
+        $handle = @popen($cmd, 'r');
+        if ($handle === false) {
+            return false;
+        }
+        @pclose($handle);
+
+        return true;
+    }
+
+    if (!function_exists('exec') && !bandpromo_can_proc_open()) {
+        return false;
+    }
+
+    $cmd = escapeshellarg($phpArg)
+        . ' -d max_execution_time=0 '
+        . escapeshellarg($scriptArg)
+        . ' --job-id=' . escapeshellarg($jobArg)
+        . ' --root=' . escapeshellarg($rootArg)
+        . ' > /dev/null 2>&1 &';
+    @exec($cmd);
+
+    return true;
+}
+
+/**
+ * When post-import Site health Treat has left the lock, mark delivery complete on the Jobs row.
+ */
+function bandpromo_site_backup_reconcile_delivery_status(string $root, array $job): array
+{
+    $deliveryStatus = strtolower(trim((string) ($job['delivery_status'] ?? '')));
+    if ($deliveryStatus !== 'running') {
+        return $job;
+    }
+
+    $lockFile = $root . '/log/site-health.lock';
+    if (is_file($lockFile)) {
+        $age = time() - (int) @filemtime($lockFile);
+        if ($age >= 0 && $age < 7200) {
+            return $job;
+        }
+    }
+
+    $jobId = trim((string) ($job['id'] ?? ''));
+    if ($jobId === '') {
+        return $job;
+    }
+
+    $fresh = bandpromo_site_backup_read_job($root, $jobId);
+    if ($fresh === null) {
+        return $job;
+    }
+    if (strtolower(trim((string) ($fresh['delivery_status'] ?? ''))) !== 'running') {
+        return bandpromo_site_backup_normalize_job($root, $fresh);
+    }
+
+    $fresh['delivery_status'] = 'complete';
+    $fresh['heartbeat_at_utc'] = gmdate('c');
+    bandpromo_site_backup_write_job($root, $fresh);
+
+    return bandpromo_site_backup_normalize_job($root, $fresh);
+}
+
+/**
+ * Prefer a detached CLI import worker; fall back to finishing this request then running.
+ */
+function bandpromo_site_backup_start_package_import_worker(string $root, string $jobId): bool
+{
+    if (bandpromo_site_backup_spawn_package_import($root, $jobId)) {
+        return true;
+    }
+    bandpromo_site_backup_finish_response_and_dispatch($root, $jobId);
+
+    return false;
+}
+
 function bandpromo_site_backup_job_direction(array $job): string
 {
     $direction = strtolower(trim((string) ($job['direction'] ?? BANDPROMO_SITE_BACKUP_DIRECTION_EXPORT)));
@@ -2187,6 +2307,13 @@ function bandpromo_site_backup_run_package_import_job(string $root, string $jobI
         }
         $job['import_followup_href'] = $followupHref;
         $job['import_followup_label'] = trim((string) ($result['import_followup_label'] ?? 'Open Status')) ?: 'Open Status';
+        if (!empty($result['deliverables_started'])) {
+            $job['delivery_status'] = 'running';
+            $job['delivery_run_id'] = trim((string) ($result['delivery_run_id'] ?? ''));
+        } else {
+            $job['delivery_status'] = 'idle';
+            $job['delivery_run_id'] = '';
+        }
         $job['error'] = '';
         if ($isPbf) {
             if ($releaseOrBrandId !== '') {

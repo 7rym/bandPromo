@@ -106,6 +106,8 @@ def run_video_delivery(force=False):
             return False
         source = ov.visual_video_source_path(asset)
         label = _video_label(ov, asset, source)
+        log.info('Video delivery {0}/{1}: {2}'.format(index, total, label))
+        _heartbeat('Video delivery {0}/{1}'.format(index, total))
         if source is None:
             failed += 1
             reason = (

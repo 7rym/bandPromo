@@ -15154,14 +15154,27 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                         return '';
                     }
                     const status = String(job.status || '');
+                    const delivery = String(job.delivery_status || '').toLowerCase();
                     if (status === 'failed') {
                         return 'failed';
+                    }
+                    if (delivery === 'complete') {
+                        return 'delivery_complete';
+                    }
+                    if (delivery === 'running') {
+                        return 'delivery_running';
                     }
                     if (job.download_ready) {
                         return 'download_ready';
                     }
                     if (status === 'ready' && job.sha256_pending) {
                         return 'ready_hashing';
+                    }
+                    if (status === 'ready' && job.direction === 'import') {
+                        return 'import_ready';
+                    }
+                    if (status === 'building' && job.direction === 'import') {
+                        return 'import_building';
                     }
                     return status || 'unknown';
                 }
@@ -15192,6 +15205,34 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                             : (kind === 'prp'
                                 ? 'Portable Campaign File (.pcf)'
                                 : 'Archive');
+                        if (nextKey === 'import_building') {
+                            showJobsToast('Import started: “' + name + '”.', 'info');
+                            return;
+                        }
+                        if (nextKey === 'import_ready') {
+                            showJobsToast('Import complete: “' + name + '”.', 'success');
+                            return;
+                        }
+                        if (nextKey === 'delivery_running') {
+                            if (prevKey === 'import_building' || prevKey === 'pending') {
+                                showJobsToast('Import complete: “' + name + '”.', 'success');
+                            }
+                            showJobsToast(
+                                'Delivery files build started for “' + name + '”. Watch Status for progress.',
+                                'info'
+                            );
+                            return;
+                        }
+                        if (nextKey === 'delivery_complete') {
+                            if (prevKey === 'import_building' || prevKey === 'pending') {
+                                showJobsToast('Import complete: “' + name + '”.', 'success');
+                            }
+                            showJobsToast(
+                                'Delivery files build complete for “' + name + '”.',
+                                'success'
+                            );
+                            return;
+                        }
                         if (nextKey === 'download_ready') {
                             showJobsToast(
                                 kindLabel + ' Ready: “' + name + '”. Download it from Jobs.',
@@ -15387,6 +15428,9 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     return Array.isArray(jobs) && jobs.some((job) => {
                         const status = String(job.status || '');
                         if (status === 'pending' || status === 'building') {
+                            return true;
+                        }
+                        if (String(job.delivery_status || '').toLowerCase() === 'running') {
                             return true;
                         }
                         return status === 'ready' && !!job.sha256_pending;
@@ -16200,6 +16244,9 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                         campaignPackageImportStatus.textContent = 'Uploading…';
                         campaignPackageImportStatus.classList.remove('is-error');
                     }
+                    if (typeof showJobsToast === 'function') {
+                        showJobsToast('Upload started.', 'info');
+                    }
                     if (campaignPackageImportBtn instanceof HTMLButtonElement) {
                         campaignPackageImportBtn.disabled = true;
                     }
@@ -16208,12 +16255,17 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                             ? await refreshAdminCsrfToken()
                             : (typeof adminCsrfToken === 'string' ? adminCsrfToken : '');
                         const collision = selectedCampaignPackageCollision();
+                        let uploadCompleteToasted = false;
                         const data = await importCampaignPackageChunked(file, collision, csrfToken, (progress, finishing) => {
                             if (!campaignPackageImportStatus) {
                                 return;
                             }
                             if (finishing) {
-                                campaignPackageImportStatus.textContent = 'Uploading complete — queuing import…';
+                                campaignPackageImportStatus.textContent = 'Upload complete. Starting import…';
+                                if (!uploadCompleteToasted && typeof showJobsToast === 'function') {
+                                    uploadCompleteToasted = true;
+                                    showJobsToast('Upload complete.', 'success');
+                                }
                                 return;
                             }
                             campaignPackageImportStatus.textContent = `Uploading… ${Math.round(progress * 100)}%`;
@@ -16221,7 +16273,10 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                         if (data.queued && data.job) {
                             if (campaignPackageImportStatus) {
                                 campaignPackageImportStatus.textContent = data.message
-                                    || 'Portable Campaign File import queued. Progress appears under Jobs.';
+                                    || 'Upload complete. Import started. Check Jobs panel for progress.';
+                            }
+                            if (typeof showJobsToast === 'function') {
+                                showJobsToast('Import started. Check Jobs panel for progress.', 'info');
                             }
                             if (typeof upsertBackupJob === 'function') {
                                 upsertBackupJob(data.job);
@@ -16504,6 +16559,9 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                         brandPackageImportStatus.textContent = 'Uploading…';
                         brandPackageImportStatus.classList.remove('is-error');
                     }
+                    if (typeof showJobsToast === 'function') {
+                        showJobsToast('Upload started.', 'info');
+                    }
                     if (brandPackageImportBtn instanceof HTMLButtonElement) {
                         brandPackageImportBtn.disabled = true;
                     }
@@ -16512,12 +16570,17 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                             ? await refreshAdminCsrfToken()
                             : (typeof adminCsrfToken === 'string' ? adminCsrfToken : '');
                         const collision = selectedBrandPackageCollision();
+                        let uploadCompleteToasted = false;
                         const data = await importBrandPackageChunked(file, collision, csrfToken, (progress, finishing) => {
                             if (!brandPackageImportStatus) {
                                 return;
                             }
                             if (finishing) {
-                                brandPackageImportStatus.textContent = 'Uploading complete — queuing import…';
+                                brandPackageImportStatus.textContent = 'Upload complete. Starting import…';
+                                if (!uploadCompleteToasted && typeof showJobsToast === 'function') {
+                                    uploadCompleteToasted = true;
+                                    showJobsToast('Upload complete.', 'success');
+                                }
                                 return;
                             }
                             brandPackageImportStatus.textContent = `Uploading… ${Math.round(progress * 100)}%`;
@@ -16525,7 +16588,10 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                         if (data.queued && data.job) {
                             if (brandPackageImportStatus) {
                                 brandPackageImportStatus.textContent = data.message
-                                    || 'Portable Brand File import queued. Progress appears under Jobs.';
+                                    || 'Upload complete. Import started. Check Jobs panel for progress.';
+                            }
+                            if (typeof showJobsToast === 'function') {
+                                showJobsToast('Import started. Check Jobs panel for progress.', 'info');
                             }
                             if (typeof upsertBackupJob === 'function') {
                                 upsertBackupJob(data.job);

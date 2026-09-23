@@ -2,6 +2,8 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-09-23 13:25 - PCF/PBF import UX: clearer “Upload complete. Import started…” copy; lifecycle toasts (upload/import/delivery); CLI import worker so Backup tab is not required; Site health Treat logs each stream/artwork/video encode so Activity does not look stuck.
+
 2026-09-23 13:05 - Published v0.8.96 build 586 (PCF/PBF import → Site health Treat + Jobs Open Status). Handoff: re-smoke Twisted Chronicles import on bandpromo.site after Site update.
 
 2026-09-23 11:35 - PCF/PBF import auto-starts Site health Treat (delivery-focused; skips Review-only destructive work). Jobs show an Open Status link. Replaces mislabelled legacy build.py “Check started” copy.

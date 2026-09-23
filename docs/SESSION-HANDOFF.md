@@ -2,9 +2,11 @@
 
 ## Resume point
 
-**Published** **v0.8.96 build 586** (`v0.8.96-build-586`): PCF/PBF import auto-starts Site health Treat (player-ready files) + Jobs **Open Status** link.
+**In progress (v0.8.96):** Import UX — toasts + CLI worker + Treat per-item Activity; re-smoke Twisted Chronicles after next publish.
 
-**Next:** bandpromo.site → Site update → re-import Twisted Chronicles PCF → confirm Treat builds streams and Jobs links to Status.
+**Published** **v0.8.96 build 586** (`v0.8.96-build-586`): PCF/PBF import auto-starts Site health Treat + Jobs **Open Status** link.
+
+**Next:** bandpromo.site Site update → re-import Twisted Chronicles; confirm toasts, Open Status Activity (per-track lines), and delivery complete.
 
 ### Policy locked (do not reopen)
 

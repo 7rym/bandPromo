@@ -3251,6 +3251,18 @@
                         // Transition off Action checklist when the job just finished.
                         if (wasRunning || uiStage === 'running') {
                             advanceAfterJobFinished(jobMode);
+                            if (
+                                wasRunning
+                                && (jobMode === 'treat' || jobMode === 'followup')
+                                && typeof window.bandpromoShowAdminToast === 'function'
+                            ) {
+                                window.bandpromoShowAdminToast(
+                                    overall === 'healthy'
+                                        ? 'Delivery files build complete.'
+                                        : 'Delivery files build finished — check Status for anything still needing attention.',
+                                    overall === 'healthy' ? 'success' : 'attention'
+                                );
+                            }
                         }
                         // Only keep Treatment result when already on that step.
                         if (uiStage === 'result') {

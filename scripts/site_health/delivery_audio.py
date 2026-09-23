@@ -58,9 +58,11 @@ def run_audio_delivery(force=False):
 
     log.info('Found {0} registered audio asset(s).'.format(len(queue)))
     if om.delivery_queue_needs_ffmpeg(queue):
+        log.info('Checking ffmpeg for audio delivery…')
         if not om.check_ffmpeg():
             log.info('FAILED ffmpeg not found for audio delivery.')
             return False
+        log.info('ffmpeg ready — encoding player-ready streams.')
 
     converted = 0
     skipped = 0
@@ -70,6 +72,14 @@ def run_audio_delivery(force=False):
         if stop_requested():
             log.info('Stop requested — audio delivery interrupted.')
             return False
+        label = (
+            str(item.get('display_title') or '').strip()
+            or str(item.get('asset_id') or '').strip()
+            or str(item.get('master_filename') or '').strip()
+            or 'track'
+        )
+        log.info('Audio delivery {0}/{1}: {2}'.format(index, total, label))
+        _heartbeat('Audio delivery {0}/{1}'.format(index, total))
         result = om.process_audio_delivery(
             item.get('master_filename'),
             display_title=item.get('display_title') or '',
@@ -92,7 +102,6 @@ def run_audio_delivery(force=False):
                 total,
                 '{0} built, {1} kept, {2} failed'.format(converted, skipped, failed),
             )
-            _heartbeat('Audio delivery {0}/{1}'.format(index, total))
 
     # Cleanup stale optimal files
     opt_dir = om.AUDIO_OPT_DIR

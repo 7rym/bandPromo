@@ -615,6 +615,7 @@ function bandpromo_brand_import_from_directory(string $root, string $packageDir,
     $imageDeliveryOk = false;
     $deliverablesStarted = false;
     $deliverablesWarning = '';
+    $deliveryRunId = '';
     try {
         if (function_exists('set_time_limit')) {
             @set_time_limit(0);
@@ -647,6 +648,7 @@ function bandpromo_brand_import_from_directory(string $root, string $packageDir,
         require_once __DIR__ . '/site-health-queue-helpers.php';
         $queued = bandpromo_site_health_try_start_post_import($root, 'brand_package_import');
         $deliverablesStarted = !empty($queued['started']);
+        $deliveryRunId = trim((string) ($queued['run_id'] ?? ''));
         if (!$deliverablesStarted && $deliverablesWarning === '') {
             $deliverablesWarning = trim((string) ($queued['error'] ?? 'Site health Treat did not start automatically.'));
         }
@@ -690,6 +692,7 @@ function bandpromo_brand_import_from_directory(string $root, string $packageDir,
         'status_href' => $statusHref,
         'import_followup_href' => $statusHref,
         'import_followup_label' => 'Open Status',
+        'delivery_run_id' => $deliveryRunId,
     ];
     if ($deliverablesWarning !== '') {
         $result['deliverables_warning'] = $deliverablesWarning;
