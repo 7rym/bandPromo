@@ -2,6 +2,8 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-09-23 13:05 - Published v0.8.96 build 586 (PCF/PBF import → Site health Treat + Jobs Open Status). Handoff: re-smoke Twisted Chronicles import on bandpromo.site after Site update.
+
 2026-09-23 11:35 - PCF/PBF import auto-starts Site health Treat (delivery-focused; skips Review-only destructive work). Jobs show an Open Status link. Replaces mislabelled legacy build.py “Check started” copy.
 
 2026-09-23 11:10 - Disposable intake fleet validation passed (Site update → Quick check → Review/Apply janitor → Storage discard; HITZ leftovers reclaimed). Handoff closed; awaiting next v0.8 focus.

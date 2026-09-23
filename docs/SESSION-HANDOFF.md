@@ -2,11 +2,9 @@
 
 ## Resume point
 
-**In progress (v0.8.96):** PCF/PBF import → Site health Treat (auto-build player-ready files) + Jobs **Open Status** link. Replaces legacy `build.py` deliverables-only + mislabelled “Check started” copy.
+**Published** **v0.8.96 build 586** (`v0.8.96-build-586`): PCF/PBF import auto-starts Site health Treat (player-ready files) + Jobs **Open Status** link.
 
-**Published** **v0.8.95 build 585** (`v0.8.95-build-585`): Disposable intake — uploads stage under `temp/media-intake/`; auto-discard on master success; Storage + janitor reclaim leftover `original/` and stray media ZIPs (and stale temp intake >24h). Fleet validated 2026-09-23.
-
-**Next:** Fleet Site update on bandpromo.site → re-import Twisted Chronicles PCF → confirm Treat builds streams and Jobs **Open Status** works.
+**Next:** bandpromo.site → Site update → re-import Twisted Chronicles PCF → confirm Treat builds streams and Jobs links to Status.
 
 ### Policy locked (do not reopen)
 
