@@ -876,6 +876,22 @@ button.danger:not(.btn):not(.icon-btn):hover { background: #d32f2f; }
     max-width: 420px;
 }
 
+.site-backup-job-followup {
+    margin-top: 4px;
+}
+
+.site-backup-job-status-link {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--accent, #3a6a94);
+    text-decoration: underline;
+}
+
+.site-backup-job-status-link:hover,
+.site-backup-job-status-link:focus {
+    color: var(--text, #e2e8f0);
+}
+
 .site-backup-import-upload {
     display: flex;
     flex-wrap: wrap;

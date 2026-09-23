@@ -644,30 +644,37 @@ function bandpromo_brand_import_from_directory(string $root, string $packageDir,
             $deliverablesWarning = 'Image delivery refresh did not finish after brand import.';
         }
 
-        require_once __DIR__ . '/build-queue-helpers.php';
-        $queued = bandpromo_build_try_start($root, [
-            'mode' => 'full',
-            'profile' => 'deliverables-only',
-            'actor' => 'brand_package_import',
-            'skip_preflight' => true,
-        ]);
+        require_once __DIR__ . '/site-health-queue-helpers.php';
+        $queued = bandpromo_site_health_try_start_post_import($root, 'brand_package_import');
         $deliverablesStarted = !empty($queued['started']);
         if (!$deliverablesStarted && $deliverablesWarning === '') {
-            $deliverablesWarning = trim((string) ($queued['error'] ?? 'Site health Check did not start automatically.'));
+            $deliverablesWarning = trim((string) ($queued['error'] ?? 'Site health Treat did not start automatically.'));
         }
     } catch (Throwable $throwable) {
         if ($deliverablesWarning === '') {
-            $deliverablesWarning = 'Post-import deliverables could not be started automatically.';
+            $deliverablesWarning = 'Post-import Site health Treat could not be started automatically.';
         }
     }
+
+    require_once __DIR__ . '/site-health-queue-helpers.php';
+    $statusHref = bandpromo_site_health_status_href();
 
     $message = $remapBrand
         ? 'Imported Portable Brand File as ' . $targetBrandId . '.'
         : 'Imported Portable Brand File ' . $targetBrandId . '.';
     if ($imageDeliveryOk && $deliverablesStarted) {
-        $message .= ' Image delivery refreshed; remaining deliverables queued.';
+        $message .= ' Gallery images refreshed; Site health is building player-ready files.';
+    } elseif ($imageDeliveryOk) {
+        $message .= ' Gallery images refreshed. Open Status to Review and Apply player-ready files.';
+        if ($deliverablesWarning !== '') {
+            $message .= ' (' . $deliverablesWarning . ')';
+        }
+    } elseif ($deliverablesStarted) {
+        $message .= ' Site health is building player-ready files.';
     } elseif ($deliverablesWarning !== '') {
         $message .= ' ' . $deliverablesWarning;
+    } else {
+        $message .= ' Open Status to build thumbs, streams, and playlist files.';
     }
 
     $result = [
@@ -676,10 +683,13 @@ function bandpromo_brand_import_from_directory(string $root, string $packageDir,
         'message' => $message,
         'imported_files' => $imported,
         'collision' => $remapBrand ? 'allocate' : ($exists ? $collision : 'new'),
-        'build_required' => true,
-        'queue_deliverables' => true,
+        'build_required' => !$deliverablesStarted || !$imageDeliveryOk,
+        'queue_deliverables' => !$deliverablesStarted,
         'image_delivery_ok' => $imageDeliveryOk,
         'deliverables_started' => $deliverablesStarted,
+        'status_href' => $statusHref,
+        'import_followup_href' => $statusHref,
+        'import_followup_label' => 'Open Status',
     ];
     if ($deliverablesWarning !== '') {
         $result['deliverables_warning'] = $deliverablesWarning;

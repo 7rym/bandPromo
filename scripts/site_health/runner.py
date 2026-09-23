@@ -160,11 +160,6 @@ def run_treat():
     log.info('Site health Treat (apply selected treatments)')
     touch_heartbeat(ROOT_DIR, stage='treat', message='Applying treatments...', name=META_NAME)
     plan = plan_mod.load_plan()
-    treatments = plan.get('treatments') if isinstance(plan.get('treatments'), list) else []
-    if not treatments:
-        log.info('No treatments on the current plan — run Check first.')
-        log.result('healthy')
-        return 0
 
     import treat_selection
     selected_ids = treat_selection.load_selection()
@@ -172,14 +167,16 @@ def run_treat():
     # Capture Review-authorised dedupe scopes before the refresh Check rewrites the plan.
     # Quick refresh must not unlock a silent Full content delete, and must not drop a
     # Full-authorised content scope the operator already Review'd.
+    # Empty plan (e.g. post-import auto-Treat) has no Review scopes — safe.
     import treat_dedupe as treat_dedupe_mod
     dedupe_file_scope, dedupe_content_scope = treat_dedupe_mod._plan_dedupe_scopes(plan)
     if selected_ids is not None and 'dedupe_retarget_and_remove' not in selected_ids:
         dedupe_file_scope = False
         dedupe_content_scope = False
 
-    # Always Quick-refresh for current register/delivery truth. Dedupe Apply uses the
-    # captured Review scopes (file and/or content) — never invent a Full pass here.
+    # Always Quick-refresh for current register/delivery truth (also bootstraps an
+    # empty plan so post-import Treat can build player-ready files without a prior Check).
+    # Dedupe Apply uses the captured Review scopes — never invent a Full pass here.
     run_check(deep=False)
     if stop_requested():
         log.info('Stop requested before treatments.')
@@ -187,6 +184,13 @@ def run_treat():
         return 0
     plan = plan_mod.load_plan()
     treatments = plan.get('treatments') if isinstance(plan.get('treatments'), list) else []
+    if not treatments and not (dedupe_file_scope or dedupe_content_scope):
+        log.info('Nothing needs treatment after refresh.')
+        treat_selection.clear_selection()
+        log.result('healthy')
+        followup.run_followup('treat')
+        touch_heartbeat(ROOT_DIR, stage='idle', message='Treat finished', name=META_NAME)
+        return 0
     ids = [str(t.get('id') or '') for t in treatments if str(t.get('id') or '')]
     if selected_ids is not None:
         ids = [tid for tid in ids if tid in selected_ids]

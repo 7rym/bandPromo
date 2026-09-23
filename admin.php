@@ -3359,6 +3359,16 @@ if ($tab === 'analytics') {
                                         <?php if ($jobStatus === 'ready' && $jobDirection === 'import' && trim((string) ($backupJob['import_summary'] ?? '')) !== ''): ?>
                                         <div class="text-muted site-backup-job-note"><?php echo htmlspecialchars((string) $backupJob['import_summary']); ?></div>
                                         <?php endif; ?>
+                                        <?php
+                                        $followupHref = trim((string) ($backupJob['import_followup_href'] ?? ''));
+                                        $followupLabel = trim((string) ($backupJob['import_followup_label'] ?? 'Open Status'));
+                                        if ($followupLabel === '') {
+                                            $followupLabel = 'Open Status';
+                                        }
+                                        if ($jobStatus === 'ready' && $jobDirection === 'import' && $followupHref !== ''):
+                                        ?>
+                                        <div class="site-backup-job-followup"><a class="site-backup-job-status-link" href="<?php echo htmlspecialchars($followupHref); ?>"><?php echo htmlspecialchars($followupLabel); ?></a></div>
+                                        <?php endif; ?>
                                         <?php if ($jobStatus === 'failed' && trim((string) ($backupJob['error'] ?? '')) !== ''): ?>
                                         <div class="text-muted site-backup-job-error"><?php echo htmlspecialchars((string) $backupJob['error']); ?></div>
                                         <?php endif; ?>

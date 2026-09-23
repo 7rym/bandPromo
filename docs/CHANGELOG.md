@@ -2,6 +2,10 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-09-23 11:35 - PCF/PBF import auto-starts Site health Treat (delivery-focused; skips Review-only destructive work). Jobs show an Open Status link. Replaces mislabelled legacy build.py “Check started” copy.
+
+2026-09-23 11:10 - Disposable intake fleet validation passed (Site update → Quick check → Review/Apply janitor → Storage discard; HITZ leftovers reclaimed). Handoff closed; awaiting next v0.8 focus.
+
 2026-09-22 23:05 - Disposable intake docs + stale temp cleanup: MEDIA-HANDLING / PLATFORM-MODEL describe master + delivery with ephemeral `temp/media-intake/` (not a durable original tier). Site health janitor probes `temp/media-intake` files older than 24h (`stale_intake_temp`).
 
 2026-09-22 22:55 - Phase 3 disposable intake (HITZ leftovers): Status → Storage reclaim includes unregistered orphan files under `media/*/original/` and legacy intake dirs (not only linked originals with a master). Discard API accepts orphan paths. Site health janitor no longer ignores `original/` forever — leftover intake + stray `.zip` under `media/` are Review → Apply candidates (`leftover_original` / `stray_zip`); icons and masters stay safe. Publish/autofix stop minting masters from durable leftover originals (link-only when a unique empty master exists; unmatched leftovers stay for Storage/janitor). Operator copy: leftover intake and junk, not an archive you might want.

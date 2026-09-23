@@ -15334,9 +15334,14 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                         const progressHtml = (job.status === 'building' || (job.status === 'ready' && job.sha256_pending)) && job.progress
                             ? `<div class="text-muted site-backup-job-note">${escapeHtml(job.progress)}</div>`
                             : '';
-                        const noteHtml = job.status === 'ready' && job.direction === 'import' && job.import_summary
-                            ? `<div class="text-muted site-backup-job-note">${escapeHtml(job.import_summary)}</div>`
+                        const followupHref = String(job.import_followup_href || '').trim();
+                        const followupLabel = String(job.import_followup_label || 'Open Status').trim() || 'Open Status';
+                        const followupHtml = job.status === 'ready' && job.direction === 'import' && followupHref
+                            ? `<div class="site-backup-job-followup"><a class="site-backup-job-status-link" href="${escapeHtml(followupHref)}">${escapeHtml(followupLabel)}</a></div>`
                             : '';
+                        const noteHtml = job.status === 'ready' && job.direction === 'import' && job.import_summary
+                            ? `<div class="text-muted site-backup-job-note">${escapeHtml(job.import_summary)}</div>${followupHtml}`
+                            : followupHtml;
                         const downloadHtml = job.download_ready
                             ? `<button type="button" class="btn btn-secondary site-backup-action-btn site-backup-download-btn" data-backup-id="${escapeHtml(job.id)}" data-filename="${escapeHtml(job.filename || '')}" data-size-bytes="${Number(job.size_bytes || 0)}" data-sha256="${escapeHtml(job.sha256 || '')}">${String(job.type || '') === 'prp' ? '⬇️ Download .pcf' : (String(job.type || '') === 'pbf' ? '⬇️ Download .pbf' : '⬇️ Download')}</button>`
                             : '';
@@ -16233,32 +16238,57 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                         const campaignId = String(data.release_id || '').trim();
                         let message = data.message || 'Campaign package imported.';
                         if (data.deliverables_started) {
-                            // Server already queued the background rebuild during import.
+                            // Server already started Site health Treat during import.
                         } else if (data.queue_deliverables) {
                             try {
                                 if (campaignPackageImportStatus) {
-                                    campaignPackageImportStatus.textContent = `${message} Starting deliverables rebuild…`;
+                                    campaignPackageImportStatus.textContent = `${message} Starting Site health Treat…`;
                                 }
-                                const buildResp = await fetch('/biblioteca/build.php', {
+                                const csrfForHealth = typeof refreshAdminCsrfToken === 'function'
+                                    ? await refreshAdminCsrfToken()
+                                    : (typeof adminCsrfToken === 'string' ? adminCsrfToken : '');
+                                const healthBody = {
+                                    mode: 'treat',
+                                    treatment_ids: [
+                                        'audio_register_in_place',
+                                        'audio_fill_display_from_tags',
+                                        'audio_extract_covers',
+                                        'visual_register_in_place',
+                                        'sfx_register_in_place',
+                                        'orphan_home_stamp',
+                                        'listener_delivery',
+                                        'sfx_delivery',
+                                        'media_janitor_prune',
+                                        'storage_package_prune',
+                                        'container_links',
+                                        'files_index_rebuild',
+                                        'playlists',
+                                        'site_chrome',
+                                    ],
+                                };
+                                if (csrfForHealth) {
+                                    healthBody.csrf_token = csrfForHealth;
+                                }
+                                const buildResp = await fetch('/biblioteca/site-health-run.php', {
                                     method: 'POST',
                                     credentials: 'same-origin',
                                     headers: {
                                         'X-Requested-With': 'XMLHttpRequest',
                                         'Content-Type': 'application/json',
                                     },
-                                    body: JSON.stringify({ mode: 'full', profile: 'deliverables-only' }),
+                                    body: JSON.stringify(healthBody),
                                 });
                                 const buildData = await buildResp.json().catch(() => ({}));
                                 if (buildResp.ok && buildData && buildData.ok === true) {
-                                    message = `${message} Site health Check started — watch System → Status.`;
+                                    message = `${message} Site health is building player-ready files.`;
                                 } else {
                                     const buildError = String(buildData.error || '').trim();
                                     message = buildError
-                                        ? `${message} Site health did not start (${buildError}). Open System → Status and run a Quick health check when ready.`
-                                        : `${message} Open System → Status and run a Quick health check when ready.`;
+                                        ? `${message} Site health did not start (${buildError}). Open Status to Review and Apply when ready.`
+                                        : `${message} Open Status to Review and Apply player-ready files when ready.`;
                                 }
                             } catch (_buildError) {
-                                message = `${message} Open System → Status and run a Quick health check when ready.`;
+                                message = `${message} Open Status to Review and Apply player-ready files when ready.`;
                             }
                         }
                         if (campaignPackageImportStatus) {
@@ -16512,32 +16542,57 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                         const brandId = String(data.brand_id || '').trim();
                         let message = data.message || 'Portable Brand File imported.';
                         if (data.deliverables_started) {
-                            // Server already queued the background rebuild during import.
+                            // Server already started Site health Treat during import.
                         } else if (data.queue_deliverables) {
                             try {
                                 if (brandPackageImportStatus) {
-                                    brandPackageImportStatus.textContent = `${message} Starting deliverables rebuild…`;
+                                    brandPackageImportStatus.textContent = `${message} Starting Site health Treat…`;
                                 }
-                                const buildResp = await fetch('/biblioteca/build.php', {
+                                const csrfForHealth = typeof refreshAdminCsrfToken === 'function'
+                                    ? await refreshAdminCsrfToken()
+                                    : (typeof adminCsrfToken === 'string' ? adminCsrfToken : '');
+                                const healthBody = {
+                                    mode: 'treat',
+                                    treatment_ids: [
+                                        'audio_register_in_place',
+                                        'audio_fill_display_from_tags',
+                                        'audio_extract_covers',
+                                        'visual_register_in_place',
+                                        'sfx_register_in_place',
+                                        'orphan_home_stamp',
+                                        'listener_delivery',
+                                        'sfx_delivery',
+                                        'media_janitor_prune',
+                                        'storage_package_prune',
+                                        'container_links',
+                                        'files_index_rebuild',
+                                        'playlists',
+                                        'site_chrome',
+                                    ],
+                                };
+                                if (csrfForHealth) {
+                                    healthBody.csrf_token = csrfForHealth;
+                                }
+                                const buildResp = await fetch('/biblioteca/site-health-run.php', {
                                     method: 'POST',
                                     credentials: 'same-origin',
                                     headers: {
                                         'X-Requested-With': 'XMLHttpRequest',
                                         'Content-Type': 'application/json',
                                     },
-                                    body: JSON.stringify({ mode: 'full', profile: 'deliverables-only' }),
+                                    body: JSON.stringify(healthBody),
                                 });
                                 const buildData = await buildResp.json().catch(() => ({}));
                                 if (buildResp.ok && buildData && buildData.ok === true) {
-                                    message = `${message} Site health Check started — watch System → Status.`;
+                                    message = `${message} Site health is building player-ready files.`;
                                 } else {
                                     const buildError = String(buildData.error || '').trim();
                                     message = buildError
-                                        ? `${message} Site health did not start (${buildError}). Open System → Status and run a Quick health check when ready.`
-                                        : `${message} Open System → Status and run a Quick health check when ready.`;
+                                        ? `${message} Site health did not start (${buildError}). Open Status to Review and Apply when ready.`
+                                        : `${message} Open Status to Review and Apply player-ready files when ready.`;
                                 }
                             } catch (_buildError) {
-                                message = `${message} Open System → Status and run a Quick health check when ready.`;
+                                message = `${message} Open Status to Review and Apply player-ready files when ready.`;
                             }
                         }
                         if (typeof data.build_required === 'boolean' && typeof setBuildRequiredNudge === 'function') {

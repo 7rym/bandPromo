@@ -2,9 +2,11 @@
 
 ## Resume point
 
-**Published** **v0.8.95 build 585** (`v0.8.95-build-585`): Disposable intake — uploads stage under `temp/media-intake/`; auto-discard on master success; Storage + janitor reclaim leftover `original/` and stray media ZIPs (and stale temp intake >24h).
+**In progress (v0.8.96):** PCF/PBF import → Site health Treat (auto-build player-ready files) + Jobs **Open Status** link. Replaces legacy `build.py` deliverables-only + mislabelled “Check started” copy.
 
-**Next:** Fleet: Dashboard → Site update → Quick check → Review/Apply janitor → Status → Storage discard. HITZ should free orphan Cleaning_House originals + `tmp.zip` / `master.zip`.
+**Published** **v0.8.95 build 585** (`v0.8.95-build-585`): Disposable intake — uploads stage under `temp/media-intake/`; auto-discard on master success; Storage + janitor reclaim leftover `original/` and stray media ZIPs (and stale temp intake >24h). Fleet validated 2026-09-23.
+
+**Next:** Fleet Site update on bandpromo.site → re-import Twisted Chronicles PCF → confirm Treat builds streams and Jobs **Open Status** works.
 
 ### Policy locked (do not reopen)
 
@@ -37,6 +39,7 @@
 - Product resolve never falls back to archival `original/` or legacy `img`/`photo`/`video`/`special` when the master is missing (fail loud / empty)
 - Never invent `original_filename` from `master_filename` on register/normalize/Treat
 - VERSION **session** number bumps only when the operator explicitly starts a session (`session-start.ps1 -BumpSession` / `/bandpromo-session-start`); agent resume must not bump
+- PCF/PBF import auto-starts Site health Treat (delivery-focused selection; no silent dedupe delete / Ready-archive prune); Jobs show **Open Status**
 
 ### Local workspace
 

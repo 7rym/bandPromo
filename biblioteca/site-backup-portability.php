@@ -686,6 +686,8 @@ function bandpromo_site_backup_normalize_job(string $root, array $job): array
         'import_mode' => (string) ($job['import_mode'] ?? ''),
         'source_install_id' => (string) ($job['source_install_id'] ?? ''),
         'import_summary' => (string) ($job['import_summary'] ?? ''),
+        'import_followup_href' => (string) ($job['import_followup_href'] ?? ''),
+        'import_followup_label' => (string) ($job['import_followup_label'] ?? ''),
         'include_log' => in_array(BANDPROMO_SITE_BACKUP_COMPONENT_LOGS, $components, true),
         'created_at_utc' => (string) ($job['created_at_utc'] ?? ''),
         'started_at_utc' => (string) ($job['started_at_utc'] ?? ''),
@@ -2178,6 +2180,13 @@ function bandpromo_site_backup_run_package_import_job(string $root, string $jobI
         $job['heartbeat_at_utc'] = $job['completed_at_utc'];
         $job['progress'] = '';
         $job['import_summary'] = $message;
+        $followupHref = trim((string) ($result['import_followup_href'] ?? $result['status_href'] ?? ''));
+        if ($followupHref === '') {
+            require_once __DIR__ . '/site-health-queue-helpers.php';
+            $followupHref = bandpromo_site_health_status_href();
+        }
+        $job['import_followup_href'] = $followupHref;
+        $job['import_followup_label'] = trim((string) ($result['import_followup_label'] ?? 'Open Status')) ?: 'Open Status';
         $job['error'] = '';
         if ($isPbf) {
             if ($releaseOrBrandId !== '') {

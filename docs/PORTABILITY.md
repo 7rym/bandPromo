@@ -94,7 +94,7 @@ Prefer **PCF round-trips** for one-campaign moves. Use data export when moving a
 | **Unit** | One campaign (Release umbrella): brand, tracks, playlists, galleries, owned pages, masters, registry subset |
 | **File** | Portable Campaign File; extension **`.pcf`**. Never describe it to operators as a ZIP. |
 | **IDs** | **Keep** `ast_*`, release, playlist, gallery, page, brand ids across export/import |
-| **Media** | **Masters only** — no upload `original/` tier, no `optimal/` / delivery; target builds deliverables on import or Publish. Registry may still record `original_filename` as metadata. Sound effects follow the same rule (`media/sfx/master/`; delivery under `media/sfx/optimal/` is rebuilt on the target). |
+| **Media** | **Masters only** — no upload `original/` tier, no `optimal/` / delivery; target builds deliverables on import via Site health Treat. Registry may still record `original_filename` as metadata. Sound effects follow the same rule (`media/sfx/master/`; delivery under `media/sfx/optimal/` is rebuilt on the target). |
 | **Not included** | Analytics / play-logs, unrelated releases, `web-config.json` as portable truth, install FAQ (system-owned) |
 | **Data packages** | **PCFs only** for campaign content — no parallel default-theme / demo-release **content** packages |
 
@@ -149,12 +149,12 @@ When imported ids already exist, the operator chooses **Refuse** / **Overwrite**
 2. Apply collision policy (operator UI or system overwrite for demo).
 3. Extract masters + campaign docs; **merge** asset + container registries (**keep ids**).
 4. Setup: set install base brand to demo brand when importing the Demo PCF (first-run / system path).
-5. Build deliverables (Publish / post-import delivery).
+5. Build player-ready files: gallery image refresh, then **Site health Treat** (auto, delivery-focused — register + streams + playlists/chrome; skips Review-only destructive work such as dedupe delete).
 6. Smoke-check playback, shell, Bio/Gallery contextual tabs.
 
 Large campaign PCFs (hundreds of MB of masters) must extract **to disk without loading each entry into PHP memory**. Admin Import uploads in **2 MB chunks** (same pattern as Files media uploads) so nginx/`post_max_size` body limits do not need to match the full package size—only a single chunk.
 
-Gallery rows that only store delivery URLs must resolve `asset_id` (from `src`) so linked Visual masters travel in the PCF. Import registers campaign **pages** (not only playlists/galleries/brands) and marks deliverables rebuild; admin queues **deliverables-only** Publish after a successful import.
+Gallery rows that only store delivery URLs must resolve `asset_id` (from `src`) so linked Visual masters travel in the PCF. Import registers campaign **pages** (not only playlists/galleries/brands) and starts Site health Treat to build listener deliveries. Jobs show an **Open Status** link to the Site health card.
 
 #### Ambassador and services model
 
@@ -180,7 +180,7 @@ bandPromo does not operate a marketplace or take a cut. Ambassadors and release 
 | **Unit** | One brand document + curated library Visual/SFX masters (slot + library asset ids) + registry subset |
 | **File** | Portable Brand File; extension **`.pbf`**. Never describe it to operators as a ZIP. |
 | **IDs** | **Keep** `brd_*` / brand id and `ast_*` across export/import unless **AsNew** remaps the brand id |
-| **Media** | **Masters only** — same bar as PCF; target rebuilds deliverables on import |
+| **Media** | **Masters only** — same bar as PCF; target rebuilds deliverables on import via Site health Treat |
 | **Not included** | Campaign tracks, playlists, galleries, pages, analytics, `web-config.json` |
 | **Ownership** | Import clears `campaign_id` / `release_id` so the brand is unowned until assigned |
 
