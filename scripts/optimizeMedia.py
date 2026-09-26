@@ -129,12 +129,14 @@ def variant_max_box(variant_name, fallback_edge=None):
 COVER_OPTIMAL_MAX_EDGE = variant_max_edge('card', COVER_OPTIMAL_MAX_EDGE) or COVER_OPTIMAL_MAX_EDGE
 COVER_THUMB_MAX_EDGE = variant_max_edge('thumb', COVER_THUMB_MAX_EDGE) or COVER_THUMB_MAX_EDGE
 
-# Soft import: audio delivery (MP3) must not die when Pillow is missing.
-# Visual delivery still needs Pillow from scripts/vendor (Site update / build bootstrap).
+# Soft import: audio delivery (MP3) must not die when Pillow is missing/broken.
+# Visual delivery still needs a working Pillow from scripts/vendor (Site update / build bootstrap).
+_PILLOW_IMPORT_ERROR = ''
 try:
     from PIL import Image
-except ImportError:
+except ImportError as _pillow_exc:
     Image = None
+    _PILLOW_IMPORT_ERROR = str(_pillow_exc).strip() or type(_pillow_exc).__name__
 
 
 def pillow_is_available():
@@ -142,12 +144,15 @@ def pillow_is_available():
 
 
 def pillow_missing_message():
+    detail = ''
+    if _PILLOW_IMPORT_ERROR:
+        detail = ' ({0})'.format(_PILLOW_IMPORT_ERROR)
     return (
-        'Pillow is missing for this host Python. '
-        'Artwork conversion needs it under scripts/vendor — '
+        'Pillow is missing or broken for this host Python{0}. '
+        'Artwork conversion needs a matching scripts/vendor build — '
         'run System → Status → Site health (or Site update) so build deps bootstrap. '
         'Do not pip-install system packages.'
-    )
+    ).format(detail)
 
 
 def require_pillow(context='image conversion'):

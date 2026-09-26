@@ -15030,8 +15030,53 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                         lines.push('  Note: ' + locks.note);
                     }
                     lines.push('');
-                    lines.push('Python: ' + (tools.python || '(not found on PATH)'));
-                    lines.push('ffmpeg: ' + (tools.ffmpeg || '(not found)'));
+                    const pyPath = tools.python || '';
+                    const pyVer = tools.python_version || '';
+                    if (pyPath) {
+                        lines.push('Python: ' + pyPath + (pyVer ? (' (' + pyVer + ')') : ''));
+                    } else {
+                        lines.push('Python: (not found — Site health and delivery jobs cannot run)');
+                    }
+                    const ffPath = tools.ffmpeg || '';
+                    lines.push('ffmpeg: ' + (ffPath || '(not found)'));
+                    const vendor = tools.vendor || null;
+                    if (vendor && vendor.probed) {
+                        if (vendor.ok) {
+                            lines.push(
+                                'Python vendor: OK for '
+                                    + (vendor.running_tag || '?')
+                                    + ' (scripts/vendor matches this interpreter)'
+                            );
+                        } else {
+                            const reasons = Array.isArray(vendor.reasons) ? vendor.reasons : [];
+                            let vendorLine = 'Python vendor: NEEDS REPAIR';
+                            if (reasons.indexOf('python_tag_mismatch') !== -1) {
+                                vendorLine += ' — Python was upgraded ('
+                                    + (vendor.vendor_tag || 'old')
+                                    + ' → '
+                                    + (vendor.running_tag || 'new')
+                                    + ') but scripts/vendor was not rebuilt';
+                            } else if (reasons.indexOf('imports_broken') !== -1) {
+                                vendorLine += ' — packages broken or missing ('
+                                    + ((vendor.missing || []).join(', ') || 'unknown')
+                                    + ')';
+                            } else if (reasons.indexOf('no_vendor_tag') !== -1) {
+                                vendorLine += ' — no ABI stamp yet (run Site health or Site update to bootstrap)';
+                            } else {
+                                vendorLine += ' — ' + (reasons.join(', ') || 'unknown');
+                            }
+                            lines.push(vendorLine);
+                            lines.push(
+                                '  Fix: open System → Status → Site health (Check/Treat) or Site update so vendor rebuilds for this Python. Do not pip-install system packages.'
+                            );
+                        }
+                    } else if (pyPath) {
+                        lines.push(
+                            'Python vendor: (could not probe'
+                                + (vendor && vendor.error ? (': ' + vendor.error) : '')
+                                + ')'
+                        );
+                    }
                     if (cache) {
                         lines.push('');
                         lines.push('Launch diagnostics cache:');

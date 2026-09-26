@@ -69,6 +69,13 @@ def run_visual_still_delivery(force=False):
         return True
 
     log.info('Found {0} visual image asset(s) after basename dedupe.'.format(len(visual_queue)))
+    if not om.pillow_is_available():
+        log.info('FAILED {0}'.format(om.pillow_missing_message()))
+        log.info(
+            'Visual still delivery done: 0 built, 0 kept, {0} failed.'.format(len(visual_queue))
+        )
+        return False
+
     built = 0
     skipped = 0
     failed = 0

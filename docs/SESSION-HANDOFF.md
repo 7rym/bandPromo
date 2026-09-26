@@ -2,9 +2,9 @@
 
 ## Resume point
 
-**Published** **v0.8.97 build 589** (pending session-end tag): audio delivery no longer crashes on legacy `IMG_OPT_DIR` or import-time Pillow exit. Soft-import Pillow; light tasks prepend `scripts/vendor` to `PYTHONPATH`. Covers stay on `extract_upload_covers` / Visual delivery.
+**Published** **v0.8.97 build 590** (pending session-end): catch Python upgrade vs stale `scripts/vendor` (ABI stamp, real import probe, Site health auto-repair); Environment resolves Python/ffmpeg like Site health; visual delivery fail-fast when Pillow broken.
 
-**Fleet next:** Site update Spandexual Tension (and HITZ if needed) → re-upload FLAC or re-save playlist with missing delivery; confirm MP3 prep succeeds without Pillow toast.
+**Fleet next:** Site update local + Spandexual → Environment should show Python/ffmpeg/vendor OK; re-run Treat for artwork if needed.
 
 **After that:** Campaign navigator fleet validate, Shell preview parity, or favicon/PWA.
 

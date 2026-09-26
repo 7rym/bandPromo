@@ -336,9 +336,12 @@ function bandpromo_build_run_launch_diagnostics(
         );
 
         $vendorPath = str_replace('\\', '/', $root . '/scripts/vendor');
+        // Probe native bits — bare ``import PIL`` / ``import xxhash`` can pass for broken stubs.
         $importCode = 'import sys; sys.path.insert(0, '
             . var_export($vendorPath, true)
-            . '); import PIL, mutagen, xxhash; print("imports-ok")';
+            . '); from PIL import Image; import mutagen, xxhash; '
+            . 'h = getattr(xxhash, "xxh3_64", None) or getattr(xxhash, "xxh64"); '
+            . 'h(b"bandpromo").hexdigest(); print("imports-ok")';
         $pythonImports = bandpromo_build_diag_exec_output(
             $pythonCommand . ' -c ' . escapeshellarg($importCode)
         );

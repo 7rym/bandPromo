@@ -32,6 +32,42 @@ try:
 except Exception:
     pass
 
+
+def _ensure_vendor_for_job():
+    """Rebuild scripts/vendor when Python was upgraded or packages are broken."""
+    try:
+        import bandpromo_python_path as bpp
+    except Exception as exc:
+        log.info('Vendor helper unavailable: {0}'.format(exc))
+        return
+    try:
+        status = bpp.ensure_vendor_ready(repair=True, log_fn=log.info)
+    except Exception as exc:
+        log.info('Vendor repair failed: {0}'.format(exc))
+        return
+    if status.get('ok'):
+        log.info(
+            'Python vendor OK for {0} ({1})'.format(
+                status.get('running_tag') or '?',
+                status.get('python_version') or '',
+            )
+        )
+        return
+    reasons = status.get('reasons') or []
+    missing = status.get('missing') or []
+    if 'python_tag_mismatch' in reasons:
+        log.info(
+            'FAILED Python vendor ABI mismatch: vendor={0} running={1}'.format(
+                status.get('vendor_tag') or '(none)',
+                status.get('running_tag') or '?',
+            )
+        )
+    elif missing:
+        log.info('FAILED Python vendor packages: {0}'.format(', '.join(missing)))
+    else:
+        log.info('FAILED Python vendor not ready ({0})'.format(', '.join(reasons) or 'unknown'))
+
+
 import log  # noqa: E402
 import plan as plan_mod  # noqa: E402
 import triage  # noqa: E402
@@ -488,6 +524,7 @@ def main(argv=None):
     clear_stop()
     log.begin_run(LOG_PATH)
     log.info(_site_banner())
+    _ensure_vendor_for_job()
     write_job_meta(ROOT_DIR, {
         'status': 'running',
         'mode': args.mode,

@@ -294,21 +294,31 @@ def _verify_required_python_imports():
     """Return (ok, missing_names) for PIL/mutagen/xxhash after vendor bootstrap."""
     try:
         import bandpromo_python_path as bpp
-        bpp.ensure_vendor_on_sys_path()
-        names = bpp.required_import_names()
+        return bpp.verify_required_imports()
     except Exception:
-        names = ('PIL', 'mutagen', 'xxhash')
         vendor = str(VENDOR_DIR)
         if vendor not in sys.path:
             sys.path.insert(0, vendor)
-
-    missing = []
-    for name in names:
+        missing = []
         try:
-            __import__(name)
+            from PIL import Image  # noqa: F401
         except Exception:
-            missing.append(name)
-    return (missing == [], missing)
+            missing.append('PIL')
+        try:
+            import mutagen  # noqa: F401
+        except Exception:
+            missing.append('mutagen')
+        try:
+            import xxhash
+            hasher = getattr(xxhash, 'xxh3_64', None) or getattr(xxhash, 'xxh64', None)
+            if hasher is None:
+                missing.append('xxhash')
+            else:
+                hasher(b'bandpromo').hexdigest()
+        except Exception:
+            if 'xxhash' not in missing:
+                missing.append('xxhash')
+        return (missing == [], missing)
 
 
 def _vendor_has_required_packages():
@@ -398,6 +408,30 @@ def install_pip_dependencies():
 
     try:
         import bandpromo_python_path as bpp
+
+        def _vendor_log(message):
+            print('  ' + str(message))
+            sys.stdout.flush()
+
+        status = bpp.ensure_vendor_ready(repair=True, log_fn=_vendor_log)
+        if status.get('ok'):
+            print('  OK Dependencies ready for ' + py_tag)
+            sys.stdout.flush()
+            return True
+        missing = status.get('missing') or []
+        print('  WARNING Missing Python packages for {0}: {1}'.format(
+            py_tag, ', '.join(missing) if missing else 'unknown'
+        ))
+        print('  Build continues; stages that need those packages will report clearly.')
+        sys.stdout.flush()
+        return True
+    except Exception as e:
+        print('  NOTE Vendor bootstrap via bandpromo_python_path failed: ' + str(e))
+        sys.stdout.flush()
+
+    # Legacy fallback if the shared helper is unavailable.
+    try:
+        import bandpromo_python_path as bpp
         bpp.ensure_vendor_on_sys_path()
     except Exception:
         vendor = str(VENDOR_DIR)
@@ -406,6 +440,11 @@ def install_pip_dependencies():
 
     ok, missing = _verify_required_python_imports()
     if ok and _vendor_has_required_packages():
+        try:
+            import bandpromo_python_path as bpp
+            bpp.write_vendor_python_tag(py_tag)
+        except Exception:
+            pass
         print('  OK Dependencies already available for ' + py_tag)
         sys.stdout.flush()
         return True
@@ -419,6 +458,11 @@ def install_pip_dependencies():
         if result.returncode == 0:
             ok, missing = _verify_required_python_imports()
             if ok:
+                try:
+                    import bandpromo_python_path as bpp
+                    bpp.write_vendor_python_tag(py_tag)
+                except Exception:
+                    pass
                 print('  OK Dependencies installed into scripts/vendor for ' + py_tag)
                 sys.stdout.flush()
                 return True
@@ -440,6 +484,11 @@ def install_pip_dependencies():
             if result.returncode == 0:
                 ok, missing = _verify_required_python_imports()
                 if ok:
+                    try:
+                        import bandpromo_python_path as bpp
+                        bpp.write_vendor_python_tag(py_tag)
+                    except Exception:
+                        pass
                     print('  OK Dependencies installed from scripts/vendor-wheels for ' + py_tag)
                     sys.stdout.flush()
                     return True
@@ -460,7 +509,12 @@ def install_pip_dependencies():
             ))
             ok, missing = _verify_required_python_imports()
             if ok:
-                print('  OK Dependencies available from extracted vendor-wheels for ' + py_tag)
+                try:
+                    import bandpromo_python_path as bpp
+                    bpp.write_vendor_python_tag(py_tag)
+                except Exception:
+                    pass
+                print('  OK Dependencies available from extracted vendor-wheels for {0}'.format(py_tag))
                 sys.stdout.flush()
                 return True
     except Exception as e:
@@ -468,6 +522,12 @@ def install_pip_dependencies():
 
     ok, missing = _verify_required_python_imports()
     if ok:
+        try:
+            import bandpromo_python_path as bpp
+            if bpp.vendor_has_package_dirs():
+                bpp.write_vendor_python_tag(py_tag)
+        except Exception:
+            pass
         print('  OK Dependencies available after bootstrap')
         sys.stdout.flush()
         return True

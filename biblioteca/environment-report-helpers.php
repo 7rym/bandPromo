@@ -22,34 +22,126 @@ function bandpromo_environment_read_version(string $root): string
 
 function bandpromo_environment_ffmpeg_path(string $root): string
 {
-    $bundled = rtrim($root, '/\\') . '/scripts/bin/ffmpeg';
-    if (strtoupper(substr(PHP_OS_FAMILY, 0, 3)) === 'WIN') {
-        $bundled .= '.exe';
+    require_once __DIR__ . '/light-build-tasks.php';
+    $resolved = bandpromo_resolve_light_task_ffmpeg($root);
+    if ($resolved !== '' && $resolved !== 'ffmpeg' && is_file($resolved)) {
+        return $resolved;
     }
-    if (is_file($bundled)) {
-        return $bundled;
-    }
-
-    if (bandpromo_build_function_usable('shell_exec')) {
-        $which = trim((string) shell_exec('command -v ffmpeg 2>/dev/null'));
-        if ($which !== '') {
-            return $which;
+    if ($resolved === 'ffmpeg' || $resolved !== '') {
+        // PATH name only — confirm it actually runs when possible.
+        if (bandpromo_build_function_usable('shell_exec')) {
+            $which = trim((string) (shell_exec('where ffmpeg 2>nul') ?? ''));
+            if ($which === '') {
+                $which = trim((string) (shell_exec('command -v ffmpeg 2>/dev/null') ?? ''));
+            }
+            $first = trim((string) (preg_split('/\r\n|\r|\n/', $which)[0] ?? ''));
+            if ($first !== '' && is_file($first)) {
+                return $first;
+            }
         }
     }
 
-    return '';
+    return is_file($resolved) ? $resolved : '';
 }
 
+/**
+ * Resolve Python the same way Site health / light tasks do (not Unix-only command -v).
+ *
+ * @return array{path:string,version:string,ok:bool}
+ */
+function bandpromo_environment_python_info(): array
+{
+    require_once __DIR__ . '/light-build-tasks.php';
+    $path = bandpromo_resolve_python_interpreter();
+    $version = '';
+    if ($path !== '' && bandpromo_build_function_usable('exec')) {
+        $out = [];
+        $rc = 1;
+        @exec('"' . str_replace('"', '""', $path) . '" --version 2>&1', $out, $rc);
+        if ($rc === 0 && $out !== []) {
+            $version = trim((string) ($out[0] ?? ''));
+        }
+    }
+
+    return [
+        'path' => $path,
+        'version' => $version,
+        'ok' => $path !== '',
+    ];
+}
+
+/**
+ * Probe scripts/vendor health for the resolved Python (ABI tag + real imports).
+ *
+ * @return array<string, mixed>
+ */
+function bandpromo_environment_python_vendor_status(string $root, string $pythonPath): array
+{
+    require_once __DIR__ . '/light-build-tasks.php';
+    $empty = [
+        'ok' => false,
+        'probed' => false,
+        'running_tag' => '',
+        'vendor_tag' => '',
+        'tag_ok' => false,
+        'imports_ok' => false,
+        'missing' => [],
+        'reasons' => ['python_unavailable'],
+        'error' => '',
+    ];
+    if ($pythonPath === '' || !bandpromo_can_proc_open()) {
+        return $empty;
+    }
+
+    $script = rtrim($root, '/\\') . '/scripts/bandpromo_python_path.py';
+    if (!is_file($script)) {
+        $empty['reasons'] = ['helper_missing'];
+        $empty['error'] = 'scripts/bandpromo_python_path.py missing';
+        return $empty;
+    }
+
+    $code = 'import sys, json; sys.path.insert(0, sys.argv[1]); import bandpromo_python_path as bpp; print(bpp.vendor_status_json())';
+    $descriptors = [
+        0 => ['pipe', 'r'],
+        1 => ['pipe', 'w'],
+        2 => ['pipe', 'w'],
+    ];
+    $env = bandpromo_light_task_env($root);
+    $process = @proc_open(
+        [$pythonPath, '-c', $code, rtrim($root, '/\\') . '/scripts'],
+        $descriptors,
+        $pipes,
+        $root,
+        $env
+    );
+    if (!is_resource($process)) {
+        $empty['error'] = 'Could not start vendor probe';
+        return $empty;
+    }
+    fclose($pipes[0]);
+    $stdout = stream_get_contents($pipes[1]);
+    fclose($pipes[1]);
+    $stderr = stream_get_contents($pipes[2]);
+    fclose($pipes[2]);
+    $exit = proc_close($process);
+    $decoded = json_decode(trim((string) $stdout), true);
+    if (!is_array($decoded)) {
+        $empty['error'] = trim((string) $stderr) !== ''
+            ? trim((string) $stderr)
+            : ('Vendor probe failed (exit ' . (string) $exit . ')');
+        return $empty;
+    }
+    $decoded['probed'] = true;
+    $decoded['error'] = '';
+    return $decoded;
+}
+
+/**
+ * @deprecated Use bandpromo_environment_python_info() — kept for older callers.
+ */
 function bandpromo_environment_python_hint(): string
 {
-    if (!bandpromo_build_function_usable('shell_exec')) {
-        return '';
-    }
-    $path = trim((string) shell_exec('command -v python3 2>/dev/null'));
-    if ($path === '') {
-        $path = trim((string) shell_exec('command -v python 2>/dev/null'));
-    }
-    return $path;
+    return bandpromo_environment_python_info()['path'];
 }
 
 /**
@@ -597,6 +689,10 @@ function bandpromo_environment_collect_report(string $root): array
     $resources = bandpromo_environment_probe_resources($root);
     $resources['network'] = bandpromo_environment_probe_network($root);
 
+    $pythonInfo = bandpromo_environment_python_info();
+    $ffmpegPath = bandpromo_environment_ffmpeg_path($root);
+    $vendorStatus = bandpromo_environment_python_vendor_status($root, (string) ($pythonInfo['path'] ?? ''));
+
     return [
         'app' => [
             'version' => bandpromo_environment_read_version($root),
@@ -635,8 +731,12 @@ function bandpromo_environment_collect_report(string $root): array
         'resources' => $resources,
         'locks' => bandpromo_environment_probe_locks($root),
         'build_tools' => [
-            'python' => bandpromo_environment_python_hint(),
-            'ffmpeg' => bandpromo_environment_ffmpeg_path($root),
+            'python' => (string) ($pythonInfo['path'] ?? ''),
+            'python_version' => (string) ($pythonInfo['version'] ?? ''),
+            'python_ok' => !empty($pythonInfo['ok']),
+            'ffmpeg' => $ffmpegPath,
+            'ffmpeg_ok' => $ffmpegPath !== '',
+            'vendor' => $vendorStatus,
             'launch_diag_cache' => $diagCache,
         ],
         'package_checks' => $packageChecks,

@@ -41,14 +41,14 @@ function bandpromo_resolve_python_interpreter(): string {
         return $env_python;
     }
 
-    $workspace_venv = dirname(__DIR__, 2) . '/.venv/Scripts/python.exe';
+    $workspace_venv = dirname(__DIR__) . '/.venv/Scripts/python.exe';
     if (file_exists($workspace_venv) && bandpromo_is_working_python($workspace_venv)) {
         return $workspace_venv;
     }
 
-    $project_venv = dirname(__DIR__, 3) . '/.venv/Scripts/python.exe';
-    if (file_exists($project_venv) && bandpromo_is_working_python($project_venv)) {
-        return $project_venv;
+    $workspace_venv_posix = dirname(__DIR__) . '/.venv/bin/python';
+    if (file_exists($workspace_venv_posix) && bandpromo_is_working_python($workspace_venv_posix)) {
+        return $workspace_venv_posix;
     }
 
     if (bandpromo_can_shell_exec()) {

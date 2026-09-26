@@ -145,6 +145,47 @@ def run_triage(plan, deep=False, suppress_json_drift=False):
             body='Player-ready file builds need ffmpeg. Open System → Environment to locate or install it.',
         )
 
+    try:
+        import bandpromo_python_path as bpp
+        vendor = bpp.vendor_status()
+        if vendor.get('ok'):
+            log.info(
+                'Python vendor: OK ({0})'.format(vendor.get('running_tag') or '?')
+            )
+        else:
+            reasons = vendor.get('reasons') or []
+            missing = vendor.get('missing') or []
+            if 'python_tag_mismatch' in reasons:
+                title = 'Python vendor needs rebuild after a Python upgrade'
+                body = (
+                    'This host Python is {0}, but scripts/vendor was built for {1}. '
+                    'Site health tries to repair automatically; if artwork or duplicate checks still fail, '
+                    'open System → Environment or run Site update so vendor packages match.'
+                ).format(
+                    vendor.get('running_tag') or '?',
+                    vendor.get('vendor_tag') or '(unknown)',
+                )
+            elif missing:
+                title = 'Python build packages are missing or broken'
+                body = (
+                    'scripts/vendor cannot load {0} for this Python. '
+                    'Site health tries to repair automatically. Open System → Environment for details.'
+                ).format(', '.join(missing))
+            else:
+                title = 'Python vendor bundle needs attention'
+                body = (
+                    'scripts/vendor is not ready for this Python ({0}). '
+                    'Open System → Environment, or run Site health / Site update to rebuild it.'
+                ).format(', '.join(reasons) or 'unknown')
+            plan_mod.add_finding(
+                plan, 'python_vendor_mismatch', 'attention',
+                title, 1, '',
+                body=body,
+            )
+            log.info('Python vendor: needs attention ({0})'.format(', '.join(reasons) or 'unknown'))
+    except Exception as exc:
+        log.info('Python vendor probe skipped: {0}'.format(exc))
+
     registry, status = reg.load_registry()
     if status == 'missing':
         plan_mod.add_finding(

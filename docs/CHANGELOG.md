@@ -2,6 +2,10 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-09-26 15:00 - Catch Python upgrades vs stale `scripts/vendor`: stamp `.bandpromo-python-tag`, probe real `Image`/xxhash imports, auto-repair on Site health start, and surface ABI mismatch in Environment + triage. Environment resolves Python/ffmpeg the same way Site health does (Windows `where`, not Unix-only `command -v`). Strict offline wheel extract so old Pillow stubs cannot overwrite a matching ABI install.
+
+2026-09-26 14:55 - Local Site health artwork: fail-fast when Pillow cannot load `Image` (stop 137 silent visual skips). Vendor bootstrap now probes `from PIL import Image` + xxhash native hasher — bare `import PIL` was masking broken cp314 stubs without `_imaging`.
+
 2026-09-26 14:40 - Audio delivery no longer dies when Pillow is missing: soft-import Pillow in `optimizeMedia.py` (MP3 prep only needs ffmpeg/mutagen). Light tasks prepend `scripts/vendor` to `PYTHONPATH`. Operator copy points at Site health / Site update bootstrap — never `pip install`. Fixes playlist-save toast on hosts with incomplete vendor (e.g. Spandexual Tension).
 
 2026-09-26 13:55 - Fix post-upload audio delivery crash: `audioSourceDelivery.py` / `playlistAudioDelivery.py` still called removed `optimizeMedia.IMG_OPT_DIR` (legacy `media/img/optimal`). Drop that mkdir and the dual-write cover path — covers stay on Visual registry via `extract_upload_covers.py`.
