@@ -2,9 +2,9 @@
 
 ## Resume point
 
-**Published** **v0.8.97 build 590** (pending session-end): catch Python upgrade vs stale `scripts/vendor` (ABI stamp, real import probe, Site health auto-repair); Environment resolves Python/ffmpeg like Site health; visual delivery fail-fast when Pillow broken.
+**Published** **v0.8.97 build 591** (pending session-end): Site health vendor probe/repair in child process; stamp-only when imports already work — stops Spandexual cp36 exit 139.
 
-**Fleet next:** Site update local + Spandexual → Environment should show Python/ffmpeg/vendor OK; re-run Treat for artwork if needed.
+**Fleet next:** Site update Spandexual → Quick check should finish without exit 139.
 
 **After that:** Campaign navigator fleet validate, Shell preview parity, or favicon/PWA.
 

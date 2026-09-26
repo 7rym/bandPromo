@@ -2,6 +2,8 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-09-26 15:10 - Site health vendor repair must not SIGSEGV the job (exit 139): probe/repair Pillow in a child process; if packages already import, only stamp `.bandpromo-python-tag` — never reinstall. Fixes Spandexual cp36 crash right after “Repairing scripts/vendor…”.
+
 2026-09-26 15:00 - Catch Python upgrades vs stale `scripts/vendor`: stamp `.bandpromo-python-tag`, probe real `Image`/xxhash imports, auto-repair on Site health start, and surface ABI mismatch in Environment + triage. Environment resolves Python/ffmpeg the same way Site health does (Windows `where`, not Unix-only `command -v`). Strict offline wheel extract so old Pillow stubs cannot overwrite a matching ABI install.
 
 2026-09-26 14:55 - Local Site health artwork: fail-fast when Pillow cannot load `Image` (stop 137 silent visual skips). Vendor bootstrap now probes `from PIL import Image` + xxhash native hasher — bare `import PIL` was masking broken cp314 stubs without `_imaging`.
