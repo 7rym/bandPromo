@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-09-26 14:40 - Audio delivery no longer dies when Pillow is missing: soft-import Pillow in `optimizeMedia.py` (MP3 prep only needs ffmpeg/mutagen). Light tasks prepend `scripts/vendor` to `PYTHONPATH`. Operator copy points at Site health / Site update bootstrap — never `pip install`. Fixes playlist-save toast on hosts with incomplete vendor (e.g. Spandexual Tension).
+
+2026-09-26 13:55 - Fix post-upload audio delivery crash: `audioSourceDelivery.py` / `playlistAudioDelivery.py` still called removed `optimizeMedia.IMG_OPT_DIR` (legacy `media/img/optimal`). Drop that mkdir and the dual-write cover path — covers stay on Visual registry via `extract_upload_covers.py`.
+
+2026-09-23 17:50 - PCF round-trip smoke validated on bandpromo.site (v0.8.96 build 588): Twisted Chronicles import — toasts, Open Status, Site health Treat delivery build OK.
+
 2026-09-23 13:25 - PCF/PBF import UX: clearer “Upload complete. Import started…” copy; lifecycle toasts (upload/import/delivery); CLI import worker so Backup tab is not required; Site health Treat logs each stream/artwork/video encode so Activity does not look stuck.
 
 2026-09-23 13:05 - Published v0.8.96 build 586 (PCF/PBF import → Site health Treat + Jobs Open Status). Handoff: re-smoke Twisted Chronicles import on bandpromo.site after Site update.

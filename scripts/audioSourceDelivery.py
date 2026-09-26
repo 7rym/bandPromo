@@ -1,5 +1,4 @@
 import json
-import os
 import sys
 from pathlib import Path
 
@@ -11,7 +10,6 @@ _JSON_OUT = sys.stdout
 if sys.stderr is not None and sys.stderr is not _JSON_OUT:
     sys.stdout = sys.stderr
 
-import makePlaylists
 import optimizeMedia as om
 
 
@@ -68,14 +66,8 @@ def process_filename(filename):
 
     om.strip_delivery_audio_tags(str(mp3_path))
 
-    info = makePlaylists.parse_audio_file(str(source_path))
-    cover_file = os.path.basename(str(info.get('cover') or '').strip())
-    if cover_file:
-        orig_cover_path = om.IMG_ORIG_DIR / cover_file
-        lq_cover_path = om.IMG_OPT_DIR / (Path(cover_file).stem + '.jpg')
-        if orig_cover_path.is_file():
-            om.convert_cover_to_jpeg(str(orig_cover_path), str(lq_cover_path), quality=75)
-
+    # Embedded covers are handled by extract_upload_covers.py (Visual registry
+    # delivery). Do not dual-write legacy media/img/optimal here.
     return True, source_tier
 
 
@@ -100,7 +92,6 @@ def main():
         return
 
     om.AUDIO_OPT_DIR.mkdir(parents=True, exist_ok=True)
-    om.IMG_OPT_DIR.mkdir(parents=True, exist_ok=True)
 
     if needs_ffmpeg(requested) and not om.check_ffmpeg():
         emit_json({

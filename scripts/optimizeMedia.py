@@ -5,8 +5,8 @@ Builds registry-driven delivery variants:
 - Audio → tagless MP3 under media/audio/optimal (identity in registry + player payload)
 - Visual → role-based variants under media/visual/delivery/{asset_id}/
 
-Scope comes from data/assets/registry.json. convert_cover_to_jpeg remains for
-audioSourceDelivery cover helpers.
+Scope comes from data/assets/registry.json. Track covers use Visual delivery
+(extract_upload_covers / process_visual_image_asset), not legacy media/img/.
 """
 
 import os
@@ -129,12 +129,46 @@ def variant_max_box(variant_name, fallback_edge=None):
 COVER_OPTIMAL_MAX_EDGE = variant_max_edge('card', COVER_OPTIMAL_MAX_EDGE) or COVER_OPTIMAL_MAX_EDGE
 COVER_THUMB_MAX_EDGE = variant_max_edge('thumb', COVER_THUMB_MAX_EDGE) or COVER_THUMB_MAX_EDGE
 
+# Soft import: audio delivery (MP3) must not die when Pillow is missing.
+# Visual delivery still needs Pillow from scripts/vendor (Site update / build bootstrap).
 try:
     from PIL import Image
 except ImportError:
-    print("❌ Error: Pillow (PIL) is required for image conversion")
-    print("   Install with: pip install Pillow")
-    sys.exit(1)
+    Image = None
+
+
+def pillow_is_available():
+    return Image is not None
+
+
+def pillow_missing_message():
+    return (
+        'Pillow is missing for this host Python. '
+        'Artwork conversion needs it under scripts/vendor — '
+        'run System → Status → Site health (or Site update) so build deps bootstrap. '
+        'Do not pip-install system packages.'
+    )
+
+
+def require_pillow(context='image conversion'):
+    """Return True when Pillow is importable; otherwise log and return False."""
+    if pillow_is_available():
+        return True
+    print('    ❌ {0}: {1}'.format(context, pillow_missing_message()))
+    return False
+
+
+def _vendor_python_env(base_env=None):
+    """Ensure child Python processes see scripts/vendor (Pillow/mutagen/xxhash)."""
+    env = dict(os.environ if base_env is None else base_env)
+    vendor = str(SCRIPT_DIR / 'vendor')
+    existing = str(env.get('PYTHONPATH') or '').strip()
+    parts = [p for p in existing.split(os.pathsep) if p]
+    if vendor not in parts:
+        parts.insert(0, vendor)
+    env['PYTHONPATH'] = os.pathsep.join(parts)
+    env['PYTHONIOENCODING'] = env.get('PYTHONIOENCODING') or 'utf-8:replace'
+    return env
 
 
 def png_has_visible_transparency(img):
@@ -163,7 +197,11 @@ def _copy_cover_fallback(source_path, dest_path, reason, asset_id=''):
     dest_ext = dest_path.suffix.lower()
 
     # In-process convert first so we keep the requested delivery filename.
+    if not pillow_is_available():
+        reason = '{0}; {1}'.format(reason, pillow_missing_message())
     try:
+        if not pillow_is_available():
+            raise RuntimeError('Pillow unavailable')
         with Image.open(str(source_path)) as img:
             want_png = dest_ext == '.png'
             if want_png:
@@ -259,6 +297,7 @@ def convert_cover_to_jpeg(source_path, dest_path, quality=75, max_edge=None, ass
             stderr=subprocess.PIPE,
             universal_newlines=True,
             check=False,
+            env=_vendor_python_env(),
         )
     except Exception as e:
         return _copy_cover_fallback(
@@ -296,6 +335,8 @@ def convert_cover_to_jpeg(source_path, dest_path, quality=75, max_edge=None, ass
 
 
 def image_source_has_alpha(source_path):
+    if not pillow_is_available():
+        return False
     try:
         with Image.open(str(source_path)) as img:
             return png_has_visible_transparency(img)
@@ -310,6 +351,9 @@ def convert_image_delivery_variant(source_path, dest_path, max_width, max_height
     """
     if not os.path.exists(source_path):
         print("    ⚠️  Source image not found: {}".format(source_path))
+        return None
+
+    if not require_pillow('image delivery variant'):
         return None
 
     max_width = max(1, int(max_width))
@@ -376,6 +420,7 @@ def convert_image_delivery_variant(source_path, dest_path, max_width, max_height
             stderr=subprocess.PIPE,
             universal_newlines=True,
             check=False,
+            env=_vendor_python_env(),
         )
     except Exception as e:
         return _copy_cover_fallback(
@@ -482,11 +527,12 @@ def variant_manifest_entry(abs_path):
         rel = '/' + rel
     rel = rel.lstrip('/')
     width = height = 0
-    try:
-        with Image.open(str(path)) as img:
-            width, height = img.size
-    except Exception:
-        pass
+    if pillow_is_available():
+        try:
+            with Image.open(str(path)) as img:
+                width, height = img.size
+        except Exception:
+            pass
     try:
         size = path.stat().st_size
     except Exception:
@@ -576,6 +622,8 @@ def stamp_visual_master_dimensions(asset_id, width, height):
 
 
 def image_master_pixel_size(source_path):
+    if not pillow_is_available():
+        return 0, 0
     try:
         with Image.open(str(source_path)) as img:
             width, height = img.size
@@ -591,6 +639,8 @@ def visual_image_delivery_is_fresh(asset, source_path, required_variants):
     100→150) must rebuild even when the master bytes are unchanged.
     """
     if xxhash is None:
+        return False
+    if not pillow_is_available():
         return False
     if os.environ.get('BANDPROMO_FORCE_VISUAL_DELIVERY', '').strip() == '1':
         return False
@@ -662,6 +712,9 @@ def process_visual_image_asset(asset, quiet_skip=False):
                 label,
             )
         )
+        return False
+
+    if not require_pillow('visual delivery for {}'.format(asset_id)):
         return False
 
     role = str(asset.get('role') or 'unassigned')

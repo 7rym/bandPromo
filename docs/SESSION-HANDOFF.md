@@ -2,11 +2,11 @@
 
 ## Resume point
 
-**In progress (v0.8.96):** Import UX — toasts + CLI worker + Treat per-item Activity; re-smoke Twisted Chronicles after next publish.
+**Published** **v0.8.97 build 589** (pending session-end tag): audio delivery no longer crashes on legacy `IMG_OPT_DIR` or import-time Pillow exit. Soft-import Pillow; light tasks prepend `scripts/vendor` to `PYTHONPATH`. Covers stay on `extract_upload_covers` / Visual delivery.
 
-**Published** **v0.8.96 build 586** (`v0.8.96-build-586`): PCF/PBF import auto-starts Site health Treat + Jobs **Open Status** link.
+**Fleet next:** Site update Spandexual Tension (and HITZ if needed) → re-upload FLAC or re-save playlist with missing delivery; confirm MP3 prep succeeds without Pillow toast.
 
-**Next:** bandpromo.site Site update → re-import Twisted Chronicles; confirm toasts, Open Status Activity (per-track lines), and delivery complete.
+**After that:** Campaign navigator fleet validate, Shell preview parity, or favicon/PWA.
 
 ### Policy locked (do not reopen)
 

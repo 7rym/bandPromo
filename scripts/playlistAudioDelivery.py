@@ -128,7 +128,6 @@ def main():
         })
 
     om.AUDIO_OPT_DIR.mkdir(parents=True, exist_ok=True)
-    om.IMG_OPT_DIR.mkdir(parents=True, exist_ok=True)
 
     master_filenames = [item['master_filename'] for item in targets]
     if needs_ffmpeg_for_masters(master_filenames) and not om.check_ffmpeg():

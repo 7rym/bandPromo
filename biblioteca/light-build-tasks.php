@@ -124,9 +124,22 @@ function bandpromo_light_task_env(string $root_dir, array $env_extras = []): arr
     $env['BUILD_ROOT'] = $root_dir;
     $env['PYTHONIOENCODING'] = 'utf-8:replace';
     $env['FFMPEG_PATH'] = bandpromo_resolve_light_task_ffmpeg($root_dir);
+
     foreach ($env_extras as $key => $value) {
         $env[(string) $key] = (string) $value;
     }
+
+    // Site-local build deps (Pillow/mutagen/xxhash) — never require system pip.
+    // Assert after extras so a caller PYTHONPATH cannot drop vendor.
+    $vendor = $root_dir . DIRECTORY_SEPARATOR . 'scripts' . DIRECTORY_SEPARATOR . 'vendor';
+    $existingPythonPath = isset($env['PYTHONPATH']) ? (string) $env['PYTHONPATH'] : '';
+    $parts = array_values(array_filter(array_map('trim', explode(PATH_SEPARATOR, $existingPythonPath)), static function ($part) {
+        return $part !== '';
+    }));
+    if (!in_array($vendor, $parts, true)) {
+        array_unshift($parts, $vendor);
+    }
+    $env['PYTHONPATH'] = implode(PATH_SEPARATOR, $parts);
 
     return $env;
 }
