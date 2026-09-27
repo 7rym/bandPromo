@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-09-27 21:25 - Handoff: Branding Live preview remirror waits until public Player (`#mediaplayer`) and Content are fixed; Shell user atmosphere + login logo bleed already checkpointed.
+
+2026-09-27 20:30 - Branding preview parity (Shell first): rename Common → Shell; Live preview Shell mode uses real `/play` classes via `play-preview-shell.js` (stage + `#bg-video` + `.content-logo` + scrim). Player/Content still on legacy theme-preview chrome.
+
+2026-09-27 20:20 - Dashboard Site update: localhost no longer shows the false “hosting setup” warning — UI checks skipped_on_localhost first, and copy says local development skips GitHub checks.
+
+2026-09-26 22:44 - Fleet: Spandexual Tension validated on v0.8.97 build 591 — Site update → Quick check OK (vendor stamp/repair no longer exit 139).
+
 2026-09-26 15:10 - Site health vendor repair must not SIGSEGV the job (exit 139): probe/repair Pillow in a child process; if packages already import, only stamp `.bandpromo-python-tag` — never reinstall. Fixes Spandexual cp36 crash right after “Repairing scripts/vendor…”.
 
 2026-09-26 15:00 - Catch Python upgrades vs stale `scripts/vendor`: stamp `.bandpromo-python-tag`, probe real `Image`/xxhash imports, auto-repair on Site health start, and surface ABI mismatch in Environment + triage. Environment resolves Python/ffmpeg the same way Site health does (Windows `where`, not Unix-only `command -v`). Strict offline wheel extract so old Pillow stubs cannot overwrite a matching ABI install.

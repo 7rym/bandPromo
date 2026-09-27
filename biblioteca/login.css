@@ -35,7 +35,12 @@ textarea {
 }
 
 .login-container {
-    padding: calc(var(--content-panel-pad-y, 12px) * 2.5) calc(var(--content-panel-pad-x, 14px) * 1.4);
+    /* Intentional shell-logo top bleed (same on wide + narrow). */
+    --shell-logo-bleed: 2.75rem;
+    --shell-logo-pad-top: calc(var(--content-panel-pad-y, 12px) * 2.5);
+    padding: var(--shell-logo-pad-top) calc(var(--content-panel-pad-x, 14px) * 1.4);
+    /* Extra top padding so the pulled-up logo still leaves room inside the panel. */
+    padding-top: calc(var(--shell-logo-pad-top) + var(--shell-logo-bleed));
     width: 100%;
     max-width: 400px;
     text-align: center;
@@ -45,20 +50,46 @@ textarea {
     background: var(--content-panel-fill, var(--panel-fill));
     -webkit-backdrop-filter: blur(var(--content-panel-blur, var(--panel-blur, 5px)));
     backdrop-filter: blur(var(--content-panel-blur, var(--panel-blur, 5px)));
+    /* Allow the logo to sit over the top edge; never clip the bleed. */
+    overflow: visible;
 }
 
 .login-side-column,
 .login-form-column {
     width: 100%;
+    min-width: 0;
 }
 
-.logo {
+.shell-logo {
     text-align: center;
-    margin-bottom: 30px;
+    margin-bottom: 1.25rem;
 }
 
-.logo img {
-    max-width: 400px;
+/*
+ * Gate logo: cool top bleed over the panel border, width capped to the column
+ * so wide screens do not spill left/right (narrow already looked like a top sticker).
+ * margin pulls past padding + bleed so `--shell-logo-bleed` sits outside the border.
+ */
+.login-side-column .shell-logo {
+    width: 100%;
+    max-width: 100%;
+    margin-top: calc(-1 * (var(--shell-logo-pad-top) + (2 * var(--shell-logo-bleed))));
+    margin-bottom: 1.25rem;
+}
+
+.login-side-column .shell-logo-img {
+    display: block;
+    width: 100%;
+    max-width: 100%;
+    height: auto;
+    max-height: none;
+    margin-inline: auto;
+    object-fit: contain;
+}
+
+.shell-logo-img--splash {
+    width: 100%;
+    max-width: 320px;
     height: auto;
     display: block;
     margin: 0 auto;
@@ -67,14 +98,6 @@ textarea {
 .auth-splash-message {
     font-size: 18px;
     margin-bottom: 20px;
-}
-
-.auth-splash-logo {
-    width: 100%;
-    max-width: 320px;
-    height: auto;
-    display: block;
-    margin: 0 auto;
 }
 
 .form-group {
@@ -218,55 +241,27 @@ button:active {
     transform: translateY(0);
 }
 
-body.video-loaded,
-body.shell-bg-video {
-    background-image: none;
-}
-
-body.shell-bg-image {
-    background-size: cover;
-    background-position: center;
-    background-attachment: fixed;
-    background-repeat: no-repeat;
-}
-
-/* Brand-tunable scrim (login Base brand; effects.backdrop_dim). */
-body.shell-bg-image::before,
-body.shell-bg-video::before,
-body.video-loaded::before {
-    content: '';
-    position: fixed;
-    inset: 0;
-    z-index: -1;
-    pointer-events: none;
-    background: #000;
-    opacity: var(--shell-scrim-strength, 0.72);
-}
-
-#bg-video {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    object-position: center center;
-    z-index: -2;
-    display: none;
-    background: var(--bg-color, #000);
-    pointer-events: none;
-}
+/* Backdrop / #shell-bg-video / scrim: biblioteca/shell.css */
 
 @media (max-width: 480px) {
     .login-container {
+        --shell-logo-bleed: 2.5rem;
+        --shell-logo-pad-top: 25px;
         padding: 25px 15px;
+        padding-top: calc(var(--shell-logo-pad-top) + var(--shell-logo-bleed));
         margin: 10px;
         border-radius: 8px;
         box-shadow: none;
         max-width: 100%;
+        overflow: visible;
     }
     
-    .logo img {
+    .login-side-column .shell-logo {
+        margin-top: calc(-1 * (var(--shell-logo-pad-top) + (2 * var(--shell-logo-bleed))));
+    }
+
+    .login-side-column .shell-logo-img {
+        width: 100%;
         max-width: 100%;
     }
     
@@ -316,9 +311,13 @@ body.video-loaded::before {
         column-gap: 18px;
         width: min(940px, calc(100vw - 8px));
         min-height: calc(100dvh - 8px);
+        --shell-logo-bleed: 2rem;
+        --shell-logo-pad-top: 16px;
         padding: 16px 18px;
+        padding-top: calc(var(--shell-logo-pad-top) + var(--shell-logo-bleed));
         margin: 0 auto;
         box-sizing: border-box;
+        overflow: visible;
     }
 
     .login-side-column {
@@ -328,10 +327,16 @@ body.video-loaded::before {
         align-items: center;
         gap: 16px;
         min-height: 0;
+        min-width: 0;
     }
 
-    .logo img {
-        width: min(100%, 380px);
+    .login-side-column .shell-logo {
+        margin-top: calc(-1 * (var(--shell-logo-pad-top) + (2 * var(--shell-logo-bleed))));
+    }
+
+    .login-side-column .shell-logo-img {
+        width: 100%;
+        max-width: 100%;
         max-height: calc(100dvh - 88px);
     }
 
@@ -406,16 +411,26 @@ body.video-loaded::before {
         column-gap: 14px;
         width: min(900px, calc(100vw - 6px));
         min-height: calc(100dvh - 6px);
+        --shell-logo-bleed: 1.75rem;
+        --shell-logo-pad-top: 12px;
         padding: 12px 14px;
+        padding-top: calc(var(--shell-logo-pad-top) + var(--shell-logo-bleed));
         box-sizing: border-box;
+        overflow: visible;
     }
 
     .login-side-column {
         gap: 12px;
+        min-width: 0;
     }
 
-    .logo img {
-        width: min(100%, 320px);
+    .login-side-column .shell-logo {
+        margin-top: calc(-1 * (var(--shell-logo-pad-top) + (2 * var(--shell-logo-bleed))));
+    }
+
+    .login-side-column .shell-logo-img {
+        width: 100%;
+        max-width: 100%;
         max-height: calc(100dvh - 74px);
     }
 

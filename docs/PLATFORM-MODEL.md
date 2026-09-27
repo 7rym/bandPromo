@@ -130,7 +130,63 @@ v0.8 labels operator-made playlists `kind: "system"` until **user playlists** sh
 | `system: true` (brand) | **Platform-shipped** — locked on hosted installs; localhost may edit for PCF source; operators duplicate to customize |
 | `user-upload` (origin) | **Operator upload** (not fan upload) |
 | `bundled-placeholder` | **Platform demo file** (legacy wording; demo media travels in the Demo PCF) |
-| Theme | Legacy name for **Brand** |
+| Theme | Legacy name for **Brand** — never use in new operator copy or new identifiers |
+| Common (old Branding tab) | **Shell** (backdrop, colours, shell media) |
+| `theme-preview-*` | Parallel Branding Live preview chrome — replace with real Shell/Player/Content classes |
+| `updateBackground` (bare global) | `bandpromoShellBackground.updateBackground` |
+| `install.theme.*` / `active_theme_id` | Legacy config/API aliases for brand shell slots / Base brand pointer |
+
+### Current terminology contract (locked)
+
+**Product words (operator UI, docs, new copy):**
+
+| Say | Do not say | Meaning |
+|-----|------------|---------|
+| **Brand** / Branding | Theme / Themes | Release identity package (`data/brands/`) |
+| **Base** (brand) | Active theme | Install pointer that drives login shell |
+| **Shell** | Common | Shared atmosphere: backdrop, scrim, logo lockup, welcome/logged-in SFX |
+| **Player** | Media player chrome (when meaning transport) | `#mediaplayer` — cover, transport, user area |
+| **Content** | | `#content-container` — tabs, panels, typography, playlist selector, pages |
+| Campaign / Playlist / Gallery / Page | Release (in operator UI) | Containers; storage may still say `release_*` until fleet cuts |
+
+**Branding editor tabs** are exactly **Shell | Player | Content** — three scopes inside one brand document, not three products.
+
+**New code identifiers (CSS classes, element ids, JS APIs, PHP helpers):**
+
+| Surface | Prefix / pattern | Examples |
+|---------|------------------|----------|
+| Brand identity / tokens | `brand-`, `bandpromo_brand_`, `#bandpromo-brand-vars` | `brand-editor.js`, `bandpromoBrandPreview` |
+| Shell (login + `/play` backdrop/logo/SFX) | `shell-`, `bandpromoShell*` | `shell-bg-image`, `shell-background.js`, `bandpromoShellBackground` |
+| Player transport | Prefer existing `#mediaplayer` / player-* where new | Player preview → `play-preview-player-*` later |
+| Content rail | Prefer existing `#content-container` / `.content-*` where new | Content preview → `play-preview-content-*` later |
+
+**Hard rules for new work:**
+
+1. **Never introduce `theme` in new names** (files, classes, functions, CSS vars, element ids, operator strings). Use **brand** for identity and **shell** / **player** / **content** for surfaces.
+2. **Rename on touch** when editing a stale `theme*` or bare Shell helper — prefer the table in [Public Shell DOM contract](#public-shell-dom-contract-login--play); do not leave a second alias “for compat” without an explicit fleet cut.
+3. **Config JSON keys** `install.theme.*` / `release.theme.*` / `active_theme_id` stay until a dedicated migrate-and-delete cut — dual-read is allowed only in the central config/brand loaders, not new call sites.
+4. **Token keys** may keep technical spellings that differ from UI labels (`*_panel_dim` vs Fill) — do not rename keys casually.
+
+**Identifier casing (locked — by layer, not one style everywhere):**
+
+Mixing camelCase, kebab-case, and snake_case **inside the same kind of identifier** is the defect. Each layer keeps its house style:
+
+| Layer | Style | Examples (good) | Avoid |
+|-------|-------|-----------------|--------|
+| CSS classes | **kebab-case** | `.shell-logo`, `.content-logo-img`, `.brand-editor-section` | `.shellLogo`, `.shell_logo` |
+| CSS custom properties | **kebab-case** | `--shell-scrim-strength`, `--brand-font-body` | `--shellScrimStrength` |
+| HTML element ids (new) | **kebab-case** | `#shell-bg-video`, `#brand-editor-preview` | `#shellBgVideo`, `#brandEditorPreview` (legacy admin; rename on touch) |
+| HTML `data-*` attributes | **kebab-case** | `data-brand-editor-tab`, `data-shell-clear` | `data-brandEditorTab` |
+| Repo files / URL paths | **kebab-case** | `shell-background.js`, `brand-editor.css` | `shellBackground.js` |
+| JS locals, methods, object keys in code | **camelCase** | `updateBackground`, `previewMode` | `update_background` for JS functions |
+| JS `window` APIs | **camelCase** + `bandpromo` prefix | `bandpromoShellBackground`, `bandpromoBrandPreview` | `bandpromo_shell_background`, bare `updateBackground` |
+| PHP functions / helpers | **snake_case** + `bandpromo_` | `bandpromo_brand_render_css_for_id` | `bandpromoBrandRenderCss` |
+| Python (`scripts/`) | **snake_case** (PEP 8) | `prefer_huge_shell_still_url`, module `shell_background` style names | `preferHugeShellStillUrl` for ordinary functions |
+| JSON / brand tokens / config path segments | **snake_case** | `background_image`, `backdrop_dim`, `active_brand_id` | `backgroundImage` in stored JSON |
+
+**Do not** force one casing across CSS + JS + PHP + Python — that fights each language. **Do** pick one style per layer and rename on touch when an id/class in that layer is already being edited (Shell Phase 2: public shell ids/classes → kebab-case). Cursor agents: see `.cursor/rules/identifier-casing.mdc`.
+
+Canonical detail for Shell DOM + the Phase 1 naming-debt table: [Public Shell DOM contract](#public-shell-dom-contract-login--play) below under Brands.
 
 ### How to read any path in five seconds
 
@@ -718,6 +774,31 @@ Value is the visual registry id, not a human title and not an original filename.
 | **System shell** | bandPromo platform | Yes | Player/login/page layout, spacing, breakpoints, default dark atmosphere, mandatory install fallbacks, playback and access behavior |
 | **Release identity overlay** | Operator (per release) | No — replaces slots only | Color tokens, typography, narrative brief, shell asset refs synced into config when that identity is active |
 
+### Public Shell DOM contract (login + `/play`)
+
+**Status (2026-09-27 Phase 2):** shared [`biblioteca/shell.css`](../biblioteca/shell.css) on login + `/play` only (admin never loads it for chrome). Logo classes `.shell-logo` / `.shell-logo-img`; living `#shell-bg-video`; SFX `#shell-welcome-audio` / `#shell-loggedin-audio`. Branding Live preview remains parked for a dedicated mirror pass.
+
+**Shared runtime:**
+
+| Piece | Contract |
+|-------|----------|
+| Stylesheet | `shell.css` — login + `/play` only |
+| Still / living apply | [`shell-background.js`](../biblioteca/shell-background.js) → `bandpromoShellBackground.updateBackground` (no bare globals) |
+| Living element | `#shell-bg-video` (preview may use class `.shell-bg-video-el` without the live id) |
+| Body mode classes | `body.shell-bg-image` · `body.shell-bg-video` |
+| Scrim | `::before` on those body classes — `opacity: var(--shell-scrim-strength)` |
+| Logo lockup | `.shell-logo` > `.shell-logo-img` (+ `.shell-logo-img--splash` on login welcome) |
+| Brand CSS vars | `#bandpromo-brand-vars` (legacy id `bandpromo-theme-vars` accepted once on soft-nav) |
+
+**Logo asset source:**
+
+| Page | Logo URL from |
+|------|----------------|
+| Login | **Base brand** `logo` (+ `install.brand.logo` sync) |
+| `/play` | Playlist/campaign brand `logo` if set; else Base/install; soft-nav Base fallback only when playlist brand is Base |
+
+**Isolation:** Admin chrome uses `admin.css` / brand-editor styles only. User shell ids/classes must not drive admin layout. Inert Branding preview must not mint live `#shell-bg-video` on the admin document.
+
 ### Ownership rules (locked 2026-07-21)
 
 - Each campaign has **one** linked identity brand (`campaign.brand_id`). **Many campaigns may share the same brand** (reuse the look without duplicating the brand document). Duplicate brand remains for fork-and-change only.
@@ -768,7 +849,7 @@ Brand containers expose tokens that map to CSS custom properties on `:root` (pla
 
 | Token | CSS variable | Purpose |
 |-------|--------------|---------|
-| `effects.backdrop_dim` | `--shell-scrim-strength` (0–1) | Dim still/living **shell background only** (Common → Backdrop; 0–100; default 72) |
+| `effects.backdrop_dim` | `--shell-scrim-strength` (0–1) | Dim still/living **shell background only** (Shell → Backdrop; 0–100; default 72) |
 | `effects.player_panel_dim` | `--player-panel-scrim-strength` + `--player-panel-fill` | Transport glass **fill** opacity (Player → Controls → Fill; token key remains `*_dim`; legacy `panel_dim` seeds when missing) |
 | `effects.player_panel_blur` | `--player-panel-blur` | Transport glass blur (0–24px; legacy `panel_blur` seeds when missing) |
 | `effects.player_panel_density` | `--player-panel-pad-y` / `--player-panel-pad-x` / `--player-panel-gap` | Inner padding and gaps on transport glass (Dense→Spacious) |
@@ -918,7 +999,7 @@ Content editors use one pattern (shipped for playlist/gallery/pages):
 2. Right: preview of selected container.
 3. **Add** or **edit** replaces the container list with a pool of **assets** (or block types) to insert.
 
-Edit views group settings in **section cards** (`.content-editor-section`) with `--border2` chrome headers. Pages use **Base info** then **Page builder**. Playlists use **Base info**. Branding uses Common | Player | Content subnav (Content: Buttons, Playlist selector, Panels, Typography). A **Panel** is one frosted box; typography and links sit inside it — there is no separate “panel glass vs panel content” type.
+Edit views group settings in **section cards** (`.content-editor-section`) with `--border2` chrome headers. Pages use **Base info** then **Page builder**. Playlists use **Base info**. Branding uses Shell | Player | Content subnav (Content: Buttons, Playlist selector, Panels, Typography). A **Panel** is one frosted box; typography and links sit inside it — there is no separate “panel glass vs panel content” type.
 
 ### Gallery assembly (v0.8)
 

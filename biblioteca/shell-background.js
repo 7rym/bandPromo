@@ -1,7 +1,7 @@
 /**
  * Shared login/player shell background (image + video).
  * Expects window.appConfig.media.background_image / background_video
- * and an optional #bg-video element (source may be deferred via data-src).
+ * and an optional #shell-bg-video element (source may be deferred via data-src).
  *
  * Prefer living when a background_video is assigned; otherwise still.
  * Reduced-motion and slow-connection fall back to still image.
@@ -185,7 +185,7 @@
     }
 
     function showBgImage() {
-        const video = document.getElementById('bg-video');
+        const video = document.getElementById('shell-bg-video');
         const bgImage = String(global.appConfig?.media?.background_image || '').trim();
         if (video) {
             try {
@@ -342,7 +342,7 @@
     }
 
     function showBgVideo() {
-        const video = document.getElementById('bg-video');
+        const video = document.getElementById('shell-bg-video');
         if (!video) {
             showBgImage();
             return;
@@ -399,7 +399,7 @@
 
     function resetLivingAttach() {
         cancelPendingAttach();
-        const video = document.getElementById('bg-video');
+        const video = document.getElementById('shell-bg-video');
         if (!(video instanceof HTMLVideoElement)) {
             return;
         }
@@ -416,7 +416,7 @@
 
     function updateBackground(options) {
         const force = !!(options && options.force);
-        const video = document.getElementById('bg-video');
+        const video = document.getElementById('shell-bg-video');
         const nextUrl = resolveBackgroundVideoUrl(video);
         const currentUrl = currentVideoSourceUrl(video);
 
@@ -469,13 +469,10 @@
     }
 
     global.bandpromoShellBackground = {
-        showBgImage,
-        showBgVideo,
-        updateBackground,
-        scheduleLivingBackgroundAttach,
-        resetLivingAttach,
+        showBgImage: showBgImage,
+        showBgVideo: showBgVideo,
+        updateBackground: updateBackground,
+        scheduleLivingBackgroundAttach: scheduleLivingBackgroundAttach,
+        resetLivingAttach: resetLivingAttach,
     };
-    // Back-compat for login.js callers.
-    global.showBgImage = showBgImage;
-    global.updateBackground = updateBackground;
 })(window);

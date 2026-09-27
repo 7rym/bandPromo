@@ -2,11 +2,13 @@
 
 ## Resume point
 
-**Published** **v0.8.97 build 591** (pending session-end): Site health vendor probe/repair in child process; stamp-only when imports already work — stops Spandexual cp36 exit 139.
+**Checkpoint:** Shell Phase 2 + login logo top bleed (await VERSION from session-end).
 
-**Fleet next:** Site update Spandexual → Quick check should finish without exit 139.
+**Done:** User shell unify — `biblioteca/shell.css` (login+/play only); `.shell-logo` / `.shell-logo-img`; `#shell-bg-video` + shell SFX ids; `#bandpromo-brand-vars`; no bare `updateBackground` globals; admin does not load `shell.css`. Login logo intentional top bleed (`--shell-logo-bleed`), width capped to column (same on wide + narrow).
 
-**After that:** Campaign navigator fleet validate, Shell preview parity, or favicon/PWA.
+**Parked:** Branding Live preview remirror — **wait until `#mediaplayer` (Player) and Content rail are fixed first**, then mirror all three.
+
+**Next:** Player surface (`#mediaplayer` chrome / real classes) → Content surface → then Branding Shell|Player|Content preview parity.
 
 ### Policy locked (do not reopen)
 
@@ -40,6 +42,8 @@
 - Never invent `original_filename` from `master_filename` on register/normalize/Treat
 - VERSION **session** number bumps only when the operator explicitly starts a session (`session-start.ps1 -BumpSession` / `/bandpromo-session-start`); agent resume must not bump
 - PCF/PBF import auto-starts Site health Treat (delivery-focused selection; no silent dedupe delete / Ready-archive prune); Jobs show **Open Status**
+- User shell isolated from admin chrome; Brand not Theme; casing by layer (`.cursor/rules/identifier-casing.mdc`)
+- Branding preview waits until Player + Content public surfaces are correct
 
 ### Local workspace
 

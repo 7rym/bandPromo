@@ -142,43 +142,7 @@ textarea {
     font-family: var(--brand-font-body, 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif);
 }
 
-/* Shared shell background media (login + player) */
-#bg-video {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    object-position: center center;
-    z-index: -2;
-    display: none;
-    background: var(--bg-color, #000);
-    pointer-events: none;
-}
-
-body.shell-bg-image {
-    background-size: cover;
-    background-position: center;
-    background-attachment: fixed;
-    background-repeat: no-repeat;
-}
-
-body.shell-bg-video {
-    background-image: none;
-}
-
-/* Brand-tunable scrim over busy still/living backgrounds (effects.backdrop_dim). */
-body.shell-bg-image::before,
-body.shell-bg-video::before {
-    content: '';
-    position: fixed;
-    inset: 0;
-    z-index: -1;
-    pointer-events: none;
-    background: #000;
-    opacity: var(--shell-scrim-strength, 0.72);
-}
+/* Shared shell background media moved to biblioteca/shell.css (login + /play). */
 
 /* Stacked is the default. Split only when both rails have useful room. */
 @media (min-width: 60rem) and (min-height: 36rem) {
@@ -755,21 +719,7 @@ button.pulse-guide {
     animation: pulseGlow 1.5s infinite;
 }
 
-.content-logo {
-    text-align: center;
-    padding: 0;
-    flex-shrink: 0;
-}
-
-.content-logo-img {
-    max-width: 320px;
-    max-height: 100px;
-    width: auto;
-    height: auto;
-    display: block;
-    margin: 0 auto;
-    object-fit: contain;
-}
+/* Shell logo lockup lives in biblioteca/shell.css (.shell-logo / .shell-logo-img). */
 
 .playlist-scope-toolbar {
     display: flex;
@@ -1128,11 +1078,6 @@ button.pulse-guide {
 }
 
 @container (max-width: 36rem) {
-    .content-logo-img {
-        max-width: min(100%, 240px);
-        max-height: 80px;
-    }
-
     .content-toggle {
         gap: max(2px, calc(var(--content-control-gap, 6px) - 2px));
         padding-block: 6px;
@@ -2211,14 +2156,6 @@ audio {
     border-radius: 4px;
 }
 
-@media (max-width: 768px) {
-    .content-logo-img {
-        max-width: 100%;
-        max-height: 80px;
-        width: auto;
-    }
-}
-
 /* Shared stacked/mobile portrait density under the split threshold. */
 @media (max-width: 767px) {
     .player-transport {
@@ -2455,17 +2392,6 @@ audio {
         max-width: 260px;
         height: 24px;
         margin: 0 auto;
-    }
-
-    .content-logo {
-        padding-top: 0;
-    }
-
-    .content-logo-img {
-        max-width: min(100%, 200px);
-        max-height: 80px;
-        width: auto;
-        height: auto;
     }
 
     .content-toggle {

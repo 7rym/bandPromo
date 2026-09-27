@@ -197,14 +197,25 @@
     }
 
     function normalizePreviewMode(mode) {
-        return String(mode || '').trim().toLowerCase() === 'content' ? 'content' : 'player';
+        const value = String(mode || '').trim().toLowerCase();
+        if (value === 'shell' || value === 'content' || value === 'player') {
+            return value;
+        }
+        return 'shell';
     }
 
     function renderMarkup(document, mode) {
         if (!document) {
             return '<p class="brand-editor-empty">No brand selected.</p>';
         }
-        return normalizePreviewMode(mode) === 'content'
+        const previewMode = normalizePreviewMode(mode);
+        if (previewMode === 'shell') {
+            if (window.bandpromoPlayPreviewShell && typeof window.bandpromoPlayPreviewShell.renderMarkup === 'function') {
+                return window.bandpromoPlayPreviewShell.renderMarkup(document);
+            }
+            return '<p class="brand-editor-empty">Shell preview is unavailable.</p>';
+        }
+        return previewMode === 'content'
             ? renderContentPreviewChrome(document)
             : renderPlayerPreviewChrome(document);
     }
@@ -214,8 +225,11 @@
             return;
         }
         const styleId = String(options.styleId || 'bandpromo-shared-brand-preview-style');
-        const selector = String(options.selector || `#${container.id} .theme-preview-shell-chrome`);
         const previewMode = normalizePreviewMode(options.mode);
+        const defaultSelector = previewMode === 'shell'
+            ? `#${container.id} .play-preview-shell-stage`
+            : `#${container.id} .theme-preview-shell-chrome`;
+        const selector = String(options.selector || defaultSelector);
         let style = document?.ownerDocument?.getElementById(styleId)
             || window.document.getElementById(styleId);
         if (!style) {
@@ -506,6 +520,9 @@
         container.innerHTML = renderMarkup(document, previewMode);
         container.dataset.previewMode = previewMode;
         startPreviewVideos(container);
+        if (previewMode === 'shell' && window.bandpromoPlayPreviewShell?.startVideos) {
+            window.bandpromoPlayPreviewShell.startVideos(container);
+        }
     }
 
     function normalizePlaylistSelectorMode(document) {

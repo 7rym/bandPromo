@@ -2317,9 +2317,13 @@ function applyPlaylistBrand(brandId, options = {}) {
             }
             cssRules.push(`${propName}:${value}`);
         });
-        const themeStyle = document.getElementById('bandpromo-theme-vars');
-        if (themeStyle && cssRules.length > 0) {
-            themeStyle.textContent = `:root{${cssRules.join(';')};}`;
+        const brandStyle = document.getElementById('bandpromo-brand-vars')
+            || document.getElementById('bandpromo-theme-vars');
+        if (brandStyle && cssRules.length > 0) {
+            brandStyle.textContent = `:root{${cssRules.join(';')};}`;
+            if (brandStyle.id !== 'bandpromo-brand-vars') {
+                brandStyle.id = 'bandpromo-brand-vars';
+            }
         }
         const themeMeta = document.querySelector('meta[name="theme-color"]');
         const bgColor = typeof vars['--bg-color'] === 'string'
@@ -2399,7 +2403,7 @@ function applyPlaylistShellMedia(brand) {
     window.appConfig = window.appConfig || {};
     window.appConfig.media = Object.assign({}, previousMedia, next);
 
-    const logoImg = document.querySelector('.content-logo-img');
+    const logoImg = document.querySelector('.shell-logo-img');
     if (logoImg) {
         if (next.logo) {
             if (logoImg.getAttribute('src') !== next.logo) {
@@ -2411,7 +2415,7 @@ function applyPlaylistShellMedia(brand) {
         }
     }
 
-    const bgVideo = document.getElementById('bg-video');
+    const bgVideo = document.getElementById('shell-bg-video');
     if (bgVideo) {
         if (next.background_video) {
             bgVideo.setAttribute('data-src', next.background_video);
@@ -3639,8 +3643,8 @@ function removePulseGuide() {
 }
 
 document.addEventListener('DOMContentLoaded', function() {
-    if (typeof window.updateBackground === 'function') {
-        window.updateBackground();
+    if (window.bandpromoShellBackground && typeof window.bandpromoShellBackground.updateBackground === 'function') {
+        window.bandpromoShellBackground.updateBackground();
     }
 
     const activeContentTab = document.querySelector('.content-toggle button[data-view].active');

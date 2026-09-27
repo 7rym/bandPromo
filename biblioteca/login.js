@@ -24,6 +24,12 @@ function isStandaloneDisplayMode() {
         navigator.standalone === true;
 }
 
+function bandpromoUpdateShellBackground() {
+    if (window.bandpromoShellBackground && typeof window.bandpromoShellBackground.updateBackground === 'function') {
+        window.bandpromoShellBackground.updateBackground();
+    }
+}
+
 function isMobileWideMode() {
     return window.matchMedia('(orientation: landscape)').matches &&
         window.innerWidth <= 1024 &&
@@ -150,7 +156,7 @@ async function testConnectionSpeed(forceRefresh = true) {
             if (cached) {
                 const data = JSON.parse(cached);
                 resultDiv.textContent = `📊 ${data.speed.toFixed(2)} Mbps - Max quality available`;
-                updateBackground();
+                bandpromoUpdateShellBackground();
                 return;
             }
         } else {
@@ -229,7 +235,7 @@ async function testConnectionSpeed(forceRefresh = true) {
                 speed: 0,
                 recommended: 'high'
             }));
-            updateBackground();
+            bandpromoUpdateShellBackground();
             return;
         }
         
@@ -257,14 +263,14 @@ async function testConnectionSpeed(forceRefresh = true) {
         const speedDisplay = avgSpeedMbps.toFixed(2);
         const indicator = avgSpeedMbps >= 20 ? '🚀' : avgSpeedMbps >= 10 ? '⚡' : avgSpeedMbps >= 5 ? '🟡' : '🐌';
         resultDiv.textContent = `${indicator} ${speedDisplay} Mbps - Max quality available`;
-        updateBackground();
+        bandpromoUpdateShellBackground();
         
     } catch (error) {
         console.error('❌ Speed test error:', error);
         if (resultDiv) {
             resultDiv.innerHTML = '⚠️ Speed test error, optimized mode remains selected';
         }
-        updateBackground();
+        bandpromoUpdateShellBackground();
     }
 }
 
@@ -285,7 +291,7 @@ function autoSelectQuality(recommendation) {
         }
     });
     
-    updateBackground();
+    bandpromoUpdateShellBackground();
 }
 
 function persistSelectedQuality(quality) {
@@ -321,7 +327,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     updateLoginEnvironmentSnapshotField();
     
-    updateBackground();
+    bandpromoUpdateShellBackground();
 
     ['click', 'touchend', 'pointerup'].forEach((eventName) => {
         document.addEventListener(eventName, syncWideModeFullscreen, { passive: true });

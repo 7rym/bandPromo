@@ -326,7 +326,8 @@ function bandpromo_package_check_update(string $root, string $manifestUrl = BAND
             'update_available' => false,
             'ahead_of_published' => false,
             'up_to_date' => true,
-            'ready' => false,
+            // Not a hosting block — localhost never calls GitHub (avoids freezing the PHP built-in server).
+            'ready' => true,
             'checks' => $checks,
             'manifest_requirements' => null,
             'manifest_error' => null,
@@ -335,7 +336,7 @@ function bandpromo_package_check_update(string $root, string $manifestUrl = BAND
             'generated_at_utc' => null,
             'last_update' => bandpromo_package_last_update_record($root),
             'skipped_on_localhost' => true,
-            'skip_reason' => 'Site update checks are disabled on localhost (no remote GitHub calls).',
+            'skip_reason' => 'Local development: Site update is skipped here (no GitHub check). Use Site update on remote installs.',
         ];
     }
 

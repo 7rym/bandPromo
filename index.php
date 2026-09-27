@@ -193,6 +193,7 @@ try {
     <meta name="theme-color" content="<?php echo htmlspecialchars($themeColor, ENT_QUOTES, 'UTF-8'); ?>">
 
     <!-- Stylesheet -->
+    <link rel="stylesheet" href="./biblioteca/shell.css?v=<?php echo rawurlencode($appVersion); ?>">
     <link rel="stylesheet" href="./biblioteca/login.css?v=<?php echo rawurlencode($appVersion); ?>">
     <link rel="stylesheet" href="./biblioteca/page-content.css?v=<?php echo rawurlencode($appVersion); ?>">
     <?php echo bandpromo_brand_render_css_for_id(__DIR__, bandpromo_brand_active_id(__DIR__)); ?>
@@ -278,12 +279,12 @@ try {
         };
     </script>
 
-    <video id="bg-video" preload="none" muted loop playsinline style="display:none"<?php
+    <video id="shell-bg-video" preload="none" muted loop playsinline style="display:none"<?php
         if ($backgroundVideo) {
             echo ' data-src="' . htmlspecialchars($backgroundVideo, ENT_QUOTES, 'UTF-8') . '"';
         }
     ?>></video>
-    <audio id="enter-audio">
+    <audio id="shell-welcome-audio">
         <?php if ($welcomeAudio): ?>
         <?php
         $welcome_ext = strtolower(pathinfo($welcomeAudio, PATHINFO_EXTENSION));
@@ -292,7 +293,7 @@ try {
         <source src="<?php echo htmlspecialchars($welcomeAudio); ?>" type="<?php echo $welcome_mime; ?>">
         <?php endif; ?>
     </audio>
-    <audio id="letsgo-audio">
+    <audio id="shell-loggedin-audio">
         <?php if ($loggedinAudio): ?>
         <?php
         $loggedin_ext = strtolower(pathinfo($loggedinAudio, PATHINFO_EXTENSION));
@@ -307,13 +308,13 @@ try {
             <div style="text-align: center; color: white;">
                 <h1 style="font-size: 32px; margin-bottom: 10px;">Welcome, <?php echo htmlspecialchars($_SESSION['username']); ?>!</h1>
                 <p class="auth-splash-message">Preparing your experience&hellip;</p>
-                <img src="<?php echo htmlspecialchars($loginLogo); ?>" alt="<?php echo htmlspecialchars(get_config('release.identity.title', 'bandPromo')); ?>" class="auth-splash-logo">
+                <img src="<?php echo htmlspecialchars($loginLogo); ?>" alt="<?php echo htmlspecialchars(get_config('release.identity.title', 'bandPromo')); ?>" class="shell-logo-img shell-logo-img--splash">
             </div>
         </div>
         <script>
             // For authenticated users: play letsgo.mp3 and redirect
             window.addEventListener('load', function() {
-                const letsgoAudio = document.getElementById('letsgo-audio');
+                const letsgoAudio = document.getElementById('shell-loggedin-audio');
                 const hasLetsgoSource = !!letsgoAudio?.querySelector('source')?.getAttribute('src');
                 let redirected = false;
                 
@@ -345,8 +346,8 @@ try {
     <?php else: ?>
         <div class="login-container">
             <div class="login-side-column">
-                <div class="logo">
-                    <img src="<?php echo htmlspecialchars($loginLogo); ?>" alt="<?php echo htmlspecialchars(get_config('release.identity.title', 'bandPromo')); ?> Logo">
+                <div class="shell-logo">
+                    <img class="shell-logo-img" src="<?php echo htmlspecialchars($loginLogo); ?>" alt="<?php echo htmlspecialchars(get_config('release.identity.title', 'bandPromo')); ?> Logo">
                 </div>
                 <p id="aboutThis"><a href="#" onclick="openInfoLightbox(event)">
                     <span class="about-line active">What is this?</span>
@@ -418,7 +419,7 @@ try {
             
             document.addEventListener('click', function playEnterAudioOnce() {
                 if (!audioPlayed) {
-                    const enterAudio = document.getElementById('enter-audio');
+                    const enterAudio = document.getElementById('shell-welcome-audio');
                     const hasEnterSource = !!enterAudio?.querySelector('source')?.getAttribute('src');
                     if (enterAudio && hasEnterSource) {
                         enterAudio.currentTime = 0;

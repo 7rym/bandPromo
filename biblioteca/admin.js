@@ -14396,7 +14396,17 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     const installed = data.installed_version || '';
                     const remote = data.remote_version || '';
 
-                    if (data.manifest_error) {
+                    if (data.skipped_on_localhost) {
+                        // Must precede !ready — localhost returns ready:false by design (no GitHub).
+                        setCardMode('quiet');
+                        setStatusClass('is-current');
+                        setStatusMessage(
+                            data.skip_reason
+                            || 'Local development: Site update is skipped here. Use Site update on remote installs.'
+                        );
+                        refreshBtn.hidden = true;
+                        applyBtn.hidden = true;
+                    } else if (data.manifest_error) {
                         setCardMode('attention');
                         setStatusClass('is-warning');
                         setStatusMessage('Could not reach the update service. Try again in a few minutes.');
@@ -14414,12 +14424,6 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                         applyBtn.hidden = false;
                         // Keep Check again visible so a stale quiet-state cache cannot trap operators.
                         refreshBtn.hidden = false;
-                    } else if (data.skipped_on_localhost) {
-                        setCardMode('quiet');
-                        setStatusClass('is-current');
-                        setStatusMessage(data.skip_reason || 'Site update checks are disabled on localhost.');
-                        refreshBtn.hidden = true;
-                        applyBtn.hidden = true;
                     } else if (data.ahead_of_published || data.up_to_date) {
                         setCardMode('quiet');
                         setStatusClass('is-current');
@@ -14603,7 +14607,8 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     renderPackageUpdateStatus({
                         ok: true,
                         skipped_on_localhost: true,
-                        skip_reason: 'Site update checks are disabled on localhost (no remote GitHub calls).',
+                        skip_reason: 'Local development: Site update is skipped here (no GitHub check). Use Site update on remote installs.',
+                        ready: true,
                         up_to_date: true,
                         update_available: false,
                         installed_version: null,

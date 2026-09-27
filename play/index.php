@@ -308,6 +308,7 @@ if ($supportUrl !== '') {
     }
     ?>
     <meta name="theme-color" content="<?php echo htmlspecialchars($themeColorMeta, ENT_QUOTES, 'UTF-8'); ?>">
+    <link rel="stylesheet" href="/biblioteca/shell.css?v=<?php echo rawurlencode($appVersion); ?>">
     <link rel="stylesheet" href="/biblioteca/style.css?v=<?php echo rawurlencode($appVersion); ?>">
     <link rel="stylesheet" href="/biblioteca/page-content.css?v=<?php echo filemtime(__DIR__ . '/../biblioteca/page-content.css'); ?>">
     <?php
@@ -386,7 +387,7 @@ if ($supportUrl !== '') {
             cover_reflection: <?php echo $coverReflectionEnabled ? 'true' : 'false'; ?>
         });
     </script>
-    <video id="bg-video" preload="none" muted loop playsinline style="display:none"<?php
+    <video id="shell-bg-video" preload="none" muted loop playsinline style="display:none"<?php
         if ($backgroundVideo) {
             echo ' data-src="' . htmlspecialchars($backgroundVideo, ENT_QUOTES, 'UTF-8') . '"';
         }
@@ -476,12 +477,12 @@ if ($supportUrl !== '') {
     </div>
 
     <div id="content-container">
-        <div class="content-logo" id="campaignLogoWrap" data-campaign-count="<?php echo (int) count($campaignCatalog); ?>">
+        <div class="shell-logo" id="shell-logo-wrap" data-campaign-count="<?php echo (int) count($campaignCatalog); ?>">
             <img
                 src="<?php echo htmlspecialchars($playerLogo, ENT_QUOTES, 'UTF-8'); ?>"
                 alt="<?php echo htmlspecialchars($playerBrandTitle, ENT_QUOTES, 'UTF-8'); ?>"
-                class="content-logo-img"
-                id="campaignLogo"
+                class="shell-logo-img"
+                id="shell-logo"
             >
         </div>
         <div class="content-toggle">

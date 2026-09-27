@@ -1,0 +1,98 @@
+/**
+ * Shared user-shell atmosphere (login + /play only).
+ * Do not load from admin chrome — keeps admin and listener shells isolated.
+ *
+ * Owns: living/still backdrop, scrim, shell logo lockup.
+ * Brand tokens (--shell-scrim-strength, --bg-color, …) come from brand CSS vars.
+ */
+
+/* Living backdrop */
+#shell-bg-video,
+.shell-bg-video-el {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: center center;
+    z-index: -2;
+    display: none;
+    background: var(--bg-color, #000);
+    pointer-events: none;
+}
+
+body.shell-bg-image {
+    background-size: cover;
+    background-position: center;
+    background-attachment: fixed;
+    background-repeat: no-repeat;
+}
+
+body.shell-bg-video {
+    background-image: none;
+}
+
+/* Brand-tunable scrim (effects.backdrop_dim → --shell-scrim-strength). */
+body.shell-bg-image::before,
+body.shell-bg-video::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    background: #000;
+    opacity: var(--shell-scrim-strength, 0.72);
+}
+
+/* Shell logo lockup (Base on login; playlist brand with Base fallback on /play). */
+.shell-logo {
+    text-align: center;
+    padding: 0;
+    flex-shrink: 0;
+}
+
+.shell-logo-img {
+    max-width: 320px;
+    max-height: 100px;
+    width: auto;
+    height: auto;
+    display: block;
+    margin: 0 auto;
+    object-fit: contain;
+}
+
+.shell-logo-img--splash {
+    max-width: 320px;
+    max-height: none;
+    width: 100%;
+}
+
+@container (max-width: 36rem) {
+    .shell-logo-img {
+        max-width: min(100%, 240px);
+        max-height: 80px;
+    }
+}
+
+@media (max-width: 768px) {
+    .shell-logo-img {
+        max-width: 100%;
+        max-height: 80px;
+        width: auto;
+    }
+}
+
+/* Dense stacked player chrome (narrow phones) — keep lockup small. */
+@media (max-width: 480px) {
+    .shell-logo {
+        padding-top: 0;
+    }
+
+    .shell-logo-img {
+        max-width: min(100%, 200px);
+        max-height: 80px;
+        width: auto;
+        height: auto;
+    }
+}

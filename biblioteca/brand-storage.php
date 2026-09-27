@@ -2798,7 +2798,7 @@ function bandpromo_brand_render_css_for_document(array $document): string
         return '';
     }
 
-    return '<style id="bandpromo-theme-vars">:root{' . implode(';', $rules) . ';}</style>' . "\n";
+    return '<style id="bandpromo-brand-vars">:root{' . implode(';', $rules) . ';}</style>' . "\n";
 }
 
 function bandpromo_brand_render_css_for_id(string $root, string $brandId): string
@@ -2948,7 +2948,7 @@ function bandpromo_brand_render_css(string $root): string
         return '';
     }
 
-    return '<style id="bandpromo-theme-vars">:root{' . implode(';', $rules) . ';}</style>' . "\n";
+    return '<style id="bandpromo-brand-vars">:root{' . implode(';', $rules) . ';}</style>' . "\n";
 }
 
 function bandpromo_brand_migrate_from_themes(string $root): void

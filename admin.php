@@ -2589,7 +2589,7 @@ if ($tab === 'analytics') {
                             <div id="brandEditorView" class="page-editor-view" hidden>
                                 <div class="split-editor__header page-editor-view-head brand-editor-view-head content-editor-view-head">
                                     <div class="content-editor-subnav brand-editor-section-tabs" id="brandEditorSubnav" role="tablist" aria-label="Brand editor sections">
-                                        <button type="button" class="content-editor-subnav-btn is-active" role="tab" aria-selected="true" data-brand-editor-tab="common">Common</button>
+                                        <button type="button" class="content-editor-subnav-btn is-active" role="tab" aria-selected="true" data-brand-editor-tab="shell">Shell</button>
                                         <button type="button" class="content-editor-subnav-btn" role="tab" aria-selected="false" data-brand-editor-tab="player">Player</button>
                                         <button type="button" class="content-editor-subnav-btn" role="tab" aria-selected="false" data-brand-editor-tab="content">Content</button>
                                     </div>
@@ -4140,6 +4140,7 @@ if ($tab === 'analytics') {
     <script src="biblioteca/editor-registry-list.js?v=<?php echo filemtime(__DIR__ . '/biblioteca/editor-registry-list.js'); ?>"></script>
     <?php endif; ?>
     <?php if ($tab === 'content' && $contentTab === 'branding'): ?>
+    <script src="biblioteca/play-preview-shell.js?v=<?php echo filemtime(__DIR__ . '/biblioteca/play-preview-shell.js'); ?>"></script>
     <script src="biblioteca/brand-preview.js?v=<?php echo filemtime(__DIR__ . '/biblioteca/brand-preview.js'); ?>"></script>
     <?php endif; ?>
     <?php if ($tab === 'content' && $contentTab === 'pages'): ?>

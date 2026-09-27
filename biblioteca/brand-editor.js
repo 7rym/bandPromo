@@ -142,14 +142,18 @@
         const PREVIEW_MODE_STORAGE_KEY = 'bandpromo_brand_preview_mode';
 
         function normalizePreviewMode(mode) {
-            return String(mode || '').trim().toLowerCase() === 'content' ? 'content' : 'player';
+            const value = String(mode || '').trim().toLowerCase();
+            if (value === 'shell' || value === 'content' || value === 'player') {
+                return value;
+            }
+            return 'shell';
         }
 
         function readStoredPreviewMode() {
             try {
                 return normalizePreviewMode(window.localStorage.getItem(PREVIEW_MODE_STORAGE_KEY));
             } catch (error) {
-                return 'player';
+                return 'shell';
             }
         }
 
@@ -158,17 +162,20 @@
 
         function normalizeEditorTab(tab) {
             const value = String(tab || '').trim().toLowerCase();
-            if (value === 'player' || value === 'content') {
+            if (value === 'common') {
+                return 'shell';
+            }
+            if (value === 'player' || value === 'content' || value === 'shell') {
                 return value;
             }
-            return 'common';
+            return 'shell';
         }
 
         function readStoredEditorTab() {
             try {
                 return normalizeEditorTab(window.localStorage.getItem(EDITOR_TAB_STORAGE_KEY));
             } catch (error) {
-                return 'common';
+                return 'shell';
             }
         }
 
@@ -207,7 +214,9 @@
             } catch (error) {}
             syncEditorTabUi();
             if (options.syncPreview) {
-                if (editorTab === 'player' && previewMode !== 'player') {
+                if (editorTab === 'shell' && previewMode !== 'shell') {
+                    setPreviewMode('shell', { forceRender: true });
+                } else if (editorTab === 'player' && previewMode !== 'player') {
                     setPreviewMode('player', { forceRender: true });
                 } else if (editorTab === 'content' && previewMode !== 'content') {
                     setPreviewMode('content', { forceRender: true });
@@ -236,7 +245,7 @@
                 if (!(button instanceof HTMLElement)) {
                     return;
                 }
-                setEditorTab(button.getAttribute('data-brand-editor-tab') || 'common', { syncPreview: true });
+                setEditorTab(button.getAttribute('data-brand-editor-tab') || 'shell', { syncPreview: true });
             });
             syncEditorTabUi();
         }
@@ -1535,7 +1544,9 @@
             if (window.bandpromoBrandPreview?.render) {
                 window.bandpromoBrandPreview.render(previewEl, document, {
                     styleId: 'bandpromo-brand-editor-preview-style',
-                    selector: '#brandEditorPreview .theme-preview-shell-chrome',
+                    selector: previewMode === 'shell'
+                        ? '#brandEditorPreview .play-preview-shell-stage'
+                        : '#brandEditorPreview .theme-preview-shell-chrome',
                     mode: previewMode,
                 });
             } else {
@@ -1744,7 +1755,7 @@
                 ${!fieldsLocked && editorDocument.locked && brandIsPlatformDefault(editorDocument)
                     ? '<p class="brand-editor-locked-note">Localhost PCF edit: platform default is editable here. Remote installs stay locked.</p>'
                     : ''}
-                <div class="brand-editor-tab-panel" data-brand-editor-panel="common" role="tabpanel">
+                <div class="brand-editor-tab-panel" data-brand-editor-panel="shell" role="tabpanel">
                     ${renderEditorSection('Base info', `
                         <div class="brand-token-grid brand-token-grid--stacked">
                             <div class="brand-token-field">
@@ -1758,7 +1769,7 @@
                     `, 'brand-editor-section--backdrop')}
                     ${renderEditorSection('Colours', `
                         ${renderCompactColors(fieldsLocked)}
-                    `, 'brand-editor-section--colors')}
+                    `, 'brand-editor-section--colors', 'colours')}
                     ${renderShellMediaFields(fieldsLocked)}
                 </div>
                 <div class="brand-editor-tab-panel" data-brand-editor-panel="player" role="tabpanel" hidden>
@@ -2124,6 +2135,9 @@
             });
         }
         bindEditorTabUi();
+        if (editorTab === 'shell' || editorTab === 'player' || editorTab === 'content') {
+            setPreviewMode(editorTab, { forceRender: false });
+        }
 
         formEl.addEventListener('input', (event) => {
             const input = event.target;
@@ -2266,6 +2280,15 @@
 
         formEl.addEventListener('focusin', (event) => {
             const focusId = previewFocusFromEventTarget(event.target);
+            const inShellPanel = event.target instanceof Element
+                && !!event.target.closest('[data-brand-editor-panel="shell"]');
+            if (inShellPanel) {
+                if (editorTab !== 'shell') {
+                    setEditorTab('shell', { syncPreview: true });
+                } else if (previewMode !== 'shell') {
+                    setPreviewMode('shell', { forceRender: true });
+                }
+            }
             if (focusId !== '') {
                 revealPreviewFocus(focusId);
                 return;
