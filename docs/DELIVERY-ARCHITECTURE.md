@@ -106,21 +106,45 @@ Installed phone experience should beat browser tab for:
 
 **Scope (locked):** any media the user can **play or view** on the site may be cast — player audio, gallery videos, inline page video, future module media.
 
+### Target kinds
+
+Cast is not TV-only. The same sender session must support:
+
+| Target | What the listener gets | bandPromo surface |
+|--------|------------------------|-------------------|
+| **Display** (Chromecast / Cast TV / Nest Hub style) | Optional custom on-screen UI + artwork | Custom CAF **receiver play surface** (v0.9+); brand tokens + now-playing payload |
+| **Speakers only** (Nest Mini / Nest Audio / Cast-enabled speakers, legacy Chromecast Audio, many soundbars in audio mode) | Audio on the device; phone stays the control surface | Sender only + Cast `MediaMetadata` (title, artist, artwork). No receiver HTML required |
+
+Do not design cast as "always a second fullscreen player." Speakers-only is a first-class path; display receivers are an optional richer path on top of the same send contract.
+
+### Sender vs receiver (keep `#mediaplayer` easy to cast from)
+
+Locked while shaping public player chrome (v0.8), so cast implementation does not force a rewrite:
+
+1. **`#mediaplayer` is the sender control surface** (phone/browser). Do not bake TV fullscreen layout into it.
+2. **Cast control is a session action** (start / stop / status) in the transport chrome — not part of the 4:1 skin geometry. Cast state must not reshape the transport box.
+3. **Display receiver is a separate play surface** (CAF / receiver app) that consumes the same brand tokens and now-playing payload; it does not inherit phone DOM/layout.
+4. **One now-playing contract** (title, version, artist + featured, cover URL, brand colours) feeds Media Session today and Cast `MediaMetadata` / `customData` later — do not scrape the DOM for cast identity.
+5. **Faux analyzer (`#analyzer` / `player.analyzer`)** is sender chrome. A display receiver may show its own bars from brand preference later; it must not depend on the sender canvas node or RAF loop.
+6. **Delivery-tier URLs only** — same grants as local play. No player-only byte paths a speaker or receiver could not fetch.
+
 ### Boundaries
 
 - Cast uses **delivery-tier URLs** with the same availability grants as local playback.
 - Cast sender lives in the **player shell** and **page media surfaces**; not a separate PHP stream.
-- Receiver displays metadata from asset registry + release container (title, artist, artwork) via Cast `MediaMetadata` / `customData` — **not** by reading ID3 from the delivery MP3.
+- Receiver (when present) displays metadata from asset registry + release container (title, artist, artwork) via Cast `MediaMetadata` / `customData` — **not** by reading ID3 from the delivery MP3.
 - Custom CAF receivers (own on-screen design) render entirely from sender/receiver app data; delivery URLs supply audio/video bytes only.
+- Speakers-only / audio devices use the platform default audio receiver + `MediaMetadata`; no custom CAF UI required for cast v1 audio.
 - Media Session artwork on the sender phone may reach some cars via AVRCP Cover Art when OS + head unit support it; that path also does not depend on embedded MP3 tags.
 - No cast of unreleased/locked content for tiers that cannot play it locally.
-- Chromecast is first target; architecture stays provider-agnostic (`cast_target` abstraction).
+- Chromecast ecosystem is first target (displays **and** speakers); architecture stays provider-agnostic (`cast_target` abstraction).
 
 ### Not in cast v1
 
 - Multi-room sync beyond platform defaults
 - Cast of admin-only or operator preview content
 - Cast as a substitute for public anonymous distribution
+- Requiring a custom display receiver for speakers-only sessions
 
 ## Logging and analytics delivery
 

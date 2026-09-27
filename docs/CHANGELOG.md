@@ -2,6 +2,20 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-09-27 22:55 - Cast forward-compat notes locked in [DELIVERY-ARCHITECTURE.md](DELIVERY-ARCHITECTURE.md): `#mediaplayer` = sender; separate display receiver later; **speakers-only** is first-class (no custom CAF required); now-playing contract + delivery URLs only.
+
+2026-09-27 22:50 - Player faux analyzer fills the whole transport box; Branding → Player → Controls gains **Analyzer:** On|Off (`player.analyzer`, default on). Live preview shows static bars when on.
+
+2026-09-27 22:40 - Player/playlist show **Featured artist** as `Artist ft. Featured` (Show artist On). Live overlay from registry on playlist fetch; remix artist still storage-only.
+
+2026-09-27 22:30 - Player transport lock restored to **4:1** (10:2 was unnecessary once `min-height: fit-content` was removed). Files Key field: decode Mixed In Key base64 JSON in Vorbis `KEY` (e.g. `{"key":"3A","source":"mixedinkey",…}`) so the editor shows `3A` instead of `eyJrZ…`.
+
+2026-09-27 22:25 - Player transport lock **10:2** (was 4:1; `min-height: fit-content` had ignored the ratio). Compact chrome + title/version on one headline row so narrow screens actually get the shorter box.
+
+2026-09-27 22:15 - Player chrome polish: user-status bar no vertical padding; transport lock **4:1** (was 2:1); larger Repeat-one “1”; Title > Version > Artist hierarchy (version no longer matches title size).
+
+2026-09-27 22:00 - Player chrome: user area at top of `#mediaplayer` (solid bar, no border) with admin/debug + dummy account link; Full cover fills stacked rail; full-width 2:1 transport with brand-coloured SVG controls (repeat none|all|one; Chromecast stub); Beggars banquet ad-space constraints documented (no layout change).
+
 2026-09-27 21:25 - Handoff: Branding Live preview remirror waits until public Player (`#mediaplayer`) and Content are fixed; Shell user atmosphere + login logo bleed already checkpointed.
 
 2026-09-27 20:30 - Branding preview parity (Shell first): rename Common → Shell; Live preview Shell mode uses real `/play` classes via `play-preview-shell.js` (stage + `#bg-video` + `.content-logo` + scrim). Player/Content still on legacy theme-preview chrome.

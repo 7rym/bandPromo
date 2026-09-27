@@ -62,6 +62,7 @@
         const beggarsBanquet = document?.player?.beggars_banquet !== false;
         const loginStatus = document?.player?.login_status === true;
         const coverReflection = document?.player?.cover_reflection !== false;
+        const analyzerOn = document?.player?.analyzer !== false;
         let coverSize = String(document?.player?.cover_size || 'full').trim().toLowerCase();
         if (!['full', 'medium', 'half'].includes(coverSize)) {
             coverSize = 'full';
@@ -87,7 +88,10 @@
             : '';
         const loginStatusMarkup = loginStatus
             ? `<div class="theme-preview-user-status" aria-hidden="true">
-                    <span>Signed in as <strong>listener</strong></span>
+                    <span class="theme-preview-user-tools" aria-hidden="true">
+                        <span class="theme-preview-user-tool" title="Account">&#128100;</span>
+                    </span>
+                    <span class="theme-preview-user-status-text">Signed in as <strong>listener</strong></span>
                     <span class="theme-preview-user-logout">Log out</span>
                </div>`
             : '';
@@ -106,6 +110,7 @@
                 ${backdrop.openTag}
                     ${backdrop.videoMarkup}
                     <div class="theme-preview-player-chrome" aria-hidden="true">
+                        ${loginStatusMarkup}
                         <div class="theme-preview-scene" style="--preview-cover-scale:${coverScale};">
                             ${sideMarkup}
                             <div class="theme-preview-cover theme-preview-cover--player">
@@ -114,14 +119,23 @@
                             ${reflectionMarkup}
                         </div>
                         <div class="theme-preview-player-transport">
+                            ${analyzerOn ? `<div class="theme-preview-analyzer" aria-hidden="true">${Array.from({ length: 20 }, (_, i) => {
+                                const height = 22 + ((i * 17) % 55);
+                                return `<span style="height:${height}%"></span>`;
+                            }).join('')}</div>` : ''}
                             <div class="theme-preview-track-info">
                                 <span class="theme-preview-artist">Artist name</span>
-                                <span class="theme-preview-track-title">Track title</span>
+                                <span class="theme-preview-track-headline">
+                                    <span class="theme-preview-track-title">Track title</span>
+                                    <span class="theme-preview-track-version">[Version]</span>
+                                </span>
                             </div>
                             <div class="theme-preview-player-controls">
-                                <button type="button" class="theme-preview-player-btn" tabindex="-1">&#9664; Previous</button>
-                                <button type="button" class="theme-preview-player-btn theme-preview-player-btn--play" tabindex="-1">Play</button>
-                                <button type="button" class="theme-preview-player-btn" tabindex="-1">Next &#9654;</button>
+                                <button type="button" class="theme-preview-player-btn theme-preview-player-btn--icon" tabindex="-1" aria-hidden="true">&#8634;</button>
+                                <button type="button" class="theme-preview-player-btn theme-preview-player-btn--icon" tabindex="-1" aria-hidden="true">&#9664;</button>
+                                <button type="button" class="theme-preview-player-btn theme-preview-player-btn--icon theme-preview-player-btn--play" tabindex="-1" aria-hidden="true">&#9654;</button>
+                                <button type="button" class="theme-preview-player-btn theme-preview-player-btn--icon" tabindex="-1" aria-hidden="true">&#9654;</button>
+                                <button type="button" class="theme-preview-player-btn theme-preview-player-btn--icon" tabindex="-1" aria-hidden="true" disabled>&#9249;</button>
                             </div>
                             <div class="theme-preview-scrubber">
                                 <span class="theme-preview-scrubber-time">0:42</span>
@@ -132,7 +146,6 @@
                                 <span class="theme-preview-scrubber-time">3:24</span>
                             </div>
                         </div>
-                        ${loginStatusMarkup}
                         ${beggarsMarkup}
                     </div>
                 </div>

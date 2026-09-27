@@ -1553,7 +1553,11 @@ function bandpromo_asset_read_audio_display(?array $asset): array
         'date' => trim((string) ($display['date'] ?? '')),
         'tracknumber' => trim((string) ($display['tracknumber'] ?? '')),
         'bpm' => trim((string) ($display['bpm'] ?? '')),
-        'initialkey' => trim((string) ($display['initialkey'] ?? '')),
+        'initialkey' => (
+            function_exists('bandpromo_normalize_initialkey')
+                ? bandpromo_normalize_initialkey((string) ($display['initialkey'] ?? ''))
+                : trim((string) ($display['initialkey'] ?? ''))
+        ),
         'genre' => trim((string) ($display['genre'] ?? '')),
         'comment' => trim((string) ($display['comment'] ?? '')),
         'lyrics' => (string) ($display['lyrics'] ?? ''),

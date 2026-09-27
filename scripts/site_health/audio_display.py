@@ -32,6 +32,16 @@ def _safe_text(value):
     return str(value or '').strip()
 
 
+def _normalize_initialkey(value):
+    """Decode Mixed In Key base64 KEY blobs; blank other oversized garbage."""
+    try:
+        import audioMasterMetadata as amm
+        return amm.normalize_initialkey_value(value)
+    except Exception:
+        text = _safe_text(value)
+        return text if 0 < len(text) <= 4 else ''
+
+
 def _split_title_version(raw_title):
     """Light port of PHP bandpromo_campaign_resolve_track_display_labels title/version."""
     title = ' '.join(_safe_text(raw_title).replace('\r', ' ').replace('\n', ' ').split())
@@ -74,7 +84,7 @@ def display_from_inspect(inspect, preserve=None):
         'date': _safe_text(inspect.get('date')),
         'tracknumber': _safe_text(inspect.get('tracknumber')),
         'bpm': _safe_text(inspect.get('bpm')),
-        'initialkey': _safe_text(inspect.get('initialkey')),
+        'initialkey': _normalize_initialkey(inspect.get('initialkey')),
         'genre': _safe_text(inspect.get('genre')),
         'comment': _safe_text(inspect.get('comment')),
         'lyrics': str(inspect.get('lyrics') or ''),
@@ -159,6 +169,14 @@ def apply_inspect_to_entry(entry, inspect):
             if key == 'duration':
                 if int(preserve.get('duration') or 0) <= 0 and int(built.get('duration') or 0) > 0:
                     preserve['duration'] = built['duration']
+                continue
+            if key == 'initialkey':
+                preserved_key = _normalize_initialkey(preserve.get(key))
+                built_key = _normalize_initialkey(built.get(key))
+                if preserved_key != _safe_text(preserve.get(key)) or (
+                    not preserved_key and built_key
+                ):
+                    preserve[key] = preserved_key or built_key
                 continue
             if not _safe_text(preserve.get(key)) and _safe_text(built.get(key)):
                 preserve[key] = built[key]

@@ -27,10 +27,20 @@ def build_playlist_entry(filename):
     else:
         cover_file = ''
 
+    featured_artist = ''
+    asset = makePlaylists.load_asset_for_filename(filename)
+    if isinstance(asset, dict):
+        display = asset.get('display') if isinstance(asset.get('display'), dict) else {}
+        featured_artist = ' '.join(str(display.get('featured_artist') or '').split())
+        registry_artist = ' '.join(str(display.get('artist') or '').split())
+        if registry_artist:
+            info['artist'] = registry_artist
+
     return {
         'file': filename,
         'title': info.get('title') or filename,
         'artist': info.get('artist') or '',
+        'featured_artist': featured_artist,
         'album': info.get('album') or '',
         'duration': int(info.get('duration') or 0),
         'lyrics': info.get('lyrics') or '',

@@ -1213,7 +1213,7 @@ For source files, the current reader looks for:
 - `ALBUM` or ID3 `TALB` for album
 - `TRACKNUMBER` or ID3 `TRCK` for track ordering
 
-Featured / remix artist are stored on the master and in the asset registry for editing and PCF round-trip. Listener playlist payloads still use primary `artist` only until a player display rule is added.
+Featured / remix artist are stored on the master and in the asset registry for editing and PCF round-trip. **Featured artist** is shown in `/play` (transport byline + playlist list + Media Session) as `Artist ft. Featured` when Show artist is On. Remix artist stays storage-only until a display rule is added.
 
 ### Lyrics currently read
 
@@ -1306,7 +1306,7 @@ When the source file is FLAC, the optimizer currently reads these Vorbis-style f
 - `albumartist`
 - `comment`
 - `bpm`
-- `initialkey`
+- `initialkey` (musical key, max 4 chars). Mixed In Key may write a base64 JSON blob into Vorbis `KEY` (`{"key":"3A","source":"mixedinkey",…}`) — bandPromo decodes that to the plain key for the Files editor and registry
 - `mixartist`
 - `unsyncedlyrics` or `lyrics`
 - embedded picture data

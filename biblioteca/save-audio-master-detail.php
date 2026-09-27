@@ -73,6 +73,7 @@ foreach ($allowed_keys as $key) {
     $value = $fields[$key] ?? '';
     $normalized_fields[$key] = trim((string) $value);
 }
+$normalized_fields['initialkey'] = bandpromo_normalize_initialkey($normalized_fields['initialkey']);
 
 // Registry-only presentation flags (not written into master audio tags).
 $text_role = bandpromo_asset_normalize_text_role((string) ($fields['text_role'] ?? 'lyrics'));

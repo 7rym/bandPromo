@@ -152,7 +152,7 @@ Policy — **locked**:
 - [x] Lock **`special` is legacy intake only**, not a brand role — migrate `media/special/` into Visual pool with explicit role tags.
 - [x] Lock **system shell vs brand overlay**: platform owns layout and dark-shell baseline; brand replaces enumerated identity slots only; broken brand degrades to default, not a broken site (see [PLATFORM-MODEL.md](PLATFORM-MODEL.md) → Brands).
 - [x] **Content chrome controls** — `tokens.content` named presets (style / corners / border / density) for `#content-container` tabs/buttons; `#mediaplayer` stays platform button chrome (2026-09-12).
-- [ ] **Mediaplayer skins (future sellable add-on)** — after content chrome is separate, optional install-locked skin packs for `#mediaplayer` presentation only (Winamp-style). Entitlement model already anticipates sold themes/skins in [ROADMAP.md](ROADMAP.md). Not v0.8 exit-gate work.
+- [ ] **Mediaplayer skins (future sellable add-on)** — after content chrome is separate, optional install-locked skin packs for `#mediaplayer` presentation only (Winamp-style). Transport surface locked at **4:1** as the first skin-sized box. Entitlement model already anticipates sold themes/skins in [ROADMAP.md](ROADMAP.md). Not v0.8 exit-gate work.
 
 Implementation order:
 
@@ -163,7 +163,10 @@ Implementation order:
 - [x] **Login + player OG deferred** — remove Open Graph/Twitter from authenticated surfaces until v0.9; login uses base brand CSS tokens.
 - [x] **Welcome nudge** — post-setup suggestions for duplicate brand (when Base is still locked demo), catalogue, FAQ, Pages, and backup import (no auto-provision of “Your own brand”).
 - [x] Unify Content editors (Playlist, Gallery, Pages) around one pool/result layout with shared headers, demo filter on media pools, and amber/green save controls. Release Pages associations own player tab order; Player layout tab retired.
-- [ ] **Shell / Player / Content preview parity** — User **Shell** Phase 2 done (`shell.css`, `.shell-logo*`, `#shell-bg-video`). **Order locked:** fix public **Player** (`#mediaplayer`) → **Content** rail → then Branding Live preview remirror (do not remirror Shell preview first).
+- [ ] **Shell / Player / Content preview parity** — User **Shell** Phase 2 done (`shell.css`, `.shell-logo*`, `#shell-bg-video`). Public **Player** chrome pass done (user area top, Full stacked cover, 2:1 SVG transport). **Order locked:** fix **Content** rail next → then Branding Live preview remirror (Shell|Player|Content).
+- [ ] **Beggars banquet (ads)** — reserved support/ad slot must fit content and never bleed viewport; keep narrow above-the-fold budget (current OK — revisit when ad payloads grow).
+- [ ] **Mediaplayer 4:1 transport lock** — locked for future Winamp-style skins (2:1 was too tall; `min-height: fit-content` ignored earlier locks). Chrome densified to fit; revisit only if touch targets suffer.
+- [ ] **Listener account link** — dummy in player user area until v0.9 preferences / user management.
 - [ ] **Favicon + PWA icons from Branding (v0.8 gate)** — operators must not hand-craft `media/icons/` with external generators. Platform derives favicon (ICO/SVG/PNG set) and PWA icons (`web-app-manifest-192/512`, apple-touch, etc.) from brand shell identity (logo / dedicated icon slot) under Content → Branding + rebuild. Manual icon drops are developer-only. **Required before closing the v0.8 exit gate** — site chrome branding is incomplete without this (cold-load HARs showed a 4.4MB hand-made `favicon.svg` on an operator install).
 
 ### Analytics and activity log storage (v0.8 data foundation)
@@ -645,7 +648,7 @@ Deferred to v0.9 (implement after v0.8 definitions are stable):
 
 - [ ] Implement access-tier enforcement in playback and page delivery.
 - [ ] Implement login/FAQ/shared-link + restricted anonymous entry UX.
-- [ ] Implement Chromecast/cast send on the v0.8 delivery architecture.
+- [ ] Implement Chromecast/cast send on the v0.8 delivery architecture (displays **and** speakers-only; sender vs receiver rules in [DELIVERY-ARCHITECTURE.md](DELIVERY-ARCHITECTURE.md)).
 
 Deferred to v1+:
 

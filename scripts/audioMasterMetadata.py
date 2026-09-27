@@ -152,6 +152,42 @@ def read_text_tag(tags, *keys):
     return ''
 
 
+def normalize_initialkey_value(value):
+    """
+    Musical key for the Files editor (max 4 chars, e.g. Am / 8A / 3A).
+
+    Mixed In Key writes a base64 JSON blob into Vorbis KEY:
+    {"key":"3A","source":"mixedinkey","algorithm":94}
+    Decode that; reject other oversized garbage.
+    """
+    import base64
+
+    text = str(value or '').strip()
+    if text == '':
+        return ''
+
+    if len(text) > 4 or text.startswith('eyJ'):
+        try:
+            pad = '=' * ((4 - (len(text) % 4)) % 4)
+            raw = base64.b64decode(text + pad)
+            # Python 3.6: no encoding= on loads for bytes in older? json.loads accepts str
+            try:
+                decoded = raw.decode('utf-8')
+            except Exception:
+                decoded = raw.decode('utf-8', 'replace')
+            data = json.loads(decoded)
+            if isinstance(data, dict):
+                text = str(data.get('key') or '').strip()
+            else:
+                return ''
+        except Exception:
+            return ''
+
+    if text == '' or len(text) > 4:
+        return ''
+    return text
+
+
 def read_track_value(raw_value):
     value = str(raw_value or '').strip()
     if '/' in value:
@@ -243,7 +279,9 @@ def inspect_flac(path, audio):
         'date': read_text_tag(audio, 'date', 'DATE', 'year', 'YEAR'),
         'tracknumber': read_track_value(read_text_tag(audio, 'tracknumber', 'TRACKNUMBER')),
         'bpm': read_text_tag(audio, 'bpm', 'BPM', 'tempo', 'TEMPO'),
-        'initialkey': read_text_tag(audio, 'initialkey', 'INITIALKEY', 'key', 'KEY'),
+        'initialkey': normalize_initialkey_value(
+            read_text_tag(audio, 'initialkey', 'INITIALKEY', 'key', 'KEY')
+        ),
         'genre': read_text_tag(audio, 'genre', 'GENRE'),
         'comment': read_text_tag(audio, 'description', 'DESCRIPTION', 'comment', 'COMMENT'),
         'lyrics': read_flac_lyrics(audio),
@@ -275,7 +313,7 @@ def inspect_mp3(path):
         'date': read_text_tag(tags, 'TDRC'),
         'tracknumber': read_track_value(read_text_tag(tags, 'TRCK')),
         'bpm': read_text_tag(tags, 'TBPM'),
-        'initialkey': read_text_tag(tags, 'TKEY'),
+        'initialkey': normalize_initialkey_value(read_text_tag(tags, 'TKEY')),
         'genre': read_text_tag(tags, 'TCON'),
         'comment': comment_text,
         'lyrics': read_mp3_lyrics(tags),
@@ -363,7 +401,7 @@ def update_flac(path, fields):
     date = normalize_field_text(fields, 'date')
     tracknumber = normalize_field_text(fields, 'tracknumber')
     bpm = normalize_field_text(fields, 'bpm')
-    initialkey = normalize_field_text(fields, 'initialkey')
+    initialkey = normalize_initialkey_value(normalize_field_text(fields, 'initialkey'))
     genre = normalize_field_text(fields, 'genre')
     comment = normalize_field_text(fields, 'comment')
     lyrics = normalize_field_text(fields, 'lyrics')
@@ -378,6 +416,10 @@ def update_flac(path, fields):
     set_field('tracknumber', tracknumber)
     set_field('bpm', bpm)
     set_field('initialkey', initialkey)
+    # Drop Mixed In Key / bare KEY blobs so inspect does not re-pollute.
+    for key_name in ('key', 'KEY'):
+        if key_name in audio:
+            del audio[key_name]
     set_field('genre', genre)
 
     if comment == '':
@@ -437,7 +479,7 @@ def update_mp3(path, fields):
     date = normalize_field_text(fields, 'date')
     tracknumber = normalize_field_text(fields, 'tracknumber')
     bpm = normalize_field_text(fields, 'bpm')
-    initialkey = normalize_field_text(fields, 'initialkey')
+    initialkey = normalize_initialkey_value(normalize_field_text(fields, 'initialkey'))
     genre = normalize_field_text(fields, 'genre')
     comment = normalize_field_text(fields, 'comment')
     lyrics = normalize_field_text(fields, 'lyrics')

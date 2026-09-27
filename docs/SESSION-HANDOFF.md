@@ -2,13 +2,13 @@
 
 ## Resume point
 
-**Checkpoint:** Shell Phase 2 + login logo top bleed (await VERSION from session-end).
+**Published:** **v0.8.97 build 592** (`v0.8.97-build-592`).
 
-**Done:** User shell unify — `biblioteca/shell.css` (login+/play only); `.shell-logo` / `.shell-logo-img`; `#shell-bg-video` + shell SFX ids; `#bandpromo-brand-vars`; no bare `updateBackground` globals; admin does not load `shell.css`. Login logo intentional top bleed (`--shell-logo-bleed`), width capped to column (same on wide + narrow).
+**Done (uncommitted):** Player chrome pass on `#mediaplayer` (user area top; Full stacked cover; **4:1** transport; Title > Version > Artist; faux analyzer fills transport, brand **Analyzer:** On|Off). Files Key: Mixed In Key blobs → plain key. **Featured artist** shows as `ft.` in player + playlist. Remix still storage-only. Next: Content rail.
 
-**Parked:** Branding Live preview remirror — **wait until `#mediaplayer` (Player) and Content rail are fixed first**, then mirror all three.
+**Parked:** Branding Live preview full remirror — still wait until **Content** rail is fixed, then mirror Shell|Player|Content properly.
 
-**Next:** Player surface (`#mediaplayer` chrome / real classes) → Content surface → then Branding Shell|Player|Content preview parity.
+**Next:** Content surface correctness → then Branding Shell|Player|Content preview parity.
 
 ### Policy locked (do not reopen)
 
@@ -44,6 +44,7 @@
 - PCF/PBF import auto-starts Site health Treat (delivery-focused selection; no silent dedupe delete / Ready-archive prune); Jobs show **Open Status**
 - User shell isolated from admin chrome; Brand not Theme; casing by layer (`.cursor/rules/identifier-casing.mdc`)
 - Branding preview waits until Player + Content public surfaces are correct
+- Cast (v0.9+): `#mediaplayer` = sender; speakers-only first-class; display CAF receiver separate — [DELIVERY-ARCHITECTURE.md](DELIVERY-ARCHITECTURE.md) Sender vs receiver
 
 ### Local workspace
 

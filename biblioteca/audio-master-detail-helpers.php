@@ -7,6 +7,37 @@ require_once __DIR__ . '/campaign-storage.php';
 require_once __DIR__ . '/playlist-storage.php';
 require_once __DIR__ . '/audio-master-helpers.php';
 
+/**
+ * Musical key for the Files editor (max 4 chars).
+ * Mixed In Key stores base64 JSON in Vorbis KEY — decode {"key":"3A",...}.
+ */
+function bandpromo_normalize_initialkey(string $value): string
+{
+    $text = trim($value);
+    if ($text === '') {
+        return '';
+    }
+
+    if (strlen($text) > 4 || strpos($text, 'eyJ') === 0) {
+        $padLen = (4 - (strlen($text) % 4)) % 4;
+        $decoded = base64_decode($text . str_repeat('=', $padLen), true);
+        if (!is_string($decoded) || $decoded === '') {
+            return '';
+        }
+        $data = json_decode($decoded, true);
+        if (!is_array($data)) {
+            return '';
+        }
+        $text = trim((string) ($data['key'] ?? ''));
+    }
+
+    if ($text === '' || strlen($text) > 4) {
+        return '';
+    }
+
+    return $text;
+}
+
 function bandpromo_audio_master_canonical_filename(string $root, string $filename): string
 {
     $filename = basename(trim($filename));
@@ -496,7 +527,7 @@ function bandpromo_audio_master_detail_from_registry(string $root, string $filen
         'date' => trim((string) ($display['date'] ?? '')),
         'tracknumber' => trim((string) ($display['tracknumber'] ?? '')),
         'bpm' => trim((string) ($display['bpm'] ?? '')),
-        'initialkey' => trim((string) ($display['initialkey'] ?? '')),
+        'initialkey' => bandpromo_normalize_initialkey((string) ($display['initialkey'] ?? '')),
         'genre' => trim((string) ($display['genre'] ?? '')),
         'comment' => trim((string) ($display['comment'] !== '' ? $display['comment'] : ($playlistEntry['description'] ?? ''))),
         'lyrics' => (string) ($display['lyrics'] !== '' ? $display['lyrics'] : ($playlistEntry['lyrics'] ?? '')),

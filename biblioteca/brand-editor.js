@@ -670,8 +670,14 @@
                     </div>`;
             }
 
+            const analyzerOn = editorDocument?.player?.analyzer !== false;
+
             return `
                 <div class="brand-content-chrome-grid">
+                    <div class="brand-effect-field brand-effect-field--inline">
+                        <span class="brand-effect-label">Analyzer:</span>
+                        ${renderOnOffToggle('brandAnalyzer', 'analyzer', analyzerOn, locked)}
+                    </div>
                     <div class="brand-effect-field brand-effect-field--inline">
                         <span class="brand-effect-label">Fill: <strong data-effect-value="player_panel_dim">${escapeHtml(panelDim)}</strong>%</span>
                         <input type="range" min="0" max="100" step="1" value="${escapeHtml(panelDim)}" data-token-path="effects.player_panel_dim" data-effect-range="player_panel_dim" ${locked ? 'disabled' : ''}>
@@ -1886,6 +1892,10 @@
             const reflectionToggle = formEl.querySelector('input[name="brandCoverReflection"]:checked');
             if (reflectionToggle instanceof HTMLInputElement) {
                 editorDocument.player.cover_reflection = reflectionToggle.value !== 'off';
+            }
+            const analyzerToggle = formEl.querySelector('input[name="brandAnalyzer"]:checked');
+            if (analyzerToggle instanceof HTMLInputElement) {
+                editorDocument.player.analyzer = analyzerToggle.value !== 'off';
             }
             const coverSizeToggle = formEl.querySelector('input[name="brandCoverSize"]:checked');
             if (coverSizeToggle instanceof HTMLInputElement) {

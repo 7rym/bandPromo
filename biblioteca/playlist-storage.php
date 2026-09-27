@@ -719,6 +719,7 @@ function bandpromo_playlist_normalize_stored_track(array $track): ?array
         'file' => $file,
         'title' => $title,
         'artist' => trim((string) ($track['artist'] ?? '')),
+        'featured_artist' => trim((string) ($track['featured_artist'] ?? '')),
         'album' => trim((string) ($track['album'] ?? '')),
         'duration' => max(0, (int) ($track['duration'] ?? 0)),
         'lyrics' => (string) ($track['lyrics'] ?? ''),
@@ -1561,6 +1562,7 @@ function bandpromo_playlist_build_php_track_entry(string $root, string $filename
         'file' => $canonical,
         'title' => $title,
         'artist' => trim((string) ($display['artist'] ?? '')),
+        'featured_artist' => trim((string) ($display['featured_artist'] ?? '')),
         'album' => trim((string) ($display['album'] ?? '')),
         'duration' => max(0, (int) ($display['duration'] ?? 0)),
         'lyrics' => (string) ($display['lyrics'] ?? ''),
@@ -2194,6 +2196,11 @@ function bandpromo_playlist_enrich_tracks_for_player(
             $notesLabel = '';
         }
 
+        $featuredArtist = trim((string) ($display['featured_artist'] ?? ''));
+        if ($featuredArtist === '') {
+            $featuredArtist = trim((string) ($track['featured_artist'] ?? ''));
+        }
+
         $enriched[] = array_merge($track, [
             'asset_id' => (string) ($asset['id'] ?? ''),
             'release_id' => $releaseId,
@@ -2201,6 +2208,7 @@ function bandpromo_playlist_enrich_tracks_for_player(
             // Player brand comes from the playlist’s owning release, not per-track.
             'brand_id' => '',
             'track_slug' => bandpromo_playlist_track_slug($track, $asset, $releaseTrack),
+            'featured_artist' => $featuredArtist,
             'delivery_ready' => (bool) ($streamState['delivery_ready'] ?? false),
             'delivery_mode' => (string) ($streamState['delivery_mode'] ?? ''),
             'playable' => (bool) ($streamState['playable'] ?? false),
@@ -2526,6 +2534,12 @@ function bandpromo_playlist_load_player_response(
         $display = bandpromo_asset_read_audio_display($asset);
         $tracks[$index]['text_role'] = $display['text_role'];
         $tracks[$index]['notes_label'] = $display['text_role'] === 'notes' ? $display['notes_label'] : '';
+        // Live credit fields from registry (Files editor) without requiring a full Publish.
+        $liveArtist = trim((string) ($display['artist'] ?? ''));
+        if ($liveArtist !== '') {
+            $tracks[$index]['artist'] = $liveArtist;
+        }
+        $tracks[$index]['featured_artist'] = trim((string) ($display['featured_artist'] ?? ''));
 
         $coverCandidate = trim((string) ($display['cover'] ?? ''));
         if ($coverCandidate === '') {

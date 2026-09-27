@@ -382,6 +382,31 @@ function bandpromo_player_cover_reflection_enabled(): bool
     return true;
 }
 
+/**
+ * Whether the faux spectrum analyzer fills the player transport panel.
+ * Base brand owns the toggle (Branding → Player → Controls).
+ */
+function bandpromo_player_analyzer_enabled(): bool
+{
+    try {
+        $root = defined('BANDPROMO_ROOT') ? (string) BANDPROMO_ROOT : dirname(__DIR__);
+        if (function_exists('bandpromo_brand_load_active_document')) {
+            require_once __DIR__ . '/brand-storage.php';
+            $document = bandpromo_brand_load_active_document($root);
+            if (is_array($document)) {
+                $player = is_array($document['player'] ?? null) ? $document['player'] : [];
+                if (array_key_exists('analyzer', $player)) {
+                    return (bool) filter_var($player['analyzer'], FILTER_VALIDATE_BOOLEAN);
+                }
+            }
+        }
+    } catch (Throwable $throwable) {
+        // Brand storage may be unavailable during early bootstrap.
+    }
+
+    return true;
+}
+
 function bandpromo_player_normalize_playlist_selector_mode(mixed $value): string
 {
     if (function_exists('bandpromo_brand_normalize_playlist_selector_mode')) {

@@ -857,6 +857,8 @@ function bandpromo_brand_default_document(): array
             'login_status' => false,
             // Mirror under the main cover art (desktop split layout).
             'cover_reflection' => true,
+            // Faux spectrum bars filling the player transport panel.
+            'analyzer' => true,
             // Cover scene scale vs platform --card-size (full=1, medium=0.75, half=0.5).
             'cover_size' => 'full',
             // Prev/next ghost covers flanking the main cover.
@@ -907,6 +909,7 @@ function bandpromo_brand_legacy_playlist_selector_fallback(): string
  *   beggars_banquet: bool,
  *   login_status: bool,
  *   cover_reflection: bool,
+ *   analyzer: bool,
  *   cover_size: string,
  *   side_covers: bool,
  *   side_covers_opacity: int,
@@ -945,6 +948,13 @@ function bandpromo_brand_normalize_player(array $input): array
         $coverReflection = filter_var($player['cover_reflection'], FILTER_VALIDATE_BOOLEAN);
     }
 
+    // Missing key defaults to on so existing brands keep the transport spectrum.
+    if (!array_key_exists('analyzer', $player)) {
+        $analyzer = true;
+    } else {
+        $analyzer = filter_var($player['analyzer'], FILTER_VALIDATE_BOOLEAN);
+    }
+
     $coverSize = bandpromo_brand_normalize_cover_size($player['cover_size'] ?? 'full');
 
     if (!array_key_exists('side_covers', $player)) {
@@ -973,6 +983,7 @@ function bandpromo_brand_normalize_player(array $input): array
         'beggars_banquet' => $beggarsBanquet,
         'login_status' => $loginStatus,
         'cover_reflection' => $coverReflection,
+        'analyzer' => $analyzer,
         'cover_size' => $coverSize,
         'side_covers' => $sideCovers,
         'side_covers_opacity' => $opacity,

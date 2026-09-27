@@ -289,11 +289,26 @@ function maybePrimeNextTrackNearEnd() {
     primeNextTrackPreload(currentIndex);
 }
 
+function hasPlayableTrackAfter(index) {
+    for (let i = index + 1; i < playList.length; i += 1) {
+        if (playList[i] && isTrackPlayable(playList[i])) {
+            return true;
+        }
+    }
+    return false;
+}
+
 function maybeAutoAdvanceNearEnd(source) {
     if (isUserSeeking || (Date.now() - lastSeekFinishedAt) < 700) {
         return;
     }
     if (audioPlayer.paused || audioPlayer.ended || isChangingSong) {
+        return;
+    }
+    if (repeatMode === 'one') {
+        return;
+    }
+    if (repeatMode === 'none' && !hasPlayableTrackAfter(currentIndex)) {
         return;
     }
 
@@ -611,12 +626,16 @@ const reflectionImage = document.getElementById('reflectionImage');
 const prevCover = document.getElementById('prevCover');
 const nextCover = document.getElementById('nextCover');
 const songTitle = document.getElementById('songTitle');
+const songVersion = document.getElementById('songVersion');
 const artistName = document.getElementById('artistName');
 const lyricsBox = document.getElementById('lyricsBox');
 const cardWrapper = document.getElementById('cardWrapper');
 const playBtn = document.getElementById('playBtn');
+const repeatBtn = document.getElementById('repeatBtn');
 const loadingMsg = document.getElementById('loading-msg');
 const mediaPlayerEl = document.getElementById('mediaplayer');
+/** @type {'none'|'all'|'one'} */
+let repeatMode = 'none';
 const lightbox = document.getElementById('lightbox');
 const lightboxImage = document.getElementById('lightboxImage');
 const debugPanelButton = document.getElementById('debug-panel-btn');
@@ -696,7 +715,7 @@ function updateMediaSessionMetadata() {
     try {
         navigator.mediaSession.metadata = new MediaMetadata({
             title: song.title || song.file || 'Unknown title',
-            artist: song.artist || '',
+            artist: formatTrackArtistCredit(song),
             album: song.album || '',
             artwork,
         });
@@ -2696,67 +2715,132 @@ async function loadConfig() {
     }
 }
 
-// Setup for Visualizer
+// Faux spectrum analyzer (fills .player-transport; brand player.analyzer On|Off).
 const canvas = document.getElementById('analyzer');
-const ctx = canvas.getContext('2d');
+const analyzerEnabled = (() => {
+    const flag = window.appConfig && window.appConfig.player
+        ? window.appConfig.player.analyzer
+        : undefined;
+    if (flag === false || flag === 0 || flag === '0' || flag === 'false') {
+        return false;
+    }
+    return !document.body.classList.contains('analyzer-off');
+})();
+const ctx = canvas instanceof HTMLCanvasElement ? canvas.getContext('2d') : null;
 
-// Init canvas size
 function resizeCanvas() {
-    canvas.width = canvas.parentElement.clientWidth;
-    canvas.height = canvas.parentElement.clientHeight;
+    if (!(canvas instanceof HTMLCanvasElement) || !ctx || !analyzerEnabled) {
+        return;
+    }
+    const host = canvas.parentElement;
+    if (!(host instanceof HTMLElement)) {
+        return;
+    }
+    canvas.width = host.clientWidth;
+    canvas.height = host.clientHeight;
 }
-window.addEventListener('resize', resizeCanvas);
-resizeCanvas();
 
-// Visualizer Loop
 function drawVisualizer() {
+    if (!ctx || !analyzerEnabled || !(canvas instanceof HTMLCanvasElement)) {
+        return;
+    }
     requestAnimationFrame(drawVisualizer);
-    
+
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-    
+
     const bars = 20;
     const barWidth = canvas.width / bars;
-    const isPlaying = !audioPlayer.paused;
-    const time = Date.now() / 150; // Speed of movement
+    const isPlaying = audioPlayer && !audioPlayer.paused;
+    const time = Date.now() / 150;
+    const fill = getComputedStyle(document.documentElement).getPropertyValue('--primary-color').trim()
+        || '#7dd3fc';
 
     for (let i = 0; i < bars; i++) {
-        // Generate height: 
-        // If playing: Combine sine waves and random noise
-        // If paused: Low, breathing movement
-        
         let height;
-        
         if (isPlaying) {
-            // Simulating "Beat" using modulo on time, plus random
-            const wave = Math.sin(time + i * 0.5) * 20; // Base wave
-            const noise = Math.random() * 30; // "Hi-hats" and noise
-            height = 20 + wave + noise;
-            height = Math.max(5, height); // Min height
+            const wave = Math.sin(time + i * 0.5) * 20;
+            const noise = Math.random() * 30;
+            height = Math.max(5, 20 + wave + noise);
         } else {
-            // Calm "breathing" movement when paused
-            height = 10 + Math.sin(time/4 + i * 0.5) * 5;
+            height = 10 + Math.sin(time / 4 + i * 0.5) * 5;
         }
 
-        // Color
-        ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--primary-color').trim();
-        ctx.globalAlpha = 0.3; // Transparent
-        
-        // Draw bar (from bottom up)
+        ctx.fillStyle = fill;
+        ctx.globalAlpha = 0.3;
         const x = i * barWidth;
         const y = canvas.height - height;
-        
-        // Rounded tops
         ctx.beginPath();
-        ctx.roundRect(x + 2, y, barWidth - 4, height, [5, 5, 0, 0]);
+        if (typeof ctx.roundRect === 'function') {
+            ctx.roundRect(x + 2, y, barWidth - 4, height, [5, 5, 0, 0]);
+        } else {
+            ctx.rect(x + 2, y, barWidth - 4, height);
+        }
         ctx.fill();
     }
 }
-// Start animation
-drawVisualizer();
 
-// Update button text automatically based on playback status
-audioPlayer.onplay = () => playBtn.innerText = "Pause";
-audioPlayer.onpause = () => playBtn.innerText = "Play";
+if (analyzerEnabled && canvas instanceof HTMLCanvasElement && ctx) {
+    window.addEventListener('resize', resizeCanvas);
+    resizeCanvas();
+    drawVisualizer();
+}
+
+function syncPlayButtonVisual(isPlaying) {
+    if (!(playBtn instanceof HTMLElement)) {
+        return;
+    }
+    const playing = !!isPlaying;
+    playBtn.dataset.playing = playing ? 'true' : 'false';
+    playBtn.setAttribute('aria-label', playing ? 'Pause' : 'Play');
+    playBtn.title = playing ? 'Pause' : 'Play';
+    const playIcon = playBtn.querySelector('.player-control-icon--play');
+    const pauseIcon = playBtn.querySelector('.player-control-icon--pause');
+    if (playIcon instanceof HTMLElement) {
+        playIcon.hidden = playing;
+    }
+    if (pauseIcon instanceof HTMLElement) {
+        pauseIcon.hidden = !playing;
+    }
+}
+
+function syncRepeatButtonVisual() {
+    if (!(repeatBtn instanceof HTMLElement)) {
+        return;
+    }
+    const labels = {
+        none: 'Repeat off',
+        all: 'Repeat all',
+        one: 'Repeat one'
+    };
+    const label = labels[repeatMode] || labels.none;
+    repeatBtn.dataset.repeat = repeatMode;
+    repeatBtn.setAttribute('aria-label', label);
+    repeatBtn.title = label;
+}
+
+function cycleRepeatMode() {
+    if (repeatMode === 'none') {
+        repeatMode = 'all';
+    } else if (repeatMode === 'all') {
+        repeatMode = 'one';
+    } else {
+        repeatMode = 'none';
+    }
+    syncRepeatButtonVisual();
+}
+
+if (repeatBtn instanceof HTMLElement) {
+    repeatBtn.addEventListener('click', (event) => {
+        event.preventDefault();
+        cycleRepeatMode();
+    });
+    syncRepeatButtonVisual();
+}
+
+// Update play/pause icons from playback status
+audioPlayer.onplay = () => syncPlayButtonVisual(true);
+audioPlayer.onpause = () => syncPlayButtonVisual(false);
+syncPlayButtonVisual(!audioPlayer.paused);
 
 audioPlayer.addEventListener('pause', () => {
     scheduleAnalyticsSessionEnd();
@@ -2911,9 +2995,24 @@ audioPlayer.addEventListener('ended', () => {
     syncCoverPlaybackVisual();
     logTrackExit('ended', 'auto');
 
+    if (repeatMode === 'one') {
+        pendingPlayActionSource = 'auto_next';
+        try {
+            audioPlayer.currentTime = 0;
+        } catch (error) {
+            // Ignore seek failures; play() still retries from current position.
+        }
+        audioPlayer.play().catch((e) => console.error(e));
+        return;
+    }
+
+    if (repeatMode === 'none' && !hasPlayableTrackAfter(currentIndex)) {
+        syncPlayButtonVisual(false);
+        return;
+    }
+
     currentTrackChangeSource = 'auto_next';
     pendingPlayActionSource = 'auto_next';
-    // Auto-play next song when current track ends
     lastAutoNextGuardAt = Date.now();
     triggerSongChange('next');
 });
@@ -3076,11 +3175,22 @@ function syncCampaignPageTabs() {
 function updateVisuals(index) {
     syncCampaignPageTabs();
     const song = playList[index];
-    
-    // Main info
-    songTitle.innerText = song.title;
+    const parts = playlistTrackHeadlineParts(song);
+
+    // Title primary; version secondary (often empty); artist tertiary + playlist toggle.
+    songTitle.innerText = parts.title;
+    if (songVersion instanceof HTMLElement) {
+        const version = String(parts.version || '').trim();
+        if (version !== '') {
+            songVersion.textContent = '[' + version + ']';
+            songVersion.hidden = false;
+        } else {
+            songVersion.textContent = '';
+            songVersion.hidden = true;
+        }
+    }
     if (artistName) {
-        const artist = String(song.artist || '').trim();
+        const artist = String(parts.artist || '').trim();
         if (showArtistNames && artist !== '') {
             artistName.innerText = artist;
             artistName.hidden = false;
@@ -3315,6 +3425,18 @@ function toggleView(view) {
 }
 
 // Render the playlist
+function formatTrackArtistCredit(song) {
+    const artist = String(song?.artist || '').trim();
+    const featured = String(song?.featured_artist || '').trim();
+    if (artist !== '' && featured !== '') {
+        return artist + ' ft. ' + featured;
+    }
+    if (artist !== '') {
+        return artist;
+    }
+    return featured;
+}
+
 function playlistTrackHeadlineParts(song) {
     const rawTitle = String(song?.title || '').trim();
     const lines = rawTitle.split(/\r?\n/).map((part) => String(part || '').trim()).filter(Boolean);
@@ -3333,7 +3455,7 @@ function playlistTrackHeadlineParts(song) {
     return {
         title: title || 'Untitled',
         version,
-        artist: String(song?.artist || '').trim(),
+        artist: formatTrackArtistCredit(song),
     };
 }
 

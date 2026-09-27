@@ -53,7 +53,7 @@ bandPromo may provide technical controls, access rules, and operator-facing mode
 | Content AI wizards (release + brand canon) | Policy locked; **implementation v0.9+** |
 | PWA / protected delivery architecture | Defined; implementation in progress |
 
-**Next focus:** Public **Player** (`#mediaplayer`) then **Content** surface correctness; Branding Live preview remirror only after those. Shell user atmosphere already unified (`shell.css`). Then Admin editor remainder + consistency audit. Exit gate still needs: Player **Campaign navigator** fleet validate; PCF round-trip smoke; favicon/PWA from Branding; legacy audit refresh. Content AI wizards and OMP → v0.9. Page OG/share runtime still v0.9 (storage shipped). See [TODO.md](TODO.md).
+**Next focus:** Public **Content** surface correctness (Player chrome pass done: user area top, Full stacked cover, 4:1 SVG transport, Title>Version>Artist); Branding Live preview remirror only after Content. Shell user atmosphere already unified (`shell.css`). Then Admin editor remainder + consistency audit. Exit gate still needs: Player **Campaign navigator** fleet validate; PCF round-trip smoke; favicon/PWA from Branding; legacy audit refresh. Content AI wizards and OMP → v0.9. Page OG/share runtime still v0.9 (storage shipped). See [TODO.md](TODO.md).
 
 ## Core vs modules
 
