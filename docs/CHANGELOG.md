@@ -2,6 +2,8 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-09-27 23:00 - Checkpoint **v0.8.97 build 593** published (`v0.8.97-build-593`): player chrome (4:1 transport, analyzer On|Off, featured `ft.`, Key decode) + cast forward-compat notes.
+
 2026-09-27 22:55 - Cast forward-compat notes locked in [DELIVERY-ARCHITECTURE.md](DELIVERY-ARCHITECTURE.md): `#mediaplayer` = sender; separate display receiver later; **speakers-only** is first-class (no custom CAF required); now-playing contract + delivery URLs only.
 
 2026-09-27 22:50 - Player faux analyzer fills the whole transport box; Branding → Player → Controls gains **Analyzer:** On|Off (`player.analyzer`, default on). Live preview shows static bars when on.

@@ -2,9 +2,9 @@
 
 ## Resume point
 
-**Published:** **v0.8.97 build 592** (`v0.8.97-build-592`).
+**Published:** **v0.8.97 build 593** (`v0.8.97-build-593`).
 
-**Done (uncommitted):** Player chrome pass on `#mediaplayer` (user area top; Full stacked cover; **4:1** transport; Title > Version > Artist; faux analyzer fills transport, brand **Analyzer:** On|Off). Files Key: Mixed In Key blobs → plain key. **Featured artist** shows as `ft.` in player + playlist. Remix still storage-only. Next: Content rail.
+**Done (in 593):** Player chrome pass on `#mediaplayer` (user area top; Full stacked cover; **4:1** transport; Title > Version > Artist; faux analyzer fills transport, brand **Analyzer:** On|Off). Files Key: Mixed In Key blobs → plain key. **Featured artist** shows as `ft.` in player + playlist. Remix still storage-only. Cast sender vs speakers/display notes locked. Next: Content rail.
 
 **Parked:** Branding Live preview full remirror — still wait until **Content** rail is fixed, then mirror Shell|Player|Content properly.
 
