@@ -228,24 +228,27 @@ Selecting a **campaign** (and its playlist) applies that campaign’s **CSS toke
 
 **Player chrome (brand-owned):** Cover size (`player.cover_size`: `full` | `medium` | `half` → 100%|75%|50% of platform `--card-size` on split; on stacked layouts Full fills the `#mediaplayer` rail), cover reflection (`player.cover_reflection`, default `true`) and **side covers** (`player.side_covers`, default `true`, with fill / spread / colour / navigate) live under Branding → Player → **Cover**. Beggars banquet (`player.beggars_banquet`, default `true`) and **Login / status** (`player.login_status`, default `false`) live under Branding → Player → **User area**. Transport glass fill/blur and the faux spectrum analyzer (`player.analyzer`, default `true`) live under Player → **Controls**. **Playlist selector** style (`player.playlist_selector`: `dropdown` | `buttons` | `coverflow`, default `coverflow`) lives under Branding → Content. All travel on the **Base brand** document with brands/PCFs. Cover size scales via `--cover-size-scale` (scene, split rail, side-cover offsets). **User area** sits at the top of `#mediaplayer` (solid surface, no border): admin / debug tools, dummy account link (preferences land in v0.9), then “Signed in as…”, then Log out. **Transport** is full rail width with a locked **4:1** aspect ratio (future sellable skins / Winamp-style packs; chrome densified to fit the lock); controls are brand-coloured SVG icons (repeat none|all|one; Chromecast control stubbed disabled until cast ships). The faux analyzer (`#analyzer` canvas) fills the entire transport box behind track info / controls / scrubber when On. Cover reflection is the mirrored still under the main flip-card on large split layouts. Side covers are the faint prev/next track covers flanking the main cover (optional; Navigate Off keeps them decorative). Login / status shows a signed-in strip at the top of `#mediaplayer` with Log out (compact login form when anonymous player entry ships). Beggars banquet is the in-flow support CTA under the player transport; Settings → Support still owns destination, label, and colours. Shell backdrop has **no Still|Living toggle** — if the brand assigns living video, `/play` prefers it (still paints first; reduced-motion / slow-connection stay on still). Track living covers follow the same assignment-is-intent rule.
 
-**Player Campaign navigator (locked — v0.8 exit gate; chrome re-locked 2026-09-09):**
+**Player Campaign navigator (locked — v0.8 exit gate; chrome re-locked 2026-09-28):**
 
-Campaign-first listening scope (HITZ multi-campaign). Header logo is **identity only**. Campaign switching lives **inside the Playlists panel** (fans switch campaigns to reach other playlists — not as always-on tab chrome).
+Campaign-first listening scope (HITZ multi-campaign). Campaign switching lives **inside the Playlists panel** (fans switch campaigns to reach other playlists — not as always-on tab chrome).
 
 | Rule | Behaviour |
 |------|-----------|
 | Polarity | Select **campaign** first; playlist selector lists **only that campaign’s public playlists** |
-| Chrome | Current campaign **logo** in the header is static (`.content-logo-img`) — not a button. When **≥2** public campaigns, a **campaign logo strip** sits at the top of the Playlists panel (wide ~2:1 chips; logos + `aria-label` / `title` only — no visible “Campaigns” label). Playlist selector stays brand-owned (`coverflow` / `buttons` / `dropdown`); covers stay ~1:1 |
+| Chrome | When **≥2** public campaigns, a **campaign logo strip** sits at the top of the Playlists panel (wide ~2:1 chips; logos + `aria-label` / `title` only — no visible “Campaigns” label). Playlist selector stays brand-owned (`coverflow` / `buttons` / `dropdown`); covers stay ~1:1 |
+| Content header logo | **Single-campaign** installs: show the brand shell logo above the tab bar (identity). **Multi-campaign** (≥2): **hide** the Content header logo — the strip already shows which campaign is active; do not stack the same mark twice. Login splash / Base brand logo are unchanged |
+| Chip presentation | Chips stay **fully opaque** (solid plate + readable logo). Do **not** dim unselected campaigns against the backdrop. **Selected** chip is larger / stronger border+glow; unselected stay full opacity at a slightly smaller scale. Horizontal scroll when the row overflows |
 | Layout | Wide: campaign strip and playlist selector share one toolbar row when both visible. Narrow: stack (campaigns first, then playlists). Neither control appears in `.content-toggle` |
-| Single campaign | Hide campaign strip; header logo only (identity) |
+| Single campaign | Hide campaign strip; show Content header logo (identity) |
 | Single playlist | If the selected campaign has **≤1** public playlist, **hide** the playlist selector (per campaign, not install-wide count) |
+| Artwork slots | **Brand** owns shell logo (login + single-campaign Content header) and shell media. **Campaign** owns navigator **chip** artwork (`navigator_logo_asset_id`, optional): empty → fall back to linked brand logo. Same asset id may be shared; do not force chip = brand lockup so one brand can back several campaigns |
 | Defaults | Browser **`localStorage`**: last campaign + last playlist per campaign + last track and playback position per playlist (until a future user-state registry). Else campaign that owns the ★ default playlist; within campaign open last playlist else ★ default; within playlist open last track else first playable; resume mid-track when a position is stored (deep links start at 0) |
 | Idle chrome | Selected campaign drives **brand shell + page tabs** even before play |
 | Playback | **Campaign change stops playback**. Playlist change within campaign may keep playing until a new track starts |
 | After campaign switch | Land on that campaign’s last-played playlist **and track**, scrubbed to the saved position (else defaults), **paused** |
 | Deep links | Override memory **on that load only**. Paths are campaign-first only (see URLs) — **hard cut**, no legacy playlist-first URLs |
-| Scale | Playlists-panel strip is for **a few** campaigns; large-catalogue campaign UI is later debt |
-| Logo presentation | Player campaign chips use a **wide (~2:1)** frame with `object-fit: contain`. Prefer 2:1 brand logos in Branding (guidance); do not hard-block non-2:1 uploads in this slice |
+| Scale | Playlists-panel strip is for **a few** campaigns; large-catalogue campaign UI (compact current + picker / search) is later debt |
+| Logo presentation | Player campaign chips use a **wide (~2:1)** frame with `object-fit: contain`. Prefer 2:1 chip artwork (guidance); do not hard-block non-2:1 uploads |
 
 **Player nav (shipped + navigator):**
 
@@ -1103,7 +1106,7 @@ These behaviours come from the old single-playlist / filename-key model and must
 1. Asset registry + ULID intake for new uploads; migrate existing masters to `asset_id`.
 2. `data/releases` + required track membership; release locking.
 3. `data/playlists` + remove playlist→master sync; migrate off legacy playlist artifacts.
-4. Player: Campaign navigator (static header logo + Playlists-panel campaign logo strip + campaign-scoped playlist selector), pinned default playlist pointer with `publish_date` fallback, path URLs `/play/{campaign}/{playlist}/{track}`.
+4. Player: Campaign navigator (Content header logo only when one campaign; multi-campaign strip under Playlists + campaign-scoped playlist selector; optional `navigator_logo_asset_id`), pinned default playlist pointer with `publish_date` fallback, path URLs `/play/{campaign}/{playlist}/{track}`.
 5. Embargoed tracks visible but non-playable in playlist UI.
 6. `data/galleries` + page `gallery` block (grid preset minimum).
 7. `data/brands/` + setup protected seed `bandpromo-default` + duplicate + active pointer (migrate from `data/themes/`).

@@ -304,20 +304,24 @@ Implementation order:
 
 HITZ suggested replacing the player brand-logo control with a **Campaign navigator**: pick campaign first, then the playlist selector shows that campaign’s playlists. Today playlist choice drives campaign context (brand shell + often page tabs via the playing track). Campaign → playlists matches the umbrella model better for multi-campaign installs (labels / many artists).
 
-Policy — **locked 2026-09-08**; **chrome re-locked 2026-09-09** (see [PLATFORM-MODEL.md](PLATFORM-MODEL.md) → Player Campaign navigator):
+Policy — **locked 2026-09-08**; **chrome re-locked 2026-09-28** (see [PLATFORM-MODEL.md](PLATFORM-MODEL.md) → Player Campaign navigator):
 
 - [x] Lock **control polarity** — campaign selects the listening scope; playlists are products under that campaign (not the reverse).
-- [x] Lock **chrome placement** — static header logo (identity only); campaign **logo strip** at top of Playlists panel (not tab row; not under header logo); no visible “Campaigns” label (a11y names only); wide ~2:1 campaign chips vs ~1:1 playlist covers.
+- [x] Lock **chrome placement** — campaign **logo strip** at top of Playlists panel (not tab row); no visible “Campaigns” label (a11y names only); wide ~2:1 campaign chips vs ~1:1 playlist covers.
+- [x] Lock **Content header logo** — show only on **single-campaign** installs; **hide** when the strip is visible (≥2) so the brand mark is not stacked twice.
+- [x] Lock **chip presentation** — fully opaque plates (no dim/transparent unselected); selected chip larger / stronger; horizontal scroll when overflowing.
+- [x] Lock **artwork slots** — brand owns shell logo; campaign owns optional `navigator_logo_asset_id` (empty → brand logo fallback).
 - [x] Lock **single-campaign installs** — hide campaign strip when only one public campaign.
 - [x] Lock **single-playlist campaigns** — hide playlist selector when the selected campaign has ≤1 public playlist.
 - [x] Lock **defaults** — `localStorage` last campaign + last playlist per campaign + last track and position per playlist; else ★ default playlist’s campaign / playlist / first playable track (deep links start at 0).
 - [x] Lock **page tabs + brand** — selected campaign drives shell + tabs when idle; campaign change stops playback; playlist change may keep playing; deep links override memory.
 - [x] Lock **URLs** — `/play/{campaign}/{playlist}/{track}` hard cut; no playlist-first legacy paths ([AGENTS.md](AGENTS.md) no speculative fallbacks).
-- [x] Lock **scale** — Playlists-panel strip for a few campaigns; large-catalogue UI later.
+- [x] Lock **scale** — Playlists-panel strip for a few campaigns; large-catalogue UI later (compact current + picker / search).
 
 Implementation order:
 
-- [x] **Player Campaign navigator** — static header logo + Playlists-panel campaign strip + campaign-scoped playlist list; `localStorage`; hard-cut routes (2026-09-09).
+- [x] **Player Campaign navigator** — Playlists-panel campaign strip + campaign-scoped playlist list; `localStorage`; hard-cut routes (2026-09-09); Content header logo hide + opaque chips (2026-09-28).
+- [x] **Campaign `navigator_logo_asset_id`** — stored + player catalog resolve (fallback brand logo); Catalogue **Chip artwork:** picker on Campaign → Media assets.
 - [ ] **Docs stories** — USE-CASES HITZ + Spandexual Tension player stories after fleet validate.
 - [ ] **Large-catalogue campaign UI** — later (search/list); not this slice.
 - [ ] **Fleet persona validate** — Vanilla / Spandexual Tension / HITZ after publish.

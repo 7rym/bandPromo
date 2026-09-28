@@ -3525,10 +3525,16 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     '<option value="all">All campaigns</option>',
                     '<option value="orphans">Orphans</option>',
                 ];
-                const campaigns = window.bandpromoEditorSort.sortItemsByTitle(
-                    Array.isArray(campaignsCatalog) ? campaignsCatalog.slice() : [],
-                    'title'
-                );
+                const campaigns = (window.bandpromoEditorSort.sortItemsByDateDesc
+                    ? window.bandpromoEditorSort.sortItemsByDateDesc(
+                        Array.isArray(campaignsCatalog) ? campaignsCatalog.slice() : [],
+                        'release_date',
+                        'title'
+                    )
+                    : window.bandpromoEditorSort.sortItemsByTitle(
+                        Array.isArray(campaignsCatalog) ? campaignsCatalog.slice() : [],
+                        'title'
+                    ));
                 campaigns.forEach((entry) => {
                     const id = String(entry?.id || '').trim();
                     if (!id) {
@@ -5883,10 +5889,16 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 const options = [
                     '<option value="">Orphan (unassigned)</option>',
                 ];
-                const campaigns = window.bandpromoEditorSort.sortItemsByTitle(
-                    Array.isArray(campaignsCatalog) ? campaignsCatalog.slice() : [],
-                    'title'
-                );
+                const campaigns = (window.bandpromoEditorSort.sortItemsByDateDesc
+                    ? window.bandpromoEditorSort.sortItemsByDateDesc(
+                        Array.isArray(campaignsCatalog) ? campaignsCatalog.slice() : [],
+                        'release_date',
+                        'title'
+                    )
+                    : window.bandpromoEditorSort.sortItemsByTitle(
+                        Array.isArray(campaignsCatalog) ? campaignsCatalog.slice() : [],
+                        'title'
+                    ));
                 campaigns.forEach((entry) => {
                     const id = String(entry?.id || '').trim();
                     if (!id || id === 'primary') {
@@ -6546,6 +6558,13 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                             if (mediaPickerState.fieldId === 'campaignSettingsPosterAssetId'
                                 && typeof window.bandpromoCampaignCoverPicked === 'function') {
                                 window.bandpromoCampaignCoverPicked(selectedPath);
+                            }
+                            if (mediaPickerState.fieldId === 'campaignSettingsNavigatorLogoAssetId') {
+                                const chipRef = String(selectedAssetId || selectedPath || '').trim();
+                                setPickerFieldValue(mediaPickerState.fieldId, chipRef);
+                                if (typeof window.bandpromoCampaignNavigatorLogoPicked === 'function') {
+                                    window.bandpromoCampaignNavigatorLogoPicked(chipRef);
+                                }
                             }
                             if (mediaPickerState.fieldId === 'playlistSettingsPosterAssetId'
                                 && typeof window.bandpromoPlaylistCoverPicked === 'function') {

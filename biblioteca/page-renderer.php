@@ -22,6 +22,19 @@ function bandpromo_page_render_text_content(string $text): string {
     return nl2br(bandpromo_page_escape($text), false);
 }
 
+/**
+ * Full-width flex row so measured prose never shares a line with picture tiles.
+ */
+function bandpromo_page_wrap_prose_row(string $innerHtml): string
+{
+    $innerHtml = trim($innerHtml);
+    if ($innerHtml === '') {
+        return '';
+    }
+
+    return '<div class="page-prose-row">' . $innerHtml . '</div>';
+}
+
 function bandpromo_page_render_block(array $block, ?string $root = null): string {
     $type = (string) ($block['type'] ?? '');
 
@@ -31,7 +44,7 @@ function bandpromo_page_render_block(array $block, ?string $root = null): string
             return '';
         }
 
-        return '<div class="page-richtext">' . $html . '</div>';
+        return bandpromo_page_wrap_prose_row('<div class="page-richtext">' . $html . '</div>');
     }
 
     if ($type === 'picture' || $type === 'picture_richtext') {
@@ -247,7 +260,9 @@ function bandpromo_page_render_block(array $block, ?string $root = null): string
             return '';
         }
 
-        return '<h' . $level . ' class="page-heading page-heading--' . $level . '">' . $text . '</h' . $level . '>';
+        return bandpromo_page_wrap_prose_row(
+            '<h' . $level . ' class="page-heading page-heading--' . $level . '">' . $text . '</h' . $level . '>'
+        );
     }
 
     if ($type === 'paragraph') {
@@ -256,7 +271,7 @@ function bandpromo_page_render_block(array $block, ?string $root = null): string
             return '';
         }
 
-        return '<p class="page-paragraph">' . $text . '</p>';
+        return bandpromo_page_wrap_prose_row('<p class="page-paragraph">' . $text . '</p>');
     }
 
     if ($type === 'list') {
@@ -272,7 +287,7 @@ function bandpromo_page_render_block(array $block, ?string $root = null): string
         }
         $html .= '</' . $tag . '>';
 
-        return $html;
+        return bandpromo_page_wrap_prose_row($html);
     }
 
     if ($type === 'quote') {
@@ -287,7 +302,7 @@ function bandpromo_page_render_block(array $block, ?string $root = null): string
         }
         $html .= '</blockquote>';
 
-        return $html;
+        return bandpromo_page_wrap_prose_row($html);
     }
 
     if ($type === 'image') {
@@ -321,7 +336,9 @@ function bandpromo_page_render_block(array $block, ?string $root = null): string
 
         $tone = bandpromo_page_escape((string) ($block['tone'] ?? 'note'));
 
-        return '<aside class="page-callout page-callout--' . $tone . '"><p>' . $text . '</p></aside>';
+        return bandpromo_page_wrap_prose_row(
+            '<aside class="page-callout page-callout--' . $tone . '"><p>' . $text . '</p></aside>'
+        );
     }
 
     return '';

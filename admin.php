@@ -1906,6 +1906,26 @@ if ($tab === 'analytics') {
                                                             </div>
                                                             <p class="hint content-editor-field-hint">Campaign cover for the catalogue card and share images.</p>
                                                         </div>
+                                                        <div id="campaignNavigatorLogoEditor" class="campaign-cover-panel playlist-base-artwork campaign-navigator-logo-panel">
+                                                            <input type="hidden" id="campaignSettingsNavigatorLogoAssetId" data-empty-label="Uses brand logo">
+                                                            <span id="campaignSettingsNavigatorLogoAssetId_label" class="visually-hidden" aria-hidden="true">Uses brand logo</span>
+                                                            <div class="content-editor-field content-editor-field--inline playlist-base-artwork-row">
+                                                                <span class="content-editor-field-label">Chip artwork:</span>
+                                                                <div class="audio-master-cover-layout campaign-cover-layout playlist-base-artwork-control campaign-navigator-logo-control">
+                                                                    <div class="audio-master-cover-preview-shell campaign-navigator-logo-shell">
+                                                                        <div class="audio-master-cover-preview campaign-navigator-logo-preview" id="campaignNavigatorLogoPreviewShell">
+                                                                            <div class="audio-master-cover-overlay-actions" id="campaignNavigatorLogoOverlayActions">
+                                                                                <button type="button" class="icon-btn media-picker-open audio-master-cover-action" data-field="campaignSettingsNavigatorLogoAssetId" data-title="Choose campaign chip artwork" data-targets="visual" title="Choose chip artwork" aria-label="Choose campaign chip artwork">✎</button>
+                                                                                <button type="button" class="icon-btn audio-master-cover-action" id="campaignNavigatorLogoClearBtn" title="Use brand logo" aria-label="Clear chip artwork — use brand logo">↺</button>
+                                                                            </div>
+                                                                            <img id="campaignNavigatorLogoPreview" alt="Campaign chip artwork preview" style="display:none;">
+                                                                            <span id="campaignNavigatorLogoPlaceholder">Uses brand logo</span>
+                                                                        </div>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                            <p class="hint content-editor-field-hint">Playlists campaign strip (~2:1). Leave empty to use the linked brand logo.</p>
+                                                        </div>
                                                     </div>
                                                 </section>
                                             </div>

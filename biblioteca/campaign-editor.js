@@ -30,8 +30,10 @@
         const campaignSettingsShortDescription = document.getElementById('campaignSettingsShortDescription');
         const campaignSettingsShortDescriptionCount = document.getElementById('campaignSettingsShortDescriptionCount');
         const campaignSettingsPosterAssetId = document.getElementById('campaignSettingsPosterAssetId');
+        const campaignSettingsNavigatorLogoAssetId = document.getElementById('campaignSettingsNavigatorLogoAssetId');
         const campaignCoverPanel = document.getElementById('campaignCoverPanel');
         const campaignArtworkEditor = document.getElementById('campaignArtworkEditor');
+        const campaignNavigatorLogoEditor = document.getElementById('campaignNavigatorLogoEditor');
         const campaignBaseBrandPreview = document.getElementById('campaignBaseBrandPreview');
         const campaignBaseBrandPreviewBody = document.getElementById('campaignBaseBrandPreviewBody');
         const campaignOwnershipSummary = document.getElementById('campaignOwnershipSummary');
@@ -43,6 +45,11 @@
         const campaignCoverPlaceholder = document.getElementById('campaignCoverPlaceholder');
         const campaignCoverClearBtn = document.getElementById('campaignCoverClearBtn');
         const campaignCoverOverlayActions = document.getElementById('campaignCoverOverlayActions');
+        const campaignNavigatorLogoPreviewShell = document.getElementById('campaignNavigatorLogoPreviewShell');
+        const campaignNavigatorLogoPreview = document.getElementById('campaignNavigatorLogoPreview');
+        const campaignNavigatorLogoPlaceholder = document.getElementById('campaignNavigatorLogoPlaceholder');
+        const campaignNavigatorLogoClearBtn = document.getElementById('campaignNavigatorLogoClearBtn');
+        const campaignNavigatorLogoOverlayActions = document.getElementById('campaignNavigatorLogoOverlayActions');
         const campaignPreviewCoverImg = document.getElementById('campaignPreviewCoverImg');
         const campaignPreviewCoverPlaceholder = document.getElementById('campaignPreviewCoverPlaceholder');
         const campaignPreviewCoverShell = document.getElementById('campaignPreviewCoverShell');
@@ -169,6 +176,7 @@
         let campaignSettingsSaving = false;
         let campaignSettingsSaveQueued = false;
         let pendingCampaignCoverPreviewUrl = '';
+        let pendingCampaignNavigatorLogoPreviewUrl = '';
         const saveUi = window.bandpromoContentSaveUi?.create(campaignSaveBtn, {
             saveLabel: '💾 Save campaign',
             readFingerprint() {
@@ -502,6 +510,95 @@
             campaignSettingsPosterAssetId.dispatchEvent(new Event('input', { bubbles: true }));
         }
 
+        function syncPendingCampaignNavigatorLogoPreview(entry, assetId) {
+            const ref = String(assetId || '').trim();
+            if (!ref) {
+                pendingCampaignNavigatorLogoPreviewUrl = '';
+                return;
+            }
+            pendingCampaignNavigatorLogoPreviewUrl = String(entry?.navigator_logo_preview_url || '').trim()
+                || mediaPreviewUrlFromReference(ref);
+        }
+
+        function campaignNavigatorLogoPreviewUrl(value, entry = null) {
+            const raw = String(value || '').trim();
+            if (!raw) {
+                return '';
+            }
+            if (pendingCampaignNavigatorLogoPreviewUrl) {
+                const pendingBase = pendingCampaignNavigatorLogoPreviewUrl.split('?')[0];
+                const rawResolved = mediaPreviewUrlFromReference(raw).split('?')[0];
+                if (rawResolved && pendingBase === rawResolved) {
+                    return pendingCampaignNavigatorLogoPreviewUrl;
+                }
+                const idMatch = String(raw || '').match(/ast_[0-9A-HJKMNP-TV-Z]{20}/i);
+                if (idMatch && pendingBase.toLowerCase().includes(idMatch[0].toLowerCase())) {
+                    return pendingCampaignNavigatorLogoPreviewUrl;
+                }
+            }
+            if (/^https?:\/\//i.test(raw) || raw.startsWith('/media/')) {
+                return mediaPreviewUrlFromReference(raw);
+            }
+            const entryRef = entry && String(entry.navigator_logo_asset_id || '').trim() === raw
+                ? String(entry.navigator_logo_preview_url || '').trim()
+                : '';
+            if (entryRef) {
+                return entryRef;
+            }
+            const cached = campaignEntry(selectedCampaignId);
+            if (cached && String(cached.navigator_logo_asset_id || '').trim() === raw) {
+                const cachedUrl = String(cached.navigator_logo_preview_url || '').trim();
+                if (cachedUrl) {
+                    return cachedUrl;
+                }
+            }
+            return mediaPreviewUrlFromReference(raw);
+        }
+
+        function updateCampaignNavigatorLogoPreview() {
+            const entry = campaignEntry(selectedCampaignId);
+            const rawValue = campaignSettingsNavigatorLogoAssetId instanceof HTMLInputElement
+                ? String(campaignSettingsNavigatorLogoAssetId.value || '').trim()
+                : '';
+            const previewUrl = campaignNavigatorLogoPreviewUrl(rawValue, entry);
+            if (campaignNavigatorLogoPreview instanceof HTMLImageElement) {
+                if (previewUrl) {
+                    if (campaignNavigatorLogoPreview.getAttribute('src') !== previewUrl) {
+                        campaignNavigatorLogoPreview.src = previewUrl;
+                    }
+                    campaignNavigatorLogoPreview.style.display = 'block';
+                } else {
+                    campaignNavigatorLogoPreview.removeAttribute('src');
+                    campaignNavigatorLogoPreview.style.display = 'none';
+                }
+            }
+            if (campaignNavigatorLogoPlaceholder) {
+                campaignNavigatorLogoPlaceholder.style.display = previewUrl ? 'none' : 'block';
+            }
+            if (campaignNavigatorLogoPreviewShell instanceof HTMLElement) {
+                campaignNavigatorLogoPreviewShell.title = previewUrl
+                    ? 'Campaign chip artwork'
+                    : 'Uses brand logo';
+            }
+            const label = document.getElementById('campaignSettingsNavigatorLogoAssetId_label');
+            if (campaignSettingsNavigatorLogoAssetId instanceof HTMLInputElement && label) {
+                const emptyLabel = campaignSettingsNavigatorLogoAssetId.dataset.emptyLabel || 'Uses brand logo';
+                const fileName = rawValue.includes('/') ? rawValue.split('/').pop() : rawValue;
+                label.textContent = fileName || emptyLabel;
+                label.classList.toggle('empty', !fileName);
+            }
+        }
+
+        function setCampaignNavigatorLogoValue(value) {
+            if (!(campaignSettingsNavigatorLogoAssetId instanceof HTMLInputElement)) {
+                return;
+            }
+            const next = String(value || '').trim();
+            pendingCampaignNavigatorLogoPreviewUrl = next ? mediaPreviewUrlFromReference(next) : '';
+            campaignSettingsNavigatorLogoAssetId.value = next;
+            campaignSettingsNavigatorLogoAssetId.dispatchEvent(new Event('input', { bubbles: true }));
+        }
+
         function campaignTrackCount(entry) {
             if (!entry) {
                 return 0;
@@ -801,6 +898,9 @@
             // (that stuck after chip switches). Clear any leftover hide when Base is active.
             if (campaignArtworkEditor && baseActive && entry) {
                 campaignArtworkEditor.hidden = false;
+            }
+            if (campaignNavigatorLogoEditor && baseActive && entry) {
+                campaignNavigatorLogoEditor.hidden = false;
             }
             if (activeEl) {
                 activeEl.hidden = !tracksActive;
@@ -1178,9 +1278,17 @@
                 campaignSettingsPosterAssetId.value = poster;
                 syncPendingCampaignCoverPreview(entry, poster);
             }
+            if (entry && campaignSettingsNavigatorLogoAssetId instanceof HTMLInputElement && !isEditing) {
+                const chip = String(entry.navigator_logo_asset_id || '').trim();
+                campaignSettingsNavigatorLogoAssetId.value = chip;
+                syncPendingCampaignNavigatorLogoPreview(entry, chip);
+            }
             const canEditCover = !!(isEditing && entry && !entry.locked);
             if (campaignCoverOverlayActions instanceof HTMLElement) {
                 campaignCoverOverlayActions.hidden = !isEditing;
+            }
+            if (campaignNavigatorLogoOverlayActions instanceof HTMLElement) {
+                campaignNavigatorLogoOverlayActions.hidden = !isEditing;
             }
             const coverEditButtons = campaignArtworkEditor
                 ? campaignArtworkEditor.querySelectorAll('.audio-master-cover-overlay-actions button')
@@ -1190,14 +1298,26 @@
                     button.disabled = !canEditCover;
                 }
             });
+            const chipEditButtons = campaignNavigatorLogoEditor
+                ? campaignNavigatorLogoEditor.querySelectorAll('.audio-master-cover-overlay-actions button')
+                : [];
+            chipEditButtons.forEach((button) => {
+                if (button instanceof HTMLButtonElement) {
+                    button.disabled = !canEditCover;
+                }
+            });
             if (campaignArtworkEditor && entry && isEditing && campaignEditorTab === 'base') {
                 campaignArtworkEditor.hidden = false;
+            }
+            if (campaignNavigatorLogoEditor && entry && isEditing && campaignEditorTab === 'base') {
+                campaignNavigatorLogoEditor.hidden = false;
             }
             if (activeEl) {
                 activeEl.hidden = !isEditing || campaignEditorTab !== 'tracks';
             }
             updateCampaignCreatePlaylistButton();
             updateCampaignCoverPreview();
+            updateCampaignNavigatorLogoPreview();
             syncCampaignEditorMode();
             refreshCampaignBaseBrandPreview();
             refreshCampaignOwnershipSummary();
@@ -1240,24 +1360,23 @@
         }
 
         function initCampaignCoverPicker() {
-            const pickerRoot = campaignArtworkEditor || campaignCoverPanel;
-            if (!pickerRoot) {
-                return;
-            }
-
-            pickerRoot.querySelectorAll('.media-picker-open').forEach((button) => {
-                button.addEventListener('click', (event) => {
-                    event.preventDefault();
-                    event.stopPropagation();
-                    if (typeof window.openMediaPicker !== 'function') {
-                        showCampaignToast('Media picker is not available. Reload the page.');
-                        return;
-                    }
-                    window.openMediaPicker(
-                        button.dataset.field || 'campaignSettingsPosterAssetId',
-                        button.dataset.title || 'Choose campaign artwork',
-                        button.dataset.targets || 'visual'
-                    );
+            const pickerRoots = [campaignArtworkEditor, campaignNavigatorLogoEditor, campaignCoverPanel]
+                .filter((root) => root instanceof HTMLElement);
+            pickerRoots.forEach((pickerRoot) => {
+                pickerRoot.querySelectorAll('.media-picker-open').forEach((button) => {
+                    button.addEventListener('click', (event) => {
+                        event.preventDefault();
+                        event.stopPropagation();
+                        if (typeof window.openMediaPicker !== 'function') {
+                            showCampaignToast('Media picker is not available. Reload the page.');
+                            return;
+                        }
+                        window.openMediaPicker(
+                            button.dataset.field || 'campaignSettingsPosterAssetId',
+                            button.dataset.title || 'Choose campaign artwork',
+                            button.dataset.targets || 'visual'
+                        );
+                    });
                 });
             });
 
@@ -1267,10 +1386,22 @@
                 setCampaignCoverValue('');
             });
 
+            campaignNavigatorLogoClearBtn?.addEventListener('click', (event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                setCampaignNavigatorLogoValue('');
+            });
+
             window.bandpromoCampaignCoverPicked = function bandpromoCampaignCoverPicked(path) {
                 const next = String(path || '').trim();
                 pendingCampaignCoverPreviewUrl = next ? mediaPreviewUrlFromReference(next) : '';
                 updateCampaignCoverPreview();
+            };
+
+            window.bandpromoCampaignNavigatorLogoPicked = function bandpromoCampaignNavigatorLogoPicked(path) {
+                const next = String(path || '').trim();
+                pendingCampaignNavigatorLogoPreviewUrl = next ? mediaPreviewUrlFromReference(next) : '';
+                updateCampaignNavigatorLogoPreview();
             };
         }
 
@@ -1333,6 +1464,7 @@
                 short_description: '',
                 description: '',
                 poster_asset_id: '',
+                navigator_logo_asset_id: '',
                 brand_id: '',
                 epk: defaultCampaignEpk(),
             };
@@ -1444,6 +1576,9 @@
                     : String(campaignSettingsBaseline.description || '').trim(),
                 poster_asset_id: campaignSettingsPosterAssetId instanceof HTMLInputElement
                     ? String(campaignSettingsPosterAssetId.value || '').trim()
+                    : '',
+                navigator_logo_asset_id: campaignSettingsNavigatorLogoAssetId instanceof HTMLInputElement
+                    ? String(campaignSettingsNavigatorLogoAssetId.value || '').trim()
                     : '',
                 brand_id: campaignSettingsBrandId instanceof HTMLSelectElement
                     ? String(campaignSettingsBrandId.value || '').trim()
@@ -2253,6 +2388,9 @@
         }
 
         function sortCampaignEntries(list) {
+            if (window.bandpromoEditorSort && typeof window.bandpromoEditorSort.sortItemsByDateDesc === 'function') {
+                return window.bandpromoEditorSort.sortItemsByDateDesc(list, 'release_date', 'title');
+            }
             return window.bandpromoEditorSort.sortItemsByTitle(list, 'title');
         }
 
@@ -2346,6 +2484,7 @@
             const catalogId = String(entry?.catalog_id || '').trim();
             const slug = String(entry?.slug || entry?.id || campaignId || '').trim();
             const posterAssetId = String(entry?.poster_asset_id || '').trim();
+            const navigatorLogoAssetId = String(entry?.navigator_logo_asset_id || '').trim();
             const brandId = String(
                 entry?.brand_id
                 || ownershipChildren(entry).brand_id
@@ -2363,6 +2502,7 @@
                 short_description: shortDescription,
                 description,
                 poster_asset_id: posterAssetId,
+                navigator_logo_asset_id: navigatorLogoAssetId,
                 brand_id: brandId,
                 epk,
             };
@@ -2408,6 +2548,10 @@
                 campaignSettingsPosterAssetId.value = posterAssetId;
             }
             syncPendingCampaignCoverPreview(entry, posterAssetId);
+            if (campaignSettingsNavigatorLogoAssetId instanceof HTMLInputElement) {
+                campaignSettingsNavigatorLogoAssetId.value = navigatorLogoAssetId;
+            }
+            syncPendingCampaignNavigatorLogoPreview(entry, navigatorLogoAssetId);
             if (campaignSettingsCredits instanceof HTMLTextAreaElement) {
                 campaignSettingsCredits.value = epk.credits;
             }
@@ -2541,6 +2685,17 @@
                     pendingCampaignCoverPreviewUrl = mediaPreviewUrlFromReference(savedPoster);
                 } else {
                     pendingCampaignCoverPreviewUrl = '';
+                }
+                const savedChip = String(
+                    data.release?.navigator_logo_asset_id || settings.navigator_logo_asset_id || ''
+                ).trim();
+                const savedChipPreview = String(data.release?.navigator_logo_preview_url || '').trim();
+                if (savedChipPreview) {
+                    pendingCampaignNavigatorLogoPreviewUrl = savedChipPreview;
+                } else if (savedChip) {
+                    pendingCampaignNavigatorLogoPreviewUrl = mediaPreviewUrlFromReference(savedChip);
+                } else {
+                    pendingCampaignNavigatorLogoPreviewUrl = '';
                 }
                 syncCampaignSettingsPanel(selectedCampaignId);
                 renderCampaignPoolList();
@@ -2754,6 +2909,7 @@
                 short_description: String(entry?.short_description || '').trim(),
                 description: String(entry?.description || '').trim(),
                 poster_asset_id: String(entry?.poster_asset_id || '').trim(),
+                navigator_logo_asset_id: String(entry?.navigator_logo_asset_id || '').trim(),
                 brand_id: String(entry?.brand_id || '').trim(),
                 epk,
             };
@@ -3737,6 +3893,16 @@
                 pendingCampaignCoverPreviewUrl = mediaPreviewUrlFromReference(raw);
             }
             updateCampaignCoverPreview();
+            saveCampaignSettings();
+        });
+        campaignSettingsNavigatorLogoAssetId?.addEventListener('input', () => {
+            const raw = String(campaignSettingsNavigatorLogoAssetId.value || '').trim();
+            if (!raw) {
+                pendingCampaignNavigatorLogoPreviewUrl = '';
+            } else if (raw.startsWith('/media/') || /^https?:\/\//i.test(raw)) {
+                pendingCampaignNavigatorLogoPreviewUrl = mediaPreviewUrlFromReference(raw);
+            }
+            updateCampaignNavigatorLogoPreview();
             saveCampaignSettings();
         });
         campaignSettingsShortDescription?.addEventListener('input', () => {

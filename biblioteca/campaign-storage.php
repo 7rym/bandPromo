@@ -244,10 +244,44 @@ function bandpromo_campaign_normalize_document(array $input, ?string $expectedId
         'catalog_id' => bandpromo_campaign_normalize_text_field($input['catalog_id'] ?? '', 80),
         'description' => bandpromo_campaign_normalize_text_field($input['description'] ?? '', 4000),
         'poster_asset_id' => bandpromo_campaign_normalize_poster_asset_id($root, $input['poster_asset_id'] ?? ''),
+        // Optional Playlists-panel chip artwork; empty → linked brand shell logo.
+        'navigator_logo_asset_id' => bandpromo_campaign_normalize_poster_asset_id(
+            $root,
+            $input['navigator_logo_asset_id'] ?? ''
+        ),
         'brand_id' => bandpromo_campaign_normalize_brand_id($root, $input['brand_id'] ?? ''),
         'epk' => bandpromo_campaign_normalize_epk($input['epk'] ?? []),
         'tracks' => $tracks,
     ];
+}
+
+function bandpromo_campaign_release_date_sort_value(string $releaseDate): int
+{
+    $releaseDate = trim($releaseDate);
+    if (preg_match('/^\d{4}$/', $releaseDate)) {
+        return (int) ($releaseDate . '0101');
+    }
+
+    $date = DateTimeImmutable::createFromFormat('!Y-m-d', $releaseDate);
+
+    return $date instanceof DateTimeImmutable ? (int) $date->format('Ymd') : 0;
+}
+
+/**
+ * Newest release_date first; empty dates last; title A–Z as tie-break.
+ *
+ * @param array<string, mixed> $left
+ * @param array<string, mixed> $right
+ */
+function bandpromo_campaign_compare_by_release_date_desc(array $left, array $right): int
+{
+    $leftDate = bandpromo_campaign_release_date_sort_value((string) ($left['release_date'] ?? ''));
+    $rightDate = bandpromo_campaign_release_date_sort_value((string) ($right['release_date'] ?? ''));
+    if ($leftDate !== $rightDate) {
+        return $rightDate <=> $leftDate;
+    }
+
+    return strcasecmp((string) ($left['title'] ?? ''), (string) ($right['title'] ?? ''));
 }
 
 function bandpromo_campaign_normalize_text_field(mixed $value, int $maxLength): string
@@ -603,6 +637,7 @@ function bandpromo_campaign_default_document(): array
         'catalog_id' => '',
         'description' => '',
         'poster_asset_id' => '',
+        'navigator_logo_asset_id' => '',
         'brand_id' => '',
         'epk' => bandpromo_campaign_default_epk(),
         'tracks' => [],
@@ -2438,6 +2473,7 @@ function bandpromo_campaign_admin_registry_entry(string $root, array $registryEn
     $entry['short_description'] = '';
     $entry['catalog_id'] = '';
     $entry['poster_asset_id'] = '';
+    $entry['navigator_logo_asset_id'] = '';
     $entry['brand_id'] = '';
     $entry['epk'] = bandpromo_campaign_default_epk();
     $entry['preview_tracks'] = [];
@@ -2451,11 +2487,25 @@ function bandpromo_campaign_admin_registry_entry(string $root, array $registryEn
         $entry['short_description'] = (string) ($document['short_description'] ?? '');
         $entry['catalog_id'] = (string) ($document['catalog_id'] ?? '');
         $entry['poster_asset_id'] = (string) ($document['poster_asset_id'] ?? '');
+        $entry['navigator_logo_asset_id'] = (string) ($document['navigator_logo_asset_id'] ?? '');
         $entry['brand_id'] = (string) ($document['brand_id'] ?? '');
         $entry['poster_preview_url'] = bandpromo_campaign_resolve_poster_preview_url(
             $root,
             $entry['poster_asset_id']
         );
+        $entry['navigator_logo_preview_url'] = '';
+        if ($entry['navigator_logo_asset_id'] !== '') {
+            require_once __DIR__ . '/media-delivery-helpers.php';
+            $entry['navigator_logo_preview_url'] = trim(
+                bandpromo_visual_resolve_url($root, $entry['navigator_logo_asset_id'], 'card', '', false)
+            );
+            if ($entry['navigator_logo_preview_url'] === '') {
+                $entry['navigator_logo_preview_url'] = bandpromo_campaign_resolve_poster_preview_url(
+                    $root,
+                    $entry['navigator_logo_asset_id']
+                );
+            }
+        }
         $entry['slug'] = (string) ($document['slug'] ?? ($entry['slug'] ?? $releaseId));
         $entry['epk'] = is_array($document['epk'] ?? null)
             ? bandpromo_campaign_normalize_epk($document['epk'])
@@ -2529,9 +2579,7 @@ function bandpromo_campaign_admin_registry_entries(string $root): array
         $entries[] = $adminEntry;
     }
 
-    usort($entries, static function (array $left, array $right): int {
-        return strcasecmp((string) ($left['title'] ?? ''), (string) ($right['title'] ?? ''));
-    });
+    usort($entries, 'bandpromo_campaign_compare_by_release_date_desc');
 
     return $entries;
 }
@@ -2616,13 +2664,16 @@ function bandpromo_campaign_assert_slug_available(string $root, string $slug, st
 }
 
 /**
- * Player campaign catalog for the logo cover-flow navigator.
+ * Player campaign catalog for the logo strip navigator.
+ *
+ * Chip artwork: campaign `navigator_logo_asset_id` when set, else linked brand shell logo.
  *
  * @return list<array{id: string, title: string, slug: string, logo: string, playlist_count: int}>
  */
 function bandpromo_campaign_player_catalog_entries(string $root, bool $operatorBypass = false): array
 {
     require_once __DIR__ . '/playlist-storage.php';
+    require_once __DIR__ . '/media-delivery-helpers.php';
 
     $playlistCatalog = bandpromo_playlist_player_catalog_entries($root, $operatorBypass);
     $playlistCounts = [];
@@ -2644,17 +2695,24 @@ function bandpromo_campaign_player_catalog_entries(string $root, bool $operatorB
         }
         $title = $campaignId;
         $brandId = '';
+        $navigatorLogoAssetId = '';
+        $releaseDate = '';
         try {
             $document = bandpromo_campaign_load_document($root, $campaignId);
             $title = trim((string) ($document['title'] ?? '')) !== ''
                 ? (string) $document['title']
                 : $title;
             $brandId = bandpromo_brand_canonical_id((string) ($document['brand_id'] ?? ''));
+            $navigatorLogoAssetId = trim((string) ($document['navigator_logo_asset_id'] ?? ''));
+            $releaseDate = trim((string) ($document['release_date'] ?? ''));
         } catch (Throwable $throwable) {
             continue;
         }
         $logo = '';
-        if ($brandId !== '') {
+        if ($navigatorLogoAssetId !== '') {
+            $logo = trim(bandpromo_visual_resolve_url($root, $navigatorLogoAssetId, 'card', '', false));
+        }
+        if ($logo === '' && $brandId !== '') {
             try {
                 $brandDoc = bandpromo_brand_load_document($root, $brandId);
                 $shell = bandpromo_brand_player_shell_assets($root, $brandDoc);
@@ -2668,13 +2726,12 @@ function bandpromo_campaign_player_catalog_entries(string $root, bool $operatorB
             'title' => $title,
             'slug' => bandpromo_campaign_public_slug($root, $campaignId),
             'logo' => $logo,
+            'release_date' => $releaseDate,
             'playlist_count' => (int) $playlistCounts[$campaignId],
         ];
     }
 
-    usort($entries, static function (array $left, array $right): int {
-        return strcasecmp((string) ($left['title'] ?? ''), (string) ($right['title'] ?? ''));
-    });
+    usort($entries, 'bandpromo_campaign_compare_by_release_date_desc');
 
     return $entries;
 }
@@ -4199,6 +4256,12 @@ function bandpromo_campaign_update_details(string $root, string $releaseId, arra
     }
     if (array_key_exists('poster_asset_id', $fields)) {
         $document['poster_asset_id'] = bandpromo_campaign_normalize_poster_asset_id($root, $fields['poster_asset_id']);
+    }
+    if (array_key_exists('navigator_logo_asset_id', $fields)) {
+        $document['navigator_logo_asset_id'] = bandpromo_campaign_normalize_poster_asset_id(
+            $root,
+            $fields['navigator_logo_asset_id']
+        );
     }
     if (array_key_exists('brand_id', $fields)) {
         $previousBrandId = bandpromo_campaign_normalize_brand_id($root, $document['brand_id'] ?? '');

@@ -1234,6 +1234,23 @@ function bandpromo_playlist_publish_date_sort_value(string $publishDate): int
     return $date instanceof DateTimeImmutable ? (int) $date->format('Ymd') : 0;
 }
 
+/**
+ * Newest publish_date first; empty dates last; title A–Z as tie-break.
+ *
+ * @param array<string, mixed> $left
+ * @param array<string, mixed> $right
+ */
+function bandpromo_playlist_compare_by_publish_date_desc(array $left, array $right): int
+{
+    $leftDate = bandpromo_playlist_publish_date_sort_value((string) ($left['publish_date'] ?? ''));
+    $rightDate = bandpromo_playlist_publish_date_sort_value((string) ($right['publish_date'] ?? ''));
+    if ($leftDate !== $rightDate) {
+        return $rightDate <=> $leftDate;
+    }
+
+    return strcasecmp((string) ($left['title'] ?? ''), (string) ($right['title'] ?? ''));
+}
+
 function bandpromo_playlist_first_visible_non_demo_id(string $root): string
 {
     $now = (int) gmdate('Ymd');
@@ -3168,9 +3185,7 @@ function bandpromo_playlist_admin_registry_entries(string $root): array
         $entries[] = bandpromo_playlist_admin_registry_entry($root, $entry);
     }
 
-    usort($entries, static function (array $left, array $right): int {
-        return strcasecmp((string) ($left['title'] ?? ''), (string) ($right['title'] ?? ''));
-    });
+    usort($entries, 'bandpromo_playlist_compare_by_publish_date_desc');
 
     return $entries;
 }

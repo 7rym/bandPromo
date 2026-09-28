@@ -2252,11 +2252,22 @@ function applyPlayerPlaylistPayload(data, options = {}) {
 function syncCampaignSwitcherUi(campaignId) {
     const id = String(campaignId || getActiveCampaignId() || '').trim();
     const items = Array.from(document.querySelectorAll('#campaignLogoStrip [data-campaign-select]'));
+    let currentEl = null;
     items.forEach((el) => {
         const isCurrent = String(el.getAttribute('data-campaign-id') || '') === id;
         el.classList.toggle('is-current', isCurrent);
         el.setAttribute('aria-selected', isCurrent ? 'true' : 'false');
+        if (isCurrent) {
+            currentEl = el;
+        }
     });
+    if (currentEl && typeof currentEl.scrollIntoView === 'function') {
+        try {
+            currentEl.scrollIntoView({ inline: 'center', block: 'nearest', behavior: 'smooth' });
+        } catch (scrollError) {
+            currentEl.scrollIntoView(false);
+        }
+    }
 }
 
 function bindCampaignNavigator() {

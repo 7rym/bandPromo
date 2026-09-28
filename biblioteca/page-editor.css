@@ -367,6 +367,21 @@
     height: 112px;
 }
 
+.campaign-navigator-logo-panel {
+    margin-top: 0.5rem;
+}
+
+.campaign-navigator-logo-panel .campaign-navigator-logo-preview {
+    width: 160px;
+    height: auto;
+    aspect-ratio: 2 / 1;
+}
+
+.campaign-navigator-logo-panel .campaign-navigator-logo-preview img {
+    object-fit: contain;
+    background: rgba(15, 23, 42, 0.55);
+}
+
 .playlist-base-artwork .campaign-cover-layout {
     gap: 0;
 }

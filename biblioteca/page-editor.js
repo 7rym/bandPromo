@@ -1062,10 +1062,15 @@
             return '<p class="hint">Unsupported block type. Remove it and add Text, Picture, Video, Gallery, or List.</p>';
         }
 
+        function wrapProseRow(innerHtml) {
+            const html = String(innerHtml || '').trim();
+            return html ? `<div class="page-prose-row">${html}</div>` : '';
+        }
+
         function renderBlockPreview(block) {
             if (block.type === 'richtext') {
                 const html = renderRichContent(block.html);
-                return html ? `<div class="page-richtext">${html}</div>` : '';
+                return html ? wrapProseRow(`<div class="page-richtext">${html}</div>`) : '';
             }
             if (isPictureFamilyBlock(block)) {
                 if (!block.src) return '';
@@ -1110,7 +1115,9 @@
                 const tag = block.style === 'ordered' ? 'ol' : 'ul';
                 const items = Array.isArray(block.items) ? block.items : [];
                 const rendered = items.map((item) => `<li>${escapeHtml(item)}</li>`).join('');
-                return rendered ? `<${tag} class="page-list page-list--${escapeHtml(block.style || 'unordered')}">${rendered}</${tag}>` : '';
+                return rendered
+                    ? wrapProseRow(`<${tag} class="page-list page-list--${escapeHtml(block.style || 'unordered')}">${rendered}</${tag}>`)
+                    : '';
             }
             if (block.type === 'gallery') {
                 const galleryId = escapeHtml(block.gallery_id || 'bandpromo-demo');

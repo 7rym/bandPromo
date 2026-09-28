@@ -857,7 +857,11 @@ button.pulse-guide {
     animation: pulseGlow 1.5s infinite;
 }
 
-/* Shell logo lockup lives in biblioteca/shell.css (.shell-logo / .shell-logo-img). */
+/* Shell logo lockup lives in biblioteca/shell.css (.shell-logo / .shell-logo-img).
+   Multi-campaign installs hide the Content header logo — the Playlists strip carries identity. */
+#content-container > .shell-logo[data-campaign-count]:not([data-campaign-count="0"]):not([data-campaign-count="1"]) {
+    display: none;
+}
 
 .playlist-scope-toolbar {
     display: flex;
@@ -878,9 +882,9 @@ button.pulse-guide {
 .campaign-logo-strip {
     display: flex;
     flex-wrap: nowrap;
-    align-items: center;
+    align-items: flex-end;
     justify-content: center;
-    gap: 12px;
+    gap: 4px;
     flex: 1 1 14rem;
     min-width: 0;
     max-width: 100%;
@@ -888,30 +892,27 @@ button.pulse-guide {
     overflow-y: hidden;
     overscroll-behavior-x: contain;
     scrollbar-width: thin;
-    padding: 6px 4px;
+    padding: 2px 0 4px;
 }
 
 .campaign-logo-strip-item {
     appearance: none;
-    border: 2px solid rgba(255, 255, 255, 0.18);
-    background: rgba(0, 0, 0, 0.35);
-    padding: 6px 8px;
+    border: 2px solid rgba(255, 255, 255, 0.28);
+    background: rgba(15, 23, 42, 0.92);
+    padding: 4px 5px;
     margin: 0;
     cursor: pointer;
     flex: 0 0 auto;
-    opacity: 0.55;
+    opacity: 1;
     border-radius: 8px;
-    box-shadow: none;
-    transform: scale(0.92);
-    transition: opacity 0.15s ease, border-color 0.15s ease, background 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.45);
+    transition: border-color 0.15s ease, background 0.15s ease, box-shadow 0.15s ease;
 }
 
 @media (hover: hover) {
     .campaign-logo-strip-item:hover {
-        opacity: 0.9;
         border-color: var(--primary-a45);
-        background: var(--primary-a10);
-        transform: scale(0.96);
+        background: rgba(15, 23, 42, 0.98);
     }
 }
 
@@ -919,24 +920,29 @@ button.pulse-guide {
     opacity: 1;
     cursor: default;
     border-color: var(--primary-color);
-    background: var(--primary-a15);
-    box-shadow: 0 0 0 1px var(--primary-a30), 0 0 14px var(--primary-a30);
-    transform: scale(1);
+    background: rgba(15, 23, 42, 0.98);
+    box-shadow: 0 0 0 2px var(--primary-a30), 0 0 18px var(--primary-a40);
+    z-index: 1;
 }
 
 .campaign-logo-strip-item.is-current:hover {
-    opacity: 1;
-    transform: scale(1);
+    border-color: var(--primary-color);
 }
 
 .campaign-logo-strip-logo,
 .campaign-logo-strip-placeholder {
     display: block;
-    width: 96px;
-    height: 48px;
+    width: 72px;
+    height: 36px;
     object-fit: contain;
     object-position: center;
     border-radius: 2px;
+}
+
+.campaign-logo-strip-item.is-current .campaign-logo-strip-logo,
+.campaign-logo-strip-item.is-current .campaign-logo-strip-placeholder {
+    width: 96px;
+    height: 48px;
 }
 
 .campaign-logo-strip-placeholder {
@@ -1696,7 +1702,7 @@ button.pulse-guide {
 .playlist-coverflow {
     display: flex;
     flex-wrap: nowrap;
-    align-items: center;
+    align-items: flex-end;
     justify-content: safe center;
     gap: 0.65rem;
     flex: 1 1 auto;
@@ -1710,6 +1716,8 @@ button.pulse-guide {
     overscroll-behavior-x: contain;
     scroll-snap-type: x proximity;
     padding: 0;
+    min-height: 104px;
+    box-sizing: border-box;
     scrollbar-width: none;
 }
 

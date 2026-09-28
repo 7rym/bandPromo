@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-09-28 14:20 - Pages: `.page-picture-body` uses Content panel fill for readability; Text/List/Quote/etc. wrap in `.page-prose-row` (full flex row) so measured prose cannot leave a gap for picture tiles to sit beside it on wide desktops.
+
+2026-09-28 13:55 - Campaign and playlist lists sort by date newest-first (campaign `release_date`, playlist `publish_date`; title tie-break) — player strip/selector, Catalogue/Playlist pools, Files campaign filters. Was A–Z by title.
+
+2026-09-28 11:40 - Campaign strip: tighter chip gap; selected size without CSS scale (playlist coverflow bottoms aligned). Catalogue **Chip artwork:** control for `navigator_logo_asset_id` (≈2:1; empty uses brand logo).
+
+2026-09-28 11:30 - Campaign navigator Content pass: hide Content header logo when ≥2 campaigns; opaque chips with larger selected (no dimming); scroll current chip into view; campaign `navigator_logo_asset_id` stored + catalog resolve (brand logo fallback); Catalogue chip picker still open. Policy re-locked in PLATFORM-MODEL.
+
 2026-09-27 23:00 - Checkpoint **v0.8.97 build 593** published (`v0.8.97-build-593`): player chrome (4:1 transport, analyzer On|Off, featured `ft.`, Key decode) + cast forward-compat notes.
 
 2026-09-27 22:55 - Cast forward-compat notes locked in [DELIVERY-ARCHITECTURE.md](DELIVERY-ARCHITECTURE.md): `#mediaplayer` = sender; separate display receiver later; **speakers-only** is first-class (no custom CAF required); now-playing contract + delivery URLs only.

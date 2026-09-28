@@ -10,6 +10,7 @@
     align-items: flex-start;
 }
 
+.page-content > .page-prose-row,
 .page-content > .page-richtext,
 .page-content > .page-list,
 .page-content > .page-quote,
@@ -20,7 +21,18 @@
 .page-content > .page-figure {
     flex: 0 0 100%;
     width: 100%;
+    max-width: none;
     box-sizing: border-box;
+}
+
+.page-content > .page-prose-row {
+    /* Full flex row — measured panel is centered inside so pictures cannot sit beside prose. */
+    margin: 0 0 var(--content-type-block-gap, 14px);
+    padding: 0;
+    background: transparent;
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+    border-radius: 0;
 }
 
 .page-content > .page-richtext,
@@ -29,7 +41,7 @@
 .page-content > .page-callout,
 .page-content > .page-heading,
 .page-content > .page-paragraph {
-    /* Full row so prose cannot sit beside the gallery; measure is centered inside. */
+    /* Legacy unwrapped blocks (and lightbox) still claim a full row. */
     flex: 0 0 100%;
     max-width: none;
     width: 100%;
@@ -44,7 +56,25 @@
     border-radius: 0;
 }
 
-/* Dim hugs the readable measure, not the full content column. */
+/* Dim hugs the readable measure, centered inside the full-width prose row. */
+.page-box .page-prose-row > .page-richtext,
+.page-box .page-prose-row > .page-heading,
+.page-box .page-prose-row > .page-paragraph,
+.page-box .page-prose-row > .page-list,
+.page-box .page-prose-row > .page-quote,
+.page-box .page-prose-row > .page-callout,
+.page-preview .page-prose-row > .page-richtext,
+.page-preview .page-prose-row > .page-heading,
+.page-preview .page-prose-row > .page-paragraph,
+.page-preview .page-prose-row > .page-list,
+.page-preview .page-prose-row > .page-quote,
+.page-preview .page-prose-row > .page-callout,
+.info-lightbox-text .page-prose-row > .page-richtext,
+.info-lightbox-text .page-prose-row > .page-heading,
+.info-lightbox-text .page-prose-row > .page-paragraph,
+.info-lightbox-text .page-prose-row > .page-list,
+.info-lightbox-text .page-prose-row > .page-quote,
+.info-lightbox-text .page-prose-row > .page-callout,
 .page-box .page-content > .page-richtext,
 .page-box .page-content > .page-heading,
 .page-box .page-content > .page-paragraph,
@@ -61,6 +91,7 @@
     width: 100%;
     margin-left: auto;
     margin-right: auto;
+    margin-bottom: 0;
     padding: var(--content-panel-pad-y, 12px) var(--content-panel-pad-x, 16px);
     border-radius: var(--content-panel-radius, 10px);
     border: var(--content-panel-border-width, 0) solid var(--content-panel-border, transparent);
@@ -70,11 +101,20 @@
     box-sizing: border-box;
 }
 
+.page-box .page-prose-row > .page-list,
+.page-preview .page-prose-row > .page-list,
+.info-lightbox-text .page-prose-row > .page-list,
 .page-box .page-content > .page-list,
 .info-lightbox-text .page-content > .page-list {
     padding-left: calc(var(--content-panel-pad-x, 16px) + 1.2rem);
 }
 
+.page-box .page-prose-row > .page-quote,
+.page-box .page-prose-row > .page-callout,
+.page-preview .page-prose-row > .page-quote,
+.page-preview .page-prose-row > .page-callout,
+.info-lightbox-text .page-prose-row > .page-quote,
+.info-lightbox-text .page-prose-row > .page-callout,
 .page-box .page-content > .page-quote,
 .page-box .page-content > .page-callout,
 .info-lightbox-text .page-content > .page-quote,
@@ -92,7 +132,7 @@
 .page-richtext {
     width: 100%;
     max-width: var(--prose-measure, min(70ch, 52rem));
-    margin: 0 auto var(--content-type-block-gap, 14px);
+    margin: 0 auto;
     padding: 2px;
     box-sizing: border-box;
     text-align: left;
@@ -346,6 +386,7 @@
 .page-picture--flow-beside-right .page-picture-body {
     flex: 1 1 auto;
     min-width: 0;
+    margin-top: 0;
 }
 
 .page-picture--flow-wrap-left .page-picture-media,
@@ -402,9 +443,14 @@
     text-align: left;
     line-height: 1.6;
     color: var(--color-text-muted, #dddddd);
-    margin: 0;
-    padding: 2px;
+    margin: 6px 0 0;
+    padding: var(--content-panel-pad-y, 12px) var(--content-panel-pad-x, 16px);
     box-sizing: border-box;
+    border-radius: var(--content-panel-radius, 10px);
+    border: var(--content-panel-border-width, 0) solid var(--content-panel-border, transparent);
+    background: var(--content-panel-fill, var(--panel-fill));
+    -webkit-backdrop-filter: blur(var(--content-panel-blur, var(--panel-blur, 5px)));
+    backdrop-filter: blur(var(--content-panel-blur, var(--panel-blur, 5px)));
 }
 
 .page-picture-body h1,
