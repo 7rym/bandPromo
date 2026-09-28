@@ -4,9 +4,9 @@
 
 **Published:** **v0.8.97 build 593** (`v0.8.97-build-593`).
 
-**Published:** **v0.8.97 build 593** (`v0.8.97-build-593`) — checkpointing Content navigator + Pages prose next.
+**Published:** **v0.8.97 build 594** (`v0.8.97-build-594`).
 
-**Done (this checkpoint):** Campaign strip opaque/tight; multi-campaign hides Content header logo; Catalogue **Chip artwork**; campaigns/playlists sort newest-first by date; Pages prose full-row wrap + picture-body panel fill.
+**Done (in 594):** Campaign strip opaque/tight; multi-campaign hides Content header logo; Catalogue **Chip artwork**; campaigns/playlists sort newest-first by date; Pages prose full-row wrap + picture-body panel fill.
 
 **Parked:** Branding Live preview full remirror — still wait until Content rail is further along, then mirror Shell|Player|Content properly.
 

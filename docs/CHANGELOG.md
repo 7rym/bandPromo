@@ -2,6 +2,8 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-09-28 16:05 - Checkpoint **v0.8.97 build 594** published (`v0.8.97-build-594`): Content navigator polish, date-sorted campaigns/playlists, Pages prose row + picture-body panel.
+
 2026-09-28 14:20 - Pages: `.page-picture-body` uses Content panel fill for readability; Text/List/Quote/etc. wrap in `.page-prose-row` (full flex row) so measured prose cannot leave a gap for picture tiles to sit beside it on wide desktops.
 
 2026-09-28 13:55 - Campaign and playlist lists sort by date newest-first (campaign `release_date`, playlist `publish_date`; title tie-break) — player strip/selector, Catalogue/Playlist pools, Files campaign filters. Was A–Z by title.
