@@ -2,6 +2,8 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-10-03 13:25 - Session end: handoff cleaned for resume at **v0.8.97 build 594** (tree clean). Next: remaining Content surface → Branding preview parity.
+
 2026-09-28 16:05 - Checkpoint **v0.8.97 build 594** published (`v0.8.97-build-594`): Content navigator polish, date-sorted campaigns/playlists, Pages prose row + picture-body panel.
 
 2026-09-28 14:20 - Pages: `.page-picture-body` uses Content panel fill for readability; Text/List/Quote/etc. wrap in `.page-prose-row` (full flex row) so measured prose cannot leave a gap for picture tiles to sit beside it on wide desktops.

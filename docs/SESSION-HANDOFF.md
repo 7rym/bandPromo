@@ -2,15 +2,13 @@
 
 ## Resume point
 
-**Published:** **v0.8.97 build 593** (`v0.8.97-build-593`).
+**Published:** **v0.8.97 build 594** (`v0.8.97-build-594`). Working tree clean.
 
-**Published:** **v0.8.97 build 594** (`v0.8.97-build-594`).
+**Done (in 594):** Player chrome (4:1 transport, analyzer On|Off, featured `ft.`, Key decode, cast sender vs speakers/display notes). Content campaign navigator (opaque/tight chips; hide Content header logo when ≥2 campaigns; Catalogue **Chip artwork** / `navigator_logo_asset_id`). Campaigns + playlists list newest-first by date. Pages: prose full-row wrap (no accidental two-column beside pictures); `.page-picture-body` uses Content panel fill.
 
-**Done (in 594):** Campaign strip opaque/tight; multi-campaign hides Content header logo; Catalogue **Chip artwork**; campaigns/playlists sort newest-first by date; Pages prose full-row wrap + picture-body panel fill.
+**Parked:** Branding Live preview full remirror — wait until **Content** rail is further along, then mirror Shell|Player|Content properly.
 
-**Parked:** Branding Live preview full remirror — still wait until Content rail is further along, then mirror Shell|Player|Content properly.
-
-**Next:** Rest of Content surface → Branding preview parity.
+**Next:** Continue Content surface correctness (remaining page/playlist chrome as needed) → then Branding Shell|Player|Content preview parity.
 
 ### Policy locked (do not reopen)
 
@@ -47,7 +45,8 @@
 - User shell isolated from admin chrome; Brand not Theme; casing by layer (`.cursor/rules/identifier-casing.mdc`)
 - Branding preview waits until Player + Content public surfaces are correct
 - Cast (v0.9+): `#mediaplayer` = sender; speakers-only first-class; display CAF receiver separate — [DELIVERY-ARCHITECTURE.md](DELIVERY-ARCHITECTURE.md) Sender vs receiver
-- Campaign navigator: Content header logo only when one campaign; multi-campaign strip opaque + larger selected; campaign `navigator_logo_asset_id` ≠ brand shell logo
+- Campaign navigator: Content header logo only when one campaign; multi-campaign strip opaque + larger selected; campaign `navigator_logo_asset_id` ≠ brand shell logo; strip/pools sort newest-first by date
+- Pages prose: `.page-prose-row` claims full flex row; measured panel centred inside; `.page-picture-body` uses Content panel fill
 
 ### Local workspace
 
