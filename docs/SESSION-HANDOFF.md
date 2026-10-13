@@ -2,13 +2,13 @@
 
 ## Resume point
 
-**Published:** **v0.8.97 build 594** (`v0.8.97-build-594`). Working tree clean.
+**Session:** **v0.8.98 build 594** (unpublished). Last published: **v0.8.97 build 594**.
 
-**Done (in 594):** Player chrome (4:1 transport, analyzer On|Off, featured `ft.`, Key decode, cast sender vs speakers/display notes). Content campaign navigator (opaque/tight chips; hide Content header logo when ≥2 campaigns; Catalogue **Chip artwork** / `navigator_logo_asset_id`). Campaigns + playlists list newest-first by date. Pages: prose full-row wrap (no accidental two-column beside pictures); `.page-picture-body` uses Content panel fill.
+**Done (this session):** HITZ large audio upload 504 — background audio delivery on final chunk (mirror video); same-format master rename/move; deferred cover extract; upload toast for track prep. HITZ `#13 WIP` already in the pool from the failed-looking upload; after publish, Site health / Notifications can finish player-ready if needed.
 
 **Parked:** Branding Live preview full remirror — wait until **Content** rail is further along, then mirror Shell|Player|Content properly.
 
-**Next:** Continue Content surface correctness (remaining page/playlist chrome as needed) → then Branding Shell|Player|Content preview parity.
+**Next:** Validate large audio upload on HITZ after publish → continue Content surface → Branding preview parity.
 
 ### Policy locked (do not reopen)
 
@@ -47,6 +47,7 @@
 - Cast (v0.9+): `#mediaplayer` = sender; speakers-only first-class; display CAF receiver separate — [DELIVERY-ARCHITECTURE.md](DELIVERY-ARCHITECTURE.md) Sender vs receiver
 - Campaign navigator: Content header logo only when one campaign; multi-campaign strip opaque + larger selected; campaign `navigator_logo_asset_id` ≠ brand shell logo; strip/pools sort newest-first by date
 - Pages prose: `.page-prose-row` claims full flex row; measured panel centred inside; `.page-picture-body` uses Content panel fill
+- Large audio upload final chunk: return after master register; spawn background audio-delivery (do not sync-encode on the upload request — HITZ proxy 504)
 
 ### Local workspace
 

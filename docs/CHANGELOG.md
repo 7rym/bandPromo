@@ -2,6 +2,8 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-10-13 14:40 - Large audio uploads no longer 504 on finishing: player-ready prep runs in a background job (same pattern as video); same-format masters prefer rename/move over a full copy. HITZ long-form (~140 MB / 60 min) was timing out the final chunk while ffmpeg still ran — the file often landed anyway. Cover extract after delivery. Toast: “We’ll let you know when the track is ready.”
+
 2026-10-03 13:25 - Session end: handoff cleaned for resume at **v0.8.97 build 594** (tree clean). Next: remaining Content surface → Branding preview parity.
 
 2026-09-28 16:05 - Checkpoint **v0.8.97 build 594** published (`v0.8.97-build-594`): Content navigator polish, date-sorted campaigns/playlists, Pages prose row + picture-body panel.

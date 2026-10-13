@@ -37,6 +37,40 @@ if (!function_exists('bandpromo_resolve_ffmpeg_binary')) {
     }
 }
 
+/**
+ * Place a same-format audio master (mp3→mp3, flac→flac). Prefer rename/move so
+ * large uploads (HITZ long-form) do not rewrite ~100+ MB on the final chunk.
+ * Falls back to copy when rename fails (cross-device / Windows locks).
+ */
+function bandpromo_audio_place_same_format_master(string $source_path, string $master_path): bool
+{
+    $source_path = (string) $source_path;
+    $master_path = (string) $master_path;
+    if ($source_path === '' || $master_path === '' || !is_file($source_path)) {
+        return false;
+    }
+    if (realpath($source_path) !== false
+        && realpath($master_path) !== false
+        && realpath($source_path) === realpath($master_path)
+    ) {
+        return true;
+    }
+
+    if (is_file($master_path)) {
+        @unlink($master_path);
+    }
+
+    if (@rename($source_path, $master_path)) {
+        return is_file($master_path);
+    }
+
+    if (@copy($source_path, $master_path)) {
+        return is_file($master_path);
+    }
+
+    return false;
+}
+
 function bandpromo_convert_wav_to_flac(string $root_dir, string $source_path, string $flac_path, string $failure_label = 'Could not prepare WAV-to-FLAC conversion'): array {
     $ffmpeg = bandpromo_resolve_ffmpeg_binary($root_dir);
     if ($ffmpeg === '') {
@@ -137,7 +171,7 @@ function bandpromo_prepare_audio_master(string $root_dir, string $ext, string $s
                         'replaced_existing' => true,
                     ];
                 }
-            } elseif (!copy($source_path, $master_path)) {
+            } elseif (!bandpromo_audio_place_same_format_master($source_path, $master_path)) {
                 return [
                     'attempted' => true,
                     'prepared' => false,
@@ -180,7 +214,7 @@ function bandpromo_prepare_audio_master(string $root_dir, string $ext, string $s
                 'asset_id' => $asset_id,
             ];
         }
-    } elseif (!copy($source_path, $master_path)) {
+    } elseif (!bandpromo_audio_place_same_format_master($source_path, $master_path)) {
         return [
             'attempted' => true,
             'prepared' => false,
@@ -362,7 +396,7 @@ function bandpromo_materialize_audio_master_from_original(
                     'asset_id' => (string) ($asset['id'] ?? ''),
                 ];
             }
-        } elseif (!copy($source_path, $master_path)) {
+        } elseif (!bandpromo_audio_place_same_format_master($source_path, $master_path)) {
             return [
                 'attempted' => true,
                 'prepared' => false,

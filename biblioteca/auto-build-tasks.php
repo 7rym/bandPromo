@@ -104,6 +104,16 @@ function bandpromo_video_delivery_lock_path(string $taskId): string
     return bandpromo_video_delivery_job_dir() . '/' . $taskId . '.lock';
 }
 
+function bandpromo_audio_delivery_job_dir(): string
+{
+    return dirname(__DIR__) . '/log/audio-delivery-jobs';
+}
+
+function bandpromo_audio_delivery_lock_path(string $taskId): string
+{
+    return bandpromo_audio_delivery_job_dir() . '/' . $taskId . '.lock';
+}
+
 function bandpromo_resolve_ffmpeg_path(): string
 {
     $root = dirname(__DIR__);
@@ -120,13 +130,13 @@ function bandpromo_video_upload_needs_async(string $filename): bool
     return in_array($ext, ['mov', 'webm'], true);
 }
 
-function bandpromo_has_running_background_video_tasks(): bool
+function bandpromo_has_running_background_delivery_tasks(string $taskType): bool
 {
     foreach (bandpromo_read_background_tasks()['items'] as $item) {
         if (!is_array($item)) {
             continue;
         }
-        if ((string) ($item['task'] ?? '') !== 'video-delivery') {
+        if ((string) ($item['task'] ?? '') !== $taskType) {
             continue;
         }
         if ((string) ($item['status'] ?? '') === 'running') {
@@ -135,6 +145,16 @@ function bandpromo_has_running_background_video_tasks(): bool
     }
 
     return false;
+}
+
+function bandpromo_has_running_background_video_tasks(): bool
+{
+    return bandpromo_has_running_background_delivery_tasks('video-delivery');
+}
+
+function bandpromo_has_running_background_audio_tasks(): bool
+{
+    return bandpromo_has_running_background_delivery_tasks('audio-delivery');
 }
 
 function bandpromo_video_delivery_running_filename_map(): array
@@ -466,6 +486,15 @@ function bandpromo_clear_build_required_tasks_if_no_background_video_pending(): 
     return bandpromo_clear_build_required_tasks(['video-delivery']);
 }
 
+function bandpromo_clear_build_required_tasks_if_no_background_audio_pending(): array
+{
+    if (bandpromo_has_running_background_audio_tasks()) {
+        return bandpromo_get_build_required_state();
+    }
+
+    return bandpromo_clear_build_required_tasks(['audio-delivery']);
+}
+
 function bandpromo_parse_background_task_result_file(string $resultFile): ?array
 {
     if ($resultFile === '' || !is_file($resultFile)) {
@@ -522,13 +551,20 @@ function bandpromo_finalize_background_task_from_files(string $taskId, string $r
         }
     }
 
+    $taskType = (string) ($existing['task'] ?? 'video-delivery');
+    if ($taskType !== 'audio-delivery') {
+        $taskType = 'video-delivery';
+    }
+    $isAudio = $taskType === 'audio-delivery';
+    $noun = $isAudio ? 'audio' : 'video';
+
     $files = is_array($existing['files'] ?? null) ? $existing['files'] : [];
     if ($files === [] && $prepared !== []) {
         $files = $prepared;
     }
 
-    // Hard verify against PHP readiness (delivery MP4 + poster). Prevents false "done"
-    // success loops when Python reports ok but posters (or MP4s) are still missing.
+    // Hard verify against PHP readiness. Prevents false "done" when Python reports ok
+    // but delivery files are still missing.
     require_once __DIR__ . '/media-delivery-helpers.php';
     $root = dirname(__DIR__);
     $incomplete = [];
@@ -537,7 +573,11 @@ function bandpromo_finalize_background_task_from_files(string $taskId, string $r
         if ($safe === '') {
             continue;
         }
-        if (bandpromo_video_needs_delivery($root, $safe)) {
+        if ($isAudio) {
+            if (!bandpromo_audio_delivery_ready($root, $safe)) {
+                $incomplete[] = $safe;
+            }
+        } elseif (bandpromo_video_needs_delivery($root, $safe)) {
             $incomplete[] = $safe;
         }
     }
@@ -547,8 +587,10 @@ function bandpromo_finalize_background_task_from_files(string $taskId, string $r
         if ($errorMessage === '') {
             $errorMessage = 'Delivery files are still missing for: ' . implode(', ', $stillMissing);
         }
-        // Pause brief auto-retry storms when a job keeps finishing incomplete.
-        bandpromo_video_delivery_pause_filenames($incomplete, 300, $root, 'incomplete_delivery');
+        if (!$isAudio) {
+            // Pause brief auto-retry storms when a video job keeps finishing incomplete.
+            bandpromo_video_delivery_pause_filenames($incomplete, 300, $root, 'incomplete_delivery');
+        }
     }
 
     if (!$ok) {
@@ -559,22 +601,26 @@ function bandpromo_finalize_background_task_from_files(string $taskId, string $r
         } elseif ($errorMessage === '' && $failed !== []) {
             $first = $failed[0];
             $errorMessage = is_array($first)
-                ? ((string) ($first['file'] ?? 'video') . ': ' . (string) ($first['error'] ?? 'delivery_failed'))
-                : 'Video delivery failed';
+                ? ((string) ($first['file'] ?? $noun) . ': ' . (string) ($first['error'] ?? 'delivery_failed'))
+                : (ucfirst($noun) . ' delivery failed');
         } elseif ($errorMessage === '' && $errorTail !== '') {
             $errorMessage = $errorTail;
         } elseif ($errorMessage === '' && $resultFile !== '' && is_file($resultFile)) {
             $raw = trim((string) file_get_contents($resultFile));
-            $errorMessage = $raw !== '' ? $raw : 'Video delivery task failed without a result payload';
+            $errorMessage = $raw !== ''
+                ? $raw
+                : (ucfirst($noun) . ' delivery task failed without a result payload');
         } elseif ($errorMessage === '') {
-            $errorMessage = 'Video delivery task failed without a result payload';
+            $errorMessage = ucfirst($noun) . ' delivery task failed without a result payload';
         }
     }
 
     bandpromo_upsert_background_task($taskId, [
-        'task' => 'video-delivery',
+        'task' => $taskType,
         'status' => $ok ? 'done' : 'failed',
-        'label' => $ok ? 'Video delivery finished' : 'Video delivery failed',
+        'label' => $ok
+            ? (ucfirst($noun) . ' delivery finished')
+            : (ucfirst($noun) . ' delivery failed'),
         'files' => $files,
         'prepared' => $prepared,
         'failed' => $failed,
@@ -585,13 +631,47 @@ function bandpromo_finalize_background_task_from_files(string $taskId, string $r
 
     if ($ok) {
         require_once __DIR__ . '/media-library-state.php';
-        foreach ($files as $filename) {
-            $safe = basename(trim((string) $filename));
-            if ($safe !== '') {
-                bandpromo_media_files_index_sync_file($root, 'video', $safe);
+        require_once __DIR__ . '/publish-status-helpers.php';
+        if ($isAudio) {
+            if ($prepared !== []) {
+                bandpromo_delivery_mark_audio_ready($root, $prepared, true);
             }
+            if ($stillMissing !== []) {
+                bandpromo_delivery_mark_audio_ready($root, $stillMissing, false);
+            }
+            bandpromo_delivery_refresh_inventory_snapshot($root);
+            foreach ($files as $filename) {
+                $safe = basename(trim((string) $filename));
+                if ($safe !== '') {
+                    bandpromo_media_files_index_sync_file($root, 'audio', $safe);
+                }
+            }
+            // Cover extract was deferred off the upload request (HITZ proxy 504).
+            $coverFilenames = $prepared !== [] ? $prepared : $files;
+            if ($coverFilenames !== []) {
+                $coverExtract = bandpromo_run_upload_cover_extract($coverFilenames);
+                $linkedCount = count($coverExtract['linked'] ?? []);
+                if ($linkedCount > 0) {
+                    bandpromo_clear_build_required_tasks(['image-delivery']);
+                    bandpromo_clear_build_required_reasons(['media_cover_upload']);
+                    try {
+                        bandpromo_media_files_index_rebuild_target($root, 'audio');
+                        bandpromo_media_files_index_rebuild_target($root, 'illustrations');
+                    } catch (Throwable $throwable) {
+                        // Index rebuild is best-effort; registry display.cover is already set.
+                    }
+                }
+            }
+            bandpromo_clear_build_required_tasks_if_no_background_audio_pending();
+        } else {
+            foreach ($files as $filename) {
+                $safe = basename(trim((string) $filename));
+                if ($safe !== '') {
+                    bandpromo_media_files_index_sync_file($root, 'video', $safe);
+                }
+            }
+            bandpromo_clear_build_required_tasks_if_no_background_video_pending();
         }
-        bandpromo_clear_build_required_tasks_if_no_background_video_pending();
     }
 
     return $ok;
@@ -635,12 +715,16 @@ function bandpromo_prune_background_tasks(int $doneRetentionSeconds = 120): void
     bandpromo_write_background_tasks(['items' => $kept]);
 }
 
-function bandpromo_reconcile_background_tasks(bool $allowAutoQueue = true): array
-{
-    $jobsDir = bandpromo_video_delivery_job_dir();
+function bandpromo_reconcile_background_delivery_job_type(
+    string $taskType,
+    string $jobsDir,
+    callable $lockPathFn,
+    string $staleLabel,
+    string $staleError,
+    ?callable $onStale = null
+): void {
     if (!is_dir($jobsDir)) {
-        bandpromo_prune_background_tasks();
-        return bandpromo_read_background_tasks();
+        return;
     }
 
     $staleAfterSeconds = 45 * 60; // force-fail hung jobs so Site update is not blocked forever
@@ -650,7 +734,7 @@ function bandpromo_reconcile_background_tasks(bool $allowAutoQueue = true): arra
         if (!is_array($item)) {
             continue;
         }
-        if ((string) ($item['task'] ?? '') !== 'video-delivery') {
+        if ((string) ($item['task'] ?? '') !== $taskType) {
             continue;
         }
         if ((string) ($item['status'] ?? '') !== 'running') {
@@ -662,7 +746,7 @@ function bandpromo_reconcile_background_tasks(bool $allowAutoQueue = true): arra
             continue;
         }
 
-        $lock = bandpromo_video_delivery_lock_path($taskId);
+        $lock = (string) $lockPathFn($taskId);
         $startedAt = strtotime((string) ($item['started_at'] ?? ''));
         $isStale = $startedAt !== false && ($now - $startedAt) >= $staleAfterSeconds;
 
@@ -673,25 +757,27 @@ function bandpromo_reconcile_background_tasks(bool $allowAutoQueue = true): arra
         if ($isStale && is_file($lock)) {
             @unlink($lock);
             bandpromo_upsert_background_task($taskId, [
-                'task' => 'video-delivery',
+                'task' => $taskType,
                 'status' => 'failed',
-                'label' => 'Video delivery timed out',
+                'label' => $staleLabel,
                 'files' => is_array($item['files'] ?? null) ? $item['files'] : [],
                 'prepared' => [],
                 'failed' => [],
                 'started_at' => (string) ($item['started_at'] ?? gmdate('c')),
                 'finished_at' => gmdate('c'),
-                'error' => 'Background video preparation ran too long and was stopped automatically. Use Notifications → Stop retrying if Site update is waiting, then try Publish again later.',
+                'error' => $staleError,
             ]);
-            $files = [];
-            foreach ((array) ($item['files'] ?? []) as $file) {
-                $safe = basename(trim((string) $file));
-                if ($safe !== '') {
-                    $files[] = $safe;
+            if ($onStale !== null) {
+                $files = [];
+                foreach ((array) ($item['files'] ?? []) as $file) {
+                    $safe = basename(trim((string) $file));
+                    if ($safe !== '') {
+                        $files[] = $safe;
+                    }
                 }
-            }
-            if ($files !== []) {
-                bandpromo_video_delivery_pause_filenames($files, 1800, dirname(__DIR__), 'stale_timeout');
+                if ($files !== []) {
+                    $onStale($files);
+                }
             }
             continue;
         }
@@ -700,6 +786,29 @@ function bandpromo_reconcile_background_tasks(bool $allowAutoQueue = true): arra
         $errorFile = $jobsDir . '/' . $taskId . '.error.log';
         bandpromo_finalize_background_task_from_files($taskId, $resultFile, $errorFile);
     }
+}
+
+function bandpromo_reconcile_background_tasks(bool $allowAutoQueue = true): array
+{
+    bandpromo_reconcile_background_delivery_job_type(
+        'video-delivery',
+        bandpromo_video_delivery_job_dir(),
+        'bandpromo_video_delivery_lock_path',
+        'Video delivery timed out',
+        'Background video preparation ran too long and was stopped automatically. Use Notifications → Stop retrying if Site update is waiting, then try Publish again later.',
+        static function (array $files): void {
+            bandpromo_video_delivery_pause_filenames($files, 1800, dirname(__DIR__), 'stale_timeout');
+        }
+    );
+
+    bandpromo_reconcile_background_delivery_job_type(
+        'audio-delivery',
+        bandpromo_audio_delivery_job_dir(),
+        'bandpromo_audio_delivery_lock_path',
+        'Audio delivery timed out',
+        'Background audio preparation ran too long and was stopped automatically. Open Notifications or System → Status → Site health to retry.',
+        null
+    );
 
     bandpromo_prune_background_tasks();
 
@@ -901,6 +1010,138 @@ function bandpromo_spawn_async_video_delivery(array $filenames): array
             'ok' => false,
             'task_id' => $taskId,
             'error' => 'Could not start background video delivery process',
+        ];
+    }
+
+    return [
+        'ok' => true,
+        'task_id' => $taskId,
+        'files' => $requested,
+        'error' => '',
+    ];
+}
+
+function bandpromo_spawn_async_audio_delivery(array $filenames): array
+{
+    $requested = bandpromo_filter_uploaded_filenames($filenames, ['flac', 'mp3', 'wav']);
+    if ($requested === []) {
+        return [
+            'ok' => false,
+            'task_id' => '',
+            'error' => 'No audio files to prepare',
+        ];
+    }
+
+    if (!bandpromo_can_proc_open() && !function_exists('exec')) {
+        return [
+            'ok' => false,
+            'task_id' => '',
+            'error' => 'Background process launch is unavailable on this host',
+        ];
+    }
+
+    $python = bandpromo_resolve_python_interpreter();
+    if ($python === '') {
+        return [
+            'ok' => false,
+            'task_id' => '',
+            'error' => 'Could not resolve Python runtime for background audio delivery',
+        ];
+    }
+
+    $root = dirname(__DIR__);
+    $jobsDir = bandpromo_audio_delivery_job_dir();
+    if (!is_dir($jobsDir) && !mkdir($jobsDir, 0750, true)) {
+        return [
+            'ok' => false,
+            'task_id' => '',
+            'error' => 'Could not create background audio job directory',
+        ];
+    }
+
+    $taskId = 'audio-delivery-' . gmdate('YmdHis') . '-' . (function_exists('random_bytes') ? bin2hex(random_bytes(4)) : substr(uniqid('', true), -8));
+    $payloadFile = $jobsDir . '/' . $taskId . '.payload.json';
+    $resultFile = $jobsDir . '/' . $taskId . '.result.json';
+    $errorFile = $jobsDir . '/' . $taskId . '.error.log';
+    $lockFile = bandpromo_audio_delivery_lock_path($taskId);
+    $runnerBat = $jobsDir . '/' . $taskId . '.bat';
+    $script = $root . '/scripts/audioSourceDelivery.py';
+    $finishScript = $root . '/biblioteca/finish-background-task.php';
+    $php = bandpromo_resolve_php_cli();
+    $ffmpeg = bandpromo_resolve_ffmpeg_path();
+
+    $payload = json_encode(['filenames' => $requested], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+    if ($payload === false || file_put_contents($payloadFile, $payload . "\n", LOCK_EX) === false) {
+        return [
+            'ok' => false,
+            'task_id' => '',
+            'error' => 'Could not write background audio job payload',
+        ];
+    }
+
+    bandpromo_upsert_background_task($taskId, [
+        'task' => 'audio-delivery',
+        'status' => 'running',
+        'label' => 'Preparing audio delivery',
+        'files' => $requested,
+        'prepared' => [],
+        'failed' => [],
+        'started_at' => gmdate('c'),
+        'finished_at' => null,
+        'error' => '',
+    ]);
+
+    file_put_contents($lockFile, 'running', LOCK_EX);
+
+    $isWindows = strtoupper(substr(PHP_OS_FAMILY, 0, 3)) === 'WIN';
+    $started = false;
+
+    if ($isWindows) {
+        $bat = [];
+        $bat[] = '@echo off';
+        $bat[] = 'cd /d "' . str_replace('"', '""', $root) . '"';
+        $bat[] = 'set "FFMPEG_PATH=' . str_replace('"', '""', $ffmpeg) . '"';
+        $bat[] = '"' . str_replace('"', '""', $python) . '" -u "' . str_replace('"', '""', $script) . '" < "' . str_replace('"', '""', $payloadFile) . '" > "' . str_replace('"', '""', $resultFile) . '" 2> "' . str_replace('"', '""', $errorFile) . '"';
+        $bat[] = '"' . str_replace('"', '""', $php) . '" "' . str_replace('"', '""', $finishScript) . '" --task-id=' . $taskId . ' --result-file="' . str_replace('"', '""', $resultFile) . '" --error-file="' . str_replace('"', '""', $errorFile) . '"';
+        $bat[] = 'del /f /q "' . str_replace('"', '""', $lockFile) . '" >nul 2>&1';
+        file_put_contents($runnerBat, implode("\r\n", $bat) . "\r\n");
+
+        $started = bandpromo_launch_windows_batch_detached($runnerBat, $root);
+    } else {
+        $inner = 'cd ' . escapeshellarg($root)
+            . ' && FFMPEG_PATH=' . escapeshellarg($ffmpeg)
+            . ' ' . escapeshellarg($python) . ' -u ' . escapeshellarg($script)
+            . ' < ' . escapeshellarg($payloadFile)
+            . ' > ' . escapeshellarg($resultFile)
+            . ' 2> ' . escapeshellarg($errorFile)
+            . '; ' . escapeshellarg($php) . ' ' . escapeshellarg($finishScript)
+            . ' --task-id=' . escapeshellarg($taskId)
+            . ' --result-file=' . escapeshellarg($resultFile)
+            . ' --error-file=' . escapeshellarg($errorFile)
+            . '; rm -f ' . escapeshellarg($lockFile);
+
+        $bgCmd = 'nohup sh -c ' . escapeshellarg($inner) . ' > /dev/null 2>&1 & echo $!';
+        $pid = trim((string) shell_exec($bgCmd));
+        $started = $pid !== '' && is_numeric($pid);
+    }
+
+    if (!$started) {
+        @unlink($lockFile);
+        @unlink($payloadFile);
+        bandpromo_upsert_background_task($taskId, [
+            'task' => 'audio-delivery',
+            'status' => 'failed',
+            'label' => 'Audio delivery failed to start',
+            'files' => $requested,
+            'started_at' => gmdate('c'),
+            'finished_at' => gmdate('c'),
+            'error' => 'Could not start background audio delivery process',
+        ]);
+
+        return [
+            'ok' => false,
+            'task_id' => $taskId,
+            'error' => 'Could not start background audio delivery process',
         ];
     }
 
@@ -1200,12 +1441,16 @@ function bandpromo_maybe_run_auto_audio_upload_tasks(array $reasons, array $uplo
             'warning' => '',
             'task_output' => '',
             'delivery' => null,
+            'background_tasks' => [],
+            'cover_extract' => null,
+            'cover_warning' => '',
         ];
     }
 
     $autoTasks = [];
     $warnings = [];
     $outputs = [];
+    $backgroundTasks = [];
     $root = dirname(__DIR__);
 
     // Delivery MP3s must use master stems (ast_*), not original upload stems.
@@ -1236,15 +1481,29 @@ function bandpromo_maybe_run_auto_audio_upload_tasks(array $reasons, array $uplo
         // Keep playlist-scan in build-required; do not clear on failure.
     }
 
-    $delivery = bandpromo_run_audio_source_delivery_and_refresh($deliveryFilenames);
-    if ($delivery['ok']) {
-        $autoTasks[] = 'audio-delivery';
-        $state = bandpromo_clear_build_required_tasks(['audio-delivery']);
+    // Long-form encodes (HITZ ~60 min shows) must not block the final upload chunk —
+    // shared-host proxies return HTTP 504. Mirror video: spawn, return, finish later.
+    $delivery = [
+        'ok' => true,
+        'prepared' => [],
+        'failed' => [],
+        'still_missing' => $deliveryFilenames,
+        'error' => '',
+    ];
+    $spawn = bandpromo_spawn_async_audio_delivery($deliveryFilenames);
+    if ($spawn['ok']) {
+        $backgroundTasks[] = [
+            'id' => (string) ($spawn['task_id'] ?? ''),
+            'task' => 'audio-delivery',
+            'status' => 'running',
+            'files' => $deliveryFilenames,
+        ];
         if ($scan['ok'] && empty($state['required'])) {
             $state = bandpromo_set_build_required_last_error('');
         }
     } else {
-        $deliveryError = trim((string) ($delivery['error'] ?? ''));
+        $delivery['ok'] = false;
+        $deliveryError = trim((string) ($spawn['error'] ?? ''));
         $warnings[] = $deliveryError !== ''
             ? ('Automatic audio delivery preparation failed after upload: ' . $deliveryError)
             : 'Automatic audio delivery preparation failed after upload. Songs need delivery MP3s before playback — check Python/ffmpeg, then retry from Notifications or System → Status → Site health.';
@@ -1252,62 +1511,21 @@ function bandpromo_maybe_run_auto_audio_upload_tasks(array $reasons, array $uplo
         $state = bandpromo_set_build_required_last_error(implode(' ', array_filter($warnings)));
     }
 
-    // Files-owned cover ingest for these masters only (not playlist-scan, not
-    // whole-site image-delivery / Site health Notifications).
-    require_once __DIR__ . '/build-required.php';
-    require_once __DIR__ . '/media-library-state.php';
-    $coverExtract = bandpromo_run_upload_cover_extract($deliveryFilenames);
-    $linkedCount = count($coverExtract['linked'] ?? []);
-    $failedCovers = is_array($coverExtract['failed'] ?? null) ? $coverExtract['failed'] : [];
-    $coverWarning = '';
-    if ($linkedCount > 0) {
-        $autoTasks[] = 'cover-extract';
-        // Clear sticky artwork chores left by older upload paths; ingest already
-        // built per-cover Visual delivery inline.
-        $state = bandpromo_clear_build_required_tasks(['image-delivery']);
-        $state = bandpromo_clear_build_required_reasons(['media_cover_upload']);
-        try {
-            bandpromo_media_files_index_rebuild_target($root, 'audio');
-            bandpromo_media_files_index_rebuild_target($root, 'illustrations');
-        } catch (Throwable $throwable) {
-            // Index rebuild is best-effort; registry display.cover is already set.
-        }
-    }
-    if ($failedCovers !== []) {
-        $failedNames = [];
-        foreach ($failedCovers as $row) {
-            if (!is_array($row)) {
-                continue;
-            }
-            $name = basename(trim((string) ($row['file'] ?? '')));
-            if ($name !== '') {
-                $failedNames[] = $name;
-            }
-        }
-        $failedNames = array_values(array_unique($failedNames));
-        if ($failedNames !== []) {
-            $coverWarning = 'Could not extract embedded cover art for: '
-                . implode(', ', array_slice($failedNames, 0, 8))
-                . (count($failedNames) > 8 ? '…' : '')
-                . '.';
-        }
-        $outputs[] = trim((string) ($coverExtract['task_output'] ?? ''));
-    }
+    // Cover extract runs in finish-background-task after delivery succeeds.
 
     if (!$scan['ok'] && ($delivery['ok'] ?? false)) {
         $state = bandpromo_set_build_required_last_error(implode(' ', array_filter($warnings)));
-    } elseif ($warnings === [] && ($delivery['ok'] ?? false) && empty($state['required'])) {
-        $state = bandpromo_set_build_required_last_error('');
     }
 
     return [
         'state' => $state,
         'auto_tasks' => $autoTasks,
         'warning' => implode(' ', array_filter($warnings)),
-        'cover_warning' => $coverWarning ?? '',
+        'cover_warning' => '',
         'task_output' => implode("\n", array_filter($outputs)),
         'delivery' => $delivery,
-        'cover_extract' => $coverExtract,
+        'background_tasks' => $backgroundTasks,
+        'cover_extract' => null,
     ];
 }
 
@@ -1504,6 +1722,9 @@ function bandpromo_run_auto_upload_tasks(array $reasons, array $uploadedFilename
     if (is_array($audio['delivery'] ?? null)) {
         $deliveryPrepared = array_merge($deliveryPrepared, $audio['delivery']['prepared'] ?? []);
         $deliveryMissing = array_merge($deliveryMissing, $audio['delivery']['still_missing'] ?? []);
+    }
+    if (is_array($audio['background_tasks'] ?? null)) {
+        $backgroundTasks = array_merge($backgroundTasks, $audio['background_tasks']);
     }
     $coverExtract = is_array($audio['cover_extract'] ?? null) ? $audio['cover_extract'] : null;
 

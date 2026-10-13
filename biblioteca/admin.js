@@ -1836,12 +1836,15 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     const files = Array.isArray(item.files) ? item.files.filter(Boolean) : [];
                     const focusFile = files[0] || '';
                     const taskId = String(item.id || '').trim();
+                    const isAudio = String(item.task || '').trim() === 'audio-delivery';
                     const forceStopped = item.force_stopped === true
                         || /force-stopped|Force-stopped/i.test(String(item.error || ''));
                     const briefError = String(item.error || '').trim();
                     notifications.push({
                         severity: 'recommended-fix',
-                        title: forceStopped ? 'Video preparation paused' : 'Video preparation failed',
+                        title: forceStopped
+                            ? (isAudio ? 'Audio preparation paused' : 'Video preparation paused')
+                            : (isAudio ? 'Audio preparation failed' : 'Video preparation failed'),
                         file: focusFile,
                         taskId,
                         checkedAt: String(item.finished_at || item.started_at || item.updated_at || '').trim(),
@@ -1851,14 +1854,28 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                                     ? 'Auto-retry is paused so you can install Site updates. It will resume later.'
                                     : (briefError !== ''
                                         ? briefError
-                                        : 'bandPromo could not prepare this video. You can stop retrying or try again from Site health.'),
+                                        : (isAudio
+                                            ? 'bandPromo could not prepare this track. Try again from Site health.'
+                                            : 'bandPromo could not prepare this video. You can stop retrying or try again from Site health.')),
                             },
                         ],
                         actions: [
                             ...(focusFile
-                                ? [{ label: 'Open video in Files', href: buildAdminUrl({ tab: 'files', fpanel: 'visual', focus_file: focusFile }) }]
-                                : [{ label: 'Open Files', href: '?tab=files&fpanel=visual' }]),
-                            ...(taskId ? [{ label: 'Stop retrying', action: 'force-stop-video-delivery', taskId }] : []),
+                                ? [{
+                                    label: isAudio ? 'Open track in Files' : 'Open video in Files',
+                                    href: buildAdminUrl({
+                                        tab: 'files',
+                                        fpanel: isAudio ? 'audio' : 'visual',
+                                        focus_file: focusFile,
+                                    }),
+                                }]
+                                : [{
+                                    label: 'Open Files',
+                                    href: isAudio ? '?tab=files&fpanel=audio' : '?tab=files&fpanel=visual',
+                                }]),
+                            ...(!isAudio && taskId
+                                ? [{ label: 'Stop retrying', action: 'force-stop-video-delivery', taskId }]
+                                : []),
                             ...(taskId ? [{ label: 'Dismiss', action: 'dismiss-background-task', taskId }] : []),
                         ],
                     });
@@ -3795,6 +3812,17 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                         }
                     }
                     window._videoDeliveryWasRunning = videoRunning;
+
+                    const audioTasks = Array.isArray(latestBackgroundTasks?.items)
+                        ? latestBackgroundTasks.items.filter((item) => item && item.task === 'audio-delivery')
+                        : [];
+                    const audioRunning = audioTasks.some((item) => String(item.status || '') === 'running');
+                    if (adminFilesTabActive && activeMediaPanel === 'audio') {
+                        if (window._audioDeliveryWasRunning && !audioRunning) {
+                            loadMediaList('audio');
+                        }
+                    }
+                    window._audioDeliveryWasRunning = audioRunning;
 
                     if (typeof renderPackageUpdateStatus === 'function'
                         && data.package_update
@@ -9491,7 +9519,8 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     let coverLinkedCount = 0;
                     let coverWarnings = [];
                     let uploadWarnings = [];
-                    let backgroundVideoStarted = false;
+                    let backgroundDeliveryStarted = false;
+                    let backgroundDeliveryIsAudio = false;
                     let replacedCount = 0;
                     const masterWarnings = [];
                     for (let fi = 0; fi < modalFiles.length; fi++) {
@@ -9537,11 +9566,14 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                                 autoDeliveryRan = true;
                             }
                             if (Array.isArray(uploadData?.background_tasks) && uploadData.background_tasks.some((task) => task && task.status === 'running')) {
-                                backgroundVideoStarted = true;
+                                backgroundDeliveryStarted = true;
+                                if (uploadData.background_tasks.some((task) => task && task.status === 'running' && task.task === 'audio-delivery')) {
+                                    backgroundDeliveryIsAudio = true;
+                                }
                             }
-                            // Pending delivery variants / auto warnings are normal while video prep runs in the background.
+                            // Pending delivery is normal while audio/video prep runs in the background.
                             if (
-                                !backgroundVideoStarted
+                                !backgroundDeliveryStarted
                                 && Array.isArray(uploadData?.delivery_missing)
                                 && uploadData.delivery_missing.length
                             ) {
@@ -9574,8 +9606,10 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                         const coverNote = coverLinkedCount > 0
                             ? ` Linked cover art for ${coverLinkedCount} track${coverLinkedCount === 1 ? '' : 's'}.`
                             : '';
-                        const deliveryNote = backgroundVideoStarted
-                            ? ' We’ll let you know when the video is ready.'
+                        const deliveryNote = backgroundDeliveryStarted
+                            ? (backgroundDeliveryIsAudio
+                                ? ' We’ll let you know when the track is ready.'
+                                : ' We’ll let you know when the video is ready.')
                             : (autoDeliveryRan
                                 ? ' Player-ready files prepared.'
                                 : (autoDeliveryFailed
@@ -9584,7 +9618,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                         const uniqueUploadWarnings = [...new Set(uploadWarnings)];
                         const uniqueCoverWarnings = [...new Set(coverWarnings)];
                         // Site health detail stays in Notifications — do not dump task lists into the toast.
-                        const uploadNeedsAttention = backgroundVideoStarted
+                        const uploadNeedsAttention = backgroundDeliveryStarted
                             ? (masterWarnings.length > 0 || uniqueCoverWarnings.length > 0)
                             : (autoDeliveryFailed
                                 || masterWarnings.length > 0
@@ -9594,7 +9628,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                             `Upload complete.${masterNote}${replacedNote}${coverNote}${deliveryNote}`.trim(),
                             uploadNeedsAttention ? 'warning' : 'success'
                         );
-                        if (!backgroundVideoStarted && (masterWarnings.length || uniqueUploadWarnings.length || uniqueCoverWarnings.length)) {
+                        if (!backgroundDeliveryStarted && (masterWarnings.length || uniqueUploadWarnings.length || uniqueCoverWarnings.length)) {
                             const combined = [...masterWarnings, ...uniqueUploadWarnings, ...uniqueCoverWarnings];
                             modalStatus.innerHTML += `<br><span class="upload-status-warning">⚠️ ${bandpromoAdminEscapeHtml(combined.join(' | '))}</span>`;
                         } else if (masterWarnings.length || uniqueCoverWarnings.length) {
