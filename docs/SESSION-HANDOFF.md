@@ -2,13 +2,13 @@
 
 ## Resume point
 
-**Session:** **v0.8.98 build 594** (unpublished). Last published: **v0.8.97 build 594**.
+**Published:** **v0.8.98 build 595** (`v0.8.98-build-595`).
 
-**Done (this session):** HITZ large audio upload 504 — background audio delivery on final chunk (mirror video); same-format master rename/move; deferred cover extract; upload toast for track prep. HITZ `#13 WIP` already in the pool from the failed-looking upload; after publish, Site health / Notifications can finish player-ready if needed.
+**Done (in 595):** HITZ large audio upload 504 — background audio delivery on final chunk (mirror video); same-format master rename/move; deferred cover extract; upload toast for track prep. HITZ `#13 WIP` was already in the pool from the earlier failed-looking upload — Site health / Notifications can finish player-ready if needed after Site update.
 
 **Parked:** Branding Live preview full remirror — wait until **Content** rail is further along, then mirror Shell|Player|Content properly.
 
-**Next:** Validate large audio upload on HITZ after publish → continue Content surface → Branding preview parity.
+**Next:** On HITZ: Site update to 595 → confirm long-form upload (or `#13` delivery) without finishing 504 → continue Content surface → Branding preview parity.
 
 ### Policy locked (do not reopen)
 
