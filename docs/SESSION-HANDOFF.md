@@ -2,7 +2,7 @@
 
 ## Resume point
 
-**Published:** **v0.8.99** (this checkpoint) — Visual master embed UTF-8 + EXDEV fixes for HITZ.
+**Published:** **v0.8.99 build 600** (`v0.8.99-build-600`) — Visual master embed UTF-8 + EXDEV fixes for HITZ.
 
 **Done this session:** Files → Visual save on HITZ failed with (1) `'ascii' codec…\xf8` on titles like Bjørn and (2) Errno 18 cross-device link when tagging video masters from `/tmp`. Fixed in `scripts/visualMasterMetadata.py`: UTF-8 ffmetadata sidecar (no non-ASCII argv), PNG iTXt, still-ext wins over mistagged video, work dir beside the master, `replace_file` EXDEV fallback.
 
