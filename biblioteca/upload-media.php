@@ -494,6 +494,61 @@ if (isset($_POST['chunk_index']) && isset($_POST['filename'])) {
             exit;
         }
         $assembledPath = (string) ($received['assembled_path'] ?? '');
+
+        // Large audio: return as soon as the last chunk is appended. Moving ~100+ MB
+        // from data/upload_tmp → media and running tag/delivery work on this request
+        // exceeds shared-host proxy timeouts (HITZ HTTP 504) even after background
+        // delivery alone. Finalize runs in a detached PHP CLI job.
+        if ($target_hint === 'audio' && in_array($ext, ['flac', 'mp3', 'wav'], true)) {
+            $campaignId = trim((string) ($_POST['campaign_id'] ?? $_POST['release_id'] ?? ''));
+            $spawn = bandpromo_spawn_async_audio_upload_finalize([
+                'assembled_path' => $assembledPath,
+                'safe_name' => $safeName,
+                'human_name' => $filename,
+                'ext' => $ext,
+                'campaign_id' => $campaignId,
+                'expected_size' => (int) ($meta['expected_size'] ?? 0),
+            ]);
+            if (empty($spawn['ok'])) {
+                @unlink($assembledPath);
+                http_response_code(500);
+                echo json_encode([
+                    'ok' => false,
+                    'error' => (string) ($spawn['error'] ?? 'Could not start background audio finalize'),
+                ]);
+                exit;
+            }
+
+            $state = bandpromo_get_build_required_state();
+            $response = [
+                'ok' => true,
+                'status' => 'queued',
+                'saved_as' => $filename,
+                'replaced' => false,
+                'build_required' => !empty($state['required']),
+                'build_required_state' => $state,
+                'background_tasks' => [[
+                    'id' => (string) ($spawn['task_id'] ?? ''),
+                    'task' => 'audio-delivery',
+                    'status' => 'running',
+                    'files' => is_array($spawn['files'] ?? null) ? $spawn['files'] : [$filename],
+                ]],
+                'delivery_missing' => [$filename],
+            ];
+            echo json_encode($response);
+            bandpromo_admin_audit_log('media_uploaded', [
+                'target_type' => 'media',
+                'target_id' => 'audio/' . $filename,
+                'status' => 'ok',
+                'data' => [
+                    'mode' => 'chunked-deferred',
+                    'build_required' => $response['build_required'],
+                    'background_task_id' => (string) ($spawn['task_id'] ?? ''),
+                ],
+            ]);
+            exit;
+        }
+
         $dest = resolve_upload_destination($root_dir, (string) $target_hint, $ext, $safeName);
         if ($dest === null) {
             @unlink($assembledPath);

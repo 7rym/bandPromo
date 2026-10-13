@@ -2,6 +2,8 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-10-13 14:55 - HITZ large audio 504 still on build 595: defer **all** post-assemble work off the final chunk (master move, tags, playlist-scan, delivery). Final request only appends the last 2 MB and spawns `run-audio-upload-finalize.php`. Background delivery alone was not enough — ~140 MB rewrite from `data/upload_tmp` still exceeded the proxy.
+
 2026-10-13 14:45 - Session end: published **v0.8.98 build 595** (`v0.8.98-build-595`) — large audio upload background delivery. Handoff cleaned for HITZ validate after Site update.
 
 2026-10-13 14:40 - Large audio uploads no longer 504 on finishing: player-ready prep runs in a background job (same pattern as video); same-format masters prefer rename/move over a full copy. HITZ long-form (~140 MB / 60 min) was timing out the final chunk while ffmpeg still ran — the file often landed anyway. Cover extract after delivery. Toast: “We’ll let you know when the track is ready.”

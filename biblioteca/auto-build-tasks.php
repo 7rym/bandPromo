@@ -1153,6 +1153,161 @@ function bandpromo_spawn_async_audio_delivery(array $filenames): array
     ];
 }
 
+/**
+ * Queue full audio finalize after the last upload chunk is assembled.
+ * Returns before any large disk rewrite / tag read / ffmpeg — avoids HITZ 504.
+ *
+ * @param array{
+ *   assembled_path: string,
+ *   safe_name: string,
+ *   human_name?: string,
+ *   ext: string,
+ *   campaign_id?: string,
+ *   expected_size?: int
+ * } $opts
+ * @return array{ok:bool,task_id:string,error:string,files:list<string>}
+ */
+function bandpromo_spawn_async_audio_upload_finalize(array $opts): array
+{
+    $assembledPath = (string) ($opts['assembled_path'] ?? '');
+    $safeName = basename(trim((string) ($opts['safe_name'] ?? '')));
+    $humanName = basename(trim((string) ($opts['human_name'] ?? $safeName)));
+    $ext = strtolower(trim((string) ($opts['ext'] ?? pathinfo($humanName, PATHINFO_EXTENSION))));
+    $campaignId = trim((string) ($opts['campaign_id'] ?? ''));
+    $expectedSize = (int) ($opts['expected_size'] ?? 0);
+
+    if ($assembledPath === '' || !is_file($assembledPath) || $humanName === '' || !in_array($ext, ['flac', 'mp3', 'wav'], true)) {
+        return [
+            'ok' => false,
+            'task_id' => '',
+            'files' => [],
+            'error' => 'Assembled audio upload is missing or invalid',
+        ];
+    }
+
+    if (!bandpromo_can_proc_open() && !function_exists('exec')) {
+        return [
+            'ok' => false,
+            'task_id' => '',
+            'files' => [],
+            'error' => 'Background process launch is unavailable on this host',
+        ];
+    }
+
+    $php = bandpromo_resolve_php_cli();
+    if ($php === '') {
+        return [
+            'ok' => false,
+            'task_id' => '',
+            'files' => [],
+            'error' => 'Could not resolve PHP CLI for background audio finalize',
+        ];
+    }
+
+    $root = dirname(__DIR__);
+    $jobsDir = bandpromo_audio_delivery_job_dir();
+    if (!is_dir($jobsDir) && !mkdir($jobsDir, 0750, true)) {
+        return [
+            'ok' => false,
+            'task_id' => '',
+            'files' => [],
+            'error' => 'Could not create background audio job directory',
+        ];
+    }
+
+    $taskId = 'audio-delivery-' . gmdate('YmdHis') . '-' . (function_exists('random_bytes') ? bin2hex(random_bytes(4)) : substr(uniqid('', true), -8));
+    $payloadFile = $jobsDir . '/' . $taskId . '.payload.json';
+    $errorFile = $jobsDir . '/' . $taskId . '.error.log';
+    $lockFile = bandpromo_audio_delivery_lock_path($taskId);
+    $runnerBat = $jobsDir . '/' . $taskId . '.bat';
+    $script = $root . '/biblioteca/run-audio-upload-finalize.php';
+
+    $payload = json_encode([
+        'assembled_path' => $assembledPath,
+        'safe_name' => $safeName !== '' ? $safeName : $humanName,
+        'human_name' => $humanName,
+        'ext' => $ext,
+        'campaign_id' => $campaignId,
+        'expected_size' => $expectedSize,
+    ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+    if ($payload === false || file_put_contents($payloadFile, $payload . "\n", LOCK_EX) === false) {
+        return [
+            'ok' => false,
+            'task_id' => '',
+            'files' => [],
+            'error' => 'Could not write background audio finalize payload',
+        ];
+    }
+
+    $files = [$humanName];
+    bandpromo_upsert_background_task($taskId, [
+        'task' => 'audio-delivery',
+        'status' => 'running',
+        'label' => 'Finishing audio upload',
+        'files' => $files,
+        'prepared' => [],
+        'failed' => [],
+        'started_at' => gmdate('c'),
+        'finished_at' => null,
+        'error' => '',
+    ]);
+    file_put_contents($lockFile, 'running', LOCK_EX);
+
+    // Keep build-required sticky until the background job clears delivery.
+    bandpromo_mark_build_required('media_audio_upload');
+
+    $isWindows = strtoupper(substr(PHP_OS_FAMILY, 0, 3)) === 'WIN';
+    $started = false;
+
+    if ($isWindows) {
+        $bat = [];
+        $bat[] = '@echo off';
+        $bat[] = 'cd /d "' . str_replace('"', '""', $root) . '"';
+        $bat[] = '"' . str_replace('"', '""', $php) . '" "' . str_replace('"', '""', $script) . '" --task-id=' . $taskId . ' --payload-file="' . str_replace('"', '""', $payloadFile) . '" 1>> "' . str_replace('"', '""', $errorFile) . '" 2>&1';
+        $bat[] = 'del /f /q "' . str_replace('"', '""', $lockFile) . '" >nul 2>&1';
+        file_put_contents($runnerBat, implode("\r\n", $bat) . "\r\n");
+        $started = bandpromo_launch_windows_batch_detached($runnerBat, $root);
+    } else {
+        $inner = 'cd ' . escapeshellarg($root)
+            . ' && ' . escapeshellarg($php) . ' ' . escapeshellarg($script)
+            . ' --task-id=' . escapeshellarg($taskId)
+            . ' --payload-file=' . escapeshellarg($payloadFile)
+            . ' >> ' . escapeshellarg($errorFile) . ' 2>&1'
+            . '; rm -f ' . escapeshellarg($lockFile);
+        $bgCmd = 'nohup sh -c ' . escapeshellarg($inner) . ' > /dev/null 2>&1 & echo $!';
+        $pid = trim((string) shell_exec($bgCmd));
+        $started = $pid !== '' && is_numeric($pid);
+    }
+
+    if (!$started) {
+        @unlink($lockFile);
+        @unlink($payloadFile);
+        bandpromo_upsert_background_task($taskId, [
+            'task' => 'audio-delivery',
+            'status' => 'failed',
+            'label' => 'Audio upload finalize failed to start',
+            'files' => $files,
+            'started_at' => gmdate('c'),
+            'finished_at' => gmdate('c'),
+            'error' => 'Could not start background audio finalize process',
+        ]);
+
+        return [
+            'ok' => false,
+            'task_id' => $taskId,
+            'files' => $files,
+            'error' => 'Could not start background audio finalize process',
+        ];
+    }
+
+    return [
+        'ok' => true,
+        'task_id' => $taskId,
+        'files' => $files,
+        'error' => '',
+    ];
+}
+
 function bandpromo_filter_uploaded_filenames(array $filenames, array $extensions): array
 {
     require_once __DIR__ . '/asset-registry.php';
