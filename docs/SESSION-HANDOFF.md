@@ -2,13 +2,13 @@
 
 ## Resume point
 
-**Session:** **v0.8.98** (publishing next). HITZ validated on **595**: background delivery alone still 504’d — final chunk still moved ~140 MB sync.
+**Published:** **v0.8.98 build 597** (`v0.8.98-build-597`).
 
-**Done (this fix):** Chunked audio final request only appends last chunk + spawns `run-audio-upload-finalize.php` (master/tags/scan/delivery/covers in CLI). HITZ `#13 WIP` may already exist in the pool from earlier attempts.
+**Done (in 597):** HITZ large audio — final chunk only appends + spawns `run-audio-upload-finalize.php` (595’s background delivery alone still 504’d on ~140 MB disk rewrite). `#13 WIP` may already be in the pool from earlier attempts.
 
 **Parked:** Branding Live preview full remirror — wait until **Content** rail is further along, then mirror Shell|Player|Content properly.
 
-**Next:** Publish → HITZ Site update → re-test long-form Add Audio (finishing must succeed quickly; track appears when background job finishes).
+**Next:** HITZ Site update to **597** → re-test long-form Add Audio (finishing must succeed quickly; toast when track is ready) → Content surface → Branding preview parity.
 
 ### Policy locked (do not reopen)
 

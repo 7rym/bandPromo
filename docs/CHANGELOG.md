@@ -2,6 +2,8 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-10-13 14:52 - Session end: published **v0.8.98 build 597** (`v0.8.98-build-597`) — deferred audio finalize off final chunk. Handoff cleaned for HITZ re-test.
+
 2026-10-13 14:55 - HITZ large audio 504 still on build 595: defer **all** post-assemble work off the final chunk (master move, tags, playlist-scan, delivery). Final request only appends the last 2 MB and spawns `run-audio-upload-finalize.php`. Background delivery alone was not enough — ~140 MB rewrite from `data/upload_tmp` still exceeded the proxy.
 
 2026-10-13 14:45 - Session end: published **v0.8.98 build 595** (`v0.8.98-build-595`) — large audio upload background delivery. Handoff cleaned for HITZ validate after Site update.
