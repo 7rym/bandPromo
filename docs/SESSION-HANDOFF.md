@@ -2,15 +2,15 @@
 
 ## Resume point
 
-**Published:** **v0.8.98 build 597** (`v0.8.98-build-597`). Local tip may be a later docs-only build.
+**Published:** **v0.8.99** (this checkpoint) — Visual master embed UTF-8 + EXDEV fixes for HITZ.
 
-**Done this session (ops on HITZ):** Site health showed **Registry: 0 / 0 / 0** while disk still had **121 audio / 180 visual / 8 sfx** masters (`ast_*`). Campaigns/playlists/galleries/pages/brands were OK. Review → Apply ran `*_register_in_place` (all three succeeded, 0 failed) and continued into audio delivery rebuild. Player “Music isn't ready yet” is expected until playlist payloads / streams finish; the **Operator:** rebuild hint is **admin/developer only** (`BANDPROMO_IS_OPERATOR`) — listeners see the public lines only.
+**Done this session:** Files → Visual save on HITZ failed with (1) `'ascii' codec…\xf8` on titles like Bjørn and (2) Errno 18 cross-device link when tagging video masters from `/tmp`. Fixed in `scripts/visualMasterMetadata.py`: UTF-8 ffmetadata sidecar (no non-ASCII argv), PNG iTXt, still-ext wins over mistagged video, work dir beside the master, `replace_file` EXDEV fallback.
 
-**Done (in 597):** HITZ large audio — final chunk only appends + spawns `run-audio-upload-finalize.php` (595’s background delivery alone still 504’d on ~140 MB disk rewrite).
+**Still open from prior HITZ ops:** Confirm Site health / player after registry re-register + delivery rebuild; re-test long-form Add Audio on 597+ finalize path.
 
-**Parked:** Branding Live preview full remirror — wait until **Content** rail is further along, then mirror Shell|Player|Content properly.
+**Parked:** Branding Live preview full remirror — wait until **Content** rail is further along.
 
-**Next:** Confirm HITZ Site health after delivery rebuild finishes (player Remixes / Cleaning House should load) → re-test long-form Add Audio on **597+** (finishing must succeed quickly; toast when track is ready) → Content surface → Branding preview parity.
+**Next:** Site update HITZ to this build → re-save Bjørn + a video Visual (expect plain “Changes saved.”) → finish HITZ health/player check → long-form Add Audio → Content surface → Branding preview parity.
 
 ### Policy locked (do not reopen)
 
@@ -51,6 +51,7 @@
 - Pages prose: `.page-prose-row` claims full flex row; measured panel centred inside; `.page-picture-body` uses Content panel fill
 - Large audio upload final chunk: return after assemble + spawn finalize worker only (do not sync master move / tags / scan / delivery on the upload request — HITZ proxy 504)
 - Player load-failure **Operator:** hints are admin/developer only (`BANDPROMO_IS_OPERATOR`); public listeners get title + soft detail only
+- Visual master embed: non-ASCII titles via UTF-8 ffmetadata (never `-metadata title=…` argv on ASCII hosts); video tag work dir beside master + EXDEV-safe replace
 
 ### Local workspace
 

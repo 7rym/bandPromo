@@ -4,6 +4,7 @@
 EXIF is treated as camera-origin: we read DateTimeOriginal for captured_at and do not
 write editorial title/description/keywords into EXIF.
 """
+import errno
 import io
 import json
 import os
@@ -43,9 +44,12 @@ XMP_NS = 'http://ns.adobe.com/xap/1.0/\x00'
 
 
 def respond(payload: Dict[str, Any], exit_code: int = 0) -> None:
-    print(json.dumps(payload, ensure_ascii=False))
+    try:
+        print(json.dumps(payload, ensure_ascii=False))
+    except UnicodeEncodeError:
+        # ASCII-only stdout (HITZ): keep the reply machine-readable.
+        print(json.dumps(payload, ensure_ascii=True))
     sys.exit(exit_code)
-
 
 def read_payload() -> Dict[str, Any]:
     raw = sys.stdin.read()
@@ -155,6 +159,79 @@ def resolve_ffprobe() -> str:
     return ''
 
 
+def _ffmpeg_process_env() -> Dict[str, str]:
+    """UTF-8-leaning env for ffmpeg children (HITZ may start as ASCII-only)."""
+    env = os.environ.copy()
+    try:
+        import stdio_utf8
+        stdio_utf8.ensure_utf8_process_env(env)
+    except Exception:
+        env['PYTHONIOENCODING'] = 'utf-8:replace'
+    return env
+
+
+def _ffmetadata_escape(value: Any) -> str:
+    """Escape special characters for an ffmpeg ffmetadata file value."""
+    text = str(value or '')
+    # ffmpeg-formats: escape \, =, ;, #, and newline in keys/values.
+    out = []
+    for ch in text:
+        if ch in '\\=;#\n':
+            out.append('\\' + ch)
+        else:
+            out.append(ch)
+    return ''.join(out)
+
+
+def write_ffmetadata_file(path: Path, display: Dict[str, Any]) -> None:
+    """Write display fields as UTF-8 ffmetadata (keeps non-ASCII out of argv).
+
+    ASCII-locale hosts (e.g. HITZ) raise UnicodeEncodeError when Python encodes
+    ``-metadata title=Bjørn…`` as argv. A sidecar file avoids that entirely.
+    """
+    title = display.get('title') or ''
+    description = display.get('description') or ''
+    keywords = ', '.join(display.get('keywords') or [])
+    captured = display.get('captured_at') or ''
+    lines = [
+        ';FFMETADATA1',
+        'title=' + _ffmetadata_escape(title),
+        'description=' + _ffmetadata_escape(description),
+        'comment=' + _ffmetadata_escape(keywords),
+    ]
+    if captured:
+        lines.append('date=' + _ffmetadata_escape(captured))
+    path.write_text('\n'.join(lines) + '\n', encoding='utf-8')
+
+
+def run_ffmpeg(cmd: List[str]):
+    return subprocess.run(
+        cmd,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        universal_newlines=True,
+        encoding='utf-8',
+        errors='replace',
+        env=_ffmpeg_process_env(),
+    )
+
+
+def replace_file(src: Path, dst: Path) -> None:
+    """Atomic replace when possible; copy+unlink across devices (HITZ /tmp vs media)."""
+    src_path = Path(src)
+    dst_path = Path(dst)
+    try:
+        os.replace(str(src_path), str(dst_path))
+        return
+    except OSError as exc:
+        if getattr(exc, 'errno', None) != errno.EXDEV:
+            raise
+    shutil.copy2(str(src_path), str(dst_path))
+    try:
+        src_path.unlink()
+    except OSError:
+        pass
+
 def read_still_pixel_size(path: Path) -> Tuple[int, int]:
     try:
         from PIL import Image
@@ -177,14 +254,7 @@ def read_video_pixel_size(path: Path) -> Tuple[int, int]:
         '-select_streams', 'v:0', '-show_entries', 'stream=width,height',
         str(path),
     ]
-    proc = subprocess.run(
-        cmd,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-        universal_newlines=True,
-        encoding='utf-8',
-        errors='replace',
-    )
+    proc = run_ffmpeg(cmd)
     if proc.returncode != 0:
         return 0, 0
     try:
@@ -310,10 +380,11 @@ def write_png_xmp(path: Path, display: Dict[str, Any]) -> None:
                     info.add_text(str(key), value)
                 except Exception:
                     pass
-        info.add_text('XML:com.adobe.xmp', packet)
+        # iTXt is UTF-8; tEXt is latin-1 and breaks on titles like Bjørn.
+        info.add_itxt('XML:com.adobe.xmp', packet)
         tmp = path.with_suffix(path.suffix + '.tmp')
         img.save(tmp, format='PNG', pnginfo=info)
-    os.replace(tmp, path)
+    replace_file(tmp, path)
 
 
 def write_webp_xmp(path: Path, display: Dict[str, Any]) -> None:
@@ -321,37 +392,34 @@ def write_webp_xmp(path: Path, display: Dict[str, Any]) -> None:
     ffmpeg = resolve_ffmpeg()
     if not ffmpeg:
         raise RuntimeError('ffmpeg is required to write WebP XMP metadata')
-    title = display.get('title') or ''
-    description = display.get('description') or ''
-    keywords = ', '.join(display.get('keywords') or [])
     tmp = path.with_suffix(path.suffix + '.tmp.webp')
-    cmd = [
-        ffmpeg, '-y', '-hide_banner', '-loglevel', 'error',
-        '-i', str(path),
-        '-map_metadata', '0',
-        '-metadata', f'title={title}',
-        '-metadata', f'description={description}',
-        '-metadata', f'comment={keywords}',
-        '-c', 'copy',
-        str(tmp),
-    ]
-    proc = subprocess.run(
-        cmd,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-        universal_newlines=True,
-        encoding='utf-8',
-        errors='replace',
-    )
-    if proc.returncode != 0 or not tmp.is_file():
-        if tmp.exists():
+    meta_path = path.with_suffix(path.suffix + '.ffmetadata.txt')
+    try:
+        write_ffmetadata_file(meta_path, display)
+        cmd = [
+            ffmpeg, '-y', '-hide_banner', '-loglevel', 'error',
+            '-i', str(path),
+            '-i', str(meta_path),
+            '-map_metadata', '1',
+            '-c', 'copy',
+            str(tmp),
+        ]
+        proc = run_ffmpeg(cmd)
+        if proc.returncode != 0 or not tmp.is_file():
+            if tmp.exists():
+                try:
+                    tmp.unlink()
+                except OSError:
+                    pass
+            detail = (proc.stderr or proc.stdout or '').strip()
+            raise RuntimeError(detail or 'ffmpeg WebP metadata write failed')
+        replace_file(tmp, path)
+    finally:
+        if meta_path.exists():
             try:
-                tmp.unlink()
+                meta_path.unlink()
             except OSError:
                 pass
-        detail = (proc.stderr or proc.stdout or '').strip()
-        raise RuntimeError(detail or 'ffmpeg WebP metadata write failed')
-    os.replace(tmp, path)
 
 
 def read_exif_captured_at(path: Path) -> str:
@@ -471,43 +539,33 @@ def write_video_display(path: Path, display: Dict[str, Any]) -> None:
     ffmpeg = resolve_ffmpeg()
     if not ffmpeg:
         raise RuntimeError('ffmpeg is required to write Matroska tags on video masters')
-    title = display.get('title') or ''
-    description = display.get('description') or ''
-    keywords = ', '.join(display.get('keywords') or [])
-    captured = display.get('captured_at') or ''
-    tmp_dir = Path(tempfile.mkdtemp(prefix='bp-mkv-'))
+    # Keep work files on the same volume as the master — HITZ /tmp is often EXDEV.
+    parent = path.parent
+    parent.mkdir(parents=True, exist_ok=True)
+    tmp_dir = Path(tempfile.mkdtemp(prefix='.bp-mkv-', dir=str(parent)))
     try:
         tmp = tmp_dir / (path.stem + '.tagged.mkv')
+        meta_path = tmp_dir / 'display.ffmetadata'
+        write_ffmetadata_file(meta_path, display)
         cmd = [
             ffmpeg, '-y', '-hide_banner', '-loglevel', 'error',
             '-i', str(path),
+            '-i', str(meta_path),
             '-map', '0:v:0',
             '-map', '0:a?',
+            '-map_metadata', '1',
             '-c', 'copy',
             '-sn',
             '-dn',
-            '-metadata', f'title={title}',
-            '-metadata', f'description={description}',
-            '-metadata', f'COMMENT={keywords}',
+            str(tmp),
         ]
-        if captured:
-            cmd.extend(['-metadata', f'date={captured}'])
-        cmd.append(str(tmp))
-        proc = subprocess.run(
-            cmd,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            universal_newlines=True,
-            encoding='utf-8',
-            errors='replace',
-        )
+        proc = run_ffmpeg(cmd)
         if proc.returncode != 0 or not tmp.is_file():
             detail = (proc.stderr or proc.stdout or '').strip()
             raise RuntimeError(detail or 'ffmpeg Matroska tag write failed')
-        os.replace(tmp, path)
+        replace_file(tmp, path)
     finally:
-        shutil.rmtree(tmp_dir, ignore_errors=True)
-
+        shutil.rmtree(str(tmp_dir), ignore_errors=True)
 
 def read_video_display(path: Path) -> Dict[str, Any]:
     ffprobe = resolve_ffprobe()
@@ -517,14 +575,7 @@ def read_video_display(path: Path) -> Dict[str, Any]:
         ffprobe, '-v', 'quiet', '-print_format', 'json',
         '-show_format', str(path),
     ]
-    proc = subprocess.run(
-        cmd,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-        universal_newlines=True,
-        encoding='utf-8',
-        errors='replace',
-    )
+    proc = run_ffmpeg(cmd)
     if proc.returncode != 0:
         return normalize_display({})
     try:
@@ -557,10 +608,11 @@ def action_write(payload: Dict[str, Any]) -> Dict[str, Any]:
     media_type = str(asset.get('media_type') or '').strip().lower()
     ext = path.suffix.lower()
     try:
-        if media_type == 'video' or ext in VIDEO_EXTS:
-            write_video_display(path, display)
-        elif ext in STILL_EXTS:
+        # Prefer on-disk extension: a still mistagged as video must not remux via ffmpeg.
+        if ext in STILL_EXTS:
             write_still_display(path, display)
+        elif media_type == 'video' or ext in VIDEO_EXTS:
+            write_video_display(path, display)
         else:
             return {'ok': False, 'error': f'Unsupported master format for metadata: {ext}'}
     except Exception as exc:
@@ -578,10 +630,10 @@ def action_read(payload: Dict[str, Any]) -> Dict[str, Any]:
         return {'ok': False, 'error': f'Master file missing: {path.name}'}
     media_type = str(asset.get('media_type') or '').strip().lower()
     ext = path.suffix.lower()
-    if media_type == 'video' or ext in VIDEO_EXTS:
-        display = read_video_display(path)
-    elif ext in STILL_EXTS:
+    if ext in STILL_EXTS:
         display = read_still_display(path)
+    elif media_type == 'video' or ext in VIDEO_EXTS:
+        display = read_video_display(path)
     else:
         return {'ok': False, 'error': f'Unsupported master format for metadata: {ext}'}
     return {'ok': True, 'asset_id': asset_id, 'display': display}
@@ -663,10 +715,10 @@ def action_heal_empty(payload: Dict[str, Any]) -> Dict[str, Any]:
         needs_embed = (not current.get('title')) or (not current.get('captured_at'))
         if needs_embed:
             try:
-                if media_type == 'video' or ext in VIDEO_EXTS:
-                    embedded = read_video_display(path)
-                elif ext in STILL_EXTS:
+                if ext in STILL_EXTS:
                     embedded = read_still_display(path)
+                elif media_type == 'video' or ext in VIDEO_EXTS:
+                    embedded = read_video_display(path)
             except Exception:
                 embedded = normalize_display({})
         merged = dict(current)
@@ -700,12 +752,11 @@ def action_heal_empty(payload: Dict[str, Any]) -> Dict[str, Any]:
             write_tags = bool(limit_id) or ext in STILL_EXTS
             if write_tags:
                 try:
-                    if media_type == 'video' or ext in VIDEO_EXTS:
-                        if limit_id:
-                            write_video_display(path, merged)
-                            written.append(asset_id)
-                    elif ext in STILL_EXTS:
+                    if ext in STILL_EXTS:
                         write_still_display(path, merged)
+                        written.append(asset_id)
+                    elif (media_type == 'video' or ext in VIDEO_EXTS) and limit_id:
+                        write_video_display(path, merged)
                         written.append(asset_id)
                 except Exception:
                     pass
@@ -720,7 +771,7 @@ def action_heal_empty(payload: Dict[str, Any]) -> Dict[str, Any]:
         with open(tmp, 'w', encoding='utf-8') as handle:
             json.dump(registry, handle, ensure_ascii=False, indent=2)
             handle.write('\n')
-        os.replace(tmp, ASSET_REGISTRY_FILE)
+        replace_file(tmp, ASSET_REGISTRY_FILE)
     return {
         'ok': True,
         'healed': healed,

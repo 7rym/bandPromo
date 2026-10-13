@@ -2,6 +2,10 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-10-13 22:45 - Files → Visual save (HITZ): video master tag write no longer dies with Errno 18 cross-device link — work dir is beside the master (not `/tmp`), and replace falls back to copy+unlink on EXDEV. Bundled with the UTF-8 / Bjørn embed fix.
+
+2026-10-13 22:40 - Files → Visual save: master embed no longer fails on non-ASCII titles (e.g. Bjørn / ø) on ASCII-locale hosts. ffmpeg tag writes use a UTF-8 ffmetadata sidecar instead of `-metadata title=…` argv; PNG XMP uses iTXt; still extensions win over a mistagged `media_type=video`.
+
 2026-10-13 21:37 - Session end: HITZ Site health CRITICAL was an empty Files registry (0/0/0) with masters still on disk; Apply re-registered 121 audio / 180 visual / 8 sfx and rebuilt streams. Player “Operator:” rebuild hint confirmed admin/developer only. Handoff updated; published app remains **v0.8.98 build 597**.
 
 2026-10-13 14:52 - Session end: published **v0.8.98 build 597** (`v0.8.98-build-597`) — deferred audio finalize off final chunk. Handoff cleaned for HITZ re-test.
