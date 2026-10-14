@@ -15,7 +15,7 @@
 
 **Operator rule (this session):** Do **not** delete, prune, janitor-Apply, or discard any runtime files (`data/`, `media/`, `log/`, `backups/`, Ready archives, leftover `original/`) unless this user names the exact paths in the same message.
 
-**Next:** Site update HITZ (and other test hosts) to 601 → confirm audio prep toast + Notes colours follow Branding Typography → Files pool latency trim → Content surface.
+**Next:** Site update HITZ (and other test hosts) to 602 → soft-switch into Twisted Chronicles (expect all playlists) → Files pool latency trim → Content surface.
 
 ### Policy locked (do not reopen)
 
