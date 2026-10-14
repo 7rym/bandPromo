@@ -3183,6 +3183,37 @@ function bandpromo_asset_refresh_audio_display(string $root, string $masterFile,
  *
  * @return array{ok:bool,from_tags:bool,display:array,warning:string}
  */
+/**
+ * Strip leftover APEv2 on an MP3 master, then inspect (same as editor save prelude).
+ * Dual ID3+APE covers inflate mutagen duration until APE is removed.
+ *
+ * @return array<string, mixed>
+ */
+function bandpromo_audio_master_normalize_and_inspect(string $root, string $masterFilename): array
+{
+    $masterFilename = basename(trim($masterFilename));
+    if ($masterFilename === '') {
+        return [];
+    }
+
+    require_once __DIR__ . '/light-build-tasks.php';
+    $result = bandpromo_run_light_json_task('scripts/audioMasterMetadata.py', [
+        'action' => 'normalize',
+        'filename' => $masterFilename,
+    ]);
+    $data = is_array($result['data'] ?? null) ? $result['data'] : [];
+    if (!is_array($data) || empty($data['ok'])) {
+        // Fall back to read-only inspect when normalize cannot run.
+        return bandpromo_campaign_inspect_master_metadata($root, $masterFilename);
+    }
+
+    bandpromo_campaign_inspect_master_metadata_invalidate($masterFilename);
+    $cache = &bandpromo_campaign_inspect_master_metadata_cache();
+    $cache[$masterFilename] = $data;
+
+    return $data;
+}
+
 function bandpromo_asset_ensure_audio_display_after_upload(
     string $root,
     string $masterFilename,
@@ -3209,7 +3240,8 @@ function bandpromo_asset_ensure_audio_display_after_upload(
         ];
     }
 
-    $inspect = bandpromo_campaign_inspect_master_metadata($root, $masterFilename);
+    // Upload must match editor-save behaviour: strip APEv2 before reading duration.
+    $inspect = bandpromo_audio_master_normalize_and_inspect($root, $masterFilename);
     $rawTitle = trim((string) ($inspect['title'] ?? ''));
     $fromTags = $rawTitle !== '';
 

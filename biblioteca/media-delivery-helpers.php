@@ -16,6 +16,42 @@ function bandpromo_audio_delivery_ready(string $root, string $sourceFilename): b
 }
 
 /**
+ * Delivery readiness for a master basename, original basename, or asset id.
+ *
+ * Deferred upload finalize stores the human original in background-task `files`
+ * while delivery MP3s are named from the `ast_*` master stem. Stem-only checks
+ * then false-fail successful prep (HITZ Retroscopy hour #13).
+ */
+function bandpromo_audio_ref_delivery_ready(string $root, string $ref): bool
+{
+    $ref = basename(trim($ref));
+    if ($ref === '') {
+        return false;
+    }
+
+    if (bandpromo_audio_delivery_ready($root, $ref)) {
+        return true;
+    }
+
+    require_once __DIR__ . '/asset-registry.php';
+    require_once __DIR__ . '/publish-status-helpers.php';
+
+    $asset = bandpromo_asset_lookup_by_master_filename($root, $ref)
+        ?? bandpromo_asset_lookup_by_original_filename($root, $ref)
+        ?? bandpromo_asset_lookup_from_media_ref($root, $ref);
+    if (!is_array($asset) || strtolower((string) ($asset['kind'] ?? '')) !== 'audio') {
+        return false;
+    }
+
+    $masterFilename = basename(trim((string) ($asset['master_filename'] ?? '')));
+    if ($masterFilename === '') {
+        return false;
+    }
+
+    return bandpromo_asset_audio_delivery_ready($root, $masterFilename);
+}
+
+/**
  * Pool-ready for Files index: audio optimal, or Visual delivery variants.
  * Stem photo/video optimal dual-read retired (T6).
  */

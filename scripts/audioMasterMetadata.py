@@ -454,18 +454,184 @@ def set_id3_text_frame(tags, frame_id, frame_class, value):
 
 
 def strip_ape_tags(path):
-    """Remove leftover APEv2 blocks so ID3 is the only MP3 tag source."""
+    """Remove leftover APEv2 blocks so ID3 is the only MP3 tag source.
+
+    Returns True when an APEv2 block was present and deleted.
+    Dual ID3+APE (often with Cover Art in both) makes mutagen report an
+    inflated duration until APE is stripped — e.g. 60:32 instead of 60:00.
+    """
     try:
         ape = APEv2(str(path))
         ape.delete()
+        return True
     except APENoHeaderError:
-        return
+        return False
     except Exception:
-        return
+        return False
+
+
+def _ape_text(ape, *keys):
+    for key in keys:
+        if key not in ape:
+            continue
+        value = ape[key]
+        try:
+            # APE binary cover art must not be stringified into text frames.
+            if hasattr(value, 'kind') and int(getattr(value, 'kind')) == 1:
+                continue
+        except Exception:
+            pass
+        if isinstance(value, list):
+            if not value:
+                continue
+            text = str(value[0]).strip()
+        else:
+            text = str(value).strip()
+        if text != '':
+            return text
+    return ''
+
+
+def _ape_cover_bytes(ape):
+    """Return (mime, bytes) for APE front cover, or (None, None)."""
+    for key in ('Cover Art (Front)', 'Cover Art (front)', 'COVER ART (FRONT)'):
+        if key not in ape:
+            continue
+        raw = ape[key]
+        try:
+            data = bytes(raw)
+        except Exception:
+            continue
+        if not data:
+            continue
+        # mutagen APE cover: optional filename + NUL + image bytes
+        sep = data.find(b'\x00')
+        if sep >= 0 and sep < 256:
+            data = data[sep + 1:]
+        if len(data) < 24:
+            continue
+        mime = 'image/jpeg'
+        if data.startswith(b'\x89PNG\r\n\x1a\n'):
+            mime = 'image/png'
+        elif data.startswith(b'GIF8'):
+            mime = 'image/gif'
+        return mime, data
+    return None, None
+
+
+def migrate_ape_tags_into_id3(path):
+    """Copy APE text/cover into empty ID3 frames, then delete APEv2.
+
+    Merge rule: non-empty ID3 wins; APE fills gaps only (including APE-only files).
+    Returns dict with keys: ape_present, migrated_fields (list), cover_migrated (bool),
+    ape_stripped (bool).
+    """
+    path = Path(path)
+    summary = {
+        'ape_present': False,
+        'migrated_fields': [],
+        'cover_migrated': False,
+        'ape_stripped': False,
+    }
+    try:
+        ape = APEv2(str(path))
+    except APENoHeaderError:
+        return summary
+    except Exception:
+        return summary
+
+    summary['ape_present'] = True
+    try:
+        tags = ID3(str(path))
+    except ID3NoHeaderError:
+        tags = ID3()
+
+    def id3_empty(frame_id):
+        return not any(str(key).startswith(frame_id) for key in tags.keys())
+
+    field_map = [
+        ('title', 'TIT2', TIT2, ('TITLE', 'Title')),
+        ('artist', 'TPE1', TPE1, ('ARTIST', 'Artist')),
+        ('album', 'TALB', TALB, ('ALBUM', 'Album')),
+        ('date', 'TDRC', TDRC, ('DATE', 'Date', 'YEAR', 'Year')),
+        ('tracknumber', 'TRCK', TRCK, ('TRACK', 'TRACKNUMBER', 'Track')),
+        ('bpm', 'TBPM', TBPM, ('BPM', 'Bpm')),
+        ('genre', 'TCON', TCON, ('GENRE', 'Genre')),
+        ('remix_artist', 'TPE4', TPE4, ('MIXARTIST', 'REMIXER', 'REMIX ARTIST')),
+    ]
+    dirty = False
+    for field_name, frame_id, frame_class, ape_keys in field_map:
+        if not id3_empty(frame_id):
+            continue
+        value = _ape_text(ape, *ape_keys)
+        if field_name == 'tracknumber':
+            value = read_track_value(value)
+        if field_name == 'date':
+            value = str(value or '').strip()[:10]
+        if value == '':
+            continue
+        set_id3_text_frame(tags, frame_id, frame_class, value)
+        summary['migrated_fields'].append(field_name)
+        dirty = True
+
+    if id3_empty('TKEY'):
+        key_value = normalize_initialkey_value(
+            _ape_text(ape, 'INITIALKEY', 'KEY', 'Key')
+        )
+        if key_value != '':
+            set_id3_text_frame(tags, 'TKEY', TKEY, key_value)
+            summary['migrated_fields'].append('initialkey')
+            dirty = True
+
+    if read_txxx_value(tags, FEATURED_ARTIST_TXXX_DESC) == '':
+        featured = _ape_text(
+            ape,
+            FEATURED_ARTIST_TAG,
+            'FEATURED ARTIST',
+            'FEATURED_ARTIST',
+        )
+        if featured != '':
+            set_txxx_value(tags, FEATURED_ARTIST_TXXX_DESC, featured)
+            summary['migrated_fields'].append('featured_artist')
+            dirty = True
+
+    if id3_empty('COMM'):
+        comment = _ape_text(ape, 'COMMENT', 'Comment', 'DESCRIPTION', 'Description')
+        if comment != '':
+            tags.add(COMM(encoding=3, lang='eng', desc='', text=[comment]))
+            summary['migrated_fields'].append('comment')
+            dirty = True
+
+    if read_mp3_lyrics(tags) == '':
+        lyrics = _ape_text(ape, 'UNSYNCEDLYRICS', 'LYRICS', 'Lyrics')
+        if lyrics != '':
+            tags.add(USLT(encoding=3, lang='eng', desc='', text=lyrics))
+            summary['migrated_fields'].append('lyrics')
+            dirty = True
+
+    if id3_empty('APIC'):
+        mime, cover_data = _ape_cover_bytes(ape)
+        if cover_data is not None:
+            tags.add(APIC(encoding=3, mime=mime, type=3, desc='Cover', data=cover_data))
+            summary['cover_migrated'] = True
+            summary['migrated_fields'].append('cover')
+            dirty = True
+
+    if dirty:
+        tags.save(str(path), v2_version=3)
+
+    summary['ape_stripped'] = bool(strip_ape_tags(path))
+    return summary
+
+
+def normalize_mp3_tag_sources(path):
+    """Migrate APE→ID3 (empty frames only), then strip APEv2 on a master."""
+    return migrate_ape_tags_into_id3(path)
 
 
 def update_mp3(path, fields):
-    strip_ape_tags(path)
+    # Preserve APE-only fields that were never copied to ID3 before this Save.
+    migrate_ape_tags_into_id3(path)
     try:
         tags = ID3(str(path))
     except ID3NoHeaderError:
@@ -573,6 +739,25 @@ def main():
 
     if action == 'inspect':
         respond(inspect_master(path))
+
+    if action == 'normalize':
+        # Upload/materialize: APE→ID3 (fill empty frames) then strip APEv2 so
+        # duration/inspect are authoritative on ID3-only masters.
+        migrate_summary = {
+            'ape_present': False,
+            'migrated_fields': [],
+            'cover_migrated': False,
+            'ape_stripped': False,
+        }
+        if path.suffix.lower() == '.mp3':
+            migrate_summary = normalize_mp3_tag_sources(path)
+        details = inspect_master(path)
+        details['normalized'] = True
+        details['ape_present'] = bool(migrate_summary.get('ape_present'))
+        details['ape_stripped'] = bool(migrate_summary.get('ape_stripped'))
+        details['ape_migrated_fields'] = list(migrate_summary.get('migrated_fields') or [])
+        details['ape_cover_migrated'] = bool(migrate_summary.get('cover_migrated'))
+        respond(details)
 
     if action == 'update':
         fields = payload.get('fields')

@@ -565,16 +565,25 @@ function bandpromo_finalize_background_task_from_files(string $taskId, string $r
 
     // Hard verify against PHP readiness. Prevents false "done" when Python reports ok
     // but delivery files are still missing.
+    // Prefer prepared master names when present — deferred upload finalize keeps the
+    // human original in `files` for toasts, while optimal MP3s use the ast_* stem.
     require_once __DIR__ . '/media-delivery-helpers.php';
     $root = dirname(__DIR__);
+    $verifyNames = $prepared !== [] ? $prepared : $files;
+    $resultMaster = is_array($resultData)
+        ? basename(trim((string) ($resultData['master_filename'] ?? '')))
+        : '';
+    if ($isAudio && $resultMaster !== '' && !in_array($resultMaster, $verifyNames, true)) {
+        $verifyNames[] = $resultMaster;
+    }
     $incomplete = [];
-    foreach ($files as $filename) {
+    foreach ($verifyNames as $filename) {
         $safe = basename(trim((string) $filename));
         if ($safe === '') {
             continue;
         }
         if ($isAudio) {
-            if (!bandpromo_audio_delivery_ready($root, $safe)) {
+            if (!bandpromo_audio_ref_delivery_ready($root, $safe)) {
                 $incomplete[] = $safe;
             }
         } elseif (bandpromo_video_needs_delivery($root, $safe)) {
@@ -640,7 +649,12 @@ function bandpromo_finalize_background_task_from_files(string $taskId, string $r
                 bandpromo_delivery_mark_audio_ready($root, $stillMissing, false);
             }
             bandpromo_delivery_refresh_inventory_snapshot($root);
-            foreach ($files as $filename) {
+            // Sync masters (prepared), not only the human original toast label in files.
+            $indexNames = $prepared !== [] ? $prepared : $files;
+            if ($resultMaster !== '' && !in_array($resultMaster, $indexNames, true)) {
+                $indexNames[] = $resultMaster;
+            }
+            foreach ($indexNames as $filename) {
                 $safe = basename(trim((string) $filename));
                 if ($safe !== '') {
                     bandpromo_media_files_index_sync_file($root, 'audio', $safe);
@@ -713,6 +727,68 @@ function bandpromo_prune_background_tasks(int $doneRetentionSeconds = 120): void
     }
 
     bandpromo_write_background_tasks(['items' => $kept]);
+}
+
+/**
+ * Clear sticky "Audio preparation failed" when delivery is actually ready.
+ *
+ * Deferred upload finalize used to verify the human original stem and false-fail
+ * even though prepared masters (ast_*) were on disk. Those failed rows survive
+ * hard reload until Dismiss — heal them on Notifications reconcile.
+ */
+function bandpromo_heal_false_failed_audio_delivery_tasks(): void
+{
+    require_once __DIR__ . '/media-delivery-helpers.php';
+
+    $root = dirname(__DIR__);
+    $state = bandpromo_read_background_tasks();
+    $items = is_array($state['items'] ?? null) ? $state['items'] : [];
+    $changed = false;
+
+    foreach ($items as $index => $item) {
+        if (!is_array($item)) {
+            continue;
+        }
+        if ((string) ($item['task'] ?? '') !== 'audio-delivery') {
+            continue;
+        }
+        if ((string) ($item['status'] ?? '') !== 'failed') {
+            continue;
+        }
+        if (!empty($item['force_stopped'])) {
+            continue;
+        }
+
+        $prepared = is_array($item['prepared'] ?? null) ? $item['prepared'] : [];
+        $files = is_array($item['files'] ?? null) ? $item['files'] : [];
+        $check = $prepared !== [] ? $prepared : $files;
+        if ($check === []) {
+            continue;
+        }
+
+        $allReady = true;
+        foreach ($check as $filename) {
+            $safe = basename(trim((string) $filename));
+            if ($safe === '' || !bandpromo_audio_ref_delivery_ready($root, $safe)) {
+                $allReady = false;
+                break;
+            }
+        }
+        if (!$allReady) {
+            continue;
+        }
+
+        $items[$index]['status'] = 'done';
+        $items[$index]['label'] = 'Audio delivery finished';
+        $items[$index]['error'] = '';
+        $items[$index]['finished_at'] = gmdate('c');
+        $items[$index]['healed_false_fail'] = true;
+        $changed = true;
+    }
+
+    if ($changed) {
+        bandpromo_write_background_tasks(['items' => $items]);
+    }
 }
 
 function bandpromo_reconcile_background_delivery_job_type(
@@ -810,6 +886,7 @@ function bandpromo_reconcile_background_tasks(bool $allowAutoQueue = true): arra
         null
     );
 
+    bandpromo_heal_false_failed_audio_delivery_tasks();
     bandpromo_prune_background_tasks();
 
     // Notifications polls must not spawn new work — that keeps the UI in a forever "busy" loop.

@@ -689,7 +689,11 @@ Pages use **sanitized HTML richtext** (TinyMCE + HTMLPurifier). Player-facing op
 
 1. **Render at output** — player (and any future EPK panel) converts Markdown → HTML through a **restricted allowlist** (headings, emphasis, lists, links, code, blockquote — same spirit as admin docs renderer).
 2. **Sanitize** — strip scripts, event handlers, and arbitrary HTML from output; links get safe `rel` where external.
-3. **Lyrics mode** — same restricted allowlist as default (headings, lists, links, emphasis, code, blockquote); single line breaks in plain lyric lines render as hard breaks. **Notes** (`text_role: notes`) uses default paragraph mode plus a denser `player-markdown--notes` cue-sheet style (tighter rhythm; only `h1` keeps primary accent — entry headings step down).
+3. **Lyrics vs Notes (layout, not a second typography system):**
+   - **Shared Markdown allowlist** — headings, lists, links, emphasis, code, blockquote.
+   - **Lyrics** — single line breaks → hard breaks; centred / italic reading layout; measure `--prose-measure`.
+   - **Notes** — normal Markdown paragraphs; left cue-sheet layout (hairline entry separators, wider `--tracklist-measure`); **same Branding → Content → Typography tokens as Pages** (`typography.density` → `--content-type-line-height` / `--content-type-block-gap`; role colours `--role-heading`, `--role-heading-sub`, `--role-body`, `--role-muted`, `--role-blockquote`; heading/body fonts). Shipped: Notes CSS honours those tokens (no hardcoded cue-sheet colours fighting brand).
+   - **Lyrics density/size** — if Lyrics need a tighter scale than Pages/Notes, add a **separate** Branding control (e.g. lyrics density|size) that emits Lyrics-only CSS vars. Do not silently override `typography.density` inside `.player-markdown--lyrics`. Until that control exists, Lyrics keep a platform default lyric scale and still honour role colours and fonts.
 4. **Playlist track descriptions** — render through the same sanitizer; fix current unescaped `innerHTML` insertion.
 5. **Share/OG** — when a Markdown field feeds meta tags, strip Markdown to plain text (no `**` in `og:description`).
 
@@ -698,6 +702,7 @@ Pages use **sanitized HTML richtext** (TinyMCE + HTMLPurifier). Player-facing op
 Markdown support is **display-only**. Audio identity for listeners is registry + playlist payload, not delivery-file tags:
 
 - Admin save → `audioMasterMetadata.py` writes UTF-8 text to **master** tags.
+- **MP3 masters:** ID3v2 only after intake — on upload normalize / before Save, **APE→ID3 for empty frames**, then **strip APEv2** (dual covers otherwise skew duration). FLAC still imports Vorbis as-is. See [MEDIA-HANDLING.md](MEDIA-HANDLING.md) → MP3 masters: ID3 only.
 - Publish / audio delivery → `optimizeMedia.py` produces tagless delivery MP3s (strip ID3/APEv2 after copy or transcode).
 - Build → `makePlaylists.py` publishes player playlist payloads (PHP) from registry + playlist documents; the separate `playlist-scan` / validation-only path refreshes the operator validation report from masters.
 
@@ -906,6 +911,7 @@ Legacy brands with `radius_percent` / `border_width` / density `minimal` migrate
 - `typography.density` — Dense→Spacious presets → `--content-type-line-height` and `--content-type-block-gap` (platform still owns font sizes and heading scale)
 - Runtime exposes families as `--brand-font-body` and `--brand-font-heading`; custom family stacks are syntax-validated and receive a generic fallback.
 - Operators choose font families and typography density. The platform owns sizes, heading scale, wrapping, readable measures, and control geometry so a brand font cannot redefine the responsive shell.
+- **Consumers:** Pages and player **Notes** honour these tokens (and role colours). Player **Lyrics** keep an honest platform lyric scale (not `typography.density`); optional separate Lyrics density|size Branding control when operators need Lyrics-only spacing.
 
 Renderer injects tokens as `:root` overrides when a brand is active.
 

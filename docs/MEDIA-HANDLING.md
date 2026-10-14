@@ -1202,6 +1202,20 @@ When re-upload leaves rich tags on unregistered leftover masters, Publish/autofi
 
 The playlist generator is implemented in [scripts/makePlaylists.py](scripts/makePlaylists.py).
 
+### MP3 masters: ID3 only (APE migrated then stripped)
+
+**Policy (locked):** After intake, **MP3 masters hold ID3v2 only**. Durable masters never keep APEv2.
+
+**On upload / materialize normalize** (and before Files → Audio **Save** writes):
+
+1. **Read APEv2** when present (title, artist, album, date/year, track, BPM, key, genre, remix/mix artist, featured artist, comment, unsynced lyrics, front cover).
+2. **Migrate into empty ID3 frames only** — non-empty ID3 wins on conflict; APE fills gaps (APE-only uploads become full ID3).
+3. **Strip APEv2** so mutagen duration is correct (dual ID3+APE covers otherwise inflate length, e.g. 60:32 vs 60:00).
+
+**FLAC masters** already import Vorbis comments on upload display refresh; they are not APE/ID3. Prefer FLAC when operators want a single rich tag block without ID3 migration.
+
+This is **not** the same as tagless **delivery** MP3s (`media/audio/optimal/`), which strip **all** ID3 and APEv2 after build.
+
 ### Core playback fields currently read
 
 For source files, the current reader looks for:
@@ -1386,7 +1400,7 @@ If multiple issues affect one track, the admin summary should show the highest-s
 
 - The admin UI keeps unresolved publish/build follow-up and validation issues visible in a persistent **What needs your attention** inbox modal (header bell and dashboard summary). The completed-install dashboard shows a short status line rather than the full task list inline.
 - Metadata repair now covers the first audio-master editor pass, including common text fields (artist, featured artist, remix artist, title/version, genre, BPM, key, release date), lyrics, cover selection, plus tag-bullet quick-edit for short fields from Files -> Audio: artist, title, version, release/album name, track, release date, genre, BPM, and key. Larger fields such as description and lyrics stay in the full editor. Broader packaging workflows are still incomplete.
-- Some MP3 files tagged mainly through APEv2 may still behave inconsistently compared with FLAC or clean ID3v2-tagged files.
+- MP3 masters that arrive with APEv2 (alone or dual with ID3): APE is migrated into empty ID3 frames then stripped — see **MP3 masters: ID3 only** above.
 - Real audio metadata changes still flow through the older coarse build-required state, so the operator messaging is better for no-op saves than for task-specific follow-up after actual edits.
 - The current `optimal` label is too vague; delivery targets should be defined by actual usage context rather than implied quality alone.
 

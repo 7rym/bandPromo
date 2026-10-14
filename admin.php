@@ -4015,7 +4015,7 @@ if ($tab === 'analytics') {
                                         <div class="field-note audio-master-text-panel-note markdown-help-note">
                                             <span class="markdown-help-note-label">Restricted Markdown</span>
                                             <?php echo bandpromo_admin_markdown_help_trigger(); ?>
-                                            <span class="markdown-help-note-extra">Lyrics keep line breaks; Notes use paragraphs.</span>
+                                            <span class="markdown-help-note-extra">Lyrics keep line breaks; Notes use paragraphs and Branding typography.</span>
                                         </div>
                                         <label class="audio-master-notes-label-wrap" id="audioMasterNotesLabelWrap" for="audioMasterFieldNotesLabel" hidden title="Shown on the player nav while this track plays. Default: Tracklist.">
                                             <span>Player tab label:</span>
@@ -4072,7 +4072,7 @@ if ($tab === 'analytics') {
                     </div>
                 </dl>
                 <h4>Lyrics vs Notes</h4>
-                <p>In the track editor, <strong>Lyrics</strong> keeps single line breaks (good for verse lines). <strong>Notes</strong> uses normal paragraphs (good for tracklists and cue sheets).</p>
+                <p>In the track editor, <strong>Lyrics</strong> keeps single line breaks and a centred lyric layout (good for verse lines). <strong>Notes</strong> uses normal paragraphs and the same Branding → Content → Typography colours and density as Pages (good for tracklists and cue sheets).</p>
                 <h4>What stays plain</h4>
                 <p>Short descriptions, titles, and page body blocks do not use Markdown. Page text still uses the toolbar editor.</p>
             </div>

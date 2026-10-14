@@ -212,6 +212,13 @@ $deliveryOk = !empty($delivery['ok']);
 
 if ($deliveryOk) {
     bandpromo_clear_build_required_tasks(['audio-delivery']);
+    // Ensure hard-verify in finalize sees the master stem (task.files stays human for toasts).
+    if ($masterFilename !== '' && !in_array($masterFilename, $prepared, true)) {
+        $prepared[] = $masterFilename;
+    }
+    if ($prepared === []) {
+        $prepared = $deliveryNames;
+    }
 } else {
     bandpromo_set_build_required_last_error(
         trim((string) ($delivery['error'] ?? 'Automatic audio delivery preparation failed after upload'))
@@ -221,7 +228,7 @@ if ($deliveryOk) {
 
 $resultPayload = [
     'ok' => $deliveryOk,
-    'prepared' => $prepared !== [] ? $prepared : ($deliveryOk ? $deliveryNames : []),
+    'prepared' => $prepared,
     'failed' => is_array($delivery['failed'] ?? null) ? $delivery['failed'] : [],
     'still_missing' => $stillMissing,
     'error' => $deliveryOk ? '' : trim((string) ($delivery['error'] ?? 'Audio delivery failed')),

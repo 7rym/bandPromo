@@ -2,6 +2,20 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-10-14 20:11 - Player **Notes** Markdown now follows Branding Typography like Pages (density + role colours/fonts); cue-sheet layout only (left, measure, h2 hairlines). **Lyrics** keep platform lyric scale + role colours; `typography.density` does not silently apply. Admin Markdown help updated.
+
+2026-10-14 20:09 - Policy: player **Notes** must honour Branding Typography (density + role colours) like **Pages** — no hardcoded cue-sheet colours fighting brand. **Lyrics** keep distinct layout; optional separate Lyrics density|size control later ([PLATFORM-MODEL.md](PLATFORM-MODEL.md)).
+
+2026-10-14 17:50 - MP3 upload/Save: **migrate APEv2 into empty ID3 frames** (text + front cover) then strip APE — APE-only imports keep metadata; dual tags still fix inflated duration. Docs: MEDIA-HANDLING / PLATFORM-MODEL.
+
+2026-10-14 17:45 - Docs: lock **MP3 masters = ID3 only** (APEv2 stripped on upload/Save, no APE↔ID3 compare) in MEDIA-HANDLING + PLATFORM-MODEL — APE-preferring workflows should use ID3 or FLAC.
+
+2026-10-14 17:40 - Audio upload now strips leftover APEv2 on MP3 masters before registry display inspect (same as editor save). Dual ID3+APE covers were inflating mutagen duration (e.g. 60:32 instead of 60:00) until a manual Save; `audioMasterMetadata.py` action `normalize` + `bandpromo_audio_master_normalize_and_inspect` on upload finalize.
+
+2026-10-14 17:35 - Large audio upload finalize no longer false-fails after successful prep: hard-verify looked for `optimal/{human original}.mp3` while delivery writes `optimal/{ast_*}.mp3` (local + HITZ “Retroscopy hour #13”). Verify/index resolve via prepared masters / registry; Notifications reconcile heals sticky false-failed audio-delivery rows when delivery is already ready.
+
+2026-10-14 17:30 - Large audio upload finalize no longer false-fails after successful prep: background-task hard-verify looked for `optimal/{human original}.mp3` while delivery writes `optimal/{ast_*}.mp3` (HITZ “Retroscopy hour #13 … preparation failed”). Verify/index now resolve via prepared masters / registry.
+
 2026-10-13 22:45 - Files → Visual save (HITZ): video master tag write no longer dies with Errno 18 cross-device link — work dir is beside the master (not `/tmp`), and replace falls back to copy+unlink on EXDEV. Bundled with the UTF-8 / Bjørn embed fix.
 
 2026-10-13 22:40 - Files → Visual save: master embed no longer fails on non-ASCII titles (e.g. Bjørn / ø) on ASCII-locale hosts. ffmpeg tag writes use a UTF-8 ffmetadata sidecar instead of `-metadata title=…` argv; PNG XMP uses iTXt; still extensions win over a mistagged `media_type=video`.
