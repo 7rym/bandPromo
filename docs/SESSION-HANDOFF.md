@@ -2,16 +2,11 @@
 
 ## Resume point
 
-**Published:** **v0.8.99 build 600** (`v0.8.99-build-600`) — Visual master embed UTF-8 + EXDEV fixes for HITZ.
+**Published:** **v0.8.99 build 601** — audio upload finalize verify + APE→ID3 normalize; Notes Markdown follows Branding Typography like Pages.
 
-**Done this session:** Files → Visual save on HITZ failed with (1) `'ascii' codec…\xf8` on titles like Bjørn and (2) Errno 18 cross-device link when tagging video masters from `/tmp`. Fixed in `scripts/visualMasterMetadata.py`: UTF-8 ffmetadata sidecar (no non-ASCII argv), PNG iTXt, still-ext wins over mistagged video, work dir beside the master, `replace_file` EXDEV fallback.
+**Done this session:** Visual embed UTF-8/EXDEV (600); audio prep false-fail + APE duration fix; Notes/Pages shared typography tokens.
 
-**Done (pending publish):**
-- Large audio upload finalize false-fail — hard-verify used human original stem vs `ast_*` delivery MP3. Fixed + Notifications heal of sticky false-fails.
-- Upload/Save MP3: APE→ID3 for empty frames then strip APE (duration fix + APE-only imports keep tags). Local hour #13 duration healed to 3600s (APE already gone).
-- Player Notes Markdown wired to Branding Typography (same density + role colours as Pages); Lyrics keep honest platform lyric scale + role colours.
-
-**Still open from prior HITZ ops:** Confirm Site health / player after registry re-register + delivery rebuild.
+**Still open from prior HITZ ops:** Confirm Site health / player after Site update to 601; re-test Retroscopy hour #13 upload if needed.
 
 **Parked:**
 - Branding Live preview full remirror — wait until **Content** rail is further along.
@@ -20,7 +15,7 @@
 
 **Operator rule (this session):** Do **not** delete, prune, janitor-Apply, or discard any runtime files (`data/`, `media/`, `log/`, `backups/`, Ready archives, leftover `original/`) unless this user names the exact paths in the same message.
 
-**Next:** Publish this audio-finalize fix → Site update HITZ → re-test Retroscopy hour #13 upload (expect ready toast) → dismiss stale failed prep if the master already landed → Files pool latency trim → Content surface.
+**Next:** Site update HITZ (and other test hosts) to 601 → confirm audio prep toast + Notes colours follow Branding Typography → Files pool latency trim → Content surface.
 
 ### Policy locked (do not reopen)
 

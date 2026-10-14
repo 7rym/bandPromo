@@ -2,6 +2,8 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-10-14 20:30 - Publish **v0.8.99 build 601** for Site update: audio upload finalize verify (`ast_*`) + APE→ID3 normalize; player Notes honour Branding Typography like Pages.
+
 2026-10-14 20:11 - Player **Notes** Markdown now follows Branding Typography like Pages (density + role colours/fonts); cue-sheet layout only (left, measure, h2 hairlines). **Lyrics** keep platform lyric scale + role colours; `typography.density` does not silently apply. Admin Markdown help updated.
 
 2026-10-14 20:09 - Policy: player **Notes** must honour Branding Typography (density + role colours) like **Pages** — no hardcoded cue-sheet colours fighting brand. **Lyrics** keep distinct layout; optional separate Lyrics density|size control later ([PLATFORM-MODEL.md](PLATFORM-MODEL.md)).
