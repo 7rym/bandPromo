@@ -2058,22 +2058,63 @@ function rebuildPlayerContentTabs(tabs) {
     toggleView(preferred);
 }
 
+function ensurePlaylistSelectorShell(toolbar, preferredMode) {
+    let wrap = document.getElementById('playlistSelectorWrap');
+    const mode = String(preferredMode || 'coverflow').trim().toLowerCase() || 'coverflow';
+    if (!(wrap instanceof HTMLElement)) {
+        if (!(toolbar instanceof HTMLElement)) {
+            return null;
+        }
+        wrap = document.createElement('div');
+        wrap.id = 'playlistSelectorWrap';
+        wrap.className = `playlist-selector playlist-selector--${mode}`;
+        wrap.dataset.mode = mode;
+        wrap.hidden = true;
+        toolbar.appendChild(wrap);
+    }
+    const activeMode = String(wrap.dataset.mode || wrap.getAttribute('data-mode') || mode || 'coverflow')
+        .trim()
+        .toLowerCase() || 'coverflow';
+    wrap.dataset.mode = activeMode;
+    wrap.className = `playlist-selector playlist-selector--${activeMode}`;
+    if (activeMode === 'buttons') {
+        if (!wrap.querySelector('.playlist-selector-buttons')) {
+            wrap.innerHTML = '<div class="playlist-selector-buttons" role="group" aria-label="Playlists"></div>';
+        }
+    } else if (activeMode === 'dropdown' || activeMode === 'select') {
+        if (!document.getElementById('playlistSelector')) {
+            wrap.innerHTML = '<select id="playlistSelector" aria-label="Playlists"></select>';
+        }
+    } else if (!wrap.querySelector('.playlist-coverflow')) {
+        wrap.innerHTML = '<div class="playlist-coverflow" role="listbox" aria-label="Playlists"></div>';
+    }
+    return wrap;
+}
+
 function rebuildPlaylistSelectorForCampaign(campaignId) {
     const id = String(campaignId || getActiveCampaignId() || '').trim();
     const entries = playlistsForCampaign(id);
-    const wrap = document.getElementById('playlistSelectorWrap');
     const toolbar = document.getElementById('playlistScopeToolbar');
     const showPlaylists = entries.length > 1;
     if (toolbar instanceof HTMLElement) {
         toolbar.dataset.hasPlaylists = showPlaylists ? '1' : '0';
     }
+    if (!showPlaylists) {
+        const existing = document.getElementById('playlistSelectorWrap');
+        if (existing instanceof HTMLElement) {
+            existing.hidden = true;
+        }
+        return;
+    }
+    const existingWrap = document.getElementById('playlistSelectorWrap');
+    const preferredMode = existingWrap instanceof HTMLElement
+        ? String(existingWrap.dataset.mode || existingWrap.getAttribute('data-mode') || 'coverflow')
+        : 'coverflow';
+    const wrap = ensurePlaylistSelectorShell(toolbar, preferredMode);
     if (!(wrap instanceof HTMLElement)) {
         return;
     }
-    wrap.hidden = !showPlaylists;
-    if (!showPlaylists) {
-        return;
-    }
+    wrap.hidden = false;
     const mode = String(wrap.dataset.mode || wrap.getAttribute('data-mode') || 'coverflow');
     const activeId = getActivePlaylistId();
     if (mode === 'buttons') {
@@ -2087,7 +2128,10 @@ function rebuildPlaylistSelectorForCampaign(campaignId) {
             }).join('');
         }
     } else if (mode === 'dropdown' || mode === 'select') {
-        const select = document.getElementById('playlistSelector');
+        let select = document.getElementById('playlistSelector');
+        if (!(select instanceof HTMLSelectElement)) {
+            select = wrap.querySelector('select');
+        }
         if (select) {
             select.innerHTML = entries.map((entry) => {
                 const entryId = String(entry?.id || '');

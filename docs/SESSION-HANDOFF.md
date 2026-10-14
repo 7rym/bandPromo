@@ -2,11 +2,11 @@
 
 ## Resume point
 
-**Published:** **v0.8.99 build 601** — audio upload finalize verify + APE→ID3 normalize; Notes Markdown follows Branding Typography like Pages.
+**Published:** **v0.8.99 build 602** — campaign soft-switch reveals playlist selector for multi-playlist campaigns (Twisted Chronicles).
 
-**Done this session:** Visual embed UTF-8/EXDEV (600); audio prep false-fail + APE duration fix; Notes/Pages shared typography tokens.
+**Done this session:** Visual embed UTF-8/EXDEV (600); audio prep + APE→ID3 (601); Notes typography; campaign playlist-selector shell on soft-switch (602).
 
-**Still open from prior HITZ ops:** Confirm Site health / player after Site update to 601; re-test Retroscopy hour #13 upload if needed.
+**Still open from prior HITZ ops:** After Site update to 602, confirm soft-switch into Twisted Chronicles shows all three playlists.
 
 **Parked:**
 - Branding Live preview full remirror — wait until **Content** rail is further along.

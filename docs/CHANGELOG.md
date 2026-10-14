@@ -2,6 +2,10 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-10-14 20:51 - Publish **v0.8.99 build 602** for Site update: campaign soft-switch playlist selector shell (multi-playlist campaigns after one-playlist boot).
+
+2026-10-14 20:39 - Player campaign soft-switch: always keep a playlist-selector shell when the campaign strip is present, so switching from a one-playlist campaign to a multi-playlist one (e.g. Twisted Chronicles) reveals all playlists. JS rebuild creates the shell if missing.
+
 2026-10-14 20:30 - Publish **v0.8.99 build 601** for Site update: audio upload finalize verify (`ast_*`) + APE→ID3 normalize; player Notes honour Branding Typography like Pages.
 
 2026-10-14 20:11 - Player **Notes** Markdown now follows Branding Typography like Pages (density + role colours/fonts); cue-sheet layout only (left, measure, h2 hairlines). **Lyrics** keep platform lyric scale + role colours; `typography.density` does not silently apply. Admin Markdown help updated.

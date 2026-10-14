@@ -564,8 +564,14 @@ $bodyClassAttr = $bodyClasses !== [] ? ' class="' . htmlspecialchars(implode(' '
         <?php
             $showCampaignStrip = count($campaignCatalog) > 1;
             $showPlaylistSelector = count($campaignPlaylistCatalog) > 1;
-            $playlistSelectorMode = $showPlaylistSelector ? bandpromo_player_playlist_selector_mode() : '';
-            $playlistSelectorLabel = $showPlaylistSelector
+            // Soft campaign switches need a selector shell even when the boot campaign
+            // has only one playlist — otherwise #playlistSelectorWrap is missing and
+            // multi-playlist campaigns (e.g. Twisted Chronicles) cannot reveal others.
+            $renderPlaylistSelectorShell = $showCampaignStrip || $showPlaylistSelector;
+            $playlistSelectorMode = $renderPlaylistSelectorShell
+                ? bandpromo_player_playlist_selector_mode()
+                : '';
+            $playlistSelectorLabel = $renderPlaylistSelectorShell
                 ? bandpromo_player_playlist_tab_label($playerRoot, $operatorBypass)
                 : 'Playlists';
             $scopeToolbarHidden = $isActive === '' ? ' hidden' : '';
@@ -621,8 +627,13 @@ $bodyClassAttr = $bodyClasses !== [] ? ' class="' . htmlspecialchars(implode(' '
                 <?php endforeach; ?>
             </div>
             <?php endif; ?>
-            <?php if ($showPlaylistSelector): ?>
-            <div class="playlist-selector playlist-selector--<?php echo htmlspecialchars($playlistSelectorMode, ENT_QUOTES, 'UTF-8'); ?>" id="playlistSelectorWrap" data-mode="<?php echo htmlspecialchars($playlistSelectorMode, ENT_QUOTES, 'UTF-8'); ?>">
+            <?php if ($renderPlaylistSelectorShell): ?>
+            <div
+                class="playlist-selector playlist-selector--<?php echo htmlspecialchars($playlistSelectorMode, ENT_QUOTES, 'UTF-8'); ?>"
+                id="playlistSelectorWrap"
+                data-mode="<?php echo htmlspecialchars($playlistSelectorMode, ENT_QUOTES, 'UTF-8'); ?>"
+                <?php echo $showPlaylistSelector ? '' : ' hidden'; ?>
+            >
                 <?php if ($playlistSelectorMode === 'buttons'): ?>
                 <div class="playlist-selector-buttons" role="group" aria-label="<?php echo htmlspecialchars($playlistSelectorLabel, ENT_QUOTES, 'UTF-8'); ?>">
                     <?php foreach ($campaignPlaylistCatalog as $playlistEntry):
