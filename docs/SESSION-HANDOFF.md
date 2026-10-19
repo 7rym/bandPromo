@@ -2,9 +2,9 @@
 
 ## Resume point
 
-**Local:** Clean after Player size publish checkpoint (build bumps in this session-end).
+**Local:** Clean after Player size publish.
 
-**Last published:** **Player size** (build number set by this session-end) — mode-aware Large|Normal|Small; short one-size; version under title; compact playlist selector. Prior: **v0.8.99 build 602** campaign soft-switch playlist selector.
+**Last published:** **v0.8.99 build 603** — Player size Large|Normal|Small (mode-aware chrome; short one-size; version under title; compact playlist selector). Prior: **602** campaign soft-switch playlist selector.
 
 **Done this session:** Visual embed UTF-8/EXDEV (600); audio prep + APE→ID3 (601); Notes typography; campaign playlist-selector shell (602); Player size chrome + short/Twisted audits r1–r8.
 
