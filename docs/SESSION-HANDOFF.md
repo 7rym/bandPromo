@@ -2,13 +2,13 @@
 
 ## Resume point
 
-**Local (uncommitted):** **Player size** round 8 + fix — `#songVersion` under `#songTitle`; rail cover ≥120; playlist selector thumbs restored (short 48/56, base 70/80, split active 100); opacity 1; `docs/audits/player-size-2026-10-18-r8/REPORT.md`.
+**Local:** Clean after Player size publish checkpoint (build bumps in this session-end).
 
-**Last published:** **v0.8.99 build 602** — campaign soft-switch reveals playlist selector for multi-playlist campaigns (Twisted Chronicles).
+**Last published:** **Player size** (build number set by this session-end) — mode-aware Large|Normal|Small; short one-size; version under title; compact playlist selector. Prior: **v0.8.99 build 602** campaign soft-switch playlist selector.
 
-**Done this session:** Visual embed UTF-8/EXDEV (600); audio prep + APE→ID3 (601); Notes typography; campaign playlist-selector shell (602); Player size chrome footprint + desktop Large fix (pending checkpoint/publish).
+**Done this session:** Visual embed UTF-8/EXDEV (600); audio prep + APE→ID3 (601); Notes typography; campaign playlist-selector shell (602); Player size chrome + short/Twisted audits r1–r8.
 
-**Still open from prior HITZ ops:** After Site update to 602+, confirm soft-switch into Twisted Chronicles shows all three playlists. Re-check after Player size publish.
+**Still open from prior HITZ ops:** After Site update past 602, confirm soft-switch into Twisted Chronicles shows all three playlists. Re-check after this Player size publish.
 
 **Parked:**
 - Branding Live preview full remirror — public Player size is in; remirror so preview shows content gaining space.
@@ -17,7 +17,7 @@
 
 **Operator rule (this session):** Do **not** delete, prune, janitor-Apply, or discard any runtime files (`data/`, `media/`, `log/`, `backups/`, Ready archives, leftover `original/`) unless this user names the exact paths in the same message.
 
-**Next:** Checkpoint/publish Player size (r8 — likely last visual round) → Site update test hosts → Branding Live preview remirror → Files pool latency trim → Content surface.
+**Next:** Site update test hosts with this Player size build → Branding Live preview remirror → Files pool latency trim → Content surface.
 
 ### Policy locked (do not reopen)
 

@@ -2,6 +2,10 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-10-19 12:35 - Publish **Player size** for Site update: mode-aware Large|Normal|Small; short landscape one platform size; version under title; rail cover ≥120; playlist selector stays compact (short 48/56); coverflow unselected opacity 1; audits in `docs/audits/player-size-2026-10-18*` ([PLATFORM-MODEL.md](PLATFORM-MODEL.md)).
+
+2026-10-18 19:05 - Player size short polish: `#songVersion` under `#songTitle`; restore playlist-selector thumbs after accidental 120px coverflow bump (short 48/56, base 70/80); rail cover floor stays 120 ([PLATFORM-MODEL.md](PLATFORM-MODEL.md)).
+
 2026-10-18 17:45 - Player size round 2: stacked covers capped (0.62/0.52/0.42) so Playlists peek above the fold; Log out → icon; desktop rail centres the tight chrome stack vertically ([PLATFORM-MODEL.md](PLATFORM-MODEL.md)).
 
 2026-10-18 17:25 - Player mobile pass: transport **natural height** (drop 4:1 crush so title no longer overlaps controls); stacked Large fills width; short-landscape scale tier + wider rail + compact user-area + cover max-height ([PLATFORM-MODEL.md](PLATFORM-MODEL.md)).
