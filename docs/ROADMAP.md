@@ -53,7 +53,7 @@ bandPromo may provide technical controls, access rules, and operator-facing mode
 | Content AI wizards (release + brand canon) | Policy locked; **implementation v0.9+** |
 | PWA / protected delivery architecture | Defined; implementation in progress |
 
-**Next focus:** Public **Content** surface correctness (Player chrome pass done: user area top, Full stacked cover, 4:1 SVG transport, Title>Version>Artist); Branding Live preview remirror only after Content. Shell user atmosphere already unified (`shell.css`). Then Admin editor remainder + consistency audit. Exit gate still needs: Player **Campaign navigator** fleet validate; PCF round-trip smoke; favicon/PWA from Branding; legacy audit refresh. Content AI wizards and OMP → v0.9. Page OG/share runtime still v0.9 (storage shipped). See [TODO.md](TODO.md).
+**Next focus:** Public **Content** surface correctness (Player chrome pass done: user area top, SVG transport, Title>Version>Artist; **Player size** Large|Normal|Small shipped). Branding Live preview remirror next (show content gaining space). Transport aspect ratio unlocked for experiment. Shell user atmosphere already unified (`shell.css`). Then Admin editor remainder + consistency audit. Exit gate still needs: Player **Campaign navigator** fleet validate; PCF round-trip smoke; favicon/PWA from Branding; legacy audit refresh. Content AI wizards and OMP → v0.9. Page OG/share runtime still v0.9 (storage shipped). See [TODO.md](TODO.md).
 
 ## Core vs modules
 
@@ -287,7 +287,7 @@ Installation-identity model for v0.7 exit:
 Install-locked paid add-on entitlement model for v0.7 exit:
 
 - this model applies first to bandPromo-sold themes/skins and modules/features; it should not be confused with operator-defined audience/member premium access inside a site
-- **Future product note (recorded 2026-09-12):** separating `#mediaplayer` vs `#content-container` styling enables sellable **mediaplayer skins** (presentation packs for the player rail only). Ship content-chrome controls first; skins come after that separation is durable — not as freeform brand editor layout overrides in v0.8.
+- **Future product note (updated 2026-10-18):** sellable **mediaplayer skins** rest on the Player layout contract ([PLATFORM-MODEL.md](PLATFORM-MODEL.md)): fixed slots, **Player size** Large|Normal|Small as control-surface footprint, listener-first control core. Transport aspect ratio stays open until experiments land. Skins paint inside settled bounds; they must not reorder chrome or invent new verbs. Ship public Player size rewrite before marketing skins; Branding preview remirror after the player is right.
 - core bandPromo must remain fully usable without central activation; only the paid add-on itself may depend on entitlement checks
 - each paid add-on entitlement should bind to the stronger installation identity state, not to a visible copied UID alone
 - the entitlement service should recognize a legitimate moved or restored installation when the preserved runtime identity is still intact, so normal host moves do not force a punitive relicensing flow

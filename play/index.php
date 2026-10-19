@@ -425,17 +425,18 @@ $bodyClassAttr = $bodyClasses !== [] ? ' class="' . htmlspecialchars(implode(' '
                     <button type="button" class="player-user-tool" id="debug-panel-btn" title="Developer debug panel" aria-label="Open developer debug panel">🐛</button>
                     <?php endif; ?>
                     <?php if ($loginStatusEnabled): ?>
+                    <?php
+                    $playerStatusName = $currentUsername !== '' ? $currentUsername : 'listener';
+                    $playerStatusNameEsc = htmlspecialchars($playerStatusName, ENT_QUOTES, 'UTF-8');
+                    ?>
                     <a class="player-user-tool player-user-profile" href="#" aria-disabled="true" tabindex="-1" title="Account preferences come in a later update" aria-label="Account (not available yet)">
                         <?php echo bandpromo_player_icon_svg('user'); ?>
                     </a>
+                    <strong class="player-user-status-name"><?php echo $playerStatusNameEsc; ?></strong>
                     <?php endif; ?>
                 </div>
                 <?php if ($loginStatusEnabled): ?>
-                <span class="player-user-status-text">
-                    Signed in as
-                    <strong class="player-user-status-name"><?php echo htmlspecialchars($currentUsername !== '' ? $currentUsername : 'listener', ENT_QUOTES, 'UTF-8'); ?></strong>
-                </span>
-                <a class="player-user-logout" href="/?logout=1">Log out</a>
+                <a class="player-user-logout" href="/?logout=1" title="Log out" aria-label="Log out"><?php echo bandpromo_player_icon_svg('logout'); ?></a>
                 <?php else: ?>
                 <span class="player-user-status-text player-user-status-text--spacer" aria-hidden="true"></span>
                 <?php endif; ?>

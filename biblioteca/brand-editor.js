@@ -1317,9 +1317,13 @@
                 </div>`;
         }
 
-        function normalizeCoverSize(value) {
-            const size = String(value || '').trim().toLowerCase();
-            return ['full', 'medium', 'half'].includes(size) ? size : 'full';
+        function normalizePlayerSize(value) {
+            let size = String(value || '').trim().toLowerCase();
+            const legacy = { full: 'large', medium: 'normal', half: 'small' };
+            if (legacy[size]) {
+                size = legacy[size];
+            }
+            return ['large', 'normal', 'small'].includes(size) ? size : 'large';
         }
 
         function normalizeSideCoversSpread(value) {
@@ -1337,21 +1341,23 @@
 
         function renderPlayerCoverFields(locked) {
             const reflectionOn = editorDocument?.player?.cover_reflection !== false;
-            const coverSize = normalizeCoverSize(editorDocument?.player?.cover_size);
-            const sideOn = editorDocument?.player?.side_covers !== false;
+            const rawSize = editorDocument?.player?.size ?? editorDocument?.player?.cover_size;
+            const playerSize = normalizePlayerSize(rawSize);
+            const sideCoversAllowed = playerSize !== 'large';
+            const sideOn = sideCoversAllowed && editorDocument?.player?.side_covers !== false;
             const opacity = Math.max(5, Math.min(60, parseInt(String(editorDocument?.player?.side_covers_opacity ?? 20), 10) || 20));
             const spread = normalizeSideCoversSpread(editorDocument?.player?.side_covers_spread);
             const colour = normalizeSideCoversColour(editorDocument?.player?.side_covers_colour);
             const navigateOn = editorDocument?.player?.side_covers_navigate !== false;
             const sizeRadios = [
-                ['full', 'Full'],
-                ['medium', 'Medium'],
-                ['half', 'Half'],
+                ['large', 'Large'],
+                ['normal', 'Normal'],
+                ['small', 'Small'],
             ].map(([value, label]) => `
                 <label class="brand-player-setting-option">
-                    <input type="radio" name="brandCoverSize" value="${escapeHtml(value)}"
-                           data-player-path="cover_size"
-                           ${coverSize === value ? 'checked' : ''}
+                    <input type="radio" name="brandPlayerSize" value="${escapeHtml(value)}"
+                           data-player-path="size"
+                           ${playerSize === value ? 'checked' : ''}
                            ${locked ? 'disabled' : ''}>
                     <span>${escapeHtml(label)}</span>
                 </label>`).join('');
@@ -1383,8 +1389,8 @@
             return `
                 <div class="brand-content-chrome-grid">
                     <div class="brand-effect-field brand-effect-field--inline">
-                        <span class="brand-effect-label">Size:</span>
-                        <div class="brand-player-setting-toggle" role="group" aria-label="Cover size">
+                        <span class="brand-effect-label">Player size:</span>
+                        <div class="brand-player-setting-toggle" role="group" aria-label="Player size">
                             ${sizeRadios}
                         </div>
                     </div>
@@ -1392,9 +1398,9 @@
                         <span class="brand-effect-label">Reflection:</span>
                         ${renderOnOffToggle('brandCoverReflection', 'cover_reflection', reflectionOn, locked)}
                     </div>
-                    <div class="brand-effect-field brand-effect-field--inline">
+                    <div class="brand-effect-field brand-effect-field--inline" ${sideCoversAllowed ? '' : 'hidden'}>
                         <span class="brand-effect-label">Side covers:</span>
-                        ${renderOnOffToggle('brandSideCovers', 'side_covers', sideOn, locked)}
+                        ${renderOnOffToggle('brandSideCovers', 'side_covers', sideOn, locked || !sideCoversAllowed)}
                     </div>
                     <div class="brand-effect-field brand-effect-field--inline" ${sideOn ? '' : 'hidden'}>
                         <span class="brand-effect-label">Fill: <strong data-effect-value="side_covers_opacity">${escapeHtml(String(opacity))}</strong>%</span>
@@ -1897,13 +1903,17 @@
             if (analyzerToggle instanceof HTMLInputElement) {
                 editorDocument.player.analyzer = analyzerToggle.value !== 'off';
             }
-            const coverSizeToggle = formEl.querySelector('input[name="brandCoverSize"]:checked');
-            if (coverSizeToggle instanceof HTMLInputElement) {
-                editorDocument.player.cover_size = normalizeCoverSize(coverSizeToggle.value);
+            const playerSizeToggle = formEl.querySelector('input[name="brandPlayerSize"]:checked');
+            if (playerSizeToggle instanceof HTMLInputElement) {
+                editorDocument.player.size = normalizePlayerSize(playerSizeToggle.value);
+                delete editorDocument.player.cover_size;
             }
             const sideCoversToggle = formEl.querySelector('input[name="brandSideCovers"]:checked');
             if (sideCoversToggle instanceof HTMLInputElement) {
                 editorDocument.player.side_covers = sideCoversToggle.value !== 'off';
+            }
+            if (editorDocument.player.size === 'large') {
+                editorDocument.player.side_covers = false;
             }
             const sideOpacityInput = formEl.querySelector('input[name="brandSideCoversOpacity"]');
             if (sideOpacityInput instanceof HTMLInputElement) {
@@ -2361,7 +2371,7 @@
                 target.name === 'brandBeggarsBanquet'
                 || target.name === 'brandLoginStatus'
                 || target.name === 'brandCoverReflection'
-                || target.name === 'brandCoverSize'
+                || target.name === 'brandPlayerSize'
                 || target.name === 'brandSideCovers'
                 || target.name === 'brandSideCoversSpread'
                 || target.name === 'brandSideCoversColour'
@@ -2372,8 +2382,8 @@
                 } else if (previewMode !== 'player') {
                     setPreviewMode('player', { forceRender: true });
                 }
-                if (target.name === 'brandSideCovers') {
-                    // Re-render so Dim/Spread/Colour/Navigate show or hide with Side covers.
+                if (target.name === 'brandSideCovers' || target.name === 'brandPlayerSize') {
+                    // Re-render so Side covers (and dependents) match Player size / toggle.
                     collectFormIntoDocument();
                     renderForm();
                     saveUi?.reconcile();

@@ -63,12 +63,17 @@
         const loginStatus = document?.player?.login_status === true;
         const coverReflection = document?.player?.cover_reflection !== false;
         const analyzerOn = document?.player?.analyzer !== false;
-        let coverSize = String(document?.player?.cover_size || 'full').trim().toLowerCase();
-        if (!['full', 'medium', 'half'].includes(coverSize)) {
-            coverSize = 'full';
+        let playerSize = String(document?.player?.size || document?.player?.cover_size || 'large').trim().toLowerCase();
+        const legacySize = { full: 'large', medium: 'normal', half: 'small' };
+        if (legacySize[playerSize]) {
+            playerSize = legacySize[playerSize];
         }
-        const coverScale = coverSize === 'half' ? 0.5 : (coverSize === 'medium' ? 0.75 : 1);
-        const sideCovers = document?.player?.side_covers !== false;
+        if (!['large', 'normal', 'small'].includes(playerSize)) {
+            playerSize = 'large';
+        }
+        // Preview is desktop-ish → use split scales (Large = full card template).
+        const coverScale = playerSize === 'small' ? 0.75 : (playerSize === 'normal' ? 0.9 : 1);
+        const sideCovers = playerSize !== 'large' && document?.player?.side_covers !== false;
         const sideOpacity = Math.max(5, Math.min(60, parseInt(String(document?.player?.side_covers_opacity ?? 20), 10) || 20));
         let sideColour = String(document?.player?.side_covers_colour || 'soft').trim().toLowerCase();
         if (sideColour === 'gray') {
@@ -90,9 +95,11 @@
             ? `<div class="theme-preview-user-status" aria-hidden="true">
                     <span class="theme-preview-user-tools" aria-hidden="true">
                         <span class="theme-preview-user-tool" title="Account">&#128100;</span>
+                        <strong class="theme-preview-user-name">listener</strong>
                     </span>
-                    <span class="theme-preview-user-status-text">Signed in as <strong>listener</strong></span>
-                    <span class="theme-preview-user-logout">Log out</span>
+                    <span class="theme-preview-user-logout" title="Log out" aria-label="Log out" aria-hidden="false">
+                        <svg class="player-icon player-icon--logout" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" focusable="false"><path d="M10 17v2H4V5h6v2H6v10h4zm1-6h8.2l-2.6-2.6L18 7l5 5-5 5-1.4-1.4L19.2 13H11v-2z" fill="currentColor"/></svg>
+                    </span>
                </div>`
             : '';
         const reflectionMarkup = coverReflection

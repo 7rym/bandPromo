@@ -2,6 +2,24 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-10-18 17:45 - Player size round 2: stacked covers capped (0.62/0.52/0.42) so Playlists peek above the fold; Log out → icon; desktop rail centres the tight chrome stack vertically ([PLATFORM-MODEL.md](PLATFORM-MODEL.md)).
+
+2026-10-18 17:25 - Player mobile pass: transport **natural height** (drop 4:1 crush so title no longer overlaps controls); stacked Large fills width; short-landscape scale tier + wider rail + compact user-area + cover max-height ([PLATFORM-MODEL.md](PLATFORM-MODEL.md)).
+
+2026-10-18 17:10 - Player size **Normal/Small desktop floor**: split scales 0.9 / 0.75 (Large 1.0 remains the template) so track info does not disappear on full-width desktop; stacked 0.7 / 0.6 ([PLATFORM-MODEL.md](PLATFORM-MODEL.md)).
+
+2026-10-18 17:05 - Player size **mode-aware Large**: stacked stays 0.75 (phone cap); split/short landscape uses full card (1.0) so desktop cover+transport are not stuck at Medium; dual CSS vars `--player-size-scale-stacked` / `--player-size-scale-split` ([PLATFORM-MODEL.md](PLATFORM-MODEL.md)).
+
+2026-10-18 17:00 - **Player size** Large|Normal|Small shipped: `player.size` (migrate legacy `cover_size`); scales 0.75|0.6|0.5; rail = cover + optional side gutters; short landscape keeps split; Large forces side covers Off; Branding Cover control + preview updated; no rail-fill Full ([PLATFORM-MODEL.md](PLATFORM-MODEL.md)).
+
+2026-10-18 16:50 - Player chrome policy settled for implement: operator **Player size** Large|Normal|Small (`player.size`; migrate `cover_size`); Large ≈ today’s Medium max; short landscape keeps split; Large disables side covers; analyzer is transport fill only; no legacy rail-fill Full; preview remirror later ([PLATFORM-MODEL.md](PLATFORM-MODEL.md)).
+
+2026-10-18 16:23 - Cover Size policy: stacked **Full** is a capped useful chrome share, not rail-fill — lightbox already shows large art; in-player cover must not eat the first screen ([PLATFORM-MODEL.md](PLATFORM-MODEL.md)).
+
+2026-10-18 16:20 - Transport **aspect ratio unlocked** for Cover Size / control experiments (provisional 4:1 in CSS is not a product lock). Revisit locking a ratio only if skins later need a fixed box.
+
+2026-10-18 16:17 - Policy lock: player **Cover Size** = chrome vs content footprint (not shrink-artwork-only); listener-first transport core; sellable skins only after foundation matches on stacked / short-landscape / desktop. Current CSS called out as defect until rewrite ([PLATFORM-MODEL.md](PLATFORM-MODEL.md)).
+
 2026-10-14 20:51 - Publish **v0.8.99 build 602** for Site update: campaign soft-switch playlist selector shell (multi-playlist campaigns after one-playlist boot).
 
 2026-10-14 20:39 - Player campaign soft-switch: always keep a playlist-selector shell when the campaign strip is present, so switching from a one-playlist campaign to a multi-playlist one (e.g. Twisted Chronicles) reveals all playlists. JS rebuild creates the shell if missing.

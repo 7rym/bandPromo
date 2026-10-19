@@ -16,6 +16,8 @@ if (!function_exists('bandpromo_player_icon_svg')) {
             'repeat-one' => '<path d="M7 6h10v2.5l3.25-3.25L17 2V4.5H5V10h2V6zm10 12H7v-2.5l-3.25 3.25L7 22v-2.5h12V14h-2v4z"/><path d="M10.6 8.4h2.15v7.2H10.9v-5.55H9.55V8.95c.4-.22.78-.4 1.35-.7.25-.12.5-.25.7-.4z"/>',
             'cast' => '<path d="M3 5h18v14h-7v-2h5V7H5v2H3V5zm0 12a4 4 0 0 1 4 4H5a2 2 0 0 0-2-2v-2zm0-4a8 8 0 0 1 8 8h-2a6 6 0 0 0-6-6v-2zm0-4a12 12 0 0 1 12 12h-2A10 10 0 0 0 3 13V9z"/>',
             'user' => '<path d="M12 12a4 4 0 1 0-4-4 4 4 0 0 0 4 4zm0 2c-4 0-8 2-8 5v1h16v-1c0-3-4-5-8-5z"/>',
+            // Door + arrow — compact Log out control in the user strip.
+            'logout' => '<path d="M10 17v2H4V5h6v2H6v10h4zm1-6h8.2l-2.6-2.6L18 7l5 5-5 5-1.4-1.4L19.2 13H11v-2z"/>',
         ];
         $path = $icons[$name] ?? '';
         if ($path === '') {

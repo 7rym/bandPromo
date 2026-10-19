@@ -859,10 +859,10 @@ function bandpromo_brand_default_document(): array
             'cover_reflection' => true,
             // Faux spectrum bars filling the player transport panel.
             'analyzer' => true,
-            // Cover scene scale vs platform --card-size (full=1, medium=0.75, half=0.5).
-            'cover_size' => 'full',
-            // Prev/next ghost covers flanking the main cover.
-            'side_covers' => true,
+            // Player chrome footprint: large|normal|small (Large ≈ former Medium max).
+            'size' => 'large',
+            // Prev/next ghost covers flanking the main cover (forced off at size=large).
+            'side_covers' => false,
             'side_covers_opacity' => 20,
             'side_covers_spread' => 'normal',
             'side_covers_colour' => 'soft',
@@ -910,7 +910,7 @@ function bandpromo_brand_legacy_playlist_selector_fallback(): string
  *   login_status: bool,
  *   cover_reflection: bool,
  *   analyzer: bool,
- *   cover_size: string,
+ *   size: string,
  *   side_covers: bool,
  *   side_covers_opacity: int,
  *   side_covers_spread: string,
@@ -955,12 +955,20 @@ function bandpromo_brand_normalize_player(array $input): array
         $analyzer = filter_var($player['analyzer'], FILTER_VALIDATE_BOOLEAN);
     }
 
-    $coverSize = bandpromo_brand_normalize_cover_size($player['cover_size'] ?? 'full');
+    $sizeRaw = $player['size'] ?? null;
+    if ($sizeRaw === null || trim((string) $sizeRaw) === '') {
+        $sizeRaw = $player['cover_size'] ?? 'large';
+    }
+    $playerSize = bandpromo_brand_normalize_player_size($sizeRaw);
 
     if (!array_key_exists('side_covers', $player)) {
         $sideCovers = true;
     } else {
         $sideCovers = filter_var($player['side_covers'], FILTER_VALIDATE_BOOLEAN);
+    }
+    // Large chrome has no room for flanks — force off (policy).
+    if ($playerSize === 'large') {
+        $sideCovers = false;
     }
 
     $opacity = (int) bandpromo_brand_normalize_int_token(
@@ -984,7 +992,7 @@ function bandpromo_brand_normalize_player(array $input): array
         'login_status' => $loginStatus,
         'cover_reflection' => $coverReflection,
         'analyzer' => $analyzer,
-        'cover_size' => $coverSize,
+        'size' => $playerSize,
         'side_covers' => $sideCovers,
         'side_covers_opacity' => $opacity,
         'side_covers_spread' => $spread,
@@ -993,25 +1001,70 @@ function bandpromo_brand_normalize_player(array $input): array
     ];
 }
 
-function bandpromo_brand_normalize_cover_size(mixed $value): string
+/**
+ * Player size Large|Normal|Small. Migrates legacy cover_size full|medium|half.
+ */
+function bandpromo_brand_normalize_player_size(mixed $value): string
 {
     $size = strtolower(trim((string) $value));
-    if (in_array($size, ['full', 'medium', 'half'], true)) {
+    $legacy = [
+        'full' => 'large',
+        'medium' => 'normal',
+        'half' => 'small',
+    ];
+    if (isset($legacy[$size])) {
+        return $legacy[$size];
+    }
+    if (in_array($size, ['large', 'normal', 'small'], true)) {
         return $size;
     }
 
-    return 'full';
+    return 'large';
 }
 
+/**
+ * Chrome footprint scales vs platform --card-size.
+ * Stacked: keep cover modest so Playlists/campaign strip peek above the fold
+ * (testers reject full-width cover that hides content). Split Large is the
+ * desktop template. Short landscape is a single platform geometry (same short
+ * scale for every Player size — Branding Large|Normal|Small do not apply there).
+ *
+ * @return array{stacked: string, split: string, short: string}
+ */
+function bandpromo_brand_player_size_scales(string $size): array
+{
+    // Short is identical for all presets; style.css may also hard-fix short card size.
+    $short = '1';
+    $map = [
+        'large' => ['stacked' => '0.62', 'split' => '1', 'short' => $short],
+        'normal' => ['stacked' => '0.52', 'split' => '0.9', 'short' => $short],
+        'small' => ['stacked' => '0.42', 'split' => '0.75', 'short' => $short],
+    ];
+    $key = bandpromo_brand_normalize_player_size($size);
+
+    return $map[$key] ?? $map['large'];
+}
+
+/**
+ * Stacked (phone) scale — default / fallback when CSS has not switched to split.
+ */
+function bandpromo_brand_player_size_scale(string $size): string
+{
+    $scales = bandpromo_brand_player_size_scales($size);
+
+    return $scales['stacked'];
+}
+
+/** @deprecated Use bandpromo_brand_normalize_player_size */
+function bandpromo_brand_normalize_cover_size(mixed $value): string
+{
+    return bandpromo_brand_normalize_player_size($value);
+}
+
+/** @deprecated Use bandpromo_brand_player_size_scale */
 function bandpromo_brand_cover_size_scale(string $size): string
 {
-    $map = [
-        'full' => '1',
-        'medium' => '0.75',
-        'half' => '0.5',
-    ];
-
-    return $map[bandpromo_brand_normalize_cover_size($size)] ?? '1';
+    return bandpromo_brand_player_size_scale($size);
 }
 
 function bandpromo_brand_normalize_side_covers_spread(mixed $value): string
@@ -1070,10 +1123,17 @@ function bandpromo_brand_side_covers_css_variables(array $document): array
     ];
     $grayscale = $grayscaleMap[$colour] ?? '0.5';
     $navigate = !empty($player['side_covers_navigate']);
-    $coverScale = bandpromo_brand_cover_size_scale((string) ($player['cover_size'] ?? 'full'));
+    $playerSize = (string) ($player['size'] ?? 'large');
+    $scales = bandpromo_brand_player_size_scales($playerSize);
+    // Do not emit --cover-size-scale here — brand :root would override style.css media
+    // queries that swap stacked ↔ split. style.css owns the derivation.
 
     return [
-        '--cover-size-scale' => $coverScale,
+        '--player-size-scale-stacked' => $scales['stacked'],
+        '--player-size-scale-split' => $scales['split'],
+        '--player-size-scale-short' => $scales['short'],
+        // When side covers are off (always at Large), do not reserve flank gutters on the rail.
+        '--player-side-gutter-scale' => $enabled ? '1' : '0',
         '--side-cover-display' => $enabled ? 'block' : 'none',
         '--side-cover-opacity' => (string) $opacity,
         '--side-cover-opacity-hover' => (string) $hover,

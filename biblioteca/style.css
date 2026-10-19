@@ -5,12 +5,24 @@
     --text-color: #ffffff;
     --brand-font-body: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     --brand-font-heading: var(--brand-font-body);
-    /* Stacked default: Full cover fills the player rail (not a 92vw inset). */
+    /* Reference cover measure; Player size scale multiplies (not rail-fill beyond card). */
     --card-size: min(100vw, 28rem);
-    /* Branding → Cover → Size (Full|Medium|Half → 1|0.75|0.5). */
-    --cover-size-scale: 1;
-    --player-rail: min(100%, 500px);
+    /* Branding → Player size: stacked Large capped so content peeks; split Large=1.0; short tier. */
+    --player-size-scale-stacked: 0.62;
+    --player-size-scale-split: 1;
+    --player-size-scale-short: 1;
+    --cover-size-scale: var(--player-size-scale-stacked, 0.62);
+    --player-size-scale: var(--cover-size-scale);
     --player-side-gutter: clamp(12px, 3vw, 32px);
+    --player-side-gutter-scale: 0;
+    /* Chrome footprint: cover + optional side-cover gutters; transport fills this rail. */
+    --player-rail: min(
+        calc(
+            var(--card-size) * var(--cover-size-scale, 0.75)
+            + 2 * var(--player-side-gutter) * var(--player-side-gutter-scale, 0)
+        ),
+        100%
+    );
     --content-gutter: clamp(12px, 2vw, 28px);
     --prose-measure: min(70ch, 52rem);
     --tracklist-measure: min(76ch, 56rem);
@@ -110,9 +122,12 @@ body {
 #mediaplayer {
     display: flex;
     flex-direction: column;
-    align-items: stretch;
+    /* Stacked: full viewport width so the user strip can span edge-to-edge;
+       cover / transport / banquet stay on --player-rail via align-self. */
+    align-items: center;
     justify-content: flex-start;
-    width: min(100%, var(--player-rail));
+    width: 100%;
+    max-width: 100%;
     min-width: 0;
     box-sizing: border-box;
 }
@@ -148,9 +163,13 @@ textarea {
 /* Stacked is the default. Split only when both rails have useful room. */
 @media (min-width: 60rem) and (min-height: 36rem) {
     :root {
+        --cover-size-scale: var(--player-size-scale-split, 1);
         --card-size: clamp(280px, min(32vw, 58dvh), 560px);
         --player-rail: min(
-            calc(var(--card-size) * var(--cover-size-scale, 1) + 2 * var(--player-side-gutter)),
+            calc(
+                var(--card-size) * var(--cover-size-scale, 1)
+                + 2 * var(--player-side-gutter) * var(--player-side-gutter-scale, 0)
+            ),
             42vw
         );
     }
@@ -180,6 +199,29 @@ textarea {
         overflow-x: hidden;
         overflow-y: auto;
         scrollbar-width: none;
+        /* User strip stays top-left; cover/transport follow with a clear gap. */
+        align-items: stretch;
+        justify-content: flex-start;
+        padding: clamp(8px, 2vh, 20px) clamp(8px, 1.5vw, 16px) clamp(8px, 2vh, 20px);
+        box-sizing: border-box;
+    }
+
+    #player-user-area {
+        align-self: stretch;
+        width: 100%;
+        margin-bottom: 12px;
+    }
+
+    .scene {
+        align-self: center;
+        margin-top: 0;
+        margin-bottom: 12px;
+    }
+
+    .player-transport,
+    #beggars-banquet {
+        align-self: center;
+        width: min(100%, calc(var(--card-size) * var(--cover-size-scale, 1)));
     }
 
     #content-container {
@@ -194,15 +236,19 @@ textarea {
     }
 }
 
-/* Short landscape viewports keep the split pattern with height-led cover sizing. */
+/* Short landscape: one platform geometry (Player size presets do not apply).
+   Full square cover via card-size budget — never clip/overflow-hide the art. */
 @media (min-width: 40rem) and (max-height: 35.999rem) {
     :root {
-        --card-size: clamp(160px, min(34vw, 50dvh), 260px);
+        --cover-size-scale: 1;
+        /* Height-led square cover at least 120; rail wider so five controls stay unclipped. */
+        --card-size: clamp(120px, min(28vw, 32dvh), 140px);
+        --player-rail: min(max(12rem, var(--card-size)), 50vw);
     }
 
     body {
         display: grid;
-        grid-template-columns: minmax(18rem, 0.92fr) minmax(0, 1.08fr);
+        grid-template-columns: var(--player-rail) minmax(0, 1fr);
         grid-template-rows: minmax(0, 1fr);
         gap: 8px;
         align-items: stretch;
@@ -227,6 +273,49 @@ textarea {
         overflow-x: hidden;
         overflow-y: auto;
         scrollbar-width: none;
+        align-items: stretch;
+        justify-content: flex-start;
+        padding: 4px 4px 4px;
+        box-sizing: border-box;
+        gap: 0;
+    }
+
+    #player-user-area {
+        align-self: stretch;
+        width: 100%;
+        margin-bottom: 8px;
+        position: relative;
+        z-index: 40;
+    }
+
+    .scene {
+        align-self: center;
+        margin-top: 0;
+        margin-bottom: 4px;
+        flex: 0 0 auto;
+        width: min(var(--card-size), 100%);
+        aspect-ratio: 1 / 1;
+        height: auto;
+        max-height: none;
+        overflow: visible;
+    }
+
+    .player-transport,
+    #beggars-banquet {
+        /* Full rail width (not cover-sized). */
+        align-self: stretch;
+        width: 100%;
+        max-width: none;
+        margin-inline: 0;
+        flex-shrink: 0;
+        box-sizing: border-box;
+    }
+
+    #beggars-banquet {
+        /* Beat stacked mobile padding (0 6px) so the button can fill the rail. */
+        padding: 0 0 2px;
+        justify-content: stretch;
+        align-items: stretch;
     }
 
     #content-container {
@@ -404,9 +493,9 @@ body.debug-modal-open {
     color: #a6bcc6;
 }
 
-/* 3D Scene Container */
+/* 3D Scene Container — card × Player size scale (stacked Large 0.75; split Large 1.0). */
 .scene {
-    width: min(calc(var(--card-size) * var(--cover-size-scale, 1)), 100%);
+    width: min(calc(var(--card-size) * var(--cover-size-scale, 0.75)), 100%);
     aspect-ratio: 1 / 1;
     height: auto;
     perspective: 1000px;
@@ -419,13 +508,6 @@ body.debug-modal-open {
     justify-content: center;
     align-items: center;
     transform-style: preserve-3d;
-}
-
-/* Stacked (non-split): Full cover fills the player rail width. */
-@media (max-width: 59.999rem) and (min-height: 36rem), (max-width: 39.999rem) {
-    #mediaplayer .scene {
-        width: min(calc(100% * var(--cover-size-scale, 1)), 100%);
-    }
 }
 
 /* Side cards (Previous/Next Preview) — Branding → Player → Cover */
@@ -460,11 +542,11 @@ body.debug-modal-open {
 }
 
 .side-card.prev {
-    transform: translateX(calc(-1 * var(--side-cover-offset, 120px) * var(--cover-size-scale, 1))) translateZ(-150px) rotateX(20deg);
+    transform: translateX(calc(-1 * var(--side-cover-offset, 120px) * var(--cover-size-scale, 0.75))) translateZ(-150px) rotateX(20deg);
 }
 
 .side-card.next {
-    transform: translateX(calc(var(--side-cover-offset, 120px) * var(--cover-size-scale, 1))) translateZ(-150px) rotateX(20deg);
+    transform: translateX(calc(var(--side-cover-offset, 120px) * var(--cover-size-scale, 0.75))) translateZ(-150px) rotateX(20deg);
 }
 
 .card-wrapper {
@@ -573,20 +655,24 @@ body.debug-modal-open {
     100% { transform: rotateY(-360deg) scale(1); opacity: 1; }
 }
 
-/* UI Elements — transport full rail width; 4:1 skin lock (densified chrome; no fit-content). */
+/* Transport: natural height (aspect unlocked). Never crush title onto controls. */
 .player-transport {
     display: flex;
     flex-direction: column;
     align-items: center;
-    justify-content: space-between;
-    gap: 0.2rem;
-    width: 100%;
+    justify-content: flex-start;
+    gap: 0.4rem;
+    /* Match cover rail on stacked; split/short overrides keep rail width. */
+    width: min(100%, var(--player-rail));
     max-width: none;
-    aspect-ratio: 4 / 1;
+    align-self: center;
+    aspect-ratio: auto;
+    min-height: 0;
+    height: auto;
     container-type: inline-size;
     container-name: player-transport;
     margin: 0 0 6px;
-    padding: min(6px, var(--player-panel-pad-y, 6px)) min(10px, var(--player-panel-pad-x, 10px));
+    padding: min(8px, var(--player-panel-pad-y, 8px)) min(10px, var(--player-panel-pad-x, 10px));
     box-sizing: border-box;
     border-radius: var(--player-panel-radius, 10px);
     border: var(--player-panel-border-width, 0) solid var(--player-panel-border, transparent);
@@ -597,7 +683,7 @@ body.debug-modal-open {
     z-index: 20;
     position: relative;
     flex-shrink: 0;
-    overflow: hidden;
+    overflow: visible;
 }
 
 .track-info {
@@ -609,20 +695,21 @@ body.debug-modal-open {
     max-width: none;
     min-height: 0;
     height: auto;
-    flex: 0 1 auto;
+    flex: 0 0 auto;
     display: flex;
     flex-direction: column;
     justify-content: center;
     align-items: center;
-    gap: 0.05rem;
+    gap: 0.1rem;
 }
 
 .track-headline {
     display: flex;
-    flex-wrap: wrap;
-    align-items: baseline;
+    flex-direction: column;
+    flex-wrap: nowrap;
+    align-items: center;
     justify-content: center;
-    gap: 0.35rem;
+    gap: 0.1rem;
     max-width: 100%;
     min-width: 0;
 }
@@ -687,7 +774,7 @@ h3 { margin: 5px 0 0; font-size: 1.2rem; color: var(--color-text-muted); font-we
 .controls,
 .player-controls {
     display: flex;
-    gap: 0.25rem;
+    gap: 0.4rem;
     align-items: center;
     justify-content: center;
     margin: 0;
@@ -695,6 +782,7 @@ h3 { margin: 5px 0 0; font-size: 1.2rem; color: var(--color-text-muted); font-we
     z-index: 20;
     width: 100%;
     flex: 0 0 auto;
+    flex-wrap: nowrap;
 }
 
 .player-icon {
@@ -986,6 +1074,7 @@ button.pulse-guide {
     display: inline-flex;
     align-items: center;
     justify-content: center;
+    flex-wrap: wrap;
     gap: 8px;
     margin: 8px auto 0;
     min-height: 40px;
@@ -996,12 +1085,16 @@ button.pulse-guide {
     text-decoration: none;
     font-weight: 600;
     font-size: 0.9rem;
-    line-height: 1.2;
+    line-height: 1.25;
     text-align: center;
+    white-space: normal;
     overflow-wrap: anywhere;
+    word-break: break-word;
     box-shadow: 0 8px 20px rgba(0, 0, 0, 0.28);
-    width: fit-content;
+    /* Fill the rail so narrow columns wrap (Chrome-like multi-line); up to ~3 lines. */
+    width: 100%;
     max-width: min(100%, 19rem);
+    height: auto;
     box-sizing: border-box;
     z-index: 20;
     isolation: isolate;
@@ -1052,8 +1145,9 @@ button.pulse-guide {
 #beggars-banquet {
     display: flex;
     justify-content: center;
-    width: 100%;
+    width: min(100%, var(--player-rail));
     max-width: 100%;
+    align-self: center;
     margin: 0 auto;
     padding: 0 8px 4px;
     box-sizing: border-box;
@@ -1069,14 +1163,31 @@ button.pulse-guide {
 #player-user-area {
     display: flex;
     justify-content: stretch;
+    /* Stacked: span the full mediaplayer (viewport) width, not the cover rail. */
+    align-self: stretch;
     width: 100%;
     max-width: none;
-    margin: 0 0 6px;
+    margin: 0 0 8px;
     padding: 0;
     box-sizing: border-box;
     flex-shrink: 0;
     z-index: 30;
     order: -1;
+}
+
+/* After base margin so split/short separation is not overridden. */
+@media (min-width: 60rem) and (min-height: 36rem) {
+    #player-user-area {
+        margin-bottom: 14px;
+    }
+}
+
+@media (min-width: 40rem) and (max-height: 35.999rem) {
+    #player-user-area {
+        margin-bottom: 8px;
+        position: relative;
+        z-index: 40;
+    }
 }
 
 #player-user-area[hidden] {
@@ -1104,7 +1215,8 @@ button.pulse-guide {
     display: inline-flex;
     align-items: center;
     gap: 0.2rem;
-    flex-shrink: 0;
+    flex: 1 1 auto;
+    min-width: 0;
 }
 
 .player-user-status-text {
@@ -1115,27 +1227,41 @@ button.pulse-guide {
 
 .player-user-status-text--spacer {
     visibility: hidden;
+    flex: 1 1 auto;
 }
 
 .player-user-status-name {
     color: var(--text-color, #ffffff);
     font-weight: 700;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 .player-user-logout {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
     flex-shrink: 0;
+    width: 1.5rem;
+    height: 1.5rem;
     color: var(--color-link, var(--primary-color));
     text-decoration: none;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.02em;
-    font-size: 0.72rem;
+    border-radius: 4px;
+}
+
+.player-user-logout .player-icon {
+    width: 1.05rem;
+    height: 1.05rem;
+    fill: currentColor;
 }
 
 .player-user-logout:hover,
 .player-user-logout:focus-visible {
     color: var(--color-link-hover, #5ce4ff);
     outline: none;
+    background: var(--primary-a12, transparent);
 }
 
 .player-user-login-form {
@@ -1794,14 +1920,15 @@ button.pulse-guide {
     align-items: center;
     gap: 0;
     color: inherit;
-    opacity: 0.72;
+    /* Full opacity always — translucent unselected thumbs fight living shell backgrounds. */
+    opacity: 1;
     flex: 0 0 auto;
     scroll-snap-align: center;
-    transition: opacity 0.2s ease, transform 0.2s ease;
+    transition: transform 0.2s ease;
 }
 
 .playlist-coverflow-item:hover {
-    opacity: 0.92;
+    transform: translateY(-1px);
 }
 
 .playlist-coverflow-item.is-active {
@@ -1822,13 +1949,14 @@ button.pulse-guide {
     border: 2px solid transparent;
     box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35);
     background: var(--color-surface-mid, #1e1e24);
-    transition: width 0.2s ease, height 0.2s ease, border-color 0.2s ease;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease, width 0.15s ease, height 0.15s ease;
 }
 
 .playlist-coverflow-item.is-active .playlist-coverflow-thumb {
     width: 80px;
     height: 80px;
     border-color: var(--primary-color, #00d2ff);
+    box-shadow: 0 0 0 1px var(--primary-a30), 0 4px 16px rgba(0, 0, 0, 0.4);
 }
 
 @media (min-width: 60rem) and (min-height: 36rem) {
@@ -2369,18 +2497,29 @@ audio {
 /* Shared stacked/mobile portrait density under the split threshold. */
 @media (max-width: 767px) {
     .player-transport {
-        gap: 0.15rem;
+        gap: 0.4rem;
         margin-bottom: 4px;
-        padding: 4px 8px;
-        width: 100%;
+        padding: 8px;
+        /* Stay on the cover rail; only the user strip spans full viewport. */
+        width: min(100%, var(--player-rail));
         max-width: none;
-        aspect-ratio: 4 / 1;
+        align-self: center;
+        aspect-ratio: auto;
+        height: auto;
+        overflow: visible;
+        justify-content: flex-start;
+    }
+
+    #beggars-banquet {
+        width: min(100%, var(--player-rail));
+        align-self: center;
     }
 
     .track-info {
         height: auto;
         min-height: 0;
         margin: 0;
+        flex: 0 0 auto;
     }
 
     .track-info #songTitle {
@@ -2396,21 +2535,21 @@ audio {
     }
 
     .player-controls {
-        gap: 0.2rem;
+        gap: 0.4rem;
     }
 
     .player-control-btn {
-        width: 1.95rem;
-        height: 1.95rem;
-        min-height: 1.95rem;
+        width: 2rem;
+        height: 2rem;
+        min-height: 2rem;
         padding: 0;
         font-size: inherit;
     }
 
     .player-control-btn--play {
-        width: 2.2rem;
-        height: 2.2rem;
-        min-height: 2.2rem;
+        width: 2.3rem;
+        height: 2.3rem;
+        min-height: 2.3rem;
     }
 
     .player-icon {
@@ -2444,7 +2583,7 @@ audio {
     #player-user-area {
         width: 100%;
         max-width: none;
-        margin-bottom: 2px;
+        margin-bottom: 8px;
         padding: 0;
     }
 
@@ -2513,11 +2652,11 @@ audio {
     }
 
     .side-card.prev {
-        transform: translateX(calc(-1 * var(--side-cover-offset, 120px) * var(--cover-size-scale, 1) * 0.6)) translateZ(-120px) rotateX(18deg);
+        transform: translateX(calc(-1 * var(--side-cover-offset, 120px) * var(--cover-size-scale, 0.75) * 0.6)) translateZ(-120px) rotateX(18deg);
     }
 
     .side-card.next {
-        transform: translateX(calc(var(--side-cover-offset, 120px) * var(--cover-size-scale, 1) * 0.6)) translateZ(-120px) rotateX(18deg);
+        transform: translateX(calc(var(--side-cover-offset, 120px) * var(--cover-size-scale, 0.75) * 0.6)) translateZ(-120px) rotateX(18deg);
     }
 
     .lyrics-box,
@@ -2539,11 +2678,11 @@ audio {
     }
 
     .side-card.prev {
-        transform: translateX(calc(-1 * var(--side-cover-offset, 120px) * var(--cover-size-scale, 1) * 0.8)) translateZ(-140px) rotateX(18deg);
+        transform: translateX(calc(-1 * var(--side-cover-offset, 120px) * var(--cover-size-scale, 0.75) * 0.8)) translateZ(-140px) rotateX(18deg);
     }
 
     .side-card.next {
-        transform: translateX(calc(var(--side-cover-offset, 120px) * var(--cover-size-scale, 1) * 0.8)) translateZ(-140px) rotateX(18deg);
+        transform: translateX(calc(var(--side-cover-offset, 120px) * var(--cover-size-scale, 0.75) * 0.8)) translateZ(-140px) rotateX(18deg);
     }
 
     .page-box img {
@@ -2552,29 +2691,43 @@ audio {
 }
 
 @media (min-width: 40rem) and (max-height: 35.999rem) {
-    .scene {
-        margin-bottom: 2px;
-    }
-
     .side-card.prev {
-        transform: translateX(calc(-1 * var(--side-cover-offset, 120px) * var(--cover-size-scale, 1) * 0.48)) translateZ(-90px) rotateX(18deg);
+        transform: translateX(calc(-1 * var(--side-cover-offset, 120px) * var(--cover-size-scale, 0.75) * 0.48)) translateZ(-90px) rotateX(18deg);
     }
 
     .side-card.next {
-        transform: translateX(calc(var(--side-cover-offset, 120px) * var(--cover-size-scale, 1) * 0.48)) translateZ(-90px) rotateX(18deg);
+        transform: translateX(calc(var(--side-cover-offset, 120px) * var(--cover-size-scale, 0.75) * 0.48)) translateZ(-90px) rotateX(18deg);
     }
 
     .reflection {
         display: none;
     }
 
-    .player-transport {
-        gap: 0.15rem;
-        padding: 3px 8px;
-        margin-bottom: 2px;
+    /* After max-width:767 stacked rules so short keeps full-rail chrome. */
+    .player-transport,
+    #beggars-banquet {
+        align-self: stretch;
         width: 100%;
         max-width: none;
-        aspect-ratio: 4 / 1;
+        margin-inline: 0;
+    }
+
+    #beggars-banquet {
+        padding: 0 0 2px;
+        justify-content: stretch;
+        align-items: stretch;
+    }
+
+    .player-transport {
+        gap: 0.35rem;
+        padding: 6px 8px;
+        margin-bottom: 2px;
+        aspect-ratio: auto;
+        height: auto;
+        min-height: 5.5rem;
+        overflow: visible;
+        justify-content: flex-start;
+        flex-shrink: 0;
     }
 
     .track-info {
@@ -2582,49 +2735,81 @@ audio {
         min-height: 0;
         margin: 0;
         width: 100%;
+        flex: 0 0 auto;
+    }
+
+    .track-headline {
+        flex-direction: column;
+        flex-wrap: nowrap;
+        align-items: center;
+        gap: 0.08rem;
+        max-width: 100%;
     }
 
     .track-info #songTitle {
-        font-size: 0.9rem;
+        font-size: 0.85rem;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        max-width: 100%;
     }
 
     .track-info .track-version {
-        font-size: 0.6rem;
+        font-size: 0.58rem;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        max-width: 100%;
     }
 
     .track-info #artistName {
-        font-size: 0.65rem;
+        font-size: 0.62rem;
     }
 
     .player-controls {
-        gap: 0.15rem;
+        gap: 0.35rem;
         flex-wrap: nowrap;
         justify-content: center;
+        flex-shrink: 0;
     }
 
     .player-control-btn {
-        width: 1.85rem;
-        height: 1.85rem;
-        min-height: 1.85rem;
+        width: 1.9rem;
+        height: 1.9rem;
+        min-height: 1.9rem;
         padding: 0;
+        flex-shrink: 0;
     }
 
     .player-control-btn--play {
-        width: 2.1rem;
-        height: 2.1rem;
-        min-height: 2.1rem;
+        width: 2.15rem;
+        height: 2.15rem;
+        min-height: 2.15rem;
     }
 
     .audio-scrubber {
         width: 100%;
         max-width: none;
-        height: 1rem;
+        height: 1.05rem;
         margin: 0;
+        flex: 0 0 auto;
     }
 
-    .content-toggle {
-        gap: 4px;
-        padding: 4px 4px 8px;
+    #player-user-area {
+        width: 100%;
+        margin-bottom: 8px;
+    }
+
+    .player-user-status {
+        flex-wrap: nowrap;
+        padding: 0.1rem 0.3rem;
+        font-size: 0.68rem;
+        min-height: 0;
+        gap: 0.25rem;
+    }
+
+    .player-user-status-name {
+        flex: 1 1 auto;
     }
 
     .content-toggle button {
@@ -2635,8 +2820,7 @@ audio {
 
     .lyrics-box,
     .page-box,
-    .gallery-box,
-    .playlist-box {
+    .gallery-box {
         padding-bottom: 32px;
         font-size: 0.95rem;
         line-height: 1.4;
@@ -2656,13 +2840,87 @@ audio {
     }
 
     .support-link-button {
-        margin-top: 4px;
-        min-height: 34px;
-        padding: 5px 10px;
-        font-size: 0.72rem;
-        gap: 4px;
-        border-radius: 16px;
+        margin-top: 2px;
+        min-height: 0;
+        padding: 5px 8px;
+        font-size: 0.68rem;
+        line-height: 1.2;
+        gap: 3px;
+        border-radius: 14px;
         box-shadow: 0 4px 10px rgba(0, 0, 0, 0.24);
+        width: 100%;
+        max-width: none;
+        white-space: normal;
+        flex-wrap: wrap;
+    }
+
+    /* Playlist / campaign selector: less vertical space around artwork. */
+    .playlist-scope-toolbar {
+        gap: 2px;
+        margin: 0;
+        padding: 0;
+        row-gap: 2px;
+    }
+
+    .campaign-logo-strip {
+        align-items: center;
+        gap: 2px;
+        padding: 0;
+        min-height: 0;
+    }
+
+    .campaign-logo-strip-item {
+        padding: 1px 2px;
+    }
+
+    .campaign-logo-strip-logo,
+    .campaign-logo-strip-placeholder {
+        width: 52px;
+        height: 26px;
+    }
+
+    .campaign-logo-strip-item.is-current .campaign-logo-strip-logo,
+    .campaign-logo-strip-item.is-current .campaign-logo-strip-placeholder {
+        width: 64px;
+        height: 32px;
+    }
+
+    .playlist-selector,
+    .playlist-selector--coverflow {
+        margin: 0;
+        gap: 0;
+        width: 100%;
+        max-width: none;
+    }
+
+    .playlist-coverflow {
+        gap: 0.4rem;
+        min-height: 56px;
+        padding: 0;
+        margin: 0;
+        align-items: flex-end;
+    }
+
+    .playlist-coverflow-thumb {
+        width: 48px;
+        height: 48px;
+        border-radius: 6px;
+    }
+
+    .playlist-coverflow-item.is-active .playlist-coverflow-thumb {
+        width: 56px;
+        height: 56px;
+        border-radius: 6px;
+    }
+
+    .content-toggle {
+        gap: 4px;
+        padding: 2px 4px 2px;
+    }
+
+    .playlist-box {
+        padding-top: 0;
+        padding-bottom: 20px;
     }
 }
 

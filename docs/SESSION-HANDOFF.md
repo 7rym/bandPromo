@@ -2,23 +2,27 @@
 
 ## Resume point
 
-**Published:** **v0.8.99 build 602** — campaign soft-switch reveals playlist selector for multi-playlist campaigns (Twisted Chronicles).
+**Local (uncommitted):** **Player size** round 8 + fix — `#songVersion` under `#songTitle`; rail cover ≥120; playlist selector thumbs restored (short 48/56, base 70/80, split active 100); opacity 1; `docs/audits/player-size-2026-10-18-r8/REPORT.md`.
 
-**Done this session:** Visual embed UTF-8/EXDEV (600); audio prep + APE→ID3 (601); Notes typography; campaign playlist-selector shell on soft-switch (602).
+**Last published:** **v0.8.99 build 602** — campaign soft-switch reveals playlist selector for multi-playlist campaigns (Twisted Chronicles).
 
-**Still open from prior HITZ ops:** After Site update to 602, confirm soft-switch into Twisted Chronicles shows all three playlists.
+**Done this session:** Visual embed UTF-8/EXDEV (600); audio prep + APE→ID3 (601); Notes typography; campaign playlist-selector shell (602); Player size chrome footprint + desktop Large fix (pending checkpoint/publish).
+
+**Still open from prior HITZ ops:** After Site update to 602+, confirm soft-switch into Twisted Chronicles shows all three playlists. Re-check after Player size publish.
 
 **Parked:**
-- Branding Live preview full remirror — wait until **Content** rail is further along.
+- Branding Live preview full remirror — public Player size is in; remirror so preview shows content gaining space.
 - Files pool / living-cover picker latency (undercount disk probe + full Visual list for video-only pick).
 - Optional Lyrics density|size Branding control; timed cues / `.srt` / bidirectional anchors.
 
 **Operator rule (this session):** Do **not** delete, prune, janitor-Apply, or discard any runtime files (`data/`, `media/`, `log/`, `backups/`, Ready archives, leftover `original/`) unless this user names the exact paths in the same message.
 
-**Next:** Site update HITZ (and other test hosts) to 602 → soft-switch into Twisted Chronicles (expect all playlists) → Files pool latency trim → Content surface.
+**Next:** Checkpoint/publish Player size (r8 — likely last visual round) → Site update test hosts → Branding Live preview remirror → Files pool latency trim → Content surface.
 
 ### Policy locked (do not reopen)
 
+- **Player size** Large|Normal|Small = stacked 0.62/0.52/0.42 + split 1/0.9/0.75; **short landscape = one platform size** (no preset, no art clip); username-only strip; beggars may wrap; Large disables side covers — [PLATFORM-MODEL.md](PLATFORM-MODEL.md)
+- Transport **aspect ratio unlocked** for experiment (provisional 4:1 in CSS today; lock later only if needed)
 - Sticky chrome over scrolling content: **opaque** `--admin-sticky-chrome-bg`; in-flow headers may keep `--admin-slate-wash`
 - Page builder: add-block sticky under breadcrumb (`--page-builder-sticky-top`); do **not** nest rich-text sticky under it
 - Form field grids: flat peer rows (not multi-field stacks in one cell); BPM/Key narrow, Genre flex

@@ -226,7 +226,7 @@ Selecting a **campaign** (and its playlist) applies that campaign’s **CSS toke
 
 **Publish must not steal Base:** Demo PCF ensure/import may refresh demo documents, but it must **not** reset `active_brand_id` after an operator has chosen a brand (first-run empty pointer only).
 
-**Player chrome (brand-owned):** Cover size (`player.cover_size`: `full` | `medium` | `half` → 100%|75%|50% of platform `--card-size` on split; on stacked layouts Full fills the `#mediaplayer` rail), cover reflection (`player.cover_reflection`, default `true`) and **side covers** (`player.side_covers`, default `true`, with fill / spread / colour / navigate) live under Branding → Player → **Cover**. Beggars banquet (`player.beggars_banquet`, default `true`) and **Login / status** (`player.login_status`, default `false`) live under Branding → Player → **User area**. Transport glass fill/blur and the faux spectrum analyzer (`player.analyzer`, default `true`) live under Player → **Controls**. **Playlist selector** style (`player.playlist_selector`: `dropdown` | `buttons` | `coverflow`, default `coverflow`) lives under Branding → Content. All travel on the **Base brand** document with brands/PCFs. Cover size scales via `--cover-size-scale` (scene, split rail, side-cover offsets). **User area** sits at the top of `#mediaplayer` (solid surface, no border): admin / debug tools, dummy account link (preferences land in v0.9), then “Signed in as…”, then Log out. **Transport** is full rail width with a locked **4:1** aspect ratio (future sellable skins / Winamp-style packs; chrome densified to fit the lock); controls are brand-coloured SVG icons (repeat none|all|one; Chromecast control stubbed disabled until cast ships). The faux analyzer (`#analyzer` canvas) fills the entire transport box behind track info / controls / scrubber when On. Cover reflection is the mirrored still under the main flip-card on large split layouts. Side covers are the faint prev/next track covers flanking the main cover (optional; Navigate Off keeps them decorative). Login / status shows a signed-in strip at the top of `#mediaplayer` with Log out (compact login form when anonymous player entry ships). Beggars banquet is the in-flow support CTA under the player transport; Settings → Support still owns destination, label, and colours. Shell backdrop has **no Still|Living toggle** — if the brand assigns living video, `/play` prefers it (still paints first; reduced-motion / slow-connection stay on still). Track living covers follow the same assignment-is-intent rule.
+**Player chrome (brand-owned):** Branding → Player owns cover presentation, user area, and controls toggles on the **Base brand** (travel with brands/PCFs). **Cover** — reflection (`player.cover_reflection`, default `true`), **side covers** (`player.side_covers`, default `false` — forced off at Player size **Large**; with fill / spread / colour / navigate when allowed). **Player size** — operator label for the chrome footprint (`player.size`: `large` \| `normal` \| `small`; legacy `cover_size` `full`/`medium`/`half` migrates on normalize). **User area** — Beggars banquet (`player.beggars_banquet`, default `true`), Login / status (`player.login_status`, default `false`). **Controls** — transport glass fill/blur, faux spectrum analyzer (`player.analyzer`, default `true`; decorative fill inside transport only). **Playlist selector** style (`player.playlist_selector`: `dropdown` \| `buttons` \| `coverflow`, default `coverflow`) lives under Branding → Content. **Player size** meaning and transport geometry are locked under **Player layout contract** below. **User area** sits at the top of `#mediaplayer` (solid surface, no border): admin / debug tools, dummy account link (preferences land in v0.9), then “Signed in as…”, then Log out. Controls are brand-coloured SVG icons (repeat none|all|one; Chromecast stubbed until cast ships). The faux analyzer (`#analyzer` canvas) fills the transport box behind track info / controls / scrubber when On. Cover reflection is the mirrored still under the main flip-card on large split layouts. Side covers are faint prev/next flanks (optional on Normal/Small; Navigate Off keeps them decorative). Beggars banquet is the in-flow support CTA under the transport; Settings → Support owns destination, label, and colours. Shell backdrop has **no Still|Living toggle** — if the brand assigns living video, `/play` prefers it (still paints first; reduced-motion / slow-connection stay on still). Track living covers follow the same assignment-is-intent rule.
 
 **Player Campaign navigator (locked — v0.8 exit gate; chrome re-locked 2026-09-28):**
 
@@ -871,9 +871,52 @@ Brand containers expose tokens that map to CSS custom properties on `:root` (pla
 
 Accent **alpha** variants (`--primary-a**`) are **derived** from Primary/Secondary via `color-mix` — not separate operator tokens. `--player-panel-fill` / `--content-panel-fill` are derived from `color.surface_mid` × the matching Panel **Fill** % (`*_panel_dim` tokens).
 
-**Player layout contract:** `#mediaplayer` layout is platform-owned (user area → cover scene → **4:1** transport → scrubber → Beggars banquet). `#content-container` (logo, nav tabs, pages, playlist/lyrics/gallery) is freer for operators. Both share the brand colour scheme. **Buttons** (`tokens.content`): named presets only — style, corners, borders, density — no raw px/% fields. Applies to `#content-container` controls only. **Playlist selector** is a separate Content panel (`player.playlist_selector`). **Later:** sellable mediaplayer skins once player vs content styling stays separable — the **4:1** transport lock is the first skin-sized surface (chrome is densified to fit; do not reintroduce `min-height: fit-content` or the lock is ignored).
+**Player layout contract (locked — chrome vs content; implement player first, Branding preview later):**
 
-Transport now-playing hierarchy: **Title** (primary) → **Version** (smaller muted, inline beside title when set) → **Artist** (muted byline above when playlist Show artist is On). Version must never match title size — most tracks leave it empty.
+Listeners come to **hear** the track. `#mediaplayer` is platform-owned listening chrome (internally: the **control surface** — cover scene + transport + related player chrome). `#content-container` is where operators entertain and inform. Both share the brand colour scheme. Scaling the control surface down exists only to **give space to content** — never to leave smaller artwork inside the same empty rail.
+
+**Operator language:** Branding control label is **Player size:** with toggles **Large | Normal | Small** — plain UK English. Do **not** put “mediaplayer control surface” in the operator UI (accurate for us; too heavy for non-tech operators). Help copy may say the control sets how much of the screen the player uses so lyrics/playlists get more room.
+
+**Storage:** `player.size` = `large` \| `normal` \| `small` (default `large`). On normalize, migrate legacy `player.cover_size` `full`→`large`, `medium`→`normal`, `half`→`small`, then drop `cover_size`. Brand CSS emits `--player-size-scale-stacked` / `--player-size-scale-split` / `--player-size-scale-short`; [`style.css`](../biblioteca/style.css) picks stacked/split per layout media query. **Short landscape ignores Player size** and uses one platform card size (full square cover — never clipped). **No legacy visual** for old phone rail-filling Full that crushed transport.
+
+**Fixed slot order (skins may paint; must not reorder):** user area → cover scene → **transport** (track info + control icons + scrubber + optional analyzer) → Beggars banquet. **Transport aspect ratio is not locked** — mobile uses natural height (no 4:1 crush); desktop may experiment later for skins.
+
+**Player size = control-surface footprint** (focuses on `#mediaplayer` only — not Content typography or panels):
+
+| Preset | Stacked (phone) | Split (desktop) | Short landscape | Intent |
+|--------|-----------------|-----------------|-----------------|--------|
+| **Large** | **0.62** (capped — content must peek) | **1.0** (full card) | *(one size)* | Max useful chrome without hiding Playlists |
+| **Normal** | 0.52 | 0.9 | *(one size)* | Mid step; more content above the fold |
+| **Small** | 0.42 | 0.75 | *(one size)* | Most compact; playlist clearly visible on first screen |
+
+**Stacked phone:** do **not** fill width with cover — testers rejected that; Playlists/campaign strip must be visible without scrolling. Lightbox owns large art. **Transport:** natural height (no 4:1 crush). **User strip:** username only (no “Signed in as” / “Logged in as”); Log out is an icon (`aria-label` / title). Desktop split: strip top-left, separated from cover.
+
+Artwork stays large *within* the footprint; transport, user area, and banquet are part of the same package. **Do not** shrink only the cover while the rail and transport stay at Large width. Platform keeps a **minimum cover floor** on Small (readable).
+
+**Side covers:** At **Large**, force side covers **Off** and disable/hide the Side covers controls (not enough room for flanks without wasting the chrome budget). **Normal** / **Small** may offer side covers inside the footprint. Analyzer is a **background effect inside the transport** only — it does not change Player size geometry or collapse rules. Controls and track info stay essential and usable at every size.
+
+**Layout modes:**
+
+- **Stacked** (phone portrait) — Large capped (~0.62) so Playlists peek above the fold; Normal/Small step down further; transport natural height; user strip full viewport width.
+- **Split** (wide + tall) — scarce resource is **width**. Large = full card (1.0); Normal 0.9 / Small 0.75; content column grows as size steps down.
+- **Short landscape** (phone on a stand) — **keep split**; **single geometry** (Branding Large|Normal|Small do not change it); full square cover via height-led `--card-size` (**never** `max-height` / overflow clip); compact strip + wrapping Beggars banquet.
+
+Breakpoints, gutters, prose/Tracklist measures, and hit-target floors stay platform-owned. Content policies unchanged (prose/Notes measures; wider playlists; full-canvas galleries).
+
+**Transport / track info (listener-first core):**
+
+- Always-legible core: **what is playing**, **play/pause**, **previous/next**, **scrub**. Brand toggles for extras must not bury that core.
+- Non-technical listeners (including elderly) need obvious affordances and hit targets; younger listeners need the same controls to feel light — one clear icon row + scrubber + short track line.
+- Now-playing hierarchy: **Title** (primary) → **Version** (smaller muted, inline) → **Artist** (muted byline when Show artist is On).
+- Density may tighten with Small, but never drop the core or make it unreadable.
+
+**Sellable mediaplayer skins (later — foundation first):**
+
+Paint inside fixed slots and settled transport geometry. No new listener verbs; Small must stay usable. **Branding Live preview remirror waits** until the public player matches this contract; do not block the player CSS rewrite on preview parity.
+
+**Implementation (2026-10):** Player size triple scales (stacked / split / short) + mobile transport natural height (no 4:1 crush). Branding Live preview remirror still waits for Content surface polish.
+
+**Buttons** (`tokens.content`): named presets only — style, corners, borders, density — no raw px/% fields. Applies to `#content-container` controls only. **Playlist selector** is a separate Content panel (`player.playlist_selector`).
 
 **Buttons tokens (`tokens.content`):**
 
@@ -885,8 +928,6 @@ Transport now-playing hierarchy: **Title** (primary) → **Version** (smaller mu
 | `content.density` | `dense` \| `compact` \| `normal` \| `comfortable` \| `spacious` | Uniform button padding Dense→Spacious: 2px → 8px (same five steps as Typography); gap matches pad; min-height = 20 + 2×pad |
 
 Legacy brands with `radius_percent` / `border_width` / density `minimal` migrate on normalize.
-
-**Layout:** Player cover art size uses platform `--card-size` clamps on split layouts (breakpoints stay platform-owned in `biblioteca/style.css`). Branding → Cover → **Size** (`player.cover_size`: Full|Medium|Half) multiplies via `--cover-size-scale` (1|0.75|0.5). On stacked/narrow, Full fills the `#mediaplayer` rail (Medium/Half scale from that). Transport is always full rail width at **4:1**. Split player rail and side-cover offsets still follow cover scale. The public shell is stacked by default and enters a split player/content layout only when both viewport width and height can support it. Content gutter, readable prose/Tracklist measures, touch targets, overflow, and breakpoints remain platform-owned. Content policies differ intentionally: prose and Notes stay centered at readable measures, playlist lists may run wider, and galleries/media blocks may use the full content canvas.
 
 **Asset refs (Visual / Sound effects pools, scoped to this release identity):**
 

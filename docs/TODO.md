@@ -152,7 +152,7 @@ Policy — **locked**:
 - [x] Lock **`special` is legacy intake only**, not a brand role — migrate `media/special/` into Visual pool with explicit role tags.
 - [x] Lock **system shell vs brand overlay**: platform owns layout and dark-shell baseline; brand replaces enumerated identity slots only; broken brand degrades to default, not a broken site (see [PLATFORM-MODEL.md](PLATFORM-MODEL.md) → Brands).
 - [x] **Content chrome controls** — `tokens.content` named presets (style / corners / border / density) for `#content-container` tabs/buttons; `#mediaplayer` stays platform button chrome (2026-09-12).
-- [ ] **Mediaplayer skins (future sellable add-on)** — after content chrome is separate, optional install-locked skin packs for `#mediaplayer` presentation only (Winamp-style). Transport surface locked at **4:1** as the first skin-sized box. Entitlement model already anticipates sold themes/skins in [ROADMAP.md](ROADMAP.md). Not v0.8 exit-gate work.
+- [ ] **Mediaplayer skins (future sellable add-on)** — after content chrome is separate and Player size / transport foundation is settled, optional install-locked skin packs for `#mediaplayer` presentation only. Transport aspect ratio stays **unlocked** until experiments land (provisional 4:1 in CSS today is not a product lock). Entitlement model already anticipates sold themes/skins in [ROADMAP.md](ROADMAP.md). Not v0.8 exit-gate work.
 
 Implementation order:
 
@@ -163,9 +163,10 @@ Implementation order:
 - [x] **Login + player OG deferred** — remove Open Graph/Twitter from authenticated surfaces until v0.9; login uses base brand CSS tokens.
 - [x] **Welcome nudge** — post-setup suggestions for duplicate brand (when Base is still locked demo), catalogue, FAQ, Pages, and backup import (no auto-provision of “Your own brand”).
 - [x] Unify Content editors (Playlist, Gallery, Pages) around one pool/result layout with shared headers, demo filter on media pools, and amber/green save controls. Release Pages associations own player tab order; Player layout tab retired.
-- [ ] **Shell / Player / Content preview parity** — User **Shell** Phase 2 done (`shell.css`, `.shell-logo*`, `#shell-bg-video`). Public **Player** chrome pass done (user area top, Full stacked cover, 2:1 SVG transport). **Order locked:** fix **Content** rail next → then Branding Live preview remirror (Shell|Player|Content).
+- [ ] **Shell / Player / Content preview parity** — User **Shell** Phase 2 done. **Order locked:** public **Player size** rewrite shipped → Content rail as needed → Branding Live preview remirror later (must show content gaining space).
+- [x] **Player size Large|Normal|Small** — chrome footprint (`player.size`; migrate `cover_size`); Large ≈ today’s Medium max (not rail-fill); short landscape keeps split + rail follows size; Large disables side covers; analyzer is transport fill only; no legacy Full look ([PLATFORM-MODEL.md](PLATFORM-MODEL.md) → Player layout contract).
 - [ ] **Beggars banquet (ads)** — reserved support/ad slot must fit content and never bleed viewport; keep narrow above-the-fold budget (current OK — revisit when ad payloads grow).
-- [ ] **Mediaplayer 4:1 transport lock** — locked for future Winamp-style skins (2:1 was too tall; `min-height: fit-content` ignored earlier locks). Chrome densified to fit; revisit only if touch targets suffer.
+- [ ] **Mediaplayer transport geometry** — **unlocked** for Player size / control experiments (provisional 4:1 in CSS today). Lock a ratio later only if skins need a fixed box.
 - [ ] **Listener account link** — dummy in player user area until v0.9 preferences / user management.
 - [ ] **Favicon + PWA icons from Branding (v0.8 gate)** — operators must not hand-craft `media/icons/` with external generators. Platform derives favicon (ICO/SVG/PNG set) and PWA icons (`web-app-manifest-192/512`, apple-touch, etc.) from brand shell identity (logo / dedicated icon slot) under Content → Branding + rebuild. Manual icon drops are developer-only. **Required before closing the v0.8 exit gate** — site chrome branding is incomplete without this (cold-load HARs showed a 4.4MB hand-made `favicon.svg` on an operator install).
 
