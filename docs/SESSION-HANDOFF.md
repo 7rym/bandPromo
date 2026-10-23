@@ -2,9 +2,9 @@
 
 ## Resume point
 
-**Local (uncommitted):** Player size **r11** — honest pass criteria after rejecting r10. Chrome-min transport/beggars; compact selectors + overflow fades; coverflow grey border; short cover **140**; iPad portrait stacked documented. Audit: `docs/audits/player-size-2026-10-22-r11/REPORT.md`. Needs checkpoint/publish.
+**Local:** clean after Player size **r11** publish (**v0.8.99 build 605** expected). Audit: `docs/audits/player-size-2026-10-22-r11/REPORT.md`.
 
-**Last published:** **v0.8.99 build 603** — Player size Large|Normal|Small (mode-aware chrome; short one-size; version under title; compact playlist selector). Prior: **602** campaign soft-switch playlist selector.
+**Last published:** **v0.8.99 build 605** — Player size r11 (chrome-min transport/beggars; compact selectors + overflow cues; short cover 140; honest Twisted PLP audit). Prior: **604** pushed without Site release; **603** Player size Large|Normal|Small.
 
 **Done this session:** Visual embed UTF-8/EXDEV (600); audio prep + APE→ID3 (601); Notes typography; campaign playlist-selector shell (602); Player size chrome + audits r1–r11 (r10 Pass rejected; r11 criteria locked).
 
@@ -17,7 +17,7 @@
 
 **Operator rule (this session):** Do **not** delete, prune, janitor-Apply, or discard any runtime files (`data/`, `media/`, `log/`, `backups/`, Ready archives, leftover `original/`) unless this user names the exact paths in the same message.
 
-**Next:** Checkpoint/publish Player size r11 → Site update test hosts → Branding Live preview remirror → Files pool latency trim.
+**Next:** Site update test hosts on **605** → Branding Live preview remirror → Files pool latency trim.
 
 ### Policy locked (do not reopen)
 
