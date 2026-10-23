@@ -2,6 +2,8 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-10-22 20:00 - Player size **r11** (Twisted PLP): reject r10 Pass — locked criteria = first-track peek, transport/beggars ≥ `--player-chrome-min` (not cover-tied), compact selectors + overflow edge fades, coverflow grey idle border, short cover **140**, iPad portrait = stacked wide. Audit `docs/audits/player-size-2026-10-22-r11/REPORT.md`.
+
 2026-10-19 12:35 - Publish **Player size** for Site update: mode-aware Large|Normal|Small; short landscape one platform size; version under title; rail cover ≥120; playlist selector stays compact (short 48/56); coverflow unselected opacity 1; audits in `docs/audits/player-size-2026-10-18*` ([PLATFORM-MODEL.md](PLATFORM-MODEL.md)).
 
 2026-10-18 19:05 - Player size short polish: `#songVersion` under `#songTitle`; restore playlist-selector thumbs after accidental 120px coverflow bump (short 48/56, base 70/80); rail cover floor stays 120 ([PLATFORM-MODEL.md](PLATFORM-MODEL.md)).

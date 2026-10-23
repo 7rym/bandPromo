@@ -15,7 +15,7 @@
     --player-size-scale: var(--cover-size-scale);
     --player-side-gutter: clamp(12px, 3vw, 32px);
     --player-side-gutter-scale: 0;
-    /* Chrome footprint: cover + optional side-cover gutters; transport fills this rail. */
+    /* Chrome footprint: cover + optional side-cover gutters. */
     --player-rail: min(
         calc(
             var(--card-size) * var(--cover-size-scale, 0.75)
@@ -23,6 +23,8 @@
         ),
         100%
     );
+    /* Transport / beggars floor — five controls + title must fit even when cover is small. */
+    --player-chrome-min: 13.5rem;
     --content-gutter: clamp(12px, 2vw, 28px);
     --prose-measure: min(70ch, 52rem);
     --tracklist-measure: min(76ch, 56rem);
@@ -241,9 +243,9 @@ textarea {
 @media (min-width: 40rem) and (max-height: 35.999rem) {
     :root {
         --cover-size-scale: 1;
-        /* Height-led square cover at least 120; rail wider so five controls stay unclipped. */
-        --card-size: clamp(120px, min(28vw, 32dvh), 140px);
-        --player-rail: min(max(12rem, var(--card-size)), 50vw);
+        /* Height-led square cover at least 140; rail at least chrome-min for five controls. */
+        --card-size: clamp(140px, min(28vw, 32dvh), 160px);
+        --player-rail: min(max(var(--player-chrome-min), var(--card-size)), 50vw);
     }
 
     body {
@@ -561,6 +563,7 @@ body.debug-modal-open {
 .cover-art {
     width: 100%;
     height: 100%;
+    box-sizing: border-box;
     object-fit: cover;
     border-radius: 12px;
     box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
@@ -662,8 +665,8 @@ body.debug-modal-open {
     align-items: center;
     justify-content: flex-start;
     gap: 0.4rem;
-    /* Match cover rail on stacked; split/short overrides keep rail width. */
-    width: min(100%, var(--player-rail));
+    /* Stacked: at least chrome-min (independent of small covers). Split/short override. */
+    width: min(100%, max(var(--player-chrome-min), var(--player-rail)));
     max-width: none;
     align-self: center;
     aspect-ratio: auto;
@@ -971,16 +974,49 @@ button.pulse-guide {
     display: flex;
     flex-wrap: nowrap;
     align-items: flex-end;
-    justify-content: center;
+    justify-content: safe center;
     gap: 4px;
     flex: 1 1 14rem;
     min-width: 0;
     max-width: 100%;
     overflow-x: auto;
     overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
     overscroll-behavior-x: contain;
-    scrollbar-width: thin;
+    scrollbar-width: none;
     padding: 2px 0 4px;
+    box-sizing: border-box;
+}
+
+/* Overflow: start-align so selected chip can scroll into view; edge fades cue drag. */
+.campaign-logo-strip.is-overflowing {
+    justify-content: flex-start;
+    scrollbar-width: thin;
+    scrollbar-color: var(--primary-color, #00d2ff) rgba(0, 0, 0, 0.3);
+}
+
+.campaign-logo-strip.is-overflowing::-webkit-scrollbar {
+    height: 6px;
+}
+
+.campaign-logo-strip.is-overflowing::-webkit-scrollbar-thumb {
+    background: var(--primary-color, #00d2ff);
+    border-radius: 999px;
+}
+
+.campaign-logo-strip.is-overflowing.has-overflow-end:not(.has-overflow-start) {
+    mask-image: linear-gradient(to right, #000 0, #000 calc(100% - 18px), transparent 100%);
+    -webkit-mask-image: linear-gradient(to right, #000 0, #000 calc(100% - 18px), transparent 100%);
+}
+
+.campaign-logo-strip.is-overflowing.has-overflow-start:not(.has-overflow-end) {
+    mask-image: linear-gradient(to right, transparent 0, #000 18px, #000 100%);
+    -webkit-mask-image: linear-gradient(to right, transparent 0, #000 18px, #000 100%);
+}
+
+.campaign-logo-strip.is-overflowing.has-overflow-start.has-overflow-end {
+    mask-image: linear-gradient(to right, transparent 0, #000 16px, #000 calc(100% - 16px), transparent 100%);
+    -webkit-mask-image: linear-gradient(to right, transparent 0, #000 16px, #000 calc(100% - 16px), transparent 100%);
 }
 
 .campaign-logo-strip-item {
@@ -1065,7 +1101,11 @@ button.pulse-guide {
     }
 
     .campaign-logo-strip {
-        justify-content: center;
+        justify-content: safe center;
+    }
+
+    .campaign-logo-strip.is-overflowing {
+        justify-content: flex-start;
     }
 }
 
@@ -1145,7 +1185,8 @@ button.pulse-guide {
 #beggars-banquet {
     display: flex;
     justify-content: center;
-    width: min(100%, var(--player-rail));
+    /* Same chrome floor as transport — not crushed to a small cover. */
+    width: min(100%, max(var(--player-chrome-min), var(--player-rail)));
     max-width: 100%;
     align-self: center;
     margin: 0 auto;
@@ -1367,7 +1408,8 @@ button.pulse-guide {
 @container (max-width: 36rem) {
     .content-toggle {
         gap: max(2px, calc(var(--content-control-gap, 6px) - 2px));
-        padding-block: 6px;
+        /* Top only — keep flush to campaign / playlist selector below. */
+        padding-block: 6px 0;
     }
 
     .content-toggle button {
@@ -1907,6 +1949,21 @@ button.pulse-guide {
     border-radius: 999px;
 }
 
+.playlist-coverflow.is-overflowing.has-overflow-end:not(.has-overflow-start) {
+    mask-image: linear-gradient(to right, #000 0, #000 calc(100% - 18px), transparent 100%);
+    -webkit-mask-image: linear-gradient(to right, #000 0, #000 calc(100% - 18px), transparent 100%);
+}
+
+.playlist-coverflow.is-overflowing.has-overflow-start:not(.has-overflow-end) {
+    mask-image: linear-gradient(to right, transparent 0, #000 18px, #000 100%);
+    -webkit-mask-image: linear-gradient(to right, transparent 0, #000 18px, #000 100%);
+}
+
+.playlist-coverflow.is-overflowing.has-overflow-start.has-overflow-end {
+    mask-image: linear-gradient(to right, transparent 0, #000 16px, #000 calc(100% - 16px), transparent 100%);
+    -webkit-mask-image: linear-gradient(to right, transparent 0, #000 16px, #000 calc(100% - 16px), transparent 100%);
+}
+
 .playlist-coverflow-item {
     appearance: none;
     -webkit-appearance: none;
@@ -1946,7 +2003,9 @@ button.pulse-guide {
     height: 70px;
     border-radius: 8px;
     object-fit: cover;
-    border: 2px solid transparent;
+    /* Same grey edge as campaign chips so unselected thumbs do not wash into the shell. */
+    border: 2px solid rgba(255, 255, 255, 0.4);
+    box-sizing: border-box;
     box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35);
     background: var(--color-surface-mid, #1e1e24);
     transition: border-color 0.2s ease, box-shadow 0.2s ease, width 0.15s ease, height 0.15s ease;
@@ -2500,8 +2559,8 @@ audio {
         gap: 0.4rem;
         margin-bottom: 4px;
         padding: 8px;
-        /* Stay on the cover rail; only the user strip spans full viewport. */
-        width: min(100%, var(--player-rail));
+        /* Chrome floor independent of cover; only the user strip spans full viewport. */
+        width: min(100%, max(var(--player-chrome-min), var(--player-rail)));
         max-width: none;
         align-self: center;
         aspect-ratio: auto;
@@ -2511,7 +2570,7 @@ audio {
     }
 
     #beggars-banquet {
-        width: min(100%, var(--player-rail));
+        width: min(100%, max(var(--player-chrome-min), var(--player-rail)));
         align-self: center;
     }
 
@@ -2604,7 +2663,9 @@ audio {
 
     .content-toggle {
         gap: 4px;
-        padding: 6px 8px;
+        /* Flush to playlist selector — no air under the Playlists|Lyrics|About row. */
+        padding: 4px 8px 0;
+        border-bottom: none;
     }
 
     .content-toggle button {
@@ -2613,13 +2674,121 @@ audio {
         font-size: 0.7rem;
     }
 
+    /* Compact selectors so the first playlist track can peek on every size. */
+    .playlist-scope-toolbar {
+        margin: 0;
+        gap: 4px;
+        row-gap: 4px;
+    }
+
+    .campaign-logo-strip {
+        padding: 0;
+        gap: 3px;
+        align-items: center;
+    }
+
+    .campaign-logo-strip-logo,
+    .campaign-logo-strip-placeholder {
+        width: 56px;
+        height: 28px;
+    }
+
+    .campaign-logo-strip-item.is-current .campaign-logo-strip-logo,
+    .campaign-logo-strip-item.is-current .campaign-logo-strip-placeholder {
+        width: 72px;
+        height: 36px;
+    }
+
+    .campaign-logo-strip-item {
+        padding: 2px 3px;
+    }
+
     .playlist-selector,
     .playlist-selector--coverflow {
-        margin: 0 auto;
+        margin: 0;
+    }
+
+    .playlist-coverflow {
+        gap: 0.4rem;
+        min-height: 72px;
+        padding: 0;
+    }
+
+    .playlist-coverflow-thumb {
+        width: 56px;
+        height: 56px;
+    }
+
+    .playlist-coverflow-item.is-active .playlist-coverflow-thumb {
+        width: 64px;
+        height: 64px;
     }
 
     .playlist-box {
-        padding-top: 4px;
+        padding-top: 0;
+    }
+}
+
+/* Wider stacked (tablet / iPad portrait): same flush + compact selectors; not split. */
+@media (min-width: 768px) and (max-width: 59.999rem) and (min-height: 36rem) {
+    .player-transport,
+    #beggars-banquet {
+        width: min(100%, max(var(--player-chrome-min), var(--player-rail)));
+        align-self: center;
+    }
+
+    .content-toggle {
+        padding: 6px var(--content-gutter) 0;
+        border-bottom: none;
+    }
+
+    .playlist-scope-toolbar {
+        margin: 0;
+        gap: 6px;
+        row-gap: 4px;
+    }
+
+    .campaign-logo-strip {
+        padding: 0;
+        gap: 4px;
+        align-items: center;
+    }
+
+    .campaign-logo-strip-logo,
+    .campaign-logo-strip-placeholder {
+        width: 64px;
+        height: 32px;
+    }
+
+    .campaign-logo-strip-item.is-current .campaign-logo-strip-logo,
+    .campaign-logo-strip-item.is-current .campaign-logo-strip-placeholder {
+        width: 80px;
+        height: 40px;
+    }
+
+    .playlist-selector,
+    .playlist-selector--coverflow {
+        margin: 0;
+    }
+
+    .playlist-coverflow {
+        gap: 0.5rem;
+        min-height: 80px;
+        padding: 0;
+    }
+
+    .playlist-coverflow-thumb {
+        width: 60px;
+        height: 60px;
+    }
+
+    .playlist-coverflow-item.is-active .playlist-coverflow-thumb {
+        width: 72px;
+        height: 72px;
+    }
+
+    .playlist-box {
+        padding-top: 0;
     }
 }
 

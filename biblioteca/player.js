@@ -2293,8 +2293,26 @@ function applyPlayerPlaylistPayload(data, options = {}) {
     }
 }
 
-function syncCampaignSwitcherUi(campaignId) {
+function syncHorizontalOverflowHints(scroller) {
+    if (!(scroller instanceof HTMLElement)) {
+        return false;
+    }
+    const overflowing = scroller.scrollWidth > scroller.clientWidth + 1;
+    scroller.classList.toggle('is-overflowing', overflowing);
+    if (!overflowing) {
+        scroller.classList.remove('has-overflow-start', 'has-overflow-end');
+        return false;
+    }
+    const maxScroll = Math.max(0, scroller.scrollWidth - scroller.clientWidth);
+    const left = scroller.scrollLeft;
+    scroller.classList.toggle('has-overflow-start', left > 2);
+    scroller.classList.toggle('has-overflow-end', left < maxScroll - 2);
+    return true;
+}
+
+function syncCampaignSwitcherUi(campaignId, scrollCurrentIntoView = true) {
     const id = String(campaignId || getActiveCampaignId() || '').trim();
+    const strip = document.getElementById('campaignLogoStrip');
     const items = Array.from(document.querySelectorAll('#campaignLogoStrip [data-campaign-select]'));
     let currentEl = null;
     items.forEach((el) => {
@@ -2305,13 +2323,19 @@ function syncCampaignSwitcherUi(campaignId) {
             currentEl = el;
         }
     });
-    if (currentEl && typeof currentEl.scrollIntoView === 'function') {
-        try {
-            currentEl.scrollIntoView({ inline: 'center', block: 'nearest', behavior: 'smooth' });
-        } catch (scrollError) {
-            currentEl.scrollIntoView(false);
-        }
+    if (!strip) {
+        return;
     }
+    const overflowing = syncHorizontalOverflowHints(strip);
+    if (!scrollCurrentIntoView || !overflowing || !currentEl || typeof currentEl.scrollIntoView !== 'function') {
+        return;
+    }
+    try {
+        currentEl.scrollIntoView({ inline: 'center', block: 'nearest', behavior: 'smooth' });
+    } catch (scrollError) {
+        currentEl.scrollIntoView(false);
+    }
+    window.requestAnimationFrame(() => syncHorizontalOverflowHints(strip));
 }
 
 function bindCampaignNavigator() {
@@ -2334,7 +2358,17 @@ function bindCampaignNavigator() {
         }
         await switchActiveCampaign(campaignId);
     });
-    syncCampaignSwitcherUi(getActiveCampaignId());
+    const scheduleCampaignLayout = () => {
+        window.requestAnimationFrame(() => syncCampaignSwitcherUi(getActiveCampaignId(), true));
+    };
+    strip.addEventListener('scroll', () => syncHorizontalOverflowHints(strip), { passive: true });
+    scheduleCampaignLayout();
+    window.addEventListener('resize', scheduleCampaignLayout);
+    if (typeof ResizeObserver === 'function') {
+        const observer = new ResizeObserver(scheduleCampaignLayout);
+        observer.observe(strip);
+    }
+    syncCampaignSwitcherUi(getActiveCampaignId(), true);
 }
 
 function applyPlaylistBrand(brandId, options = {}) {
@@ -2536,12 +2570,7 @@ function syncPlaylistSelectorUi(playlistId) {
         if (el.hasAttribute('aria-selected')) {
             el.setAttribute('aria-selected', isActive ? 'true' : 'false');
         }
-        const thumb = el.querySelector('.playlist-coverflow-thumb');
-        if (thumb) {
-            const size = isActive ? '100' : '70';
-            thumb.setAttribute('width', size);
-            thumb.setAttribute('height', size);
-        }
+        // Coverflow thumb pixel sizes stay in CSS (stacked 70/80, desktop active 100, short 48/56).
     });
 
     syncPlaylistSelectorLayout(true);
@@ -2557,9 +2586,7 @@ function playlistSelectorScrollers() {
 
 function syncPlaylistSelectorLayout(scrollActiveIntoView = false) {
     playlistSelectorScrollers().forEach((scroller) => {
-        scroller.classList.remove('is-overflowing');
-        const overflowing = scroller.scrollWidth > scroller.clientWidth + 1;
-        scroller.classList.toggle('is-overflowing', overflowing);
+        syncHorizontalOverflowHints(scroller);
     });
 
     if (!scrollActiveIntoView) {
@@ -2575,6 +2602,7 @@ function syncPlaylistSelectorLayout(scrollActiveIntoView = false) {
         return;
     }
     active.scrollIntoView({ inline: 'center', block: 'nearest', behavior: 'smooth' });
+    window.requestAnimationFrame(() => syncHorizontalOverflowHints(scroller));
 }
 
 function bindPlaylistSelector() {
@@ -2605,6 +2633,9 @@ function bindPlaylistSelector() {
     const scheduleLayout = () => {
         window.requestAnimationFrame(() => syncPlaylistSelectorLayout(true));
     };
+    playlistSelectorScrollers().forEach((scroller) => {
+        scroller.addEventListener('scroll', () => syncHorizontalOverflowHints(scroller), { passive: true });
+    });
     scheduleLayout();
     window.addEventListener('resize', scheduleLayout);
     if (typeof ResizeObserver === 'function') {

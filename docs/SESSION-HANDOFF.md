@@ -2,11 +2,11 @@
 
 ## Resume point
 
-**Local:** Clean after Player size publish.
+**Local (uncommitted):** Player size **r11** — honest pass criteria after rejecting r10. Chrome-min transport/beggars; compact selectors + overflow fades; coverflow grey border; short cover **140**; iPad portrait stacked documented. Audit: `docs/audits/player-size-2026-10-22-r11/REPORT.md`. Needs checkpoint/publish.
 
 **Last published:** **v0.8.99 build 603** — Player size Large|Normal|Small (mode-aware chrome; short one-size; version under title; compact playlist selector). Prior: **602** campaign soft-switch playlist selector.
 
-**Done this session:** Visual embed UTF-8/EXDEV (600); audio prep + APE→ID3 (601); Notes typography; campaign playlist-selector shell (602); Player size chrome + short/Twisted audits r1–r8.
+**Done this session:** Visual embed UTF-8/EXDEV (600); audio prep + APE→ID3 (601); Notes typography; campaign playlist-selector shell (602); Player size chrome + audits r1–r11 (r10 Pass rejected; r11 criteria locked).
 
 **Still open from prior HITZ ops:** After Site update past 602, confirm soft-switch into Twisted Chronicles shows all three playlists. Re-check after this Player size publish.
 
@@ -17,11 +17,12 @@
 
 **Operator rule (this session):** Do **not** delete, prune, janitor-Apply, or discard any runtime files (`data/`, `media/`, `log/`, `backups/`, Ready archives, leftover `original/`) unless this user names the exact paths in the same message.
 
-**Next:** Site update test hosts with this Player size build → Branding Live preview remirror → Files pool latency trim → Content surface.
+**Next:** Checkpoint/publish Player size r11 → Site update test hosts → Branding Live preview remirror → Files pool latency trim.
 
 ### Policy locked (do not reopen)
 
 - **Player size** Large|Normal|Small = stacked 0.62/0.52/0.42 + split 1/0.9/0.75; **short landscape = one platform size** (no preset, no art clip); username-only strip; beggars may wrap; Large disables side covers — [PLATFORM-MODEL.md](PLATFORM-MODEL.md)
+- **Stacked pass criteria:** first playlist item peeks; transport/beggars ≥ `--player-chrome-min` (not crushed to small cover); compact selectors; selected campaign/playlist on-screen; overflow edge fades when scrollable; short cover ≥ 140; iPad portrait = stacked wide (split only ≥60rem)
 - Transport **aspect ratio unlocked** for experiment (provisional 4:1 in CSS today; lock later only if needed)
 - Sticky chrome over scrolling content: **opaque** `--admin-sticky-chrome-bg`; in-flow headers may keep `--admin-slate-wash`
 - Page builder: add-block sticky under breadcrumb (`--page-builder-sticky-top`); do **not** nest rich-text sticky under it
