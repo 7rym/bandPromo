@@ -163,7 +163,7 @@ Implementation order:
 - [x] **Login + player OG deferred** — remove Open Graph/Twitter from authenticated surfaces until v0.9; login uses base brand CSS tokens.
 - [x] **Welcome nudge** — post-setup suggestions for duplicate brand (when Base is still locked demo), catalogue, FAQ, Pages, and backup import (no auto-provision of “Your own brand”).
 - [x] Unify Content editors (Playlist, Gallery, Pages) around one pool/result layout with shared headers, demo filter on media pools, and amber/green save controls. Release Pages associations own player tab order; Player layout tab retired.
-- [ ] **Shell / Player / Content preview parity** — User **Shell** Phase 2 done. **Order locked:** public **Player size** rewrite shipped → Content rail as needed → Branding Live preview remirror later (must show content gaining space).
+- [ ] **Shell / Player / Content preview parity** — User **Shell** Phase 2 done. Public **Player size** shipped + fleet-validated (**605**). PCF smoke closed. **Active:** Branding Live preview remirror (must show content gaining space).
 - [x] **Player size Large|Normal|Small** — chrome footprint (`player.size`; migrate `cover_size`); Large ≈ today’s Medium max (not rail-fill); short landscape keeps split + rail follows size; Large disables side covers; analyzer is transport fill only; no legacy Full look ([PLATFORM-MODEL.md](PLATFORM-MODEL.md) → Player layout contract).
 - [ ] **Beggars banquet (ads)** — reserved support/ad slot must fit content and never bleed viewport; keep narrow above-the-fold budget (current OK — revisit when ad payloads grow).
 - [ ] **Mediaplayer transport geometry** — **unlocked** for Player size / control experiments (provisional 4:1 in CSS today). Lock a ratio later only if skins need a fixed box.
@@ -323,9 +323,9 @@ Implementation order:
 
 - [x] **Player Campaign navigator** — Playlists-panel campaign strip + campaign-scoped playlist list; `localStorage`; hard-cut routes (2026-09-09); Content header logo hide + opaque chips (2026-09-28).
 - [x] **Campaign `navigator_logo_asset_id`** — stored + player catalog resolve (fallback brand logo); Catalogue **Chip artwork:** picker on Campaign → Media assets.
-- [ ] **Docs stories** — USE-CASES HITZ + Spandexual Tension player stories after fleet validate.
+- [x] **Fleet persona validate** — fleet on **build 605** (2026-10-23); HITZ multi-campaign soft-switch shows all playlists when changing campaign. Navigation + Player size track closed.
+- [ ] **Docs stories** — USE-CASES HITZ + Spandexual Tension player stories (optional polish after validate).
 - [ ] **Large-catalogue campaign UI** — later (search/list); not this slice.
-- [ ] **Fleet persona validate** — Vanilla / Spandexual Tension / HITZ after publish.
 
 ### Brand export / import (v0.8)
 
@@ -447,7 +447,7 @@ Policy lock **2026-08-18** (rename from PRP / `.prp`) — see [PORTABILITY.md](P
 - [x] **Duplicate + multi-ref delete guard** — `duplicate-release-campaign.php`; Files delete refuses in-use without detach.
 - [x] **Import collision UI**; system demo overwrite.
 - [x] **Ship `bandPromo-demo.pcf`** — `prepare_demo_content_package.py` writes `.pcf` (legacy GitHub asset may still be `.prp` until the next demo publish).
-- [ ] **Validate** — local → bandpromo.site fresh → Spandexual Tension / HITZ round-trips (Twisted Chronicles deferred to v0.9 reinstall).
+- [x] **Validate** — HITZ → local PCF import verified OK (2026-10-23). Twisted Chronicles deferred to v0.9 reinstall.
 
 **Follow-ups (not blocking PCF schema, priority after validate):**
 
@@ -469,18 +469,18 @@ Legacy checklist (superseded wording kept for history):
 
 **Do not open v0.9 or welcome new testers until this checklist is done.** Order matters.
 
-**Active fleet (2026-08-31):** **Vanilla** (**https://bandpromo.site**), **Spandexual Tension** (**https://spandexualtension.com** — traditional band / release sequence), **HITZ** (**https://hitz.no**) — all on **v0.8.36 build 438**. [USE-CASES.md](USE-CASES.md).
+**Active fleet (2026-10-23):** **Vanilla** (**https://bandpromo.site**), **Spandexual Tension** (**https://spandexualtension.com**), **HITZ** (**https://hitz.no**) — Site-updated to **v0.8.99 build 605**. [USE-CASES.md](USE-CASES.md).
 
 **Paused:** **Twisted Chronicles** (**https://twistedchronicles.eu**) — too old for Site update; reinstall and rejoin at **v0.9**. This local working copy is **never** wiped (`data/`, `media/`, `log/`, `backups/`).
 
 1. **Player Campaign navigator (mandatory)**
    - [x] Lock policy — [Player Campaign navigator](#player-campaign-navigator-hitz-feedback--2026-08-26) (2026-09-08).
    - [x] Implement selector + campaign-scoped playlist list; brand shell and page tabs follow selected/playing campaign; hard-cut `/play/{campaign}/…` URLs (2026-09-08).
-   - [ ] Validate on active personas (Vanilla demo, Spandexual Tension band, HITZ multi-campaign).
+   - [x] Validate on active personas — fleet **605**; HITZ multi-campaign + soft-switch confirmed (2026-10-23). Navigation / Player size work closed.
 
 2. **Portability proof at latest build**
-   - [x] Fleet sync — active sites on same published GitHub Release (**build 438**, 2026-08-31: bandpromo.site, hitz.no, spandexualtension.com). Twisted Chronicles deferred to v0.9 reinstall.
-   - [ ] PCF round-trip smoke — local → bandpromo.site → Spandexual Tension / HITZ ([Portable Campaign Files (PCF)](#portable-campaign-files-pcf--active-v0-8-gate)). Residual validate-matrix from plan `prp_implementation_schema_8db8d623` (schema shipped; this is validation only — not a PRP rebuild).
+   - [x] Fleet sync — active sites on **build 605** (2026-10-23: bandpromo.site, hitz.no, spandexualtension.com). Twisted Chronicles deferred to v0.9 reinstall.
+   - [x] PCF round-trip smoke — HITZ → local import verified OK (2026-10-23). Further Vanilla / Spandexual Tension legs optional if needed ([Portable Campaign Files (PCF)](#portable-campaign-files-pcf--active-v0-8-gate)).
 
 3. **Operator chrome**
    - [ ] **Favicon + PWA icons from Branding** — required; no manual RealFaviconGenerator dependency ([Brand section](#brand-replaces-theme)).

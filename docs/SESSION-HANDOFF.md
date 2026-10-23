@@ -2,22 +2,20 @@
 
 ## Resume point
 
-**Local:** clean after Player size **r11** publish (**v0.8.99 build 605** expected). Audit: `docs/audits/player-size-2026-10-22-r11/REPORT.md`.
+**Closed:** Player size + Campaign navigator (fleet **605**, HITZ soft-switch OK). **PCF round-trip smoke OK** (2026-10-23) — HITZ → local import verified.
 
-**Last published:** **v0.8.99 build 605** — Player size r11 (chrome-min transport/beggars; compact selectors + overflow cues; short cover 140; honest Twisted PLP audit). Prior: **604** pushed without Site release; **603** Player size Large|Normal|Small.
+**Active now:** **Branding Live preview remirror** (admin) so preview shows content gaining space under Player size.
 
-**Done this session:** Visual embed UTF-8/EXDEV (600); audio prep + APE→ID3 (601); Notes typography; campaign playlist-selector shell (602); Player size chrome + audits r1–r11 (r10 Pass rejected; r11 criteria locked).
+**Last published:** **v0.8.99 build 605** — Player size r11. Prior: **603** Player size Large|Normal|Small; **602** campaign soft-switch playlist selector.
 
-**Still open from prior HITZ ops:** After Site update past 602, confirm soft-switch into Twisted Chronicles shows all three playlists. Re-check after this Player size publish.
-
-**Parked:**
-- Branding Live preview full remirror — public Player size is in; remirror so preview shows content gaining space.
+**Parked / later:**
 - Files pool / living-cover picker latency (undercount disk probe + full Visual list for video-only pick).
-- Optional Lyrics density|size Branding control; timed cues / `.srt` / bidirectional anchors.
+- Lyrics: density|size Branding control; timed cues / `.srt` / bidirectional anchors.
+- Favicon + PWA icons from Branding; legacy audit refresh (remaining exit-gate items).
 
 **Operator rule (this session):** Do **not** delete, prune, janitor-Apply, or discard any runtime files (`data/`, `media/`, `log/`, `backups/`, Ready archives, leftover `original/`) unless this user names the exact paths in the same message.
 
-**Next:** Site update test hosts on **605** → Branding Live preview remirror → Files pool latency trim.
+**Next:** Branding Live preview remirror.
 
 ### Policy locked (do not reopen)
 
