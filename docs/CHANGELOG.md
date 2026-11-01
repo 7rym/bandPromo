@@ -2,6 +2,8 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-11-01 13:40 - Docs: record Blotato as a v2 social-publish candidate to recheck when sharing tools are scheduled ([BLOTATO-EVALUATION.md](BLOTATO-EVALUATION.md)). Not an integration.
+
 2026-10-23 10:05 - Publish **Player size r11** for Site update: chrome-min transport/beggars; compact selectors + overflow fades; coverflow grey idle border; short cover 140; iPad portrait stacked; Twisted PLP audit `docs/audits/player-size-2026-10-22-r11/REPORT.md`.
 
 2026-10-22 20:00 - Player size **r11** (Twisted PLP): reject r10 Pass — locked criteria = first-track peek, transport/beggars ≥ `--player-chrome-min` (not cover-tied), compact selectors + overflow edge fades, coverflow grey idle border, short cover **140**, iPad portrait = stacked wide. Audit `docs/audits/player-size-2026-10-22-r11/REPORT.md`.

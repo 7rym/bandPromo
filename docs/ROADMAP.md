@@ -814,7 +814,7 @@ Examples:
 - campaign checklists and operator workflow automation
 - AI-assisted **marketing** drafts (multi-post series, channel-specific variants) — distinct from v0.8 **content wizards** that fill missing fields during editing
 - Google Analytics and other analytics integrations
-- social publishing integrations and scheduling/background jobs (Instagram / TikTok **API posts**, not public-site share buttons). Locked still targets: IG feed **1080×1350**, Stories/Reels & TikTok **1080×1920** — generate on demand when publish exists; do not pre-emit in v0.8 `makeSocial.py` (OG stays **1200×630** only). See [MEDIA-HANDLING.md](MEDIA-HANDLING.md).
+- social publishing integrations and scheduling/background jobs (Instagram / TikTok **API posts**, not public-site share buttons). Locked still targets: IG feed **1080×1350**, Stories/Reels & TikTok **1080×1920** — generate on demand when publish exists; do not pre-emit in v0.8 `makeSocial.py` (OG stays **1200×630** only). See [MEDIA-HANDLING.md](MEDIA-HANDLING.md). **Candidate adapter, not a commitment:** Blotato was evaluated on 1 November 2026 as an optional per-install transport ([BLOTATO-EVALUATION.md](BLOTATO-EVALUATION.md)). Recheck that note against Blotato’s live docs before any sharing-tool implementation. Do not treat it as current, and do not start the integration in v0.8 or v0.9.
 - approval workflows for generated campaign content
 
 These belong after the core platform is stable and its content model is mature.

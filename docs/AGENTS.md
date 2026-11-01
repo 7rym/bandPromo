@@ -129,6 +129,7 @@ Use `prerelease=false` for closed-beta tester packages so hosts that cannot call
 - [docs/ADMIN-UI.md](ADMIN-UI.md)
 - [docs/OPERATOR-MESSAGING.md](OPERATOR-MESSAGING.md) (v0.9 messaging plan; policy locked v0.8)
 - [docs/MARKETING-STRATEGY.md](MARKETING-STRATEGY.md)
+- [docs/BLOTATO-EVALUATION.md](BLOTATO-EVALUATION.md) — v2 social-publish candidate; recheck before sharing-tool work
 
 ## Project Structure
 
@@ -165,7 +166,7 @@ Current layout (v0.9 refactor **planned**, not started — see [CODE-LAYOUT-REFA
 - Ask for confirmation before destructive or wide-reaching repository operations. Deleting gitignored runtime trees (`data/`, `media/`, `log/`, `backups/`) is the same class of action as entering a password: **forbidden** unless the operator named those exact paths in the same message. Docs and “fresh install” are not permission.
 
 
-_Last updated: 2026-09-03_
+_Last updated: 2026-11-01_
 
 - **Python requirements:** host CPython **3.6.9+**; build deps `Pillow`, `mutagen`, `xxhash` (site-local `scripts/vendor/` + offline `scripts/vendor-wheels/`); `ffmpeg` (see [README.md](README.md)). Operators never run `pip`.
 - **Campaign portability:** [PORTABILITY.md](PORTABILITY.md) PCF / `.pcf` contract is source of truth for demo and operator campaign handoff.

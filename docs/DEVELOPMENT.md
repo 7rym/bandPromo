@@ -159,4 +159,5 @@ Legacy import shapes (not seeded on fresh installs) live under `biblioteca/templ
 - [MEDIA-HANDLING.md](MEDIA-HANDLING.md)
 - [ROADMAP.md](ROADMAP.md)
 - [TODO.md](TODO.md)
+- [BLOTATO-EVALUATION.md](BLOTATO-EVALUATION.md) — dated candidate for v2 social publishing; recheck before building sharing tools
 - [AGENTS.md](AGENTS.md)

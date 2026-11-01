@@ -182,6 +182,8 @@ Without that positioning, more posting (manual or automated) does not improve si
 
 Full four-platform connect / post / comment is **not** the near-term traffic bet. Meta-first bridge workflows are.
 
+On 1 November 2026 the product team recorded [a Blotato evaluation](BLOTATO-EVALUATION.md) as one optional way to send approved teasers when v2 sharing tools are scheduled. It is not part of bandPromo, and operators do not need an account there. That note will be stale by the time the work starts; recheck it before anyone treats it as current.
+
 ---
 
 ## How bandPromo features support this (by milestone)
@@ -298,7 +300,8 @@ This is independent publishing extended to **people helping people** — without
 - [PORTABILITY.md](PORTABILITY.md) — backup, site export, and release package handoffs
 - [OPERATOR-RESPONSIBILITY.md](OPERATOR-RESPONSIBILITY.md) — legal and operational boundaries
 - [TODO.md](TODO.md) — implementation order for the product team
+- [BLOTATO-EVALUATION.md](BLOTATO-EVALUATION.md) — dated candidate for a later social-publish transport; recheck before building sharing tools
 
 ---
 
-_Last updated: 2026-09-07_
+_Last updated: 2026-11-01_
