@@ -876,6 +876,6 @@ Deferred to later refactors: split `admin.js` into modules, remove remaining `sa
 - **v0.7 is complete** (exit gates passed 2026-06-15). Repository version line is **`v<major>.<minor>.<session> build <number>`** (continuous build numbering from v0.7).
 - **v0.8 = management machine** — Brand (replaces Theme), Visual pool + role tags, release `brand_id`, content AI wizards, delivery scaling. See **v0.8 management slice**.
 - **v0.9** — access-tier implementation, login/anonymous entry, user roles, Chromecast/cast implementation.
-- **v2+ = marketing machine** — campaign automation and marketing AI from existing catalogue content.
+- **v2+ = marketing machine** — campaign automation and marketing AI from existing catalogue content. Social-publish candidate (Blotato, 1 November 2026) is recorded in [BLOTATO-EVALUATION.md](BLOTATO-EVALUATION.md). Recheck it when sharing tools are scheduled; do not pull it into v0.8 or v0.9.
 - Current operator model: one base brand (duplicate demo default), multiple releases/playlists/galleries — releases link to shared brands by era.
 - If a task does not help ship or define the current v0.8 milestone, it probably belongs in the roadmap, not here.
