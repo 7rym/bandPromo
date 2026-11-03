@@ -2,20 +2,21 @@
 
 ## Resume point
 
-**Closed:** Player size + Campaign navigator (fleet **605**, HITZ soft-switch OK). **PCF round-trip smoke OK** (2026-10-23). Site health duplicate-conflict Keep-choice shipped in **607**.
+**Closed:** Player size + Campaign navigator (fleet **605**, HITZ soft-switch OK). **PCF round-trip smoke OK** (2026-10-23). Site health duplicate Keep-choice **607**. Branding Live preview **Player remirror** (shared chrome + Shell behind + stacked rail) shipped in **608**.
 
-**Active now:** **Branding Live preview remirror** (admin) so preview shows content gaining space under Player size.
+**Active now:** Player preview **detail polish** (operator list). Then Content remirror.
 
-**Last published:** **v0.8.100 build 607** — Site health duplicate Keep-choice. Prior: **605** Player size r11; **603** Player size Large|Normal|Small; **602** campaign soft-switch playlist selector.
+**Last published:** **v0.8.100 build 608** — Branding Player remirror. Prior: **607** Site health duplicate Keep-choice; **605** Player size r11.
 
 **Parked / later:**
 - Files pool / living-cover picker latency (undercount disk probe + full Visual list for video-only pick).
 - Lyrics: density|size Branding control; timed cues / `.srt` / bidirectional anchors.
 - Favicon + PWA icons from Branding; legacy audit refresh (remaining exit-gate items).
+- Branding Content Live preview remirror (`play-preview-content-*`, same live render + demo content).
 
 **Operator rule (this session):** Do **not** delete, prune, janitor-Apply, or discard any runtime files (`data/`, `media/`, `log/`, `backups/`, Ready archives, leftover `original/`) unless this user names the exact paths in the same message.
 
-**Next:** Branding Live preview remirror.
+**Next:** Operator detail fixes on Player preview, then Content remirror.
 
 ### Policy locked (do not reopen)
 

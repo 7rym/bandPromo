@@ -235,9 +235,14 @@
             }
             return '<p class="brand-editor-empty">Shell preview is unavailable.</p>';
         }
-        return previewMode === 'content'
-            ? renderContentPreviewChrome(document)
-            : renderPlayerPreviewChrome(document);
+        if (previewMode === 'player') {
+            // Player remirror paints asynchronously via renderInto (shared /play chrome).
+            if (window.bandpromoPlayPreviewPlayer && typeof window.bandpromoPlayPreviewPlayer.renderMarkup === 'function') {
+                return window.bandpromoPlayPreviewPlayer.renderMarkup(document);
+            }
+            return '<p class="brand-editor-empty">Player preview is unavailable.</p>';
+        }
+        return renderContentPreviewChrome(document);
     }
 
     function render(container, document, options = {}) {
@@ -246,9 +251,13 @@
         }
         const styleId = String(options.styleId || 'bandpromo-shared-brand-preview-style');
         const previewMode = normalizePreviewMode(options.mode);
-        const defaultSelector = previewMode === 'shell'
-            ? `#${container.id} .play-preview-shell-stage`
-            : `#${container.id} .theme-preview-shell-chrome`;
+        let defaultSelector = `#${container.id} .theme-preview-shell-chrome`;
+        if (previewMode === 'shell') {
+            defaultSelector = `#${container.id} .play-preview-shell-stage`;
+        } else if (previewMode === 'player') {
+            // Brand tokens for Player remirror are applied inside the preview frame.
+            defaultSelector = `#${container.id} .play-preview-player-host`;
+        }
         const selector = String(options.selector || defaultSelector);
         let style = document?.ownerDocument?.getElementById(styleId)
             || window.document.getElementById(styleId);
@@ -537,8 +546,15 @@
         rules.push(`--content-type-block-gap:${typeBlockGap}px`);
 
         style.textContent = rules.length ? `${selector}{${rules.join(';')};}` : '';
-        container.innerHTML = renderMarkup(document, previewMode);
         container.dataset.previewMode = previewMode;
+
+        if (previewMode === 'player' && window.bandpromoPlayPreviewPlayer?.renderInto) {
+            // Shared /play chrome (PHP + style.css) with demo content — async frame.
+            window.bandpromoPlayPreviewPlayer.renderInto(container, document);
+            return;
+        }
+
+        container.innerHTML = renderMarkup(document, previewMode);
         startPreviewVideos(container);
         if (previewMode === 'shell' && window.bandpromoPlayPreviewShell?.startVideos) {
             window.bandpromoPlayPreviewShell.startVideos(container);

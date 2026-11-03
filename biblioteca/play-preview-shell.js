@@ -1,5 +1,5 @@
 /**
- * Inert Branding Live preview — Shell surface only (parked until preview slice).
+ * Inert Branding Live preview — Shell surface (Phase 2 remirror).
  * Mirrors user-shell classes from shell.css; does not use live #shell-bg-video id
  * (admin isolation — class .shell-bg-video-el only).
  */

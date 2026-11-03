@@ -4161,6 +4161,7 @@ if ($tab === 'analytics') {
     <?php endif; ?>
     <?php if ($tab === 'content' && $contentTab === 'branding'): ?>
     <script src="biblioteca/play-preview-shell.js?v=<?php echo filemtime(__DIR__ . '/biblioteca/play-preview-shell.js'); ?>"></script>
+    <script src="biblioteca/play-preview-player.js?v=<?php echo filemtime(__DIR__ . '/biblioteca/play-preview-player.js'); ?>"></script>
     <script src="biblioteca/brand-preview.js?v=<?php echo filemtime(__DIR__ . '/biblioteca/brand-preview.js'); ?>"></script>
     <?php endif; ?>
     <?php if ($tab === 'content' && $contentTab === 'pages'): ?>

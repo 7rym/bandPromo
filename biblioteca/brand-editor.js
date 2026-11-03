@@ -1558,7 +1558,9 @@
                     styleId: 'bandpromo-brand-editor-preview-style',
                     selector: previewMode === 'shell'
                         ? '#brandEditorPreview .play-preview-shell-stage'
-                        : '#brandEditorPreview .theme-preview-shell-chrome',
+                        : (previewMode === 'player'
+                            ? '#brandEditorPreview .play-preview-player-host'
+                            : '#brandEditorPreview .theme-preview-shell-chrome'),
                     mode: previewMode,
                 });
             } else {

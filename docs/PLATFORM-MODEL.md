@@ -914,7 +914,7 @@ Breakpoints, gutters, prose/Tracklist measures, and hit-target floors stay platf
 
 Paint inside fixed slots and settled transport geometry. No new listener verbs; Small must stay usable. **Branding Live preview remirror waits** until the public player matches this contract; do not block the player CSS rewrite on preview parity.
 
-**Implementation (2026-10):** Player size triple scales (stacked / split / short) + mobile transport natural height (no 4:1 crush). Branding Live preview remirror still waits for Content surface polish.
+**Implementation (2026-10):** Player size triple scales (stacked / split / short) + mobile transport natural height (no 4:1 crush). **Branding Live preview (2026-11):** three independent remirrors (Shell → Player → Content); preview and live share render code; preview uses demo content; editor preview is stacked (not a faux wide split). Player uses shared `player-chrome.php` + stacked frame; Content remirror later.
 
 **Buttons** (`tokens.content`): named presets only — style, corners, borders, density — no raw px/% fields. Applies to `#content-container` controls only. **Playlist selector** is a separate Content panel (`player.playlist_selector`).
 

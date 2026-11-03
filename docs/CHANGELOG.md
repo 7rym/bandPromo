@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-11-03 17:55 - Publish **v0.8.100 build 608** for Site update: Branding Live preview Player remirror — shared `#mediaplayer` chrome with `/play`, Shell behind, stacked rail sizing (demo track/cover).
+
+2026-11-03 17:50 - Branding Player preview: keep Shell atmosphere behind chrome; use live stacked `--card-size` / `--player-rail` (drop preview-only 20rem cap) so scene/transport/beggars stay one rail and Player size only changes the stacked scale.
+
+2026-11-03 17:25 - Branding Live preview **Player remirror (redo)**: shared `player-chrome.php` feeds live `/play` and a stacked Player-only preview frame (`play-preview-player-frame.php` + `style.css`) with demo track/cover — no faux split Content column. Shell/Content remirrors unchanged for now.
+
+2026-11-03 12:50 - Branding Live preview Player attempt (mini split + content stub) **scrapped** — wrong architecture; three independent remirrors (Shell → Player → Content), preview=live render code with demo content, stacked not wide.
+
 2026-11-03 12:40 - Publish **v0.8.100 build 607** for Site update: Site health duplicate masters show filenames and where each copy is used, with Keep-which-copy before Apply folds the other links into the chosen file.
 
 2026-10-23 11:20 - Site health: duplicate masters “both linked” is no longer a dead end — Proposed treatment shows filenames + where each copy is used, Keep-which-copy chips, and Apply folds the other links into the chosen file.

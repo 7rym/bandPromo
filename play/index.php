@@ -411,112 +411,21 @@ $bodyClassAttr = $bodyClasses !== [] ? ' class="' . htmlspecialchars(implode(' '
     </div>
 
     <?php
-    require_once dirname(__DIR__) . '/biblioteca/player-icons.php';
-    $showPlayerUserArea = $loginStatusEnabled || $showAdminButton || $showDebugTools;
+    require_once dirname(__DIR__) . '/biblioteca/player-chrome.php';
+    echo bandpromo_player_chrome_render([
+        'preview' => false,
+        'login_status' => $loginStatusEnabled,
+        'show_admin' => $showAdminButton,
+        'show_debug' => $showDebugTools,
+        'username' => $currentUsername !== '' ? $currentUsername : 'listener',
+        'beggars_banquet' => $beggarsBanquetEnabled,
+        'support_enabled' => $supportEnabled,
+        'support_url' => $supportUrl,
+        'support_label' => $supportLabel,
+        'support_button_background' => $supportButtonBackgroundColor,
+        'support_button_text' => $supportButtonTextColor,
+    ]);
     ?>
-    <div id="mediaplayer">
-        <div id="player-user-area"<?php echo $showPlayerUserArea ? '' : ' hidden'; ?>>
-            <div class="player-user-status" data-player-user-mode="<?php echo $loginStatusEnabled ? 'status' : 'tools'; ?>">
-                <div class="player-user-tools">
-                    <?php if ($showAdminButton): ?>
-                    <a class="player-user-tool" id="admin-btn" href="/admin.php" title="Admin panel" aria-label="Open admin panel">⚙️</a>
-                    <?php endif; ?>
-                    <?php if ($showDebugTools): ?>
-                    <button type="button" class="player-user-tool" id="debug-panel-btn" title="Developer debug panel" aria-label="Open developer debug panel">🐛</button>
-                    <?php endif; ?>
-                    <?php if ($loginStatusEnabled): ?>
-                    <?php
-                    $playerStatusName = $currentUsername !== '' ? $currentUsername : 'listener';
-                    $playerStatusNameEsc = htmlspecialchars($playerStatusName, ENT_QUOTES, 'UTF-8');
-                    ?>
-                    <a class="player-user-tool player-user-profile" href="#" aria-disabled="true" tabindex="-1" title="Account preferences come in a later update" aria-label="Account (not available yet)">
-                        <?php echo bandpromo_player_icon_svg('user'); ?>
-                    </a>
-                    <strong class="player-user-status-name"><?php echo $playerStatusNameEsc; ?></strong>
-                    <?php endif; ?>
-                </div>
-                <?php if ($loginStatusEnabled): ?>
-                <a class="player-user-logout" href="/?logout=1" title="Log out" aria-label="Log out"><?php echo bandpromo_player_icon_svg('logout'); ?></a>
-                <?php else: ?>
-                <span class="player-user-status-text player-user-status-text--spacer" aria-hidden="true"></span>
-                <?php endif; ?>
-            </div>
-        </div>
-
-        <div id="operatorDeliveryNotice" class="operator-delivery-notice" hidden>
-            <strong>Publish build required.</strong>
-            <span id="operatorDeliveryNoticeText">Some tracks are waiting for streaming MP3 delivery. Open System → Status → Site health.</span>
-            <a href="/admin.php?tab=system&amp;stab=deliverables#siteHealthCard">Open Site health</a>
-        </div>
-
-        <div class="scene">
-            <div class="side-card prev" onclick="prevSong()">
-                <img src="" id="prevCover" alt="Previous">
-            </div>
-            <div class="card-wrapper" id="cardWrapper">
-                <img src="" alt="Album Cover" class="cover-art" id="coverImage">
-                <video class="cover-art cover-art-video" id="coverVideo" loop muted playsinline preload="metadata" hidden></video>
-                <div class="reflection">
-                    <img src="" alt="" id="reflectionImage">
-                </div>
-            </div>
-            <div class="side-card next" onclick="nextSong()">
-                <img src="" id="nextCover" alt="Next">
-            </div>
-        </div>
-
-        <div class="player-transport">
-            <canvas id="analyzer" aria-hidden="true"></canvas>
-            <div class="track-info">
-                <h3 id="artistName">Artist</h3>
-                <div class="track-headline">
-                    <h2 id="songTitle">Title</h2>
-                    <p id="songVersion" class="track-version" hidden></p>
-                </div>
-            </div>
-
-            <div class="player-controls" role="group" aria-label="Playback">
-                <button type="button" class="player-control-btn" id="repeatBtn" aria-label="Repeat off" title="Repeat off" data-repeat="none">
-                    <?php echo bandpromo_player_icon_svg('repeat'); ?>
-                    <?php echo bandpromo_player_icon_svg('repeat-one'); ?>
-                </button>
-                <button type="button" class="player-control-btn" id="prevBtn" onclick="prevSong()" aria-label="Previous track" title="Previous">
-                    <?php echo bandpromo_player_icon_svg('prev'); ?>
-                </button>
-                <button type="button" class="player-control-btn player-control-btn--play" id="playBtn" onclick="togglePlay()" aria-label="Play" title="Play" data-playing="false">
-                    <span class="player-control-icon player-control-icon--play"><?php echo bandpromo_player_icon_svg('play'); ?></span>
-                    <span class="player-control-icon player-control-icon--pause" hidden><?php echo bandpromo_player_icon_svg('pause'); ?></span>
-                </button>
-                <button type="button" class="player-control-btn" id="nextBtn" onclick="nextSong()" aria-label="Next track" title="Next">
-                    <?php echo bandpromo_player_icon_svg('next'); ?>
-                </button>
-                <button type="button" class="player-control-btn" id="castBtn" disabled aria-label="Cast (coming later)" title="Cast support comes in a later update">
-                    <?php echo bandpromo_player_icon_svg('cast'); ?>
-                </button>
-            </div>
-
-            <audio id="audioPlayer" preload="none"></audio>
-            <div class="audio-scrubber" id="audioScrubber">
-                <span id="audioTimeCurrent" class="audio-scrubber-time">0:00</span>
-                <input type="range" id="audioSeek" class="audio-scrubber-range" min="0" max="0" step="0.1" value="0" aria-label="Seek" disabled>
-                <span id="audioTimeDuration" class="audio-scrubber-time">0:00</span>
-            </div>
-        </div>
-
-        <div id="beggars-banquet">
-            <?php if ($supportEnabled && $supportUrl !== '' && $beggarsBanquetEnabled): ?>
-            <a
-                href="<?php echo htmlspecialchars($supportUrl, ENT_QUOTES, 'UTF-8'); ?>"
-                target="_blank"
-                rel="noopener noreferrer"
-                class="support-link-button"
-                style="--support-button-background: <?php echo htmlspecialchars($supportButtonBackgroundColor, ENT_QUOTES, 'UTF-8'); ?>; --support-button-text: <?php echo htmlspecialchars($supportButtonTextColor, ENT_QUOTES, 'UTF-8'); ?>;"
-            >
-                <?php echo htmlspecialchars($supportLabel, ENT_QUOTES, 'UTF-8'); ?>
-            </a>
-            <?php endif; ?>
-        </div>
-    </div>
 
     <div id="content-container">
         <div class="shell-logo" id="shell-logo-wrap" data-campaign-count="<?php echo (int) count($campaignCatalog); ?>">

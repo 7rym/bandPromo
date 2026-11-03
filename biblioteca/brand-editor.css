@@ -187,6 +187,42 @@
     box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.35);
 }
 
+/*
+ * Player Live preview — independent remirror (stacked).
+ * Frame loads the same #mediaplayer markup + style.css as /play with demo content.
+ */
+.brand-editor-preview-frame > .play-preview-player-host {
+    flex: 1 1 auto;
+    display: flex;
+    flex-direction: column;
+    min-height: 100%;
+    width: 100%;
+    margin: 0;
+    padding: 0;
+    border-radius: 0;
+    overflow: hidden;
+    background: rgba(0, 0, 0, 0.25);
+}
+
+.play-preview-player-host.is-loading::after {
+    content: 'Loading player preview…';
+    display: block;
+    padding: 1rem;
+    color: var(--color-text-muted, #999);
+    font-size: 0.85rem;
+}
+
+.play-preview-player-frame {
+    flex: 1 1 auto;
+    width: 100%;
+    min-height: 100%;
+    height: 100%;
+    border: 0;
+    margin: 0;
+    padding: 0;
+    background: transparent;
+}
+
 .theme-preview-section-label {
     margin: 0 0 0.45rem;
     font-size: 0.72rem;
