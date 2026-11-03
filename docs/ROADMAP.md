@@ -128,7 +128,7 @@ Policy and prompt contract were locked during v0.8. **Implementation deferred to
 
 This is **not** the v2+ marketing machine (campaign calendars, scheduled social pushes, multi-post series from an existing catalogue). Those stay v2+.
 
-**Candidate media backends, not a commitment:** Settings → AI should accept **multiple operator keys** (OpenAI, Gemini, xAI first; optional fal/Replicate/Higgsfield/Runware). Do not force a specialty media host — operators may reuse existing general API accounts for stills and text. OpenArt is the wrong shape for install-held keys. Cost sketch for 10×2K covers and the BYO design rule are in [MEDIA-API-EVALUATION.md](MEDIA-API-EVALUATION.md) (3 November 2026). Recheck before locking defaults — Imagen 4 / Flux 2 branding was already behind Nano Banana / Flux 3 on that date.
+**Candidate media backends, not a commitment:** Settings → AI should accept **multiple operator keys** (OpenAI, Gemini, xAI first; optional fal/Higgsfield/Runware; Replicate optional but a weak default). Do not force a specialty media host. Do **not** sell bandPromo-metered AI credits over upstream APIs (contracts + roadmap intermediary test). Optional disclosed affiliates only where a real programme exists (Higgsfield website subscriptions as of the note). Details: [MEDIA-API-EVALUATION.md](MEDIA-API-EVALUATION.md) (3 November 2026).
 
 See [TODO.md](TODO.md) → Content AI wizards and [PLATFORM-MODEL.md](PLATFORM-MODEL.md) → Brands.
 

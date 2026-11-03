@@ -138,7 +138,87 @@ Retries, brand-reference edits, and living-cover video are separate and can dwar
 
 **Cost honesty for operators:** a batch of ten 2K cover drafts is usually **sub-dollar to low single-digit dollars** on current APIs. The expensive mistake is locking them into a second subscription when their existing OpenAI/Gemini/xAI key already covers the job.
 
+**Replicate as a primary choice:** weak for bandPromo. It is still a usable optional slot, but it is a poor default next to BYO lab keys and media-first hubs (fal, Runware). Prefer not to centre docs or Settings defaults on it.
+
 **Out of scope for the wizard spike:** Blotato-style AI video templates, viral coaches, and credit-burning remix mills. Same boundary as [BLOTATO-EVALUATION.md](BLOTATO-EVALUATION.md) when that note is present: generate drafts for *this* release’s missing pieces, then stop.
+
+---
+
+## Other alternatives worth naming
+
+Beyond Replicate / fal / Higgsfield / Runware / OpenArt and the BYO labs:
+
+| Option | What it is | For bandPromo |
+|--------|------------|---------------|
+| **Black Forest Labs API** | Direct Flux / Flux 3 from the maker | Optional when an operator wants Flux without a hub markup |
+| **OpenRouter** | Multi-model gateway (mostly LLMs; some image routes) | Possible text+image convenience key; check current image catalogue before promising covers |
+| **WaveSpeed / EachLabs / Atlas Cloud–class Flux resellers** | Often mirror BFL list prices | Only if an operator already uses them; do not make them first-class without a recheck |
+| **BytePlus / Alibaba / Kling direct** | Lab video APIs | Living-cover experiments; heavier onboarding than a hub |
+| **Together AI / Fireworks / DeepInfra** | Strong on open LLMs; some image/video | Better as text backends than as the cover studio |
+| **RunPod / Modal** | Rent GPUs or deploy your own workers | Overkill for wizard drafts; relevant only if someone self-hosts open weights |
+| **Consumer apps** (ChatGPT, Gemini app, Grok app, Midjourney, etc.) | Human-in-the-loop studios | Operators can make art there and **upload** into Files — no API required. Keep that path obvious in UI copy |
+
+The durable product split: **BYO general API** for most installs, **optional media hub** for Flux/Kling shoppers, **manual upload** always works.
+
+---
+
+## Kickbacks and “send them clients”
+
+Checked 3 November 2026. Treat affiliate claims as stale until the live programme page is opened again.
+
+| Provider | Public cash kickback for sending customers? | Notes |
+|----------|-----------------------------------------------|-------|
+| **Higgsfield (website / subscriptions)** | **Yes — affiliate.** Up to **25%** of qualifying plan price for up to **12 months**; cash, not credits; referrals can get up to **50% off for three hours**. Paid ads and coupon sites forbidden. | Pays on **consumer subscriptions**, not on documenting a path to the separate **API** balance. Useful only if bandPromo docs/links send people to higgsfield.ai plans. |
+| **Higgsfield API** | No public reseller/affiliate cut found. Terms forbid resale / service-bureau use of the API without prior written consent. | Do not build a credits shop on top of their API without a signed exception. |
+| **fal.ai** | **No verified public affiliate page** (`/affiliate`, `/referral`, `/partners` reported 404). Community registries list unverified terms — ignore those. Startup/Builder **grants** and VC referral codes exist; those are credits for startups, not bandPromo revenue. | Not a kickback engine. |
+| **Runware** | **No cash referral programme** found. Creator Program pays platform credits (+ discretionary cash for content), not % of referred spend. | Creator money is for making content *about* Runware, not for routing API customers. |
+| **Replicate** | Independent listings say any old affiliate programme **ended** / is unverified. Do not budget on it. | Matches “worst commercial fit” as well as product fit. |
+| **OpenAI** | **No public affiliate** for ChatGPT/API. Partner Network is enterprise co-sell, not a blog commission. API key trading banned; intermediaries need prior approval. | Cannot skim OpenAI usage by sitting in the middle without a deal. |
+| **Google Gemini API** | No public cash affiliate for API spend. Terms aim at forbidding clients that are “substantially the same as the APIs” for third parties. | Same: product-on-top yes; raw resale no. |
+| **xAI** | Partner Network / marketplace exist; public % kickback for API spend not the self-serve story. End users expected as part of a **bundled service**, not a raw key shop. | Bundled product ≠ selling Grok tokens. |
+| **RunPod** | **Yes — referral/affiliate** on GPU/serverless spend (credits, then cash at affiliate tier). | Wrong product surface for bandPromo wizards (infra, not cover API). |
+
+**Practical reading:** the only clear, self-serve cash affiliate among the media names above is **Higgsfield’s website subscription programme**. It does not fund a bandPromo-shaped “we sell you Flux credits” business, and it does not apply cleanly to API metered usage.
+
+---
+
+## Selling bandPromo credits on top of these APIs — viable income?
+
+**Short answer: no, not as a serious or strategy-aligned income line.** Recorded as a reject for the default product path.
+
+### Why the economics are thin
+
+- Ten 2K covers cost **well under a dollar** on BYO Gemini or cheap hub rows. Markup on that is noise, not a business.
+- Operators who already have OpenAI/Gemini/xAI keys have **no reason** to buy bandPromo credits for the same pixels.
+- Specialty-hub margins are competed down by Replicate/fal/Runware/BFL price wars; a thin AGPL music-site project will not out-negotiate them.
+
+### Why the contracts push back
+
+- Higgsfield API: explicit **no resale / no service-bureau** without written consent.
+- OpenAI / Gemini / xAI / several inference hosts: **raw API resale** forbidden or approval-gated; building your own product that *calls* the API for your users is the allowed shape — selling metered “OpenAI tokens” under a bandPromo skin is the forbidden shape.
+- Sitting in the middle means bandPromo holds the master key, pays the upstream bill, invoices operators, handles refunds, abuse, and chargebacks.
+
+### Why it fails bandPromo’s own roadmap test
+
+[ROADMAP.md](ROADMAP.md) already asks whether a feature helps the operator from their install or turns the project into a **centralised intermediary / payment processor**. Prefer external payment links and operator-owned accounts; avoid holding funds unless the project intentionally accepts that legal burden.
+
+A credits top-layer would mean:
+
+- central billing and KYC/tax exposure
+- abuse when one leaked bandPromo key drains the shared upstream balance
+- operators dependent on bandPromo uptime for generation even when their own OpenAI key works
+- AGPL self-hosted software drifting into a hosted SaaS wallet
+
+That is the opposite of the BYO multi-key design recorded above.
+
+### What *can* be income without becoming a wallet
+
+Aligned with existing direction (paid modules / themes / services as a separate decision):
+
+- Optional **install-locked add-ons** (themes, modules) — already sketched as a future entitlement boundary, with core staying free to run.
+- **Services** (release prep, PCF handoff, branding) sold person-to-person — already in the marketing docs.
+- Optional **documented affiliate links** only where a real programme exists (today: Higgsfield website affiliate), disclosed, never required, never the generation backend.
+- Never: prepaid “bandPromo AI credits” that proxy OpenAI/fal/Higgsfield unless a future version deliberately accepts payment-processor scope and signed reseller terms.
 
 ---
 
@@ -171,6 +251,9 @@ Always download the finished file into the install’s media tree. Do not hot-li
 | fal / Replicate output URL lifetime | Download-before-expiry |
 | Runware current still prices at 2K | Optional cheap hub |
 | That ChatGPT / Gemini / Grok **app** plans still do not equal API keys | Operator messaging |
+| Higgsfield affiliate page still cash / subscription-scoped (not API resale) | Only honest kickback path found |
+| fal / Replicate / Runware still without a verified cash affiliate for API spend | Do not promise referral income |
+| Upstream terms still ban raw API resale / service-bureau use | Credits top-layer stays rejected |
 | Commercial / rights terms for AI outputs the operator will publish | [OPERATOR-RESPONSIBILITY.md](OPERATOR-RESPONSIBILITY.md) and disclosure fields |
 | Repeat the **10×2K cover** table against live rate cards | Numbers in this note will drift |
 
@@ -194,5 +277,12 @@ Always download the finished file into the install’s media tree. Do not hot-li
 - https://open.higgsfield.ai/models/higgsfield-ai/soul/v2/standard/playground — Soul 2 720p/1080p only; Ads Studio 2K
 - https://openart.ai/mcp/ and https://openart.ai/llms-full.txt — MCP/CLI, no API-key REST story
 - https://runware.ai/docs/models-api/authentication — Bearer REST for image/video
+- https://higgsfield.ai/affiliate and https://higgsfield.ai/blog/higgsfield-affiliate-program-2026 — subscription affiliate (up to 25% / 12 months)
+- https://open.higgsfield.ai/terms-of-service — API no-resale / no service-bureau clause
+- https://fal.ai/startup-program — grants/referral codes, not a public cash affiliate
+- https://runware.ai/creator-program — creator credits, not API referral commission
+- https://www.runpod.io/referral-and-affiliate-program — GPU referral (wrong surface for wizards)
+- OpenAI Partner Network / public commentary: no self-serve API affiliate; API key resale restricted
+- Cross-checks: aivideoapis.com provider profiles (fal/Runware affiliate status); independent “affiliate ended” notes for Replicate
 
-bandPromo side: [ROADMAP.md](ROADMAP.md) Content AI wizards, [TODO.md](TODO.md) Settings → AI, [PLATFORM-MODEL.md](PLATFORM-MODEL.md) `origin: ai-generated`, [MEDIA-HANDLING.md](MEDIA-HANDLING.md).
+bandPromo side: [ROADMAP.md](ROADMAP.md) Content AI wizards and v2+ payment/intermediary boundaries, [TODO.md](TODO.md) Settings → AI, [PLATFORM-MODEL.md](PLATFORM-MODEL.md) `origin: ai-generated`, [MEDIA-HANDLING.md](MEDIA-HANDLING.md), [OPERATOR-RESPONSIBILITY.md](OPERATOR-RESPONSIBILITY.md).
