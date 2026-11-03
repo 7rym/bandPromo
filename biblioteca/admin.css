@@ -6623,6 +6623,20 @@ canvas { max-width: 100%; height: auto; }
     gap: 10px;
 }
 
+.site-health-duplicate-members {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-bottom: 8px;
+}
+
+.site-health-duplicate-member {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    gap: 10px;
+}
+
 .site-health-orphan-clash-meta {
     flex: 1 1 12rem;
     min-width: 0;

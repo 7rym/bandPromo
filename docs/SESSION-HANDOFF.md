@@ -2,11 +2,11 @@
 
 ## Resume point
 
-**Closed:** Player size + Campaign navigator (fleet **605**, HITZ soft-switch OK). **PCF round-trip smoke OK** (2026-10-23) — HITZ → local import verified.
+**Closed:** Player size + Campaign navigator (fleet **605**, HITZ soft-switch OK). **PCF round-trip smoke OK** (2026-10-23). Site health duplicate-conflict Keep-choice shipped in **607**.
 
 **Active now:** **Branding Live preview remirror** (admin) so preview shows content gaining space under Player size.
 
-**Last published:** **v0.8.99 build 605** — Player size r11. Prior: **603** Player size Large|Normal|Small; **602** campaign soft-switch playlist selector.
+**Last published:** **v0.8.100 build 607** — Site health duplicate Keep-choice. Prior: **605** Player size r11; **603** Player size Large|Normal|Small; **602** campaign soft-switch playlist selector.
 
 **Parked / later:**
 - Files pool / living-cover picker latency (undercount disk probe + full Visual list for video-only pick).

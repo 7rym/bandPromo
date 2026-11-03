@@ -2,6 +2,10 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-11-03 12:40 - Publish **v0.8.100 build 607** for Site update: Site health duplicate masters show filenames and where each copy is used, with Keep-which-copy before Apply folds the other links into the chosen file.
+
+2026-10-23 11:20 - Site health: duplicate masters “both linked” is no longer a dead end — Proposed treatment shows filenames + where each copy is used, Keep-which-copy chips, and Apply folds the other links into the chosen file.
+
 2026-10-23 10:55 - Docs checkpoint: fleet **605** + HITZ campaign soft-switch confirmed; Campaign navigator / Player size track closed; PCF HITZ→local round-trip verified OK; resume = Branding Live preview remirror (lyrics parked later).
 
 2026-10-23 10:05 - Publish **Player size r11** for Site update: chrome-min transport/beggars; compact selectors + overflow fades; coverflow grey idle border; short cover 140; iPad portrait stacked; Twisted PLP audit `docs/audits/player-size-2026-10-22-r11/REPORT.md`.

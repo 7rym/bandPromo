@@ -1424,6 +1424,68 @@
         }).join('');
     }
 
+    function duplicateConflictRowHtml(item) {
+        if (!item || typeof item !== 'object') {
+            const text = String(item || '').trim();
+            return text
+                ? '<li class="site-health-orphan-clash"><code>' + escapeHtml(text) + '</code></li>'
+                : '';
+        }
+        const members = Array.isArray(item.members) ? item.members : [];
+        if (!members.length) {
+            return '';
+        }
+        const kind = String(item.kind || (members[0] && members[0].kind) || 'media').trim().toLowerCase() || 'media';
+        const memberIds = members.map((m) => String((m && m.asset_id) || '').trim()).filter(Boolean);
+        const memberBlocks = members.map((m) => {
+            const assetId = String((m && m.asset_id) || '').trim();
+            const filename = String((m && (m.filename || m.asset_id)) || '').trim() || assetId;
+            const used = Array.isArray(m && m.used_in) ? m.used_in : [];
+            const usedIn = used.length
+                ? used.slice(0, 6).map((u) => escapeHtml(String(u))).join(', ')
+                    + (used.length > 6 ? ', …' : '')
+                : 'linked in catalogue';
+            const previewHtml = orphanClashPreviewHtml(
+                String((m && m.kind) || kind).trim().toLowerCase(),
+                assetId,
+                filename
+            );
+            return (
+                '<div class="site-health-duplicate-member">' +
+                previewHtml +
+                '<div class="site-health-orphan-clash-meta">' +
+                '<p class="site-health-orphan-clash-file"><strong>' + escapeHtml(filename) + '</strong></p>' +
+                '<p class="site-health-orphan-clash-used">Used in: ' + usedIn + '</p>' +
+                '</div></div>'
+            );
+        }).join('');
+
+        const choiceButtons = members.map((m) => {
+            const assetId = String((m && m.asset_id) || '').trim();
+            const filename = String((m && (m.filename || m.asset_id)) || '').trim() || assetId;
+            return (
+                '<button type="button" class="brand-player-setting-btn site-health-choice-chip" ' +
+                'data-keep-id="' + escapeHtml(assetId) + '" ' +
+                'data-keep-title="' + escapeHtml(filename) + '" ' +
+                'aria-pressed="false">Keep ' + escapeHtml(filename) + '</button>'
+            );
+        }).join('');
+
+        return (
+            '<li class="site-health-orphan-clash site-health-duplicate-conflict site-health-manual-choice-row" ' +
+            'data-manual-action="resolve_duplicate" ' +
+            'data-member-ids="' + escapeHtml(memberIds.join(',')) + '">' +
+            '<div class="site-health-duplicate-members">' + memberBlocks + '</div>' +
+            '<div class="site-health-orphan-clash-field is-needs-choice">' +
+            '<span class="site-health-orphan-clash-field-label">Keep which copy:</span> ' +
+            '<div class="site-health-choice-chips site-health-choice-toggle" ' +
+            'role="group" aria-label="Choose which duplicate to keep">' +
+            choiceButtons +
+            '</div></div>' +
+            '</li>'
+        );
+    }
+
     function orphanClashRowHtml(item) {
         if (!item || typeof item !== 'object') {
             const text = String(item || '').trim();
@@ -1611,7 +1673,8 @@
         const canTreat = treatmentId !== '';
         const isOrphanClash = findingId === 'orphan_assets_multi_campaign';
         const isDataOrphans = findingId === 'data_container_orphans';
-        const isManualChoice = isOrphanClash || isDataOrphans;
+        const isDuplicateConflict = findingId === 'duplicate_masters_conflict';
+        const isManualChoice = isOrphanClash || isDataOrphans || isDuplicateConflict;
         const treatmentLabel = canTreat
             ? escapeHtml(TREATMENT_COPY[treatmentId] || treatmentId)
             : (isManualChoice
@@ -1625,7 +1688,19 @@
         if (body) {
             foundBits.push('<p>' + body + '</p>');
         }
-        if (isOrphanClash && sample.length) {
+        if (isDuplicateConflict && sample.length) {
+            const more = count > sample.length
+                ? '<p class="site-health-treat-detail-more">Showing ' + sample.length +
+                  ' of ' + count + ' — the rest is in Activity.</p>'
+                : '';
+            foundBits.push(
+                '<p class="site-health-treat-detail-label">Choose which copy to keep:</p>' +
+                '<ul class="site-health-orphan-clash-list site-health-duplicate-conflict-list">' +
+                sample.map(duplicateConflictRowHtml).join('') +
+                '</ul>' +
+                more
+            );
+        } else if (isOrphanClash && sample.length) {
             const more = count > sample.length
                 ? '<p class="site-health-treat-detail-more">Showing ' + sample.length +
                   ' of ' + count + ' — the rest is in Activity.</p>'
@@ -2458,6 +2533,13 @@
             if (active.classList.contains('site-health-choice-delete')) {
                 return { kind: 'delete', id: '', title: '' };
             }
+            const keepId = String(active.getAttribute('data-keep-id') || '').trim();
+            if (keepId) {
+                const keepTitle = String(
+                    active.getAttribute('data-keep-title') || active.textContent || ''
+                ).trim();
+                return { kind: 'keep', id: keepId, title: keepTitle || keepId };
+            }
             const id = String(active.getAttribute('data-campaign-id') || '').trim();
             const title = String(
                 active.getAttribute('data-campaign-title') || active.textContent || ''
@@ -2489,7 +2571,8 @@
         }
         const selected = selectedChoiceForManualRow(row);
         const hasChoice = selected.kind === 'delete'
-            || (selected.kind === 'campaign' && !!selected.id);
+            || (selected.kind === 'campaign' && !!selected.id)
+            || (selected.kind === 'keep' && !!selected.id);
         field.classList.toggle('is-needs-choice', !hasChoice);
         field.classList.toggle('is-chosen', hasChoice);
     }
@@ -2518,6 +2601,9 @@
                         return;
                     }
                     if (selected.kind === 'campaign' && selected.id) {
+                        return;
+                    }
+                    if (selected.kind === 'keep' && selected.id) {
                         return;
                     }
                     ready = false;
@@ -2570,6 +2656,26 @@
                             });
                             return;
                         }
+                        if (action === 'resolve_duplicate') {
+                            if (selected.kind !== 'keep' || !selected.id) {
+                                return;
+                            }
+                            const memberIds = String(row.getAttribute('data-member-ids') || '')
+                                .split(',')
+                                .map((id) => String(id || '').trim())
+                                .filter(Boolean);
+                            const losers = memberIds.filter((id) => id !== selected.id);
+                            if (!losers.length) {
+                                return;
+                            }
+                            actions.push({
+                                type: 'resolve_duplicate',
+                                keeperId: selected.id,
+                                keeperTitle: selected.title,
+                                loserIds: losers
+                            });
+                            return;
+                        }
                         if (action === 'data_container') {
                             const kind = String(row.getAttribute('data-entity-kind') || '').trim();
                             const entityId = String(row.getAttribute('data-entity-id') || '').trim();
@@ -2609,6 +2715,11 @@
             return 'Set catalogue home: ' + (a.filename || a.assetId || 'file') +
                 ' → ' + (a.campaignTitle || a.campaignId || 'campaign');
         }
+        if (a.type === 'resolve_duplicate') {
+            const n = Array.isArray(a.loserIds) ? a.loserIds.length : 0;
+            return 'Keep ' + (a.keeperTitle || a.keeperId || 'file') +
+                ' and fold ' + n + ' duplicate' + (n === 1 ? '' : 's') + ' into it';
+        }
         if (a.type === 'adopt_container') {
             return 'Adopt ' + (a.title || a.entityId || 'container') + kindSuffix +
                 ' into ' + (a.campaignTitle || a.campaignId || 'campaign');
@@ -2617,6 +2728,28 @@
             return 'Delete ' + (a.title || a.entityId || 'container') + kindSuffix;
         }
         return 'Manual action';
+    }
+
+    async function executeResolveDuplicate(keeperId, loserIds) {
+        const kid = String(keeperId || '').trim();
+        const losers = Array.isArray(loserIds)
+            ? loserIds.map((id) => String(id || '').trim()).filter(Boolean)
+            : [];
+        if (!kid || !losers.length) {
+            throw new Error('Choose which duplicate copy to keep.');
+        }
+        const payload = await postJson('biblioteca/site-health-resolve-duplicate.php', {
+            keeper_id: kid,
+            loser_ids: losers
+        });
+        if (!payload || !payload.ok) {
+            throw new Error(
+                payload && payload.error
+                    ? String(payload.error)
+                    : 'Could not resolve duplicate copies.'
+            );
+        }
+        return payload;
     }
 
     async function executeAssignOrphanHome(assetId, campaignId) {
@@ -2690,6 +2823,8 @@
             try {
                 if (action.type === 'assign_orphan_home') {
                     await executeAssignOrphanHome(action.assetId, action.campaignId);
+                } else if (action.type === 'resolve_duplicate') {
+                    await executeResolveDuplicate(action.keeperId, action.loserIds);
                 } else if (action.type === 'adopt_container') {
                     await executeAdoptContainer(action.kind, action.entityId, action.campaignId);
                 } else if (action.type === 'delete_container') {

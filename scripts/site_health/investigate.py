@@ -134,7 +134,7 @@ def _add_content_dedupe_findings(plan, registry):
             plan, 'duplicate_masters_content', 'attention',
             'Duplicate masters with identical audio/image content', remove_count,
             'dedupe_retarget_and_remove',
-            sample=dedupe.cluster_sample_lines(safe),
+            sample=dedupe.cluster_sample_lines(safe, ref_index=ref_index),
             body=(
                 '{0} group(s) of files sound or look the same (tags ignored). '
                 'Apply keeps the campaign-linked copy and removes {1} unused clone(s).'
@@ -142,22 +142,23 @@ def _add_content_dedupe_findings(plan, registry):
         )
         log.items(
             'Duplicate content clusters (safe to remove)',
-            dedupe.cluster_sample_lines(safe, limit=20),
+            dedupe.cluster_sample_lines(safe, limit=20, ref_index=ref_index),
         )
     if conflict and 'duplicate_masters_conflict' not in existing_ids:
         plan_mod.add_finding(
             plan, 'duplicate_masters_conflict', 'attention',
-            'Duplicate masters both linked to campaigns', len(conflict),
+            'Same file used in more than one place', len(conflict),
             '',
-            sample=dedupe.cluster_sample_lines(conflict),
+            sample=dedupe.conflict_sample_rows(conflict, ref_index),
             body=(
-                '{0} content-identical cluster(s) have more than one campaign/playlist '
-                'link — not auto-removed.'
+                '{0} set(s) of identical files are each linked to a campaign or playlist. '
+                'Choose which copy to keep below — Apply points the other links at that '
+                'file and removes the extra copy.'
             ).format(len(conflict)),
         )
         log.items(
-            'Duplicate content conflicts (manual)',
-            dedupe.cluster_sample_lines(conflict, limit=20),
+            'Duplicate content conflicts (choose which to keep)',
+            dedupe.conflict_log_lines(conflict, ref_index, limit=20),
         )
     if not safe and not conflict:
         log.info('Deep probe: no content-identical duplicate masters found.')

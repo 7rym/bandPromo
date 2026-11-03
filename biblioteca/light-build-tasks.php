@@ -145,6 +145,17 @@ function bandpromo_light_task_env(string $root_dir, array $env_extras = []): arr
 }
 
 function bandpromo_run_light_task(string $script_relative_path, array $env_extras = []): array {
+    return bandpromo_run_light_task_with_args($script_relative_path, [], $env_extras);
+}
+
+/**
+ * @param list<string> $args
+ */
+function bandpromo_run_light_task_with_args(
+    string $script_relative_path,
+    array $args = [],
+    array $env_extras = []
+): array {
     $root_dir = dirname(__DIR__);
 
     if (!bandpromo_can_proc_open()) {
@@ -183,8 +194,12 @@ function bandpromo_run_light_task(string $script_relative_path, array $env_extra
     ];
 
     $env = bandpromo_light_task_env($root_dir, $env_extras);
+    $command = [$python, '-u', $script];
+    foreach ($args as $arg) {
+        $command[] = (string) $arg;
+    }
 
-    $process = proc_open([$python, '-u', $script], $descriptors, $pipes, $root_dir, $env);
+    $process = proc_open($command, $descriptors, $pipes, $root_dir, $env);
     if (!is_resource($process)) {
         return [
             'ok' => false,
@@ -200,7 +215,12 @@ function bandpromo_run_light_task(string $script_relative_path, array $env_extra
     fclose($pipes[2]);
 
     $exit_code = proc_close($process);
-    $output = trim((string) $stdout . (string) $stderr);
+    // Prefer stdout for JSON payloads; keep stderr appended for diagnostics.
+    $output = trim((string) $stdout);
+    $stderrTrim = trim((string) $stderr);
+    if ($stderrTrim !== '') {
+        $output = $output === '' ? $stderrTrim : ($output . "\n" . $stderrTrim);
+    }
 
     return [
         'ok' => $exit_code === 0,

@@ -639,7 +639,7 @@ def run_triage(plan, deep=False, suppress_json_drift=False):
                         plan, 'duplicate_masters_file', 'attention',
                         'Duplicate masters with identical file bytes', remove_count,
                         'dedupe_retarget_and_remove',
-                        sample=dedupe.cluster_sample_lines(safe_file),
+                        sample=dedupe.cluster_sample_lines(safe_file, ref_index=ref_index),
                         body=(
                             '{0} group(s) of files look identical on disk. '
                             'Apply keeps the campaign-linked copy and removes {1} unused clone(s).'
@@ -647,22 +647,23 @@ def run_triage(plan, deep=False, suppress_json_drift=False):
                     )
                     log.items(
                         'Duplicate file-hash clusters (safe to remove)',
-                        dedupe.cluster_sample_lines(safe_file, limit=20),
+                        dedupe.cluster_sample_lines(safe_file, limit=20, ref_index=ref_index),
                     )
                 if conflict_file:
                     plan_mod.add_finding(
                         plan, 'duplicate_masters_conflict', 'attention',
-                        'Duplicate masters both linked to campaigns', len(conflict_file),
+                        'Same file used in more than one place', len(conflict_file),
                         '',
-                        sample=dedupe.cluster_sample_lines(conflict_file),
+                        sample=dedupe.conflict_sample_rows(conflict_file, ref_index),
                         body=(
-                            '{0} cluster(s) look identical on disk but more than one member '
-                            'is linked to a campaign or playlist — not auto-removed.'
+                            '{0} set(s) of identical files are each linked to a campaign or playlist. '
+                            'Choose which copy to keep below — Apply points the other links at that '
+                            'file and removes the extra copy.'
                         ).format(len(conflict_file)),
                     )
                     log.items(
-                        'Duplicate file-hash conflicts (manual)',
-                        dedupe.cluster_sample_lines(conflict_file, limit=20),
+                        'Duplicate file-hash conflicts (choose which to keep)',
+                        dedupe.conflict_log_lines(conflict_file, ref_index, limit=20),
                     )
                 if not safe_file and not conflict_file:
                     if int(stats.get('multi_size_buckets') or 0) == 0:

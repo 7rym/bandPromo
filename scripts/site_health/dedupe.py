@@ -531,11 +531,34 @@ def _walk_asset_ids(node, found):
             found.add(text)
 
 
+def _container_display_title(payload, filename):
+    """Operator-facing title from a campaign/playlist/… JSON document."""
+    if isinstance(payload, dict):
+        for key in ('title', 'name', 'label'):
+            text = str(payload.get(key) or '').strip()
+            if text:
+                return text
+    stem = os.path.splitext(os.path.basename(str(filename or '')))[0]
+    return stem or 'untitled'
+
+
+def asset_display_name(asset):
+    """Filename / title operators recognise in Files (never raw ast_* alone)."""
+    if not isinstance(asset, dict):
+        return str(asset or '').strip()
+    for key in ('original_filename', 'master_filename', 'title', 'display_name'):
+        raw = os.path.basename(str(asset.get(key) or '').strip())
+        if raw:
+            return raw
+    return str(asset.get('id') or '').strip() or 'file'
+
+
 def build_reference_index(registry=None):
     """
-    Map asset_id → list of {kind, path, label} references.
+    Map asset_id → list of {kind, path, label, container_id} references.
 
     Campaign-class refs (campaigns/releases/playlists) count as hard keep signals.
+    Labels are human titles (not opaque folder/id paths).
     """
     refs = defaultdict(list)
 
@@ -566,11 +589,14 @@ def build_reference_index(registry=None):
                 kind = 'gallery'
             elif label == 'pages':
                 kind = 'page'
+            title = _container_display_title(payload, name)
+            container_id = os.path.splitext(name)[0]
             for asset_id in found:
                 refs[asset_id].append({
                     'kind': kind,
                     'path': path,
-                    'label': '{0}/{1}'.format(label, name),
+                    'label': title,
+                    'container_id': container_id,
                 })
 
     # Audio display covers (registry → visual).
@@ -581,6 +607,7 @@ def build_reference_index(registry=None):
             if str(asset.get('kind') or '').strip().lower() != 'audio':
                 continue
             display = asset.get('display') if isinstance(asset.get('display'), dict) else {}
+            track_name = asset_display_name(asset)
             for key in ('cover', 'living_cover', 'cover_asset_id', 'living_cover_asset_id'):
                 raw = display.get(key)
                 text = str(raw or '').strip()
@@ -588,10 +615,12 @@ def build_reference_index(registry=None):
                 if key in ('cover', 'living_cover') and not _is_asset_id(text):
                     continue
                 if _is_asset_id(text):
+                    role = 'living cover' if 'living' in key else 'cover'
                     refs[text].append({
                         'kind': 'track_cover',
                         'path': 'registry:{0}'.format(asset_id),
-                        'label': 'audio {0}.{1}'.format(asset_id, key),
+                        'label': '{0} ({1})'.format(track_name, role),
+                        'container_id': asset_id,
                     })
     return refs
 
@@ -961,26 +990,141 @@ def annotate_clusters(clusters, ref_index=None):
     return safe, conflict
 
 
-def cluster_sample_lines(clusters, limit=12):
-    """Short operator-facing sample strings for findings UI."""
+def _member_used_in_labels(asset_id, ref_index, limit=6):
+    """Short 'playlist: POWER' style labels for one asset."""
+    labels = []
+    for ref in (ref_index or {}).get(str(asset_id or '').strip()) or []:
+        kind = str(ref.get('kind') or '').strip()
+        title = str(ref.get('label') or '').strip()
+        if not kind:
+            continue
+        if kind == 'track_cover':
+            labels.append(title or 'track cover')
+        elif title:
+            labels.append('{0}: {1}'.format(kind, title))
+        else:
+            labels.append(kind)
+        if len(labels) >= limit:
+            break
+    return labels
+
+
+def format_conflict_sample_row(cluster, ref_index=None):
+    """
+    Structured Proposed-treatment row for a conflict cluster.
+
+    {kind, members:[{asset_id, filename, kind, used_in:[…]}], member_ids:[…]}
+    """
+    if ref_index is None:
+        ref_index = {}
+    members = cluster.get('members') or []
+    member_rows = []
+    for asset in members:
+        if not isinstance(asset, dict):
+            continue
+        aid = str(asset.get('id') or '').strip()
+        if not aid:
+            continue
+        member_rows.append({
+            'asset_id': aid,
+            'filename': asset_display_name(asset),
+            'kind': str(asset.get('kind') or cluster.get('kind') or '').strip().lower(),
+            'used_in': _member_used_in_labels(aid, ref_index),
+        })
+    return {
+        'kind': str(cluster.get('kind') or 'media').strip().lower() or 'media',
+        'digest': str(cluster.get('digest') or ''),
+        'members': member_rows,
+        'member_ids': [m['asset_id'] for m in member_rows],
+    }
+
+
+def conflict_sample_rows(clusters, ref_index=None, limit=12):
+    """Operator Proposed-treatment samples (objects, not ast_* strings)."""
+    if ref_index is None:
+        ref_index = {}
+    rows = []
+    for cluster in (clusters or [])[:limit]:
+        row = format_conflict_sample_row(cluster, ref_index)
+        if row.get('members'):
+            rows.append(row)
+    return rows
+
+
+def conflict_log_lines(clusters, ref_index=None, limit=20):
+    """Activity lines: filename (used in …) vs filename (used in …)."""
+    if ref_index is None:
+        ref_index = {}
+    lines = []
+    for cluster in (clusters or [])[:limit]:
+        row = format_conflict_sample_row(cluster, ref_index)
+        bits = []
+        for member in row.get('members') or []:
+            used = ', '.join(member.get('used_in') or []) or 'linked in catalogue'
+            bits.append('{0} - {1}'.format(member.get('filename') or member.get('asset_id'), used))
+        if bits:
+            lines.append('{0} duplicates: {1}'.format(row.get('kind') or 'media', ' | '.join(bits)))
+    return lines
+
+
+def cluster_sample_lines(clusters, limit=12, ref_index=None):
+    """Short operator-facing sample strings for findings / Activity."""
+    if ref_index is None:
+        ref_index = {}
     lines = []
     for cluster in clusters[:limit]:
-        keeper = cluster.get('keeper_id') or '?'
-        removes = cluster.get('remove_ids') or []
         kind = cluster.get('kind') or 'asset'
+        members = cluster.get('members') or []
+        by_id = {
+            str(a.get('id') or '').strip(): a
+            for a in members
+            if isinstance(a, dict) and str(a.get('id') or '').strip()
+        }
         if cluster.get('conflict'):
+            bits = []
+            for aid in cluster.get('member_ids') or []:
+                asset = by_id.get(aid) or {'id': aid}
+                name = asset_display_name(asset)
+                used = ', '.join(_member_used_in_labels(aid, ref_index, limit=3)) or 'in use'
+                bits.append('{0} ({1})'.format(name, used))
             lines.append(
-                '{0} conflict keep={1} members={2}'.format(
-                    kind, keeper, ','.join(cluster.get('member_ids') or [])[:80]
-                )
+                '{0} conflict: {1}'.format(kind, ' vs '.join(bits) if bits else 'linked copies')
             )
         else:
+            keeper = cluster.get('keeper_id') or '?'
+            removes = cluster.get('remove_ids') or []
+            keep_name = asset_display_name(by_id.get(keeper) or {'id': keeper})
+            remove_names = [
+                asset_display_name(by_id.get(rid) or {'id': rid})
+                for rid in removes[:4]
+            ]
             lines.append(
-                '{0} keep={1} remove={2}'.format(
-                    kind, keeper, ','.join(removes[:4])
+                '{0} keep {1}; remove {2}'.format(
+                    kind, keep_name, ', '.join(remove_names) if remove_names else '(none)'
                 )
             )
     return lines
+
+
+def apply_operator_remaps(registry, remaps):
+    """
+    Retarget losers→keeper then delete loser masters.
+    remaps: {loser_id: keeper_id}
+    Returns (removed_count, error_message_or_empty).
+    """
+    if not isinstance(remaps, dict) or not remaps:
+        return 0, ''
+    remaps = collapse_remaps(remaps)
+    if not remaps:
+        return 0, ''
+    for loser, keeper in sorted(remaps.items()):
+        retarget_containers(loser, keeper)
+        retarget_registry_covers(registry, loser, keeper)
+    removed = 0
+    for loser, _keeper in sorted(remaps.items()):
+        if unregister_and_delete_master(registry, loser):
+            removed += 1
+    return removed, ''
 
 
 def replace_asset_id_in_obj(node, old_id, new_id):
