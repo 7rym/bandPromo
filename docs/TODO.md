@@ -509,11 +509,11 @@ Policy — **locked**:
 
 - [x] Lock **v0.8 scope**: wizards fill missing **container/content** fields from release + linked brand canon — not v2 campaign automation.
 - [x] Lock **prompt context contract**: release facts, EPK fields, brand mood/keywords/tone, role-tagged asset refs.
-- [ ] Lock **operator API settings**: provider, keys, limits, disclosure for AI-generated assets (`origin: ai-generated`). Candidate backends and why OpenArt does not fit are recorded in [MEDIA-API-EVALUATION.md](MEDIA-API-EVALUATION.md) (3 November 2026) — recheck before locking.
+- [ ] Lock **operator API settings**: multiple provider slots and keys (OpenAI / Gemini / xAI plus optional media hosts), per-slot default models, limits, disclosure for AI-generated assets (`origin: ai-generated`). Do not force one specialty host. Candidates, 10×2K cover cost sketch, and BYO design rule: [MEDIA-API-EVALUATION.md](MEDIA-API-EVALUATION.md) (3 November 2026) — recheck before locking.
 
 Implementation order:
 
-- [ ] **Settings → AI** (or Integrations) — operator-configured model endpoints and safe defaults.
+- [ ] **Settings → AI** (or Integrations) — multi-provider keys, model pickers, and safe defaults (helpers off with no key).
 - [ ] **Wizard entry points** — Release EPK, Pages, playlist/page descriptions, optional metadata/alt text.
 - [ ] **Draft → confirm → save** — generated text/assets stay drafts until operator confirms; assets enter Visual pool with role + origin tags.
 

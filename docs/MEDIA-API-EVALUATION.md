@@ -48,21 +48,95 @@ It does **not** prefer a creator studio that only talks MCP/OAuth to desktop age
 | **Higgsfield API** | Real REST (`Authorization: Key id:secret`), estimate endpoint, webhooks, pay-as-you-go USD balance separate from higgsfield.ai website plans. Outputs retained ~7 days then deleted. Funds expire after one year. | 50+ frontier image/video models (Kling, Seedance, Wan, PixVerse, MiniMax, Soul, etc.). | **Optional video-heavy adapter**, not the only default. Good when an operator already uses Higgsfield creatively; balance expiry and dual product (web vs API) need clear operator copy. |
 | **OpenArt** | Hosted **MCP** at `https://mcp.openart.ai/mcp` with OAuth (PKCE). CLI for agents. Independent profiles report **no public REST API-key programme**. | Creator studio aggregates Seedance, Veo, Sora, GPT Image, Kling, etc., aimed at chat agents and the OpenArt app. | **Wrong shape** for Settings → AI on a self-hosted install. Fine as a human/agent studio operators use *outside* bandPromo; do not make it the install’s generation backend. |
 | **Runware** | REST `https://api.runware.ai/v1`, Bearer API key, image and video inference, async + webhooks. Community PHP wrappers exist. | Cost-focused catalogue (Flux, Kling, Seedance, Veo/Wan-class models depending on listing). | **Worth a second look** if price-per-image dominates. Narrower “platform story” than fal/Replicate; still a valid optional provider. |
-| **Direct lab APIs** (Google Gemini / Nano Banana, BFL, OpenAI Images, Kling, …) | Each its own key, schema, and review. | Newest models appear here first. | Better as **optional advanced endpoints** once the wizard is provider-agnostic — not as the first and only integration, or every operator faces N onboarding paths. |
+| **Direct lab APIs** (Google Gemini / Nano Banana, OpenAI GPT Image, xAI Grok Imagine, BFL, …) | Each its own key and schema. Same REST/key pattern as specialty hosts. | Newest models appear here first. Same account often already pays for text. | **First-class path, not an afterthought.** Operators who already have OpenAI / Gemini / Grok API keys should use those for stills (and text drafts) without buying a media-only host. |
+| **Specialty media hosts** (Replicate, fal, Higgsfield, Runware) | One key, many third-party models. | Useful when the operator wants Flux/Kling/Seedance without a lab account per brand. | **Optional add-on**, not the only allowed path. Do not force every install onto one of these. |
 
 Creator-facing websites that look like OpenArt or the Higgsfield **app** (templates, characters, credit packs, MCP for Claude) solve a different problem: helping a person make media in a studio. bandPromo’s problem is: an install calls a key, gets bytes back, operator confirms into the Visual pool.
 
 ---
 
+## Design rule: many keys, many models — not one forced host
+
+If bandPromo adds API-key solutions for external services, it must **not** force operators onto a single specialty media host or a single model.
+
+Operators often already pay for **general** AI accounts that can do both text and images:
+
+| Operator already has | Use it for | Avoid assuming |
+|----------------------|------------|----------------|
+| OpenAI API key | GPT Image stills + text blurbs / alt text on the same bill | ChatGPT Plus / Team alone (consumer chat ≠ API image billing) |
+| Google AI Studio / Gemini API key | Nano Banana stills + Gemini text on the same bill | Gemini app / AI Plus alone (app plan ≠ paid API image rates) |
+| xAI API key | Grok Imagine stills (+ Grok text if used) | Grok consumer subscription alone |
+
+Specialty hosts (Replicate, fal, Higgsfield, Runware) remain useful when the operator wants Flux, Kling, Seedance, or fine-tunes without opening a second lab account — or when a model only appears there. They are **one row in Settings**, not the product identity.
+
+**Settings → AI shape (recorded intent):**
+
+- Zero or more **provider slots** on the install (e.g. `openai`, `google`, `xai`, `fal`, `replicate`, later others).
+- Each slot: enabled flag, API key (secret), optional org/project, default image model id, optional default text model id, spend/limit hints.
+- Wizard UI: pick which configured provider + model to use for *this* draft (cover brief vs blurb), with a sensible default from Settings.
+- bandPromo ships with helpers off. No key means no external call.
+- bandPromo never holds a shared fleet key and never resells generations.
+
+That lets an operator burn leftover OpenAI or Gemini credit for ten cover drafts instead of topping up fal only for images — which was the explicit product goal recorded with this pricing pass.
+
+---
+
+## Cost sketch: 10 album covers at 2K
+
+**Scenario (3 November 2026):** generate **10 square album-cover stills** at about **2K** (2048×2048 where the host uses megapixels; the host’s `2k` / `2K` tier where it uses resolution menus). One successful text-to-image per cover. No reference images, no edits, no retries, no video. USD list rates before tax. Token-priced models omit long-prompt / thinking extras unless noted.
+
+Megapixel hosts (Flux 2 family on fal/Replicate): **1 MP = 1024×1024**. A 2048×2048 cover is **exactly 4 MP**.
+
+### Specialty media hosts — three popular still models each
+
+| Host | Model | Basis for one 2K cover | ×10 covers |
+|------|-------|------------------------|------------|
+| **Replicate** | FLUX 3 Image (`2k` tier) | $0.05 / image (tier price; Replicate undercuts BFL’s $0.10 list at 2K) | **$0.50** |
+| **Replicate** | FLUX.2 Pro | $0.015 run + $0.015×4 MP = **$0.075** | **$0.75** |
+| **Replicate** | FLUX.2 Flex | $0.06 × 4 MP = **$0.24** | **$2.40** |
+| **fal.ai** | Nano Banana 2.1 (medium/minimal thinking) | ~**$0.059** measured 2K on fal (token bill; short prompt) | **~$0.59** |
+| **fal.ai** | FLUX 3 Image | **$0.10** / 2K image (published resolution tier; also listed $0.048 / MP) | **$1.00** |
+| **fal.ai** | FLUX.2 Pro | $0.03 first MP + $0.015×3 = **$0.075** | **$0.75** |
+| **Higgsfield API** | Soul 2 | API max **1080p**, not true 2K — $0.0057 at 1080p | **$0.057** for 10×1080p (not the brief) |
+| **Higgsfield API** | Ads Studio | **$0.084** / image at 2K | **$0.84** |
+| **Higgsfield API** | Marketing Studio Image 2.0 / 2.5 | From ~$0.01–$0.014 at low tiers up toward **~$0.61** at 4K; treat 2K as mid-band until rechecked | **roughly $0.20–$2.00** — recheck estimate endpoint |
+
+Higgsfield’s cheapest portrait model (Soul 2) does **not** meet a 2K cover brief on the API. For this scenario, Ads Studio is the honest 2K row; Soul 2 is only a cheap 1080p fallback.
+
+### BYO general APIs — same 10×2K brief
+
+| Provider | Model | Basis for one 2K cover | ×10 covers |
+|----------|-------|------------------------|------------|
+| **Google Gemini API** | Nano Banana 2.1 (`gemini-nano-banana-2.1`) | **$0.0504** image-output at 2K (1680 image tokens × $30 / 1M). Plus small input/thinking — live calls often add ~$0.006–$0.01 | **~$0.50–$0.60** |
+| **Google Gemini API** | Nano Banana Pro | **$0.134** at 1K or 2K (image output) | **$1.34** |
+| **OpenAI API** | GPT Image 2.5 (Flare or Sunburst) | Token rates $5 / $8 / $30 per 1M (text in / image in / image out). No fixed 2K card; fal/third-party sketches put a ~2K-class high image around **~$0.05–$0.08**, max quality much higher (~$0.21 at 1024² max) | **budget ~$0.50–$0.80** at high; confirm with a real `usage` receipt |
+| **OpenAI API** | GPT Image 2 (high, ~2560×1440 sketch) | fal comparison table ~**$0.22** at that size | **~$2.20** if that quality/size is required |
+| **xAI API** | Grok Imagine Image 2.0 | 2K · Low **$0.06**; 2K · Medium **$0.08** | **$0.60** / **$0.80** |
+| **xAI API** | Grok Imagine Image (older) | Flat **$0.02** even at 2K | **$0.20** |
+
+### What the numbers say for bandPromo
+
+- Ten 2K covers are **pocket change** on current list prices: often **well under $1**, rarely above a few dollars unless someone picks Flex, GPT Image max, or Nano Banana Pro for every shot.
+- **BYO Gemini Nano Banana 2.1** (~$0.50–$0.60) matches or beats specialty-host Flux 2 Pro (~$0.75) and undercuts fal’s Flux 3 tier ($1.00) for this brief.
+- **BYO Grok Imagine Image (v1)** at $0.20 for ten 2K covers is the cheapest named general-API row in this pass — quality must still pass operator taste.
+- Specialty hosts win when the operator wants **Flux / Kling / fine-tunes** without a lab signup, or already keeps a fal/Replicate balance for other tools — not because ten covers are expensive.
+- Consumer chat subscriptions (ChatGPT Plus, Gemini app, Grok app) are **not** the same as API keys. Operator docs must say “paste an API key that can bill image generations,” not “you have ChatGPT so it works.”
+
+Retries, brand-reference edits, and living-cover video are separate and can dwarf still costs (video is cents per second). This table is stills only.
+
+---
+
 ## Recommendation recorded with the note
 
-**Do not abandon Replicate because of Imagen 4 / Flux 2 branding.** Abandon those **model ids** as defaults. Recheck the catalogue when wizards ship and pin current defaults (likely a Nano Banana-class or Flux 3-class still, and a current image-to-video model for living-cover experiments).
+**Do not force one specialty media host.** Prefer a **multi-provider Settings → AI** where OpenAI, Gemini, and xAI sit beside optional fal/Replicate/Higgsfield/Runware slots. Operators reuse accounts they already pay for text; media-only hosts stay optional.
+
+**Do not abandon Replicate because of Imagen 4 / Flux 2 branding.** Abandon those **model ids** as defaults. Recheck when wizards ship.
 
 **Do not pick OpenArt as the install provider.** MCP/OAuth-to-agent is the wrong contract for a PHP admin panel that stores an operator key.
 
-**Between Replicate and fal for a first media backend:** either is acceptable. Prefer **fal** if the first spike cares about media latency, clear per-output pricing, and defaults that already read as current. Prefer **Replicate** if the team wants maximum catalogue breadth, fine-tunes, or an already-familiar token. **Higgsfield** and **Runware** are optional second providers, not blockers.
+**Between Replicate and fal as optional media hubs:** either is fine. Prefer **fal** for media-first defaults; **Replicate** for catalogue/fine-tune breadth. Neither should be required if the operator only configures Gemini or OpenAI.
 
-**Design rule that matters more than the brand name:** Settings → AI stores `provider`, `api_key`, `default_image_model`, `default_video_model`, limits, and disclosure text. bandPromo ships with helpers off. The operator pastes their own key. Swapping Replicate for fal later is a settings and adapter change, not a product rewrite. That matches the already-locked “operator-configured external model/API settings” line in the roadmap.
+**Cost honesty for operators:** a batch of ten 2K cover drafts is usually **sub-dollar to low single-digit dollars** on current APIs. The expensive mistake is locking them into a second subscription when their existing OpenAI/Gemini/xAI key already covers the job.
 
 **Out of scope for the wizard spike:** Blotato-style AI video templates, viral coaches, and credit-burning remix mills. Same boundary as [BLOTATO-EVALUATION.md](BLOTATO-EVALUATION.md) when that note is present: generate drafts for *this* release’s missing pieces, then stop.
 
@@ -74,10 +148,10 @@ These are starting guesses for 3 November 2026, not locks:
 
 | Job | Sensible class of model | Why |
 |-----|-------------------------|-----|
-| Still cover / poster brief | Google Nano Banana 2.1 or Flux 3 / Flux 2 Pro | Current still quality; brand/text work often better on Nano Banana Pro or GPT Image when typography matters |
-| Edit existing brand still | Nano Banana edit or Flux Kontext-class edit | Brand refs already in the Visual pool |
-| Living-cover seed clip | Kling 3 / image-to-video, or MiniMax H3 / Seedance class | Short silent loop; keep duration low; download into Visual as `ai-generated` |
-| Text blurbs / alt text | Separate text model or the same host’s LLM if present | Not a media API decision |
+| Still cover / poster brief | Prefer the operator’s configured BYO default (Nano Banana 2.1, GPT Image, or Grok Imagine); else Flux 3 / Flux 2 Pro on an optional media host | Reuse an existing bill first; specialty host only when needed |
+| Edit existing brand still | Nano Banana edit, GPT Image edit, or Flux Kontext-class edit | Brand refs already in the Visual pool |
+| Living-cover seed clip | Kling 3 / image-to-video, or MiniMax H3 / Seedance class on a media host (or Grok video if the operator already has xAI) | Short silent loop; keep duration low; download into Visual as `ai-generated` |
+| Text blurbs / alt text | Same BYO OpenAI / Gemini / Grok text model as the install already uses | One key for words and pictures when possible |
 
 Always download the finished file into the install’s media tree. Do not hot-link ephemeral provider URLs in the player (Higgsfield’s ~7-day retention is the clearest warning; others expire too).
 
@@ -88,14 +162,17 @@ Always download the finished file into the install’s media tree. Do not hot-li
 | Check | Why it matters |
 |-------|----------------|
 | Whether Imagen endpoints still exist on the chosen host | Avoid documenting a shut-down Google model as a default |
-| Whether Flux 3 (or successor) is billed and stable on Replicate and fal | Default still model |
-| Nano Banana model ids and commercial terms on Google vs via fal/Replicate | Brand/consistency stills |
+| Whether Flux 3 (or successor) is billed and stable on Replicate and fal | Optional media-host default |
+| Nano Banana 2.1 2K image-output price on Gemini API vs via fal | BYO vs hub cost |
+| GPT Image 2.5 real `usage` for a 2048² high cover | OpenAI has no fixed 2K card |
+| Grok Imagine Image 2.0 2K low/medium rates | Cheap BYO still path |
 | OpenArt still MCP-only vs any new REST key programme | Only reconsider OpenArt if a real install-held key appears |
-| Higgsfield API vs website plan confusion and balance expiry | Operator messaging |
-| fal Model API key flow, queue polling, and output URL lifetime | Adapter design |
-| Runware current video model list and async webhook behaviour | Optional cheap path |
-| Price of one 1024² still and one 5s 720p image-to-video on the shortlist | Operator cost honesty |
+| Higgsfield Soul 2 still capped at 1080p on the API | Do not advertise it as 2K covers |
+| fal / Replicate output URL lifetime | Download-before-expiry |
+| Runware current still prices at 2K | Optional cheap hub |
+| That ChatGPT / Gemini / Grok **app** plans still do not equal API keys | Operator messaging |
 | Commercial / rights terms for AI outputs the operator will publish | [OPERATOR-RESPONSIBILITY.md](OPERATOR-RESPONSIBILITY.md) and disclosure fields |
+| Repeat the **10×2K cover** table against live rate cards | Numbers in this note will drift |
 
 ---
 
@@ -103,12 +180,18 @@ Always download the finished file into the install’s media tree. Do not hot-li
 
 - https://replicate.com/collections/flux — Flux 2 marketed as “latest generation”; Flux 3 also listed among recommended models
 - https://replicate.com/collections/official — live official catalogue (Kling 4, Seedance, GPT Image 2.5, MiniMax H3, …)
+- https://replicate.com/blog/run-flux-2-on-replicate — Flux 2 Pro / Flex megapixel rates
+- FLUX 3 Image API price comparisons (Replicate $0.05 at 2K; BFL/fal often $0.10 at 2K) — recheck vendor pages before locking
 - https://fal.ai/docs/documentation/model-apis/models — current fal model picks
-- https://fal.ai/pricing — per-output media pricing
+- https://fal.ai/pricing and https://fal.ai/models/fal-ai/flux-2-pro/llms.txt — Flux 2 Pro megapixel billing
+- https://fal.ai/learn/devs/nano-banana-2-1-vs-nano-banana-2 — fal-measured Nano Banana 2.1 2K cost
+- https://ai.google.dev/gemini-api/docs/pricing — Nano Banana 2.1 / Pro image-output equivalents
 - https://ai.google.dev/gemini-api/docs/image-generation — Nano Banana replaces Imagen
-- https://ai.google.dev/gemini-api/docs/imagen — Imagen shut down / migrate
+- https://developers.openai.com/api/docs/pricing — GPT Image 2 / 2.5 token rates
+- https://docs.x.ai/developers/pricing — Grok Imagine Image / 2.0 per-image rates
 - https://higgsfield.ai/blog/higgsfield-api — API vs website product split
 - https://docs.higgsfield.ai/docs/concepts/billing-and-retention — estimate, refunds, 7-day retention, 1-year balance expiry
+- https://open.higgsfield.ai/models/higgsfield-ai/soul/v2/standard/playground — Soul 2 720p/1080p only; Ads Studio 2K
 - https://openart.ai/mcp/ and https://openart.ai/llms-full.txt — MCP/CLI, no API-key REST story
 - https://runware.ai/docs/models-api/authentication — Bearer REST for image/video
 
