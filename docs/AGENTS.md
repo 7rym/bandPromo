@@ -129,6 +129,7 @@ Use `prerelease=false` for closed-beta tester packages so hosts that cannot call
 - [docs/ADMIN-UI.md](ADMIN-UI.md)
 - [docs/OPERATOR-MESSAGING.md](OPERATOR-MESSAGING.md) (v0.9 messaging plan; policy locked v0.8)
 - [docs/MARKETING-STRATEGY.md](MARKETING-STRATEGY.md)
+- [docs/MEDIA-API-EVALUATION.md](MEDIA-API-EVALUATION.md) — v0.9+ media-provider candidates; recheck before Settings → AI
 
 ## Project Structure
 

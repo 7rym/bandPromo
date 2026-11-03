@@ -159,4 +159,5 @@ Legacy import shapes (not seeded on fresh installs) live under `biblioteca/templ
 - [MEDIA-HANDLING.md](MEDIA-HANDLING.md)
 - [ROADMAP.md](ROADMAP.md)
 - [TODO.md](TODO.md)
+- [MEDIA-API-EVALUATION.md](MEDIA-API-EVALUATION.md) — dated candidate backends for v0.9+ content AI media; recheck before Settings → AI
 - [AGENTS.md](AGENTS.md)

@@ -128,6 +128,8 @@ Policy and prompt contract were locked during v0.8. **Implementation deferred to
 
 This is **not** the v2+ marketing machine (campaign calendars, scheduled social pushes, multi-post series from an existing catalogue). Those stay v2+.
 
+**Candidate media backends, not a commitment:** Replicate remains viable; fal.ai is the strongest peer; OpenArt is the wrong shape for install-held keys; Higgsfield/Runware are optional. Recorded 3 November 2026 in [MEDIA-API-EVALUATION.md](MEDIA-API-EVALUATION.md). Recheck that note before locking Settings → AI defaults — Imagen 4 / Flux 2 branding was already behind Nano Banana / Flux 3 on that date.
+
 See [TODO.md](TODO.md) → Content AI wizards and [PLATFORM-MODEL.md](PLATFORM-MODEL.md) → Brands.
 
 ## Identity strategy

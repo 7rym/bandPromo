@@ -509,7 +509,7 @@ Policy — **locked**:
 
 - [x] Lock **v0.8 scope**: wizards fill missing **container/content** fields from release + linked brand canon — not v2 campaign automation.
 - [x] Lock **prompt context contract**: release facts, EPK fields, brand mood/keywords/tone, role-tagged asset refs.
-- [ ] Lock **operator API settings**: provider, keys, limits, disclosure for AI-generated assets (`origin: ai-generated`).
+- [ ] Lock **operator API settings**: provider, keys, limits, disclosure for AI-generated assets (`origin: ai-generated`). Candidate backends and why OpenArt does not fit are recorded in [MEDIA-API-EVALUATION.md](MEDIA-API-EVALUATION.md) (3 November 2026) — recheck before locking.
 
 Implementation order:
 
