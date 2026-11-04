@@ -2,11 +2,11 @@
 
 ## Resume point
 
-**Closed:** Player size + Campaign navigator (**605**). Site health Keep-choice (**607**). Branding Player remirror (**608**). This checkpoint: Preferred type + soft brand, flat Playlist/Campaign art, User area Login/Support, slug fold + remix deep links, preview chrome-only remirror, tester [PLAYER-ARTWORK-MAP.md](PLAYER-ARTWORK-MAP.md).
+**Closed:** Player size + Campaign navigator (**605**). Site health Keep-choice (**607**). Branding Player remirror (**608**). Local checkpoint **609**: Preferred type + soft brand, flat Playlist/Campaign art, User area Login/Support, slug fold + remix deep links, preview chrome-only remirror, tester [PLAYER-ARTWORK-MAP.md](PLAYER-ARTWORK-MAP.md).
 
-**Active now:** Branding **Content** Live preview remirror (`play-preview-content-*`, same live render + demo content). Publish this checkpoint for Site update when operator asks.
+**Active now:** Branding **Content** Live preview remirror (`play-preview-content-*`, same live render + demo content). Publish **609** for Site update when operator asks.
 
-**Last published:** **v0.8.100 build 608** — Branding Player remirror. Prior: **607** Site health duplicate Keep-choice; **605** Player size r11.
+**Last published:** **v0.8.100 build 608** — Branding Player remirror. Local HEAD **609** (not published yet). Prior: **607** Keep-choice; **605** Player size r11.
 
 **Parked / later:**
 - Files pool / living-cover picker latency (undercount disk probe + full Visual list for video-only pick).
