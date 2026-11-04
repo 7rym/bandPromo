@@ -670,14 +670,24 @@
                     </div>`;
             }
 
-            const analyzerOn = editorDocument?.player?.analyzer !== false;
+            let animation = String(editorDocument?.player?.animation || '').trim().toLowerCase();
+            if (animation !== 'none' && animation !== 'bars') {
+                animation = editorDocument?.player?.analyzer === false ? 'none' : 'bars';
+            }
+            const animationRadios = [
+                ['none', 'None'],
+                ['bars', 'Bars'],
+            ].map(([value, label]) => `
+                <label class="brand-player-setting-option">
+                    <input type="radio" name="brandPlayerAnimation" value="${escapeHtml(value)}"
+                           data-player-path="animation"
+                           ${animation === value ? 'checked' : ''}
+                           ${locked ? 'disabled' : ''}>
+                    <span>${escapeHtml(label)}</span>
+                </label>`).join('');
 
             return `
                 <div class="brand-content-chrome-grid">
-                    <div class="brand-effect-field brand-effect-field--inline">
-                        <span class="brand-effect-label">Analyzer:</span>
-                        ${renderOnOffToggle('brandAnalyzer', 'analyzer', analyzerOn, locked)}
-                    </div>
                     <div class="brand-effect-field brand-effect-field--inline">
                         <span class="brand-effect-label">Fill: <strong data-effect-value="player_panel_dim">${escapeHtml(panelDim)}</strong>%</span>
                         <input type="range" min="0" max="100" step="1" value="${escapeHtml(panelDim)}" data-token-path="effects.player_panel_dim" data-effect-range="player_panel_dim" ${locked ? 'disabled' : ''}>
@@ -708,6 +718,13 @@
                     <div class="brand-effect-field brand-effect-field--inline">
                         <span class="brand-effect-label">Density:</span>
                         ${renderDensityToggle('effects.player_panel_density', 'brandPlayerPanelDensity', density, locked)}
+                    </div>
+                    ${renderPlayerSettingsRule()}
+                    <div class="brand-effect-field brand-effect-field--inline">
+                        <span class="brand-effect-label">Animation:</span>
+                        <div class="brand-player-setting-toggle" role="group" aria-label="Animation">
+                            ${animationRadios}
+                        </div>
                     </div>
                 </div>
             `;
@@ -1339,16 +1356,71 @@
             return ['full', 'soft', 'grey'].includes(colour) ? colour : 'soft';
         }
 
+        function normalizePeeksMode(value, playerSize, legacySideOn, legacyNavigateOn) {
+            if (playerSize === 'large') {
+                return 'none';
+            }
+            let mode = String(value || '').trim().toLowerCase();
+            if (mode === 'skip') {
+                mode = 'jump';
+            }
+            if (['none', 'visible', 'jump'].includes(mode)) {
+                return mode;
+            }
+            if (!legacySideOn) {
+                return 'none';
+            }
+            return legacyNavigateOn ? 'jump' : 'visible';
+        }
+
+        function normalizeArtworkPreferred(value) {
+            const mode = String(value || '').trim().toLowerCase();
+            return ['still', 'living', 'playlist', 'campaign'].includes(mode) ? mode : 'still';
+        }
+
+        function artworkPreferredForcesFlatCover(preferred) {
+            const mode = normalizeArtworkPreferred(preferred);
+            return mode === 'playlist' || mode === 'campaign';
+        }
+
+        function renderPlayerSettingsRule() {
+            return '<div class="brand-settings-rule" role="separator" aria-hidden="true"></div>';
+        }
+
         function renderPlayerCoverFields(locked) {
-            const reflectionOn = editorDocument?.player?.cover_reflection !== false;
+            const artworkPreferred = normalizeArtworkPreferred(editorDocument?.player?.artwork_preferred);
+            const flatCover = artworkPreferredForcesFlatCover(artworkPreferred);
+            const reflectionOn = flatCover ? false : editorDocument?.player?.cover_reflection !== false;
             const rawSize = editorDocument?.player?.size ?? editorDocument?.player?.cover_size;
             const playerSize = normalizePlayerSize(rawSize);
-            const sideCoversAllowed = playerSize !== 'large';
-            const sideOn = sideCoversAllowed && editorDocument?.player?.side_covers !== false;
+            const peeksAllowed = playerSize !== 'large' && !flatCover;
+            const legacySideOn = editorDocument?.player?.side_covers !== false;
+            const legacyNavigateOn = editorDocument?.player?.side_covers_navigate !== false;
+            const peeksMode = peeksAllowed
+                ? normalizePeeksMode(
+                    editorDocument?.player?.peeks,
+                    playerSize,
+                    legacySideOn,
+                    legacyNavigateOn
+                )
+                : 'none';
+            const peeksOn = peeksMode !== 'none';
             const opacity = Math.max(5, Math.min(60, parseInt(String(editorDocument?.player?.side_covers_opacity ?? 20), 10) || 20));
             const spread = normalizeSideCoversSpread(editorDocument?.player?.side_covers_spread);
             const colour = normalizeSideCoversColour(editorDocument?.player?.side_covers_colour);
-            const navigateOn = editorDocument?.player?.side_covers_navigate !== false;
+            const preferredRadios = [
+                ['still', 'Still'],
+                ['living', 'Living'],
+                ['playlist', 'Playlist'],
+                ['campaign', 'Campaign'],
+            ].map(([value, label]) => `
+                <label class="brand-player-setting-option">
+                    <input type="radio" name="brandArtworkPreferred" value="${escapeHtml(value)}"
+                           data-player-path="artwork_preferred"
+                           ${artworkPreferred === value ? 'checked' : ''}
+                           ${locked ? 'disabled' : ''}>
+                    <span>${escapeHtml(label)}</span>
+                </label>`).join('');
             const sizeRadios = [
                 ['large', 'Large'],
                 ['normal', 'Normal'],
@@ -1361,6 +1433,18 @@
                            ${locked ? 'disabled' : ''}>
                     <span>${escapeHtml(label)}</span>
                 </label>`).join('');
+            const peeksRadios = [
+                ['none', 'None'],
+                ['visible', 'Visible'],
+                ['jump', 'Jump'],
+            ].map(([value, label]) => `
+                <label class="brand-player-setting-option">
+                    <input type="radio" name="brandPeeks" value="${escapeHtml(value)}"
+                           data-player-path="peeks"
+                           ${peeksMode === value ? 'checked' : ''}
+                           ${locked || !peeksAllowed ? 'disabled' : ''}>
+                    <span>${escapeHtml(label)}</span>
+                </label>`).join('');
             const spreadRadios = [
                 ['close', 'Close'],
                 ['normal', 'Normal'],
@@ -1370,7 +1454,7 @@
                     <input type="radio" name="brandSideCoversSpread" value="${escapeHtml(value)}"
                            data-player-path="side_covers_spread"
                            ${spread === value ? 'checked' : ''}
-                           ${locked || !sideOn ? 'disabled' : ''}>
+                           ${locked || !peeksOn ? 'disabled' : ''}>
                     <span>${escapeHtml(label)}</span>
                 </label>`).join('');
             const colourRadios = [
@@ -1382,65 +1466,111 @@
                     <input type="radio" name="brandSideCoversColour" value="${escapeHtml(value)}"
                            data-player-path="side_covers_colour"
                            ${colour === value ? 'checked' : ''}
-                           ${locked || !sideOn ? 'disabled' : ''}>
+                           ${locked || !peeksOn ? 'disabled' : ''}>
                     <span>${escapeHtml(label)}</span>
                 </label>`).join('');
 
             return `
                 <div class="brand-content-chrome-grid">
                     <div class="brand-effect-field brand-effect-field--inline">
-                        <span class="brand-effect-label">Player size:</span>
-                        <div class="brand-player-setting-toggle" role="group" aria-label="Player size">
-                            ${sizeRadios}
+                        <span class="brand-effect-label">Preferred type:</span>
+                        <div class="brand-player-setting-toggle" role="group" aria-label="Preferred type">
+                            ${preferredRadios}
                         </div>
                     </div>
                     <div class="brand-effect-field brand-effect-field--inline">
-                        <span class="brand-effect-label">Reflection:</span>
+                        <span class="brand-effect-label">Size:</span>
+                        <div class="brand-player-setting-toggle" role="group" aria-label="Size">
+                            ${sizeRadios}
+                        </div>
+                    </div>
+                    ${flatCover ? '' : `
+                    <div class="brand-effect-field brand-effect-field--inline">
+                        <span class="brand-effect-label">Artwork reflection:</span>
                         ${renderOnOffToggle('brandCoverReflection', 'cover_reflection', reflectionOn, locked)}
                     </div>
-                    <div class="brand-effect-field brand-effect-field--inline" ${sideCoversAllowed ? '' : 'hidden'}>
-                        <span class="brand-effect-label">Side covers:</span>
-                        ${renderOnOffToggle('brandSideCovers', 'side_covers', sideOn, locked || !sideCoversAllowed)}
+                    `}
+                    ${!peeksAllowed ? '' : `
+                    ${renderPlayerSettingsRule()}
+                    <div class="brand-effect-field brand-effect-field--inline">
+                        <span class="brand-effect-label">Peeks:</span>
+                        <div class="brand-player-setting-toggle" role="group" aria-label="Peeks">
+                            ${peeksRadios}
+                        </div>
                     </div>
-                    <div class="brand-effect-field brand-effect-field--inline" ${sideOn ? '' : 'hidden'}>
+                    <div class="brand-effect-field brand-effect-field--inline" ${peeksOn ? '' : 'hidden'}>
                         <span class="brand-effect-label">Fill: <strong data-effect-value="side_covers_opacity">${escapeHtml(String(opacity))}</strong>%</span>
                         <input type="range" min="5" max="60" step="1" value="${escapeHtml(String(opacity))}"
                                name="brandSideCoversOpacity"
                                data-player-path="side_covers_opacity"
                                data-effect-range="side_covers_opacity"
-                               ${locked || !sideOn ? 'disabled' : ''}>
+                               ${locked || !peeksOn ? 'disabled' : ''}>
                     </div>
-                    <div class="brand-effect-field brand-effect-field--inline" ${sideOn ? '' : 'hidden'}>
+                    <div class="brand-effect-field brand-effect-field--inline" ${peeksOn ? '' : 'hidden'}>
                         <span class="brand-effect-label">Spread:</span>
-                        <div class="brand-player-setting-toggle" role="group" aria-label="Side cover spread">
+                        <div class="brand-player-setting-toggle" role="group" aria-label="Peek spread">
                             ${spreadRadios}
                         </div>
                     </div>
-                    <div class="brand-effect-field brand-effect-field--inline" ${sideOn ? '' : 'hidden'}>
+                    <div class="brand-effect-field brand-effect-field--inline" ${peeksOn ? '' : 'hidden'}>
                         <span class="brand-effect-label">Colour:</span>
-                        <div class="brand-player-setting-toggle" role="group" aria-label="Side cover colour">
+                        <div class="brand-player-setting-toggle" role="group" aria-label="Peek colour">
                             ${colourRadios}
                         </div>
                     </div>
-                    <div class="brand-effect-field brand-effect-field--inline" ${sideOn ? '' : 'hidden'}>
-                        <span class="brand-effect-label">Navigate:</span>
-                        ${renderOnOffToggle('brandSideCoversNavigate', 'side_covers_navigate', navigateOn, locked || !sideOn)}
-                    </div>
+                    `}
                 </div>
             `;
         }
 
+        function normalizeLoginFormMode(value) {
+            let mode = String(value || '').trim().toLowerCase();
+            if (mode === 'minimalistic') {
+                mode = 'minimal';
+            }
+            if (mode === 'none' || mode === 'minimal' || mode === 'full') {
+                return mode;
+            }
+            if (editorDocument?.player?.login_status === false) {
+                return 'none';
+            }
+            return 'full';
+        }
+
         function renderPlayerUserAreaFields(locked) {
-            const loginStatusOn = editorDocument?.player?.login_status === true;
             const beggarsOn = editorDocument?.player?.beggars_banquet !== false;
+            const loginForm = normalizeLoginFormMode(editorDocument?.player?.login_form);
             return `
                 <div class="brand-content-chrome-grid">
                     <div class="brand-effect-field brand-effect-field--inline">
-                        <span class="brand-effect-label">Login / status:</span>
-                        ${renderOnOffToggle('brandLoginStatus', 'login_status', loginStatusOn, locked)}
+                        <span class="brand-effect-label">Login form:</span>
+                        <div class="brand-player-setting-toggle" role="group" aria-label="Login form">
+                            <label class="brand-player-setting-option">
+                                <input type="radio" name="brandLoginForm" value="none"
+                                       data-player-path="login_form"
+                                       ${loginForm === 'none' ? 'checked' : ''}
+                                       ${locked ? 'disabled' : ''}>
+                                <span>None</span>
+                            </label>
+                            <label class="brand-player-setting-option">
+                                <input type="radio" name="brandLoginForm" value="minimal"
+                                       data-player-path="login_form"
+                                       ${loginForm === 'minimal' ? 'checked' : ''}
+                                       ${locked ? 'disabled' : ''}>
+                                <span>Minimalistic</span>
+                            </label>
+                            <label class="brand-player-setting-option">
+                                <input type="radio" name="brandLoginForm" value="full"
+                                       data-player-path="login_form"
+                                       ${loginForm === 'full' ? 'checked' : ''}
+                                       ${locked ? 'disabled' : ''}>
+                                <span>Full</span>
+                            </label>
+                        </div>
                     </div>
+                    ${renderPlayerSettingsRule()}
                     <div class="brand-effect-field brand-effect-field--inline">
-                        <span class="brand-effect-label">Beggars banquet:</span>
+                        <span class="brand-effect-label">Support banner:</span>
                         ${renderOnOffToggle('brandBeggarsBanquet', 'beggars_banquet', beggarsOn, locked)}
                     </div>
                 </div>
@@ -1787,9 +1917,9 @@
                     ${renderShellMediaFields(fieldsLocked)}
                 </div>
                 <div class="brand-editor-tab-panel" data-brand-editor-panel="player" role="tabpanel" hidden>
-                    ${renderEditorSection('Cover', `
+                    ${renderEditorSection('Artwork', `
                         ${renderPlayerCoverFields(fieldsLocked)}
-                    `, 'brand-editor-section--player-cover')}
+                    `, 'brand-editor-section--player-artwork')}
                     ${renderEditorSection('Controls', `
                         ${renderPlayerReadabilityFields(fieldsLocked)}
                     `, 'brand-editor-section--player-controls')}
@@ -1893,30 +2023,49 @@
             if (beggarsToggle instanceof HTMLInputElement) {
                 editorDocument.player.beggars_banquet = beggarsToggle.value !== 'off';
             }
-            const loginStatusToggle = formEl.querySelector('input[name="brandLoginStatus"]:checked');
-            if (loginStatusToggle instanceof HTMLInputElement) {
-                editorDocument.player.login_status = loginStatusToggle.value !== 'off';
+            const loginFormToggle = formEl.querySelector('input[name="brandLoginForm"]:checked');
+            if (loginFormToggle instanceof HTMLInputElement) {
+                const loginForm = normalizeLoginFormMode(loginFormToggle.value);
+                editorDocument.player.login_form = loginForm;
+                editorDocument.player.login_status = loginForm !== 'none';
             }
+            const artworkPreferredToggle = formEl.querySelector('input[name="brandArtworkPreferred"]:checked');
+            if (artworkPreferredToggle instanceof HTMLInputElement) {
+                editorDocument.player.artwork_preferred = normalizeArtworkPreferred(artworkPreferredToggle.value);
+            }
+            const flatCover = artworkPreferredForcesFlatCover(editorDocument.player.artwork_preferred);
             const reflectionToggle = formEl.querySelector('input[name="brandCoverReflection"]:checked');
-            if (reflectionToggle instanceof HTMLInputElement) {
+            if (flatCover) {
+                editorDocument.player.cover_reflection = false;
+            } else if (reflectionToggle instanceof HTMLInputElement) {
                 editorDocument.player.cover_reflection = reflectionToggle.value !== 'off';
             }
-            const analyzerToggle = formEl.querySelector('input[name="brandAnalyzer"]:checked');
-            if (analyzerToggle instanceof HTMLInputElement) {
-                editorDocument.player.analyzer = analyzerToggle.value !== 'off';
+            const animationToggle = formEl.querySelector('input[name="brandPlayerAnimation"]:checked');
+            if (animationToggle instanceof HTMLInputElement) {
+                const animation = animationToggle.value === 'none' ? 'none' : 'bars';
+                editorDocument.player.animation = animation;
+                editorDocument.player.analyzer = animation === 'bars';
             }
             const playerSizeToggle = formEl.querySelector('input[name="brandPlayerSize"]:checked');
             if (playerSizeToggle instanceof HTMLInputElement) {
                 editorDocument.player.size = normalizePlayerSize(playerSizeToggle.value);
                 delete editorDocument.player.cover_size;
             }
-            const sideCoversToggle = formEl.querySelector('input[name="brandSideCovers"]:checked');
-            if (sideCoversToggle instanceof HTMLInputElement) {
-                editorDocument.player.side_covers = sideCoversToggle.value !== 'off';
+            const peeksToggle = formEl.querySelector('input[name="brandPeeks"]:checked');
+            let peeksMode = 'none';
+            if (flatCover || editorDocument.player.size === 'large') {
+                peeksMode = 'none';
+            } else if (peeksToggle instanceof HTMLInputElement) {
+                peeksMode = normalizePeeksMode(
+                    peeksToggle.value,
+                    editorDocument.player.size,
+                    true,
+                    true
+                );
             }
-            if (editorDocument.player.size === 'large') {
-                editorDocument.player.side_covers = false;
-            }
+            editorDocument.player.peeks = peeksMode;
+            editorDocument.player.side_covers = peeksMode !== 'none';
+            editorDocument.player.side_covers_navigate = peeksMode === 'jump';
             const sideOpacityInput = formEl.querySelector('input[name="brandSideCoversOpacity"]');
             if (sideOpacityInput instanceof HTMLInputElement) {
                 const opacity = Math.max(5, Math.min(60, parseInt(sideOpacityInput.value, 10) || 20));
@@ -1929,10 +2078,6 @@
             const sideColour = formEl.querySelector('input[name="brandSideCoversColour"]:checked');
             if (sideColour instanceof HTMLInputElement) {
                 editorDocument.player.side_covers_colour = normalizeSideCoversColour(sideColour.value);
-            }
-            const sideNavigate = formEl.querySelector('input[name="brandSideCoversNavigate"]:checked');
-            if (sideNavigate instanceof HTMLInputElement) {
-                editorDocument.player.side_covers_navigate = sideNavigate.value !== 'off';
             }
             const descriptionInput = formEl.querySelector('[data-brand-field="mood"]');
             if (descriptionInput instanceof HTMLTextAreaElement || descriptionInput instanceof HTMLInputElement) {
@@ -2317,7 +2462,7 @@
             }
             if (event.target instanceof Element
                 && event.target.closest(
-                    '.brand-editor-section--player-cover, .brand-editor-section--player-controls, .brand-editor-section--player-user-area'
+                    '.brand-editor-section--player-artwork, .brand-editor-section--player-controls, .brand-editor-section--player-user-area'
                 )
             ) {
                 if (editorTab !== 'player') {
@@ -2371,21 +2516,22 @@
             }
             if (target instanceof HTMLInputElement && (
                 target.name === 'brandBeggarsBanquet'
-                || target.name === 'brandLoginStatus'
+                || target.name === 'brandLoginForm'
                 || target.name === 'brandCoverReflection'
+                || target.name === 'brandArtworkPreferred'
                 || target.name === 'brandPlayerSize'
-                || target.name === 'brandSideCovers'
+                || target.name === 'brandPeeks'
                 || target.name === 'brandSideCoversSpread'
                 || target.name === 'brandSideCoversColour'
-                || target.name === 'brandSideCoversNavigate'
+                || target.name === 'brandPlayerAnimation'
             )) {
                 if (editorTab !== 'player') {
                     setEditorTab('player', { syncPreview: true });
                 } else if (previewMode !== 'player') {
                     setPreviewMode('player', { forceRender: true });
                 }
-                if (target.name === 'brandSideCovers' || target.name === 'brandPlayerSize') {
-                    // Re-render so Side covers (and dependents) match Player size / toggle.
+                if (target.name === 'brandPeeks' || target.name === 'brandPlayerSize') {
+                    // Re-render so Peeks dependents match Size / mode.
                     collectFormIntoDocument();
                     renderForm();
                     saveUi?.reconcile();

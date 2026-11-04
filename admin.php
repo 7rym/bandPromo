@@ -1754,7 +1754,7 @@ if ($tab === 'analytics') {
                     </ul>
                 <?php elseif ($contentTab === 'branding'): ?>
                     <ul>
-                        <li><strong>Base</strong> is the site-wide brand: login chrome, logo, backgrounds, welcome sounds, and player chrome (playlist selector, cover reflection, Beggars banquet).</li>
+                        <li><strong>Base</strong> is the site-wide brand: login chrome, logo, backgrounds, welcome sounds, and player chrome (playlist selector, cover reflection, Support banner).</li>
                         <li>A <strong>campaign brand</strong> (set on the Catalogue campaign) can override player colours and fonts while that campaign’s playlist is playing. Tracks do not carry a brand. Shell media still follow Base until per-campaign shell override ships.</li>
                         <li>Fresh installs keep locked <em>bandPromo Default</em> as Base until you duplicate it. Saving Base writes shell paths into site config.</li>
                     </ul>
@@ -2899,10 +2899,13 @@ if ($tab === 'analytics') {
                             <span>Show a public support call-to-action on the player page</span>
                         </label>
                     </div>
-                    <div class="form-group">
-                        <label for="cfg_support_label">Button text</label>
-                        <input type="text" id="cfg_support_label" value="<?php echo htmlspecialchars($supportLabel); ?>" maxlength="80" placeholder="Support">
-                        <div class="field-note">Write the short public message visitors should see, such as Support, Tip Jar, Back This Release, or Join on Ko-fi.</div>
+                    <div class="form-group config-form-full">
+                        <label for="cfg_support_label">
+                            Button text:
+                            <span class="markdown-help-inline">(Markdown <?php echo bandpromo_admin_markdown_help_trigger(); ?>)</span>
+                        </label>
+                        <textarea id="cfg_support_label" class="config-form-textarea" rows="3" maxlength="300" placeholder="Would you like to support this project?"><?php echo htmlspecialchars($supportLabel); ?></textarea>
+                        <div class="field-note">Short public message on the Support banner. Line breaks and basic Markdown are fine — keep it brief so it fits the player rail.</div>
                     </div>
                     <div class="form-group config-form-full">
                         <label for="cfg_support_url">Direct support URL</label>

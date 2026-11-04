@@ -7,6 +7,7 @@ require_once __DIR__ . '/site-contact.php';
 require_once __DIR__ . '/demo-catalog-state.php';
 require_once __DIR__ . '/brand-storage.php';
 require_once __DIR__ . '/living-cover-helpers.php';
+require_once __DIR__ . '/slug.php';
 
 const BANDPROMO_RELEASE_REGISTRY_VERSION = 1;
 /** Invisible orphan/upload bucket id (legacy on-disk name: primary). */
@@ -134,14 +135,7 @@ function bandpromo_campaign_normalize_id(string $releaseId): string
 
 function bandpromo_campaign_slug_from_title(string $title): string
 {
-    $slug = strtolower(trim($title));
-    $slug = preg_replace('/[^a-z0-9]+/', '-', $slug) ?? '';
-    $slug = trim($slug, '-');
-    if ($slug === '') {
-        $slug = BANDPROMO_CAMPAIGN_DEFAULT_ID;
-    }
-
-    return substr($slug, 0, 48);
+    return bandpromo_slugify_text($title, 48, BANDPROMO_CAMPAIGN_DEFAULT_ID);
 }
 
 function bandpromo_campaign_validate_date(string $value): bool
@@ -2696,6 +2690,7 @@ function bandpromo_campaign_player_catalog_entries(string $root, bool $operatorB
         $title = $campaignId;
         $brandId = '';
         $navigatorLogoAssetId = '';
+        $posterAssetId = '';
         $releaseDate = '';
         try {
             $document = bandpromo_campaign_load_document($root, $campaignId);
@@ -2704,6 +2699,7 @@ function bandpromo_campaign_player_catalog_entries(string $root, bool $operatorB
                 : $title;
             $brandId = bandpromo_brand_canonical_id((string) ($document['brand_id'] ?? ''));
             $navigatorLogoAssetId = trim((string) ($document['navigator_logo_asset_id'] ?? ''));
+            $posterAssetId = trim((string) ($document['poster_asset_id'] ?? ''));
             $releaseDate = trim((string) ($document['release_date'] ?? ''));
         } catch (Throwable $throwable) {
             continue;
@@ -2721,11 +2717,29 @@ function bandpromo_campaign_player_catalog_entries(string $root, bool $operatorB
                 $logo = '';
             }
         }
+        $poster = '';
+        if ($posterAssetId !== '') {
+            $poster = trim(bandpromo_campaign_resolve_poster_preview_url($root, $posterAssetId));
+            if ($poster === '') {
+                $poster = trim(bandpromo_visual_resolve_url($root, $posterAssetId, 'card', '', false));
+            }
+        }
+        if ($poster === '' && $brandId !== '') {
+            try {
+                $brandDoc = bandpromo_brand_load_document($root, $brandId);
+                $shell = bandpromo_brand_player_shell_assets($root, $brandDoc);
+                $poster = trim((string) ($shell['poster'] ?? ''));
+            } catch (Throwable $throwable) {
+                $poster = '';
+            }
+        }
         $entries[] = [
             'id' => $campaignId,
             'title' => $title,
             'slug' => bandpromo_campaign_public_slug($root, $campaignId),
             'logo' => $logo,
+            // Artwork Preferred type → Campaign uses poster first, then logo.
+            'poster' => $poster,
             'release_date' => $releaseDate,
             'playlist_count' => (int) $playlistCounts[$campaignId],
         ];

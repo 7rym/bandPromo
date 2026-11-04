@@ -223,8 +223,8 @@ if ($supportLabel === '') {
     $supportLabel = 'Support';
 }
 $supportLabel = function_exists('mb_substr')
-    ? mb_substr($supportLabel, 0, 80, 'UTF-8')
-    : substr($supportLabel, 0, 80);
+    ? mb_substr($supportLabel, 0, 300, 'UTF-8')
+    : substr($supportLabel, 0, 300);
 $supportUrl = trim((string) get_config('support.url', ''));
 $supportKofiPageId = bandpromo_support_parse_kofi_page_id((string) get_config('support.kofi_page_id', ''));
 $supportButtonBackgroundColor = bandpromo_player_support_hex(
@@ -242,11 +242,28 @@ if (bandpromo_player_support_contrast($supportButtonBackgroundColor, $supportBut
 }
 
 require_once __DIR__ . '/../biblioteca/player-modules.php';
+require_once __DIR__ . '/../biblioteca/brand-storage.php';
 $beggarsBanquetEnabled = bandpromo_player_beggars_banquet_enabled();
+$loginFormMode = bandpromo_player_login_form_mode();
+$animationMode = bandpromo_player_animation_mode();
+$analyzerEnabled = $animationMode === 'bars';
+// Preferred type + flat-cover rules soft-apply with the playlist release brand.
+$artworkPreferredBrandId = bandpromo_playlist_effective_brand_id($playerRoot, $activePlaylistId);
+$artworkPreferred = bandpromo_player_artwork_preferred($artworkPreferredBrandId);
 $coverReflectionEnabled = bandpromo_player_cover_reflection_enabled();
-$analyzerEnabled = bandpromo_player_analyzer_enabled();
-$loginStatusEnabled = bandpromo_player_login_status_enabled();
-
+try {
+    $artworkBrandDoc = bandpromo_brand_load_document($playerRoot, $artworkPreferredBrandId);
+    $artworkBrandPlayer = bandpromo_brand_normalize_player($artworkBrandDoc);
+    $artworkPreferred = bandpromo_brand_normalize_artwork_preferred(
+        $artworkBrandPlayer['artwork_preferred'] ?? $artworkPreferred
+    );
+    // normalize_player already forces reflection off for Playlist / Campaign.
+    $coverReflectionEnabled = !empty($artworkBrandPlayer['cover_reflection']);
+} catch (Throwable $throwable) {
+    if (bandpromo_brand_artwork_preferred_forces_flat_cover($artworkPreferred)) {
+        $coverReflectionEnabled = false;
+    }
+}
 $currentUsername = trim((string) ($_SESSION['username'] ?? ''));
 $currentUserRole = current_user_role();
 $showAdminButton = can_access_admin_panel();
@@ -330,6 +347,15 @@ if (!$coverReflectionEnabled) {
 if (!$analyzerEnabled) {
     $bodyClasses[] = 'analyzer-off';
 }
+if ($artworkPreferred === 'playlist') {
+    $bodyClasses[] = 'artwork-preferred-playlist';
+}
+if ($artworkPreferred === 'campaign') {
+    $bodyClasses[] = 'artwork-preferred-campaign';
+}
+if ($artworkPreferred === 'living') {
+    $bodyClasses[] = 'artwork-preferred-living';
+}
 $bodyClassAttr = $bodyClasses !== [] ? ' class="' . htmlspecialchars(implode(' ', $bodyClasses), ENT_QUOTES, 'UTF-8') . '"' : '';
 ?>
 <body<?php echo $bodyClassAttr; ?>>
@@ -396,6 +422,8 @@ $bodyClassAttr = $bodyClasses !== [] ? ' class="' . htmlspecialchars(implode(' '
         window.appConfig.player = Object.assign({}, window.appConfig.player || {}, {
             playlist_selector: <?php echo json_encode($playlistSelectorMode); ?>,
             cover_reflection: <?php echo $coverReflectionEnabled ? 'true' : 'false'; ?>,
+            artwork_preferred: <?php echo json_encode($artworkPreferred); ?>,
+            animation: <?php echo json_encode($animationMode); ?>,
             analyzer: <?php echo $analyzerEnabled ? 'true' : 'false'; ?>
         });
     </script>
@@ -414,10 +442,12 @@ $bodyClassAttr = $bodyClasses !== [] ? ' class="' . htmlspecialchars(implode(' '
     require_once dirname(__DIR__) . '/biblioteca/player-chrome.php';
     echo bandpromo_player_chrome_render([
         'preview' => false,
-        'login_status' => $loginStatusEnabled,
+        'signed_in' => $currentUsername !== '',
+        'username' => $currentUsername,
+        'site_title' => $siteTitle,
+        'login_form' => $loginFormMode,
         'show_admin' => $showAdminButton,
         'show_debug' => $showDebugTools,
-        'username' => $currentUsername !== '' ? $currentUsername : 'listener',
         'beggars_banquet' => $beggarsBanquetEnabled,
         'support_enabled' => $supportEnabled,
         'support_url' => $supportUrl,

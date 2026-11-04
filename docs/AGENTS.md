@@ -126,6 +126,7 @@ Use `prerelease=false` for closed-beta tester packages so hosts that cannot call
 - [docs/MEDIA-HANDLING.md](MEDIA-HANDLING.md)
 - [docs/MASTER-TIER-AUDIT.md](MASTER-TIER-AUDIT.md)
 - [docs/FEATURES.md](FEATURES.md)
+- [docs/PLAYER-ARTWORK-MAP.md](PLAYER-ARTWORK-MAP.md) (tester discussion base for Preferred type / overwrite order)
 - [docs/ADMIN-UI.md](ADMIN-UI.md)
 - [docs/OPERATOR-MESSAGING.md](OPERATOR-MESSAGING.md) (v0.9 messaging plan; policy locked v0.8)
 - [docs/MARKETING-STRATEGY.md](MARKETING-STRATEGY.md)

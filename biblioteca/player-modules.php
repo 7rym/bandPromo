@@ -308,8 +308,9 @@ function bandpromo_player_playlist_selector_mode(?array $config = null): string
 }
 
 /**
- * Whether the in-flow support CTA (#beggars-banquet) may render.
+ * Whether the Support banner (#beggars-banquet) may render.
  * Base brand owns the toggle; Settings → Support still supplies URL/label/colors.
+ * Storage key remains beggars_banquet for PCF round-trip.
  */
 function bandpromo_player_beggars_banquet_enabled(): bool
 {
@@ -334,9 +335,17 @@ function bandpromo_player_beggars_banquet_enabled(): bool
 
 /**
  * Whether the in-flow player account strip (#player-user-area) may render.
- * Shows signed-in status today; compact login form is for anonymous entry (v0.9).
+ * Always on — status line shows username or guest invite; login form is separate.
  */
 function bandpromo_player_login_status_enabled(): bool
+{
+    return true;
+}
+
+/**
+ * Guest login form mode from the Base brand: none | minimal | full.
+ */
+function bandpromo_player_login_form_mode(): string
 {
     try {
         $root = defined('BANDPROMO_ROOT') ? (string) BANDPROMO_ROOT : dirname(__DIR__);
@@ -344,9 +353,10 @@ function bandpromo_player_login_status_enabled(): bool
             require_once __DIR__ . '/brand-storage.php';
             $document = bandpromo_brand_load_active_document($root);
             if (is_array($document)) {
-                $player = is_array($document['player'] ?? null) ? $document['player'] : [];
-                if (array_key_exists('login_status', $player)) {
-                    return (bool) filter_var($player['login_status'], FILTER_VALIDATE_BOOLEAN);
+                $player = bandpromo_brand_normalize_player($document);
+                $mode = (string) ($player['login_form'] ?? 'full');
+                if (in_array($mode, ['none', 'minimal', 'full'], true)) {
+                    return $mode;
                 }
             }
         }
@@ -354,7 +364,7 @@ function bandpromo_player_login_status_enabled(): bool
         // Brand storage may be unavailable during early bootstrap.
     }
 
-    return false;
+    return 'full';
 }
 
 /**
@@ -383,28 +393,63 @@ function bandpromo_player_cover_reflection_enabled(): bool
 }
 
 /**
- * Whether the faux spectrum analyzer fills the player transport panel.
- * Base brand owns the toggle (Branding → Player → Controls).
+ * Preferred artwork source for the Artwork slot (still|living|playlist|campaign).
+ *
+ * When $brandId is set (playlist soft brand), read that document; otherwise Base.
  */
-function bandpromo_player_analyzer_enabled(): bool
+function bandpromo_player_artwork_preferred(?string $brandId = null): string
 {
     try {
         $root = defined('BANDPROMO_ROOT') ? (string) BANDPROMO_ROOT : dirname(__DIR__);
-        if (function_exists('bandpromo_brand_load_active_document')) {
+        if (function_exists('bandpromo_brand_normalize_player')) {
             require_once __DIR__ . '/brand-storage.php';
-            $document = bandpromo_brand_load_active_document($root);
+            $requested = trim((string) $brandId);
+            $document = $requested !== ''
+                ? bandpromo_brand_load_document($root, $requested)
+                : bandpromo_brand_load_active_document($root);
             if (is_array($document)) {
-                $player = is_array($document['player'] ?? null) ? $document['player'] : [];
-                if (array_key_exists('analyzer', $player)) {
-                    return (bool) filter_var($player['analyzer'], FILTER_VALIDATE_BOOLEAN);
-                }
+                $player = bandpromo_brand_normalize_player($document);
+
+                return bandpromo_brand_normalize_artwork_preferred($player['artwork_preferred'] ?? 'still');
             }
         }
     } catch (Throwable $throwable) {
         // Brand storage may be unavailable during early bootstrap.
     }
 
-    return true;
+    return 'still';
+}
+
+/**
+ * Transport animation mode (none | bars; more types later).
+ * Base brand owns the control (Branding → Player → Controls → Animation).
+ */
+function bandpromo_player_animation_mode(): string
+{
+    try {
+        $root = defined('BANDPROMO_ROOT') ? (string) BANDPROMO_ROOT : dirname(__DIR__);
+        if (function_exists('bandpromo_brand_normalize_player')) {
+            require_once __DIR__ . '/brand-storage.php';
+            $document = bandpromo_brand_load_active_document($root);
+            if (is_array($document)) {
+                $player = bandpromo_brand_normalize_player($document);
+
+                return (string) ($player['animation'] ?? 'bars');
+            }
+        }
+    } catch (Throwable $throwable) {
+        // Brand storage may be unavailable during early bootstrap.
+    }
+
+    return 'bars';
+}
+
+/**
+ * Whether the bars transport animation is on (legacy analyzer helper).
+ */
+function bandpromo_player_analyzer_enabled(): bool
+{
+    return bandpromo_player_animation_mode() === 'bars';
 }
 
 function bandpromo_player_normalize_playlist_selector_mode(mixed $value): string

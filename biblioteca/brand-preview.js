@@ -60,9 +60,12 @@
             ? `<img class="theme-preview-cover-art" src="${escapeHtml(poster)}" alt="" loading="lazy" onerror="this.style.opacity=0.35">`
             : '<span class="theme-preview-cover-label">Cover art</span>';
         const beggarsBanquet = document?.player?.beggars_banquet !== false;
-        const loginStatus = document?.player?.login_status === true;
         const coverReflection = document?.player?.cover_reflection !== false;
-        const analyzerOn = document?.player?.analyzer !== false;
+        let animation = String(document?.player?.animation || '').trim().toLowerCase();
+        if (animation !== 'none' && animation !== 'bars') {
+            animation = document?.player?.analyzer === false ? 'none' : 'bars';
+        }
+        const barsOn = animation === 'bars';
         let playerSize = String(document?.player?.size || document?.player?.cover_size || 'large').trim().toLowerCase();
         const legacySize = { full: 'large', medium: 'normal', half: 'small' };
         if (legacySize[playerSize]) {
@@ -91,17 +94,18 @@
                     <span class="theme-preview-support-link">Support</span>
                </div>`
             : '';
-        const loginStatusMarkup = loginStatus
-            ? `<div class="theme-preview-user-status" aria-hidden="true">
-                    <span class="theme-preview-user-tools" aria-hidden="true">
-                        <span class="theme-preview-user-tool" title="Account">&#128100;</span>
-                        <strong class="theme-preview-user-name">listener</strong>
-                    </span>
-                    <span class="theme-preview-user-logout" title="Log out" aria-label="Log out" aria-hidden="false">
-                        <svg class="player-icon player-icon--logout" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" focusable="false"><path d="M10 17v2H4V5h6v2H6v10h4zm1-6h8.2l-2.6-2.6L18 7l5 5-5 5-1.4-1.4L19.2 13H11v-2z" fill="currentColor"/></svg>
-                    </span>
-               </div>`
-            : '';
+        let loginForm = String(document?.player?.login_form || '').trim().toLowerCase();
+        if (loginForm === 'minimalistic') {
+            loginForm = 'minimal';
+        }
+        if (!['none', 'minimal', 'full'].includes(loginForm)) {
+            loginForm = document?.player?.login_status === false ? 'none' : 'full';
+        }
+        const loginStatusMarkup = loginForm === 'none'
+            ? '<div class="theme-preview-user-login-wrap" aria-hidden="true"><span class="theme-preview-user-text">Please register for free or login to get the full experience of <strong>Site</strong></span></div>'
+            : (loginForm === 'minimal'
+                ? '<div class="theme-preview-user-login-wrap" aria-hidden="true"><span class="theme-preview-user-text">Please register…</span><span class="theme-preview-user-login">Login</span></div>'
+                : '<div class="theme-preview-user-login-wrap" aria-hidden="true"><span class="theme-preview-user-text">Please register…</span><span class="theme-preview-user-login">Login form</span></div>');
         const reflectionMarkup = coverReflection
             ? `<div class="theme-preview-cover-reflection" aria-hidden="true">${coverMarkup}</div>`
             : '';
@@ -126,7 +130,7 @@
                             ${reflectionMarkup}
                         </div>
                         <div class="theme-preview-player-transport">
-                            ${analyzerOn ? `<div class="theme-preview-analyzer" aria-hidden="true">${Array.from({ length: 20 }, (_, i) => {
+                            ${barsOn ? `<div class="theme-preview-analyzer" aria-hidden="true">${Array.from({ length: 20 }, (_, i) => {
                                 const height = 22 + ((i * 17) % 55);
                                 return `<span style="height:${height}%"></span>`;
                             }).join('')}</div>` : ''}

@@ -2,9 +2,9 @@
 
 ## Resume point
 
-**Closed:** Player size + Campaign navigator (fleet **605**, HITZ soft-switch OK). **PCF round-trip smoke OK** (2026-10-23). Site health duplicate Keep-choice **607**. Branding Live preview **Player remirror** (shared chrome + Shell behind + stacked rail) shipped in **608**.
+**Closed:** Player size + Campaign navigator (**605**). Site health Keep-choice (**607**). Branding Player remirror (**608**). This checkpoint: Preferred type + soft brand, flat Playlist/Campaign art, User area Login/Support, slug fold + remix deep links, preview chrome-only remirror, tester [PLAYER-ARTWORK-MAP.md](PLAYER-ARTWORK-MAP.md).
 
-**Active now:** Player preview **detail polish** (operator list). Then Content remirror.
+**Active now:** Branding **Content** Live preview remirror (`play-preview-content-*`, same live render + demo content). Publish this checkpoint for Site update when operator asks.
 
 **Last published:** **v0.8.100 build 608** — Branding Player remirror. Prior: **607** Site health duplicate Keep-choice; **605** Player size r11.
 
@@ -12,16 +12,15 @@
 - Files pool / living-cover picker latency (undercount disk probe + full Visual list for video-only pick).
 - Lyrics: density|size Branding control; timed cues / `.srt` / bidirectional anchors.
 - Favicon + PWA icons from Branding; legacy audit refresh (remaining exit-gate items).
-- Branding Content Live preview remirror (`play-preview-content-*`, same live render + demo content).
 
 **Operator rule (this session):** Do **not** delete, prune, janitor-Apply, or discard any runtime files (`data/`, `media/`, `log/`, `backups/`, Ready archives, leftover `original/`) unless this user names the exact paths in the same message.
 
-**Next:** Operator detail fixes on Player preview, then Content remirror.
+**Next:** Content remirror. Optional: publish this build for testers when ready.
 
 ### Policy locked (do not reopen)
 
-- **Player size** Large|Normal|Small = stacked 0.62/0.52/0.42 + split 1/0.9/0.75; **short landscape = one platform size** (no preset, no art clip); username-only strip; beggars may wrap; Large disables side covers — [PLATFORM-MODEL.md](PLATFORM-MODEL.md)
-- **Stacked pass criteria:** first playlist item peeks; transport/beggars ≥ `--player-chrome-min` (not crushed to small cover); compact selectors; selected campaign/playlist on-screen; overflow edge fades when scrollable; short cover ≥ 140; iPad portrait = stacked wide (split only ≥60rem)
+- **Player size** Large|Normal|Small = stacked 0.62/0.52/0.42 + split 1/0.9/0.75; **short landscape = one platform size** (no preset, no art clip); User bar always on (tools left; username or guest invite); Login form None|Minimalistic|Full above Support banner (preview only); Support banner may wrap; Large disables Peeks — [PLATFORM-MODEL.md](PLATFORM-MODEL.md)
+- **Stacked pass criteria:** first playlist item peeks; transport/Support banner ≥ `--player-chrome-min` (not crushed to small cover); compact selectors; selected campaign/playlist on-screen; overflow edge fades when scrollable; short cover ≥ 140; iPad portrait = stacked wide (split only ≥60rem)
 - Transport **aspect ratio unlocked** for experiment (provisional 4:1 in CSS today; lock later only if needed)
 - Sticky chrome over scrolling content: **opaque** `--admin-sticky-chrome-bg`; in-flow headers may keep `--admin-slate-wash`
 - Page builder: add-block sticky under breadcrumb (`--page-builder-sticky-top`); do **not** nest rich-text sticky under it

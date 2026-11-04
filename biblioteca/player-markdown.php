@@ -304,6 +304,35 @@ function bandpromo_player_markdown_render(string $markdown, string $mode = 'defa
 }
 
 /**
+ * Support banner label: multiline Markdown with hard line breaks.
+ * Nested links are flattened — the banner itself is already the destination link.
+ */
+function bandpromo_player_markdown_render_support_label(string $markdown): string
+{
+    $markdown = trim($markdown);
+    if ($markdown === '') {
+        $markdown = 'Support';
+    }
+
+    $html = bandpromo_player_markdown_render($markdown, 'lyrics');
+    if ($html === '') {
+        return htmlspecialchars($markdown, ENT_QUOTES, 'UTF-8');
+    }
+
+    // Avoid <a> inside the Support banner <a>.
+    $flattened = preg_replace('#<a\b[^>]*>(.*?)</a>#is', '$1', $html);
+    if (!is_string($flattened) || trim(strip_tags($flattened)) === '') {
+        return htmlspecialchars($markdown, ENT_QUOTES, 'UTF-8');
+    }
+
+    return str_replace(
+        'player-markdown player-markdown--lyrics',
+        'player-markdown player-markdown--support',
+        $flattened
+    );
+}
+
+/**
  * Compact "?" control that opens the shared admin Markdown help modal.
  */
 function bandpromo_admin_markdown_help_trigger(): string

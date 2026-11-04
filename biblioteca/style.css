@@ -13,13 +13,14 @@
     --player-size-scale-short: 1;
     --cover-size-scale: var(--player-size-scale-stacked, 0.62);
     --player-size-scale: var(--cover-size-scale);
-    --player-side-gutter: clamp(12px, 3vw, 32px);
+    /* Peek (Cover Flow) flank room — brand sets offset; scale 0 when Peeks off / Large. */
+    --player-side-gutter: 120px;
     --player-side-gutter-scale: 0;
-    /* Chrome footprint: cover + optional side-cover gutters. */
+    /* Chrome footprint: cover + optional peek gutters (gutter × cover scale matches .side-card translate). */
     --player-rail: min(
         calc(
             var(--card-size) * var(--cover-size-scale, 0.75)
-            + 2 * var(--player-side-gutter) * var(--player-side-gutter-scale, 0)
+            + 2 * var(--player-side-gutter) * var(--player-side-gutter-scale, 0) * var(--cover-size-scale, 0.75)
         ),
         100%
     );
@@ -512,10 +513,10 @@ body.debug-modal-open {
     transform-style: preserve-3d;
 }
 
-/* Side cards (Previous/Next Preview) — Branding → Player → Cover */
+/* Peek covers (Cover Flow neighbours) — Branding → Player → Artwork → Peeks */
 .side-card {
     position: absolute;
-    display: var(--side-cover-display, block);
+    display: var(--side-cover-display, none);
     width: 100%;
     height: 100%;
     border-radius: 12px;
@@ -572,6 +573,14 @@ body.debug-modal-open {
     border: 2px solid rgba(255, 255, 255, 0.1);
     cursor: pointer;
     transition: transform 0.2s ease;
+}
+
+/* Campaign Preferred type: posters/logos are rarely square — fit width, do not crop. */
+body.artwork-preferred-campaign .cover-art,
+body.artwork-preferred-campaign .cover-art-video {
+    object-fit: contain;
+    object-position: center center;
+    background: rgba(0, 0, 0, 0.35);
 }
 
 .cover-art[hidden],
@@ -664,7 +673,6 @@ body.debug-modal-open {
     flex-direction: column;
     align-items: center;
     justify-content: flex-start;
-    gap: 0.4rem;
     /* Stacked: at least chrome-min (independent of small covers). Split/short override. */
     width: min(100%, max(var(--player-chrome-min), var(--player-rail)));
     max-width: none;
@@ -675,11 +683,13 @@ body.debug-modal-open {
     container-type: inline-size;
     container-name: player-transport;
     margin: 0 0 6px;
-    padding: min(8px, var(--player-panel-pad-y, 8px)) min(10px, var(--player-panel-pad-x, 10px));
+    /* Branding → Player → Controls: Density / Fill / Blur / Corners / Border. */
+    gap: var(--player-panel-gap, 8px);
+    padding: var(--player-panel-pad-y, 12px) var(--player-panel-pad-x, 14px);
     box-sizing: border-box;
     border-radius: var(--player-panel-radius, 10px);
     border: var(--player-panel-border-width, 0) solid var(--player-panel-border, transparent);
-    /* Brand Player Controls dim + blur (cover art stays outside / sharp). */
+    /* Brand Player Controls fill + blur (cover art stays outside / sharp). */
     background: var(--player-panel-fill, var(--panel-fill));
     -webkit-backdrop-filter: blur(var(--player-panel-blur, var(--panel-blur, 5px)));
     backdrop-filter: blur(var(--player-panel-blur, var(--panel-blur, 5px)));
@@ -726,7 +736,7 @@ body.debug-modal-open {
     display: none !important;
 }
 
-/* Faux spectrum — fills the whole transport box (brand On|Off). */
+/* Bars animation — fills the whole transport box (brand Animation None|Bars). */
 #analyzer {
     position: absolute;
     inset: 0;
@@ -834,13 +844,21 @@ h3 { margin: 5px 0 0; font-size: 1.2rem; color: var(--color-text-muted); font-we
     cursor: not-allowed;
 }
 
-.player-control-btn[data-repeat="all"],
-.player-control-btn[data-repeat="one"] {
-    background: var(--primary-a20);
-}
-
+/* Repeat: none = dim outline (same glyph as all); all/one = solid “on” so off≠all. */
 .player-control-btn#repeatBtn {
     position: relative;
+}
+
+.player-control-btn#repeatBtn[data-repeat="none"] {
+    opacity: 0.48;
+}
+
+.player-control-btn#repeatBtn[data-repeat="all"],
+.player-control-btn#repeatBtn[data-repeat="one"] {
+    background: var(--primary-color);
+    border-color: var(--primary-color);
+    color: #000;
+    opacity: 1;
 }
 
 .player-control-btn#repeatBtn .player-icon--repeat-one {
@@ -860,6 +878,10 @@ h3 { margin: 5px 0 0; font-size: 1.2rem; color: var(--color-text-muted); font-we
         background: var(--primary-color);
         color: #000;
         box-shadow: 0 0 12px var(--primary-a40);
+    }
+
+    .player-control-btn#repeatBtn[data-repeat="none"]:hover:not(:disabled) {
+        opacity: 1;
     }
 }
 
@@ -1140,6 +1162,30 @@ button.pulse-guide {
     isolation: isolate;
 }
 
+.support-link-button .player-markdown--support {
+    display: block;
+    width: 100%;
+    margin: 0;
+    padding: 0;
+    color: inherit;
+    font: inherit;
+    font-weight: inherit;
+    line-height: inherit;
+    text-align: inherit;
+}
+
+.support-link-button .player-markdown--support p {
+    margin: 0;
+}
+
+.support-link-button .player-markdown--support p + p {
+    margin-top: 0.2em;
+}
+
+.support-link-button .player-markdown--support strong {
+    font-weight: 800;
+}
+
 .support-link-button::after {
     content: '';
     position: absolute;
@@ -1203,7 +1249,9 @@ button.pulse-guide {
 
 #player-user-area {
     display: flex;
-    justify-content: stretch;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0;
     /* Stacked: span the full mediaplayer (viewport) width, not the cover rail. */
     align-self: stretch;
     width: 100%;
@@ -1241,14 +1289,14 @@ button.pulse-guide {
     justify-content: space-between;
     gap: 0.5rem;
     width: 100%;
-    padding: 0 0.65rem;
+    padding: 0.35rem 0.65rem;
     box-sizing: border-box;
     border: 0;
     border-radius: 0;
     background: var(--color-surface-mid, #1e1e24);
     color: var(--color-text-muted, #dddddd);
     font-size: 0.78rem;
-    line-height: 1.2;
+    line-height: 1.35;
     min-height: 0;
 }
 
@@ -1256,14 +1304,17 @@ button.pulse-guide {
     display: inline-flex;
     align-items: center;
     gap: 0.2rem;
-    flex: 1 1 auto;
+    flex: 0 0 auto;
     min-width: 0;
+    order: 0;
 }
 
 .player-user-status-text {
     flex: 1 1 auto;
     min-width: 0;
+    margin: 0;
     text-align: left;
+    order: 1;
 }
 
 .player-user-status-text--spacer {
@@ -1278,6 +1329,77 @@ button.pulse-guide {
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+}
+
+.player-user-status-site {
+    color: var(--text-color, #ffffff);
+    font-weight: 700;
+}
+
+/* Compact guest login — sits above Support banner; placeholders only (no outer labels). */
+.player-user-login-wrap {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.3rem;
+    width: 100%;
+    max-width: var(--player-rail, 100%);
+    align-self: center;
+    margin: 0 0 6px;
+    padding: 0.35rem 0.45rem;
+    flex-shrink: 0;
+    box-sizing: border-box;
+    /* One opaque plate above the shell video/scrim (never wash through). */
+    position: relative;
+    z-index: 25;
+    isolation: isolate;
+    opacity: 1;
+    background-color: var(--color-surface-mid, #1e1e24);
+    color: var(--text-color, #ffffff);
+}
+
+.player-user-login-invite {
+    margin: 0;
+    padding: 0.15rem 0.2rem;
+    box-sizing: border-box;
+    background: transparent;
+    color: var(--text-color, #ffffff);
+    opacity: 1;
+    font-size: 0.78rem;
+    font-weight: 600;
+    line-height: 1.35;
+    text-align: center;
+}
+
+.player-user-login-invite .player-user-status-site {
+    color: var(--text-color, #ffffff);
+    opacity: 1;
+    font-weight: 700;
+}
+
+.player-user-login-open {
+    align-self: center;
+    min-height: 1.75rem;
+    padding: 0.2rem 0.75rem;
+    border-radius: var(--content-control-radius, 999px);
+    border: 1px solid var(--content-control-border-active, var(--primary-color));
+    background: var(--content-control-bg-active, var(--primary-color));
+    color: var(--content-control-fg-active, #000);
+    font-weight: 700;
+    text-transform: uppercase;
+    font-size: 0.72rem;
+    line-height: 1.2;
+    cursor: pointer;
+}
+
+.player-user-login-open:hover,
+.player-user-login-open:focus-visible {
+    outline: none;
+    filter: brightness(1.05);
+}
+
+.player-user-login-wrap.is-login-expanded .player-user-login-open {
+    display: none;
 }
 
 .player-user-logout {
@@ -1305,43 +1427,74 @@ button.pulse-guide {
     background: var(--primary-a12, transparent);
 }
 
+/* Author display:flex must not defeat the Minimalistic collapsed state. */
+.player-user-login-form[hidden],
+.player-user-login-open[hidden] {
+    display: none !important;
+}
+
 .player-user-login-form {
     display: flex;
-    flex-direction: column;
-    gap: 0.45rem;
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.3rem;
     width: 100%;
-    padding: 0.55rem 0.75rem;
+    padding: 0;
     box-sizing: border-box;
-    border-radius: var(--player-panel-radius, 10px);
-    border: var(--player-panel-border-width, 0) solid var(--player-panel-border, transparent);
-    background: var(--player-panel-fill, var(--panel-fill));
-    backdrop-filter: blur(var(--player-panel-blur, var(--panel-blur, 5px)));
-    -webkit-backdrop-filter: blur(var(--player-panel-blur, var(--panel-blur, 5px)));
+    border: 0;
+    border-radius: 0;
+    background: transparent;
 }
 
 .player-user-login-form input {
-    width: 100%;
+    flex: 1 1 6.5rem;
+    min-width: 0;
+    width: auto;
     box-sizing: border-box;
-    min-height: var(--content-control-min-height, 30px);
-    padding: var(--content-control-pad-y, 5px) var(--content-control-pad-x, 8px);
+    min-height: 1.75rem;
+    padding: 0.2rem 0.55rem;
     border-radius: var(--content-control-radius, 999px);
-    border: var(--content-control-border-width, 2px) solid var(--content-control-border, var(--primary-a30));
-    background: var(--content-control-bg, transparent);
-    color: var(--text-color, #ffffff);
-    font-size: 0.85rem;
+    border: 0;
+    /* Panels colour, fully opaque (never opacity-dim — that washes the shell through). */
+    background-color: var(--color-surface-mid, #1e1e24);
+    color: var(--color-text-muted, #dddddd);
+    opacity: 1;
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--color-text-muted, #dddddd) 28%, transparent);
+    font-size: 0.78rem;
+    line-height: 1.2;
 }
 
-.player-user-login-form button {
-    min-height: var(--content-control-min-height, 30px);
-    padding: var(--content-control-pad-y, 5px) var(--content-control-pad-x, 10px);
+.player-user-login-form input::placeholder {
+    color: var(--color-text-muted, #dddddd);
+    opacity: 1;
+}
+
+.player-user-login-form input:disabled {
+    /* Never dim with opacity — that lets the shell show through. */
+    opacity: 1;
+    cursor: not-allowed;
+}
+
+.player-user-login-submit {
+    flex: 0 0 auto;
+    min-height: 1.75rem;
+    padding: 0.2rem 0.7rem;
     border-radius: var(--content-control-radius, 999px);
-    border: var(--content-control-border-width, 2px) solid var(--content-control-border-active, var(--primary-color));
+    border: 1px solid var(--content-control-border-active, var(--primary-color));
     background: var(--content-control-bg-active, var(--primary-color));
     color: var(--content-control-fg-active, #000);
     font-weight: 700;
     text-transform: uppercase;
-    font-size: 0.78rem;
+    font-size: 0.72rem;
+    line-height: 1.2;
     cursor: pointer;
+    opacity: 1;
+}
+
+.player-user-login-submit:disabled {
+    opacity: 1;
+    cursor: not-allowed;
 }
 
 .content-toggle {
@@ -2556,9 +2709,8 @@ audio {
 /* Shared stacked/mobile portrait density under the split threshold. */
 @media (max-width: 767px) {
     .player-transport {
-        gap: 0.4rem;
         margin-bottom: 4px;
-        padding: 8px;
+        /* Keep Branding Controls pad/gap/fill — do not hardcode over brand vars. */
         /* Chrome floor independent of cover; only the user strip spans full viewport. */
         width: min(100%, max(var(--player-chrome-min), var(--player-rail)));
         max-width: none;
@@ -2888,8 +3040,6 @@ audio {
     }
 
     .player-transport {
-        gap: 0.35rem;
-        padding: 6px 8px;
         margin-bottom: 2px;
         aspect-ratio: auto;
         height: auto;

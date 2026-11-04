@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/json-file-helpers.php';
 require_once __DIR__ . '/config-loader.php';
+require_once __DIR__ . '/slug.php';
 
 const BANDPROMO_BRAND_REGISTRY_VERSION = 1;
 /** Canonical default brand id (legacy alias: setup-default). */
@@ -851,17 +852,25 @@ function bandpromo_brand_default_document(): array
         // Player chrome preferences owned by the brand (Base brand drives /play).
         'player' => [
             'playlist_selector' => 'coverflow',
-            // In-flow support CTA (#beggars-banquet). Destination/label still from Settings → Support.
+            // Support banner (#beggars-banquet DOM / key kept for PCF). Destination/label from Settings → Support.
             'beggars_banquet' => true,
-            // In-flow account strip: status when signed in; compact login when anonymous (v0.9).
-            'login_status' => false,
-            // Mirror under the main cover art (desktop split layout).
+            // Guest login form in #player-user-area: none | minimal | full.
+            'login_form' => 'full',
+            // Dual-write: true when login_form !== none (older PCFs / readers).
+            'login_status' => true,
+            // Mirror under the main artwork (desktop split layout).
             'cover_reflection' => true,
-            // Faux spectrum bars filling the player transport panel.
+            // Preferred artwork source: still | living | playlist | campaign.
+            'artwork_preferred' => 'still',
+            // Transport animation: none | bars (more types later). Legacy analyzer bool migrates.
+            'animation' => 'bars',
+            // Dual-read with animation (true when bars) for older PCFs / appConfig.
             'analyzer' => true,
             // Player chrome footprint: large|normal|small (Large ≈ former Medium max).
             'size' => 'large',
-            // Prev/next ghost covers flanking the main cover (forced off at size=large).
+            // Cover Flow peeks: none | visible | jump (forced none at size=large).
+            'peeks' => 'none',
+            // Dual-read with peeks for older PCFs.
             'side_covers' => false,
             'side_covers_opacity' => 20,
             'side_covers_spread' => 'normal',
@@ -907,10 +916,14 @@ function bandpromo_brand_legacy_playlist_selector_fallback(): string
  * @return array{
  *   playlist_selector: string,
  *   beggars_banquet: bool,
+ *   login_form: string,
  *   login_status: bool,
  *   cover_reflection: bool,
+ *   artwork_preferred: string,
+ *   animation: string,
  *   analyzer: bool,
  *   size: string,
+ *   peeks: string,
  *   side_covers: bool,
  *   side_covers_opacity: int,
  *   side_covers_spread: string,
@@ -935,12 +948,7 @@ function bandpromo_brand_normalize_player(array $input): array
         $beggarsBanquet = filter_var($player['beggars_banquet'], FILTER_VALIDATE_BOOLEAN);
     }
 
-    // New optional chrome — missing key stays off so existing brands are unchanged.
-    if (!array_key_exists('login_status', $player)) {
-        $loginStatus = false;
-    } else {
-        $loginStatus = filter_var($player['login_status'], FILTER_VALIDATE_BOOLEAN);
-    }
+    $loginForm = bandpromo_brand_normalize_login_form($player);
 
     if (!array_key_exists('cover_reflection', $player)) {
         $coverReflection = true;
@@ -948,12 +956,8 @@ function bandpromo_brand_normalize_player(array $input): array
         $coverReflection = filter_var($player['cover_reflection'], FILTER_VALIDATE_BOOLEAN);
     }
 
-    // Missing key defaults to on so existing brands keep the transport spectrum.
-    if (!array_key_exists('analyzer', $player)) {
-        $analyzer = true;
-    } else {
-        $analyzer = filter_var($player['analyzer'], FILTER_VALIDATE_BOOLEAN);
-    }
+    $artworkPreferred = bandpromo_brand_normalize_artwork_preferred($player['artwork_preferred'] ?? 'still');
+    $animation = bandpromo_brand_normalize_player_animation($player);
 
     $sizeRaw = $player['size'] ?? null;
     if ($sizeRaw === null || trim((string) $sizeRaw) === '') {
@@ -961,15 +965,14 @@ function bandpromo_brand_normalize_player(array $input): array
     }
     $playerSize = bandpromo_brand_normalize_player_size($sizeRaw);
 
-    if (!array_key_exists('side_covers', $player)) {
-        $sideCovers = true;
-    } else {
-        $sideCovers = filter_var($player['side_covers'], FILTER_VALIDATE_BOOLEAN);
+    $peeks = bandpromo_brand_normalize_player_peeks($player, $playerSize);
+    // Playlist / Campaign art is shared identity — no Cover Flow neighbours or mirror.
+    if (bandpromo_brand_artwork_preferred_forces_flat_cover($artworkPreferred)) {
+        $peeks = 'none';
+        $coverReflection = false;
     }
-    // Large chrome has no room for flanks — force off (policy).
-    if ($playerSize === 'large') {
-        $sideCovers = false;
-    }
+    $sideCovers = $peeks !== 'none';
+    $sideNavigate = $peeks === 'jump';
 
     $opacity = (int) bandpromo_brand_normalize_int_token(
         $player['side_covers_opacity'] ?? 20,
@@ -980,25 +983,129 @@ function bandpromo_brand_normalize_player(array $input): array
     $spread = bandpromo_brand_normalize_side_covers_spread($player['side_covers_spread'] ?? 'normal');
     $colour = bandpromo_brand_normalize_side_covers_colour($player['side_covers_colour'] ?? 'soft');
 
-    if (!array_key_exists('side_covers_navigate', $player)) {
-        $sideNavigate = true;
-    } else {
-        $sideNavigate = filter_var($player['side_covers_navigate'], FILTER_VALIDATE_BOOLEAN);
-    }
-
     return [
         'playlist_selector' => $selector,
         'beggars_banquet' => $beggarsBanquet,
-        'login_status' => $loginStatus,
+        'login_form' => $loginForm,
+        // Dual-write for older PCFs / readers that only know the bool.
+        'login_status' => $loginForm !== 'none',
         'cover_reflection' => $coverReflection,
-        'analyzer' => $analyzer,
+        'artwork_preferred' => $artworkPreferred,
+        'animation' => $animation,
+        // Legacy dual-write for older readers / appConfig.player.analyzer.
+        'analyzer' => $animation === 'bars',
         'size' => $playerSize,
+        'peeks' => $peeks,
         'side_covers' => $sideCovers,
         'side_covers_opacity' => $opacity,
         'side_covers_spread' => $spread,
         'side_covers_colour' => $colour,
         'side_covers_navigate' => $sideNavigate,
     ];
+}
+
+/**
+ * Playlist / Campaign Preferred type: force reflection + peeks off (flat cover).
+ */
+function bandpromo_brand_artwork_preferred_forces_flat_cover(string $preferred): bool
+{
+    $mode = bandpromo_brand_normalize_artwork_preferred($preferred);
+
+    return $mode === 'playlist' || $mode === 'campaign';
+}
+
+/**
+ * Preferred artwork source for the player Artwork slot.
+ */
+function bandpromo_brand_normalize_artwork_preferred(mixed $value): string
+{
+    $mode = strtolower(trim((string) $value));
+    if (in_array($mode, ['still', 'living', 'playlist', 'campaign'], true)) {
+        return $mode;
+    }
+
+    return 'still';
+}
+
+/**
+ * Guest login form presentation in the player user area: none | minimal | full.
+ * Migrates legacy player.login_status bool when login_form is absent.
+ *
+ * @param array<string, mixed> $player
+ */
+function bandpromo_brand_normalize_login_form(array $player): string
+{
+    $raw = strtolower(trim((string) ($player['login_form'] ?? '')));
+    if ($raw === 'minimalistic') {
+        $raw = 'minimal';
+    }
+    if (in_array($raw, ['none', 'minimal', 'full'], true)) {
+        return $raw;
+    }
+
+    if (array_key_exists('login_status', $player)) {
+        return filter_var($player['login_status'], FILTER_VALIDATE_BOOLEAN) ? 'full' : 'none';
+    }
+
+    return 'full';
+}
+
+/**
+ * Transport animation: none | bars. Migrates legacy player.analyzer bool.
+ */
+function bandpromo_brand_normalize_player_animation(array $player): string
+{
+    $raw = strtolower(trim((string) ($player['animation'] ?? '')));
+    if ($raw === 'none' || $raw === 'bars') {
+        return $raw;
+    }
+    if (array_key_exists('analyzer', $player)) {
+        return filter_var($player['analyzer'], FILTER_VALIDATE_BOOLEAN) ? 'bars' : 'none';
+    }
+
+    return 'bars';
+}
+
+/**
+ * Cover Flow peeks: none | visible | jump. Migrates side_covers + side_covers_navigate.
+ * Forced to none at Player size Large, and when Preferred type is Playlist or Campaign.
+ */
+function bandpromo_brand_normalize_player_peeks(array $player, string $playerSize): string
+{
+    if ($playerSize === 'large') {
+        return 'none';
+    }
+    $preferred = bandpromo_brand_normalize_artwork_preferred($player['artwork_preferred'] ?? 'still');
+    if (bandpromo_brand_artwork_preferred_forces_flat_cover($preferred)) {
+        return 'none';
+    }
+
+    $raw = strtolower(trim((string) ($player['peeks'] ?? '')));
+    if ($raw === 'none' || $raw === 'visible' || $raw === 'jump') {
+        return $raw;
+    }
+    // Legacy Skip label → jump.
+    if ($raw === 'skip') {
+        return 'jump';
+    }
+
+    if (!array_key_exists('side_covers', $player)) {
+        // Historical default when peeks key missing matched side_covers true for non-large.
+        $sideCovers = true;
+    } else {
+        $sideCovers = filter_var($player['side_covers'], FILTER_VALIDATE_BOOLEAN);
+    }
+    if (!$sideCovers) {
+        return 'none';
+    }
+
+    if (!array_key_exists('side_covers_navigate', $player)) {
+        $navigate = true;
+    } else {
+        $navigate = filter_var($player['side_covers_navigate'], FILTER_VALIDATE_BOOLEAN);
+    }
+
+    return $navigate ? 'jump' : 'visible';
 }
 
 /**
@@ -1132,7 +1239,9 @@ function bandpromo_brand_side_covers_css_variables(array $document): array
         '--player-size-scale-stacked' => $scales['stacked'],
         '--player-size-scale-split' => $scales['split'],
         '--player-size-scale-short' => $scales['short'],
-        // When side covers are off (always at Large), do not reserve flank gutters on the rail.
+        // When peeks are off (always at Large), do not reserve flank gutters on the rail.
+        // Gutter matches the Cover Flow translate so prev/next peeks stay inside the rail.
+        '--player-side-gutter' => $offset . 'px',
         '--player-side-gutter-scale' => $enabled ? '1' : '0',
         '--side-cover-display' => $enabled ? 'block' : 'none',
         '--side-cover-opacity' => (string) $opacity,
@@ -3353,14 +3462,7 @@ function bandpromo_brand_ensure_seeded(string $root): void
 
 function bandpromo_brand_slug_from_title(string $title): string
 {
-    $slug = strtolower(trim($title));
-    $slug = preg_replace('/[^a-z0-9]+/', '-', $slug) ?? '';
-    $slug = trim($slug, '-');
-    if ($slug === '') {
-        $slug = 'brand-copy';
-    }
-
-    return substr($slug, 0, 48);
+    return bandpromo_slugify_text($title, 48, 'brand-copy');
 }
 
 function bandpromo_brand_propose_duplicate_title(string $sourceTitle): string

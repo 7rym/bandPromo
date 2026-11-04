@@ -64,9 +64,10 @@ function bandpromo_support_prepare_config(array &$config): ?string
     if ($label === '') {
         $label = 'Support';
     }
+    // Multiline Markdown CTA — keep short so the banner stays compact in stacked player.
     $labelLength = function_exists('mb_strlen') ? mb_strlen($label, 'UTF-8') : strlen($label);
-    if ($labelLength > 80) {
-        return 'Support button text must be 80 characters or fewer.';
+    if ($labelLength > 300) {
+        return 'Support button text must be 300 characters or fewer.';
     }
     $support['label'] = $label;
 

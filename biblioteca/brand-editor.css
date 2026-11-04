@@ -200,7 +200,8 @@
     margin: 0;
     padding: 0;
     border-radius: 0;
-    overflow: hidden;
+    /* Visible so iframe Cover Flow peeks (rotateX) are not clipped/flattened. */
+    overflow: visible;
     background: rgba(0, 0, 0, 0.25);
 }
 
@@ -369,6 +370,15 @@
     flex-wrap: wrap;
     align-items: center;
     gap: 4px 8px;
+}
+
+/* Thin rule between independent Player setting groups (Artwork / Controls / User area). */
+.brand-settings-rule {
+    grid-column: 1 / -1;
+    height: 0;
+    margin: 0.55rem 0 0.35rem;
+    border: 0;
+    border-top: 1px solid rgba(148, 163, 184, 0.28);
 }
 
 .brand-content-chrome-grid {
@@ -953,6 +963,13 @@
     color: var(--primary-color);
     font-size: 0.95rem;
     line-height: 1;
+}
+
+.theme-preview-user-login {
+    color: var(--color-text-muted, #dddddd);
+    font-size: 0.78rem;
+    font-weight: 600;
+    opacity: 0.85;
 }
 
 .theme-preview-user-name {

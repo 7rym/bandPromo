@@ -2,6 +2,24 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-11-04 14:55 - Checkpoint: Player Artwork Preferred type (Still|Living|Playlist|Campaign) soft-applies with playlist brand; Playlist/Campaign force reflection+peeks off and Campaign uses contain; cover lightbox mirrors living; Repeat off vs all clearer; Branding Player settings grouped; preview remirrors `#mediaplayer` only (shell stays); Login form None|Minimalistic|Full + Support banner Markdown; platform ASCII slug fold + remix deep-link disambiguation; tester map [PLAYER-ARTWORK-MAP.md](PLAYER-ARTWORK-MAP.md).
+
+2026-11-04 13:30 - Settings → Support: **Button text** is multiline Markdown (300 chars); Support banner renders it with hard line breaks (nested links flattened — the banner is the link).
+
+2026-11-04 12:30 - Guest invite text moves above the login form (out of the user bar); form border dropped; inputs use Panels (`--color-surface-mid`) + Muted text.
+
+2026-11-04 12:25 - Player User area polish: tools back top-left; compact login form (placeholders only, row layout) above Support banner; rename operator **Beggars banquet** → **Support banner** (storage key / `#beggars-banquet` kept for PCF).
+
+2026-11-04 12:15 - Branding → User area: restore user-bar status (signed-in username, or guest invite with site title); **Login form:** None|Minimalistic|Full (`player.login_form`, legacy `login_status` dual-write) — preview only, auth not wired. Minimalistic expands a Login button into the full form.
+
+2026-11-04 11:30 - Branding Player Live preview: patch chrome CSS/DOM in-place (no shell redraw on Size/Peeks/Controls sliders); full frame only when shell or demo artwork changes. Peeks get a light edge + distinct peek art when logo differs — Grey + Fill still mute them by design.
+
+2026-11-04 11:20 - Branding → Player: section **Artwork** (was Cover); **Preferred type:** Still|Living|Playlist|Campaign; **Artwork reflection:**; preview peeks keep live 3D (overflow no longer flattens rotateX). Roadmap note: later **Video** Preferred type for music videos.
+
+2026-11-04 11:00 - Branding → Player: **Animation:** None|Bars (replaces Analyzer On|Off; `player.animation`, legacy `analyzer` dual-write); preview paints Bars. **Peeks:** None|Visible|Jump (Navigate folded in; Jump = click skips track).
+
+2026-11-04 10:45 - Branding → Player polish: Cover labels **Size:** / **Cover reflection:** / **Peeks:** (Cover Flow neighbours); Login strip always on (status username + On|Off toggle removed; Login not wired yet); Beggars unchanged. Fix peeks rail gutters so Fill/Spread/Colour show; Controls Density/Fill/Blur honour brand pad/gap (drop hardcoded crush).
+
 2026-11-03 17:55 - Publish **v0.8.100 build 608** for Site update: Branding Live preview Player remirror — shared `#mediaplayer` chrome with `/play`, Shell behind, stacked rail sizing (demo track/cover).
 
 2026-11-03 17:50 - Branding Player preview: keep Shell atmosphere behind chrome; use live stacked `--card-size` / `--player-rail` (drop preview-only 20rem cap) so scene/transport/beggars stay one rail and Player size only changes the stacked scale.

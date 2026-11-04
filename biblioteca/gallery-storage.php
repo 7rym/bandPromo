@@ -5,6 +5,7 @@ require_once __DIR__ . '/json-file-helpers.php';
 require_once __DIR__ . '/gallery-helpers.php';
 require_once __DIR__ . '/media-reference-helpers.php';
 require_once __DIR__ . '/demo-catalog-state.php';
+require_once __DIR__ . '/slug.php';
 
 const BANDPROMO_GALLERY_REGISTRY_VERSION = 1;
 const BANDPROMO_GALLERY_DEMO_ID = 'bandpromo-demo';
@@ -623,14 +624,7 @@ function bandpromo_gallery_optimal_image_src(string $root, string $src): string
 
 function bandpromo_gallery_slug_from_title(string $title): string
 {
-    $slug = strtolower(trim($title));
-    $slug = preg_replace('/[^a-z0-9]+/', '-', $slug) ?? '';
-    $slug = trim($slug, '-');
-    if ($slug === '') {
-        $slug = 'gallery';
-    }
-
-    return substr($slug, 0, 48);
+    return bandpromo_slugify_text($title, 48, 'gallery');
 }
 
 function bandpromo_gallery_is_protected_id(string $galleryId): bool

@@ -10,6 +10,7 @@ require_once __DIR__ . '/publish-status-helpers.php';
 require_once __DIR__ . '/demo-catalog-state.php';
 require_once __DIR__ . '/living-cover-helpers.php';
 require_once __DIR__ . '/brand-storage.php';
+require_once __DIR__ . '/slug.php';
 
 const BANDPROMO_PLAYLIST_REGISTRY_VERSION = 1;
 const BANDPROMO_PLAYLIST_DEMO_ID = 'bandpromo-demo';
@@ -2008,29 +2009,131 @@ function bandpromo_playlist_campaign_date_is_public(string $releaseDate, bool $o
     return $date instanceof DateTimeImmutable ? (int) $date->format('Ymd') <= $today : true;
 }
 
+/**
+ * Lowercase kebab slug from free text (title/version segments).
+ * Delegates to platform-canon {@see bandpromo_slugify_text()}.
+ */
+function bandpromo_playlist_slugify_text(string $text): string
+{
+    return bandpromo_slugify_text($text, 64, '');
+}
+
+/**
+ * Split player/registry title + version for deep-link slug building.
+ * Titles may arrive as "Title", "Title [Version]", or "Title\\n[Version]".
+ *
+ * @return array{title: string, version: string}
+ */
+function bandpromo_playlist_track_title_version_for_slug(array $track): array
+{
+    $title = trim((string) ($track['title'] ?? ''));
+    $version = trim((string) ($track['version'] ?? ''));
+
+    $lines = preg_split("/\r\n|\n|\r/", $title) ?: [$title];
+    $titleLine = trim((string) ($lines[0] ?? ''));
+    if ($version === '' && isset($lines[1])) {
+        $second = trim((string) $lines[1]);
+        if (preg_match('/^\[(.*)\]\s*$/u', $second, $match) === 1) {
+            $version = trim((string) ($match[1] ?? ''));
+        }
+    }
+    if ($version === '' && preg_match('/^(.*)\s+\[([^\]]+)\]\s*$/u', $titleLine, $match) === 1) {
+        $titleLine = trim((string) ($match[1] ?? ''));
+        $version = trim((string) ($match[2] ?? ''));
+    } elseif ($version !== '') {
+        $suffix = ' [' . $version . ']';
+        if (str_ends_with(strtolower($titleLine), strtolower($suffix))) {
+            $titleLine = trim(substr($titleLine, 0, -strlen($suffix)));
+        }
+    }
+
+    return [
+        'title' => $titleLine,
+        'version' => $version,
+    ];
+}
+
 function bandpromo_playlist_track_slug(array $track, ?array $asset, ?array $releaseTrack): string
 {
     if ($releaseTrack !== null) {
-        $slug = trim((string) ($releaseTrack['slug'] ?? ''));
+        $slug = bandpromo_playlist_slugify_text((string) ($releaseTrack['slug'] ?? ''));
         if ($slug !== '') {
-            return $slug;
+            return substr($slug, 0, 64);
         }
     }
 
     if ($asset !== null) {
-        $slug = trim((string) ($asset['slug'] ?? ''));
+        $slug = bandpromo_playlist_slugify_text((string) ($asset['slug'] ?? ''));
         if ($slug !== '') {
-            return $slug;
+            return substr($slug, 0, 64);
         }
     }
 
-    $title = trim((string) ($track['title'] ?? ''));
-    $title = explode("\n", $title)[0] ?? $title;
-    $slug = strtolower($title);
-    $slug = preg_replace('/[^a-z0-9]+/', '-', $slug) ?? '';
-    $slug = trim($slug, '-');
+    $parts = bandpromo_playlist_track_title_version_for_slug($track);
+    $titleSlug = bandpromo_playlist_slugify_text($parts['title']);
+    $versionSlug = bandpromo_playlist_slugify_text($parts['version']);
+    $slug = $titleSlug;
+    if ($versionSlug !== '' && $versionSlug !== $titleSlug && !str_ends_with($slug, '-' . $versionSlug)) {
+        $slug = $slug !== '' ? ($slug . '-' . $versionSlug) : $versionSlug;
+    }
 
     return $slug !== '' ? substr($slug, 0, 64) : 'track';
+}
+
+/**
+ * Ensure track_slug values are unique within one playlist payload.
+ * First occurrence keeps the base slug; later collisions get -2, -3, …
+ *
+ * @param list<array<string, mixed>> $tracks
+ * @return list<array<string, mixed>>
+ */
+function bandpromo_playlist_disambiguate_track_slugs(array $tracks): array
+{
+    $counts = [];
+    foreach ($tracks as $track) {
+        if (!is_array($track)) {
+            continue;
+        }
+        $slug = strtolower(trim((string) ($track['track_slug'] ?? '')));
+        if ($slug === '') {
+            $slug = 'track';
+        }
+        $counts[$slug] = ($counts[$slug] ?? 0) + 1;
+    }
+
+    $seen = [];
+    $used = [];
+    foreach ($tracks as $index => $track) {
+        if (!is_array($track)) {
+            continue;
+        }
+        $base = strtolower(trim((string) ($track['track_slug'] ?? '')));
+        if ($base === '') {
+            $base = 'track';
+        }
+        if (($counts[$base] ?? 0) <= 1) {
+            $tracks[$index]['track_slug'] = $base;
+            $used[$base] = true;
+            continue;
+        }
+
+        $seen[$base] = ($seen[$base] ?? 0) + 1;
+        $n = (int) $seen[$base];
+        $candidate = $base;
+        if ($n > 1) {
+            $suffix = '-' . $n;
+            $candidate = substr($base, 0, max(1, 64 - strlen($suffix))) . $suffix;
+        }
+        while (isset($used[$candidate])) {
+            $n++;
+            $suffix = '-' . $n;
+            $candidate = substr($base, 0, max(1, 64 - strlen($suffix))) . $suffix;
+        }
+        $used[$candidate] = true;
+        $tracks[$index]['track_slug'] = $candidate;
+    }
+
+    return $tracks;
 }
 
 function bandpromo_playlist_track_stream_state(
@@ -2218,13 +2321,25 @@ function bandpromo_playlist_enrich_tracks_for_player(
             $featuredArtist = trim((string) ($track['featured_artist'] ?? ''));
         }
 
+        // Prefer registry title/version for deep-link slugs (player titles may fold
+        // version into "Title\\n[Version]" and omit a separate version field).
+        $slugSource = $track;
+        $displayTitle = trim((string) ($display['title'] ?? ''));
+        $displayVersion = trim((string) ($display['version'] ?? ''));
+        if ($displayTitle !== '') {
+            $slugSource['title'] = $displayTitle;
+        }
+        if ($displayVersion !== '') {
+            $slugSource['version'] = $displayVersion;
+        }
+
         $enriched[] = array_merge($track, [
             'asset_id' => (string) ($asset['id'] ?? ''),
             'release_id' => $releaseId,
             'release_slug' => $releaseSlug,
             // Player brand comes from the playlist’s owning release, not per-track.
             'brand_id' => '',
-            'track_slug' => bandpromo_playlist_track_slug($track, $asset, $releaseTrack),
+            'track_slug' => bandpromo_playlist_track_slug($slugSource, $asset, $releaseTrack),
             'featured_artist' => $featuredArtist,
             'delivery_ready' => (bool) ($streamState['delivery_ready'] ?? false),
             'delivery_mode' => (string) ($streamState['delivery_mode'] ?? ''),
@@ -2239,7 +2354,7 @@ function bandpromo_playlist_enrich_tracks_for_player(
         ]);
     }
 
-    return $enriched;
+    return bandpromo_playlist_disambiguate_track_slugs($enriched);
 }
 
 function bandpromo_playlist_materialize_for_player(
@@ -3082,14 +3197,7 @@ function bandpromo_playlist_admin_preview(string $root, string $playlistId): arr
 
 function bandpromo_playlist_slug_from_title(string $title): string
 {
-    $slug = strtolower(trim($title));
-    $slug = preg_replace('/[^a-z0-9]+/', '-', $slug) ?? '';
-    $slug = trim($slug, '-');
-    if ($slug === '') {
-        $slug = 'playlist';
-    }
-
-    return substr($slug, 0, 48);
+    return bandpromo_slugify_text($title, 48, 'playlist');
 }
 
 function bandpromo_playlist_registry_entry(string $root, string $playlistId): ?array

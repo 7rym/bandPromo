@@ -72,10 +72,35 @@ try {
     // Keep asset URLs from the working copy.
 }
 
-$loginStatus = !empty($player['login_status']);
 $beggars = array_key_exists('beggars_banquet', $player) ? !empty($player['beggars_banquet']) : true;
+$loginForm = (string) ($player['login_form'] ?? 'full');
 $coverReflection = array_key_exists('cover_reflection', $player) ? !empty($player['cover_reflection']) : true;
-$analyzer = array_key_exists('analyzer', $player) ? !empty($player['analyzer']) : true;
+$siteTitle = trim((string) get_config('release.identity.title', 'bandPromo'));
+if ($siteTitle === '') {
+    $siteTitle = 'bandPromo';
+}
+$animation = (string) ($player['animation'] ?? 'bars');
+if ($animation !== 'none' && $animation !== 'bars') {
+    $animation = !empty($player['analyzer']) || !array_key_exists('analyzer', $player) ? 'bars' : 'none';
+}
+$barsOn = $animation === 'bars';
+$artworkPreferred = bandpromo_brand_normalize_artwork_preferred($player['artwork_preferred'] ?? 'still');
+$flatCover = bandpromo_brand_artwork_preferred_forces_flat_cover($artworkPreferred);
+if ($flatCover) {
+    $coverReflection = false;
+}
+$logo = trim((string) ($assets['logo'] ?? ''));
+$demoCover = $poster;
+if ($artworkPreferred === 'campaign') {
+    // Match live resolve: campaign poster, then logo — never crop-prefer logo over poster.
+    $demoCover = $poster !== '' ? $poster : $logo;
+}
+$demoLiving = ($artworkPreferred === 'living' && $shellLiving !== '') ? $shellLiving : '';
+// Distinct peek cards (live uses prev/next tracks). Flat Preferred types hide peeks.
+$demoPeek = ($logo !== '' && $logo !== $demoCover) ? $logo : ($demoCover !== '' ? $demoCover : $poster);
+if ($flatCover) {
+    $demoPeek = $demoCover;
+}
 
 $supportEnabled = (bool) get_config('support.enabled', false);
 $supportLabel = trim((string) get_config('support.label', 'Support'));
@@ -92,12 +117,15 @@ if ($supportFg === '') {
     $supportFg = '#ffffff';
 }
 
+// Branding preview shows the guest invite + login form modes (auth not wired yet).
 $chrome = bandpromo_player_chrome_render([
     'preview' => true,
-    'login_status' => $loginStatus,
+    'signed_in' => false,
+    'username' => '',
+    'site_title' => $siteTitle,
+    'login_form' => $loginForm,
     'show_admin' => false,
     'show_debug' => false,
-    'username' => 'listener',
     'beggars_banquet' => $beggars,
     'support_enabled' => $supportEnabled,
     'support_url' => $supportUrl,
@@ -108,9 +136,10 @@ $chrome = bandpromo_player_chrome_render([
         'artist' => 'Artist name',
         'title' => 'Track title',
         'version' => 'Version',
-        'cover_url' => $poster,
-        'prev_cover_url' => $poster,
-        'next_cover_url' => $poster,
+        'cover_url' => $demoCover !== '' ? $demoCover : $poster,
+        'prev_cover_url' => $demoPeek !== '' ? $demoPeek : ($demoCover !== '' ? $demoCover : $poster),
+        'next_cover_url' => $demoPeek !== '' ? $demoPeek : ($demoCover !== '' ? $demoCover : $poster),
+        'living_cover_url' => $demoLiving,
         'time_current' => '0:42',
         'time_duration' => '3:24',
     ],
@@ -126,9 +155,39 @@ if ($living) {
 if (!$coverReflection) {
     $bodyClasses[] = 'cover-reflection-off';
 }
-if (!$analyzer) {
+if (!$barsOn) {
     $bodyClasses[] = 'analyzer-off';
 }
+if ($artworkPreferred === 'playlist') {
+    $bodyClasses[] = 'artwork-preferred-playlist';
+}
+if ($artworkPreferred === 'campaign') {
+    $bodyClasses[] = 'artwork-preferred-campaign';
+}
+if ($artworkPreferred === 'living') {
+    $bodyClasses[] = 'artwork-preferred-living';
+}
+
+// Chrome-only remirror: replace #mediaplayer inside the existing iframe (shell stays put).
+$fragment = strtolower(trim((string) ($payload['fragment'] ?? '')));
+if ($fragment === 'chrome') {
+    header('Content-Type: application/json; charset=utf-8');
+    header('Cache-Control: no-store');
+    echo json_encode([
+        'ok' => true,
+        'chrome' => $chrome,
+        'body_classes' => [
+            'cover-reflection-off' => !$coverReflection,
+            'analyzer-off' => !$barsOn,
+            'artwork-preferred-playlist' => $artworkPreferred === 'playlist',
+            'artwork-preferred-campaign' => $artworkPreferred === 'campaign',
+            'artwork-preferred-living' => $artworkPreferred === 'living',
+        ],
+        'bars_on' => $barsOn,
+    ], JSON_UNESCAPED_SLASHES);
+    exit;
+}
+
 $bodyClassAttr = htmlspecialchars(implode(' ', $bodyClasses), ENT_QUOTES, 'UTF-8');
 $bodyStyleAttr = (!$living && $shellStill !== '')
     ? ' style="background-image:url(\'' . htmlspecialchars($shellStill, ENT_QUOTES, 'UTF-8') . '\');"'
@@ -189,7 +248,8 @@ header('Cache-Control: no-store');
             width: 100% !important;
             height: auto !important;
             min-height: 100% !important;
-            overflow-x: hidden !important;
+            /* Visible — overflow:hidden flattens 3D peeks (rotateX) in Chromium. */
+            overflow-x: visible !important;
             overflow-y: auto !important;
             padding: 8px 0 12px !important;
             box-sizing: border-box;
@@ -199,17 +259,31 @@ header('Cache-Control: no-store');
             --player-rail: min(
                 calc(
                     var(--card-size) * var(--cover-size-scale, 0.62)
-                    + 2 * var(--player-side-gutter, 12px) * var(--player-side-gutter-scale, 0)
+                    + 2 * var(--player-side-gutter, 120px) * var(--player-side-gutter-scale, 0) * var(--cover-size-scale, 0.62)
                 ),
                 100%
             ) !important;
             background-attachment: scroll !important;
         }
         body.play-preview-stacked #mediaplayer {
-            width: 100%;
+            width: min(100%, var(--player-rail, 100%));
             max-width: 100%;
             height: auto;
             min-height: 0;
+            overflow: visible !important;
+        }
+        /* Keep Cover Flow peeks in the same 3D scene as live /play. */
+        body.play-preview-stacked .scene {
+            perspective: 1000px !important;
+            transform-style: preserve-3d !important;
+            overflow: visible !important;
+        }
+        body.play-preview-stacked .side-card {
+            transform-style: preserve-3d !important;
+            /* Thin edge so Grey + low Fill still reads against busy shell backdrops. */
+            box-shadow:
+                0 5px 15px rgba(0, 0, 0, 0.5),
+                0 0 0 1px rgba(255, 255, 255, 0.22);
         }
         body.play-preview-stacked #content-container {
             display: none !important;
@@ -228,6 +302,22 @@ header('Cache-Control: no-store');
 <body class="<?php echo $bodyClassAttr; ?>"<?php echo $bodyStyleAttr; ?>>
 <?php echo $shellVideoHtml; ?>
 <?php echo $chrome; ?>
+<script>
+(function () {
+    document.querySelectorAll('.player-user-login-wrap[data-login-form-mode="minimal"]').forEach(function (wrap) {
+        var openBtn = wrap.querySelector('.player-user-login-open');
+        var form = wrap.querySelector('.player-user-login-form');
+        if (!(openBtn instanceof HTMLElement) || !(form instanceof HTMLElement)) {
+            return;
+        }
+        openBtn.addEventListener('click', function () {
+            wrap.classList.add('is-login-expanded');
+            openBtn.hidden = true;
+            form.hidden = false;
+        });
+    });
+})();
+</script>
 <script>
 (function () {
     var video = document.getElementById('shell-bg-video');
@@ -252,5 +342,52 @@ header('Cache-Control: no-store');
     play();
 })();
 </script>
+<?php if ($barsOn) { ?>
+<script>
+(function () {
+    var canvas = document.getElementById('analyzer');
+    if (!(canvas instanceof HTMLCanvasElement) || document.body.classList.contains('analyzer-off')) {
+        return;
+    }
+    var ctx = canvas.getContext('2d');
+    if (!ctx) {
+        return;
+    }
+    function resize() {
+        var host = canvas.parentElement;
+        if (!(host instanceof HTMLElement)) {
+            return;
+        }
+        canvas.width = host.clientWidth;
+        canvas.height = host.clientHeight;
+    }
+    function draw() {
+        requestAnimationFrame(draw);
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        var bars = 20;
+        var barWidth = canvas.width / bars;
+        var time = Date.now() / 150;
+        var fill = getComputedStyle(document.documentElement).getPropertyValue('--primary-color').trim() || '#7dd3fc';
+        ctx.fillStyle = fill;
+        ctx.globalAlpha = 0.3;
+        for (var i = 0; i < bars; i++) {
+            var height = Math.max(8, 18 + Math.sin(time + i * 0.5) * 14 + Math.sin(time * 0.7 + i) * 8);
+            var x = i * barWidth;
+            var y = canvas.height - height;
+            ctx.beginPath();
+            if (typeof ctx.roundRect === 'function') {
+                ctx.roundRect(x + 2, y, barWidth - 4, height, [5, 5, 0, 0]);
+            } else {
+                ctx.rect(x + 2, y, barWidth - 4, height);
+            }
+            ctx.fill();
+        }
+    }
+    window.addEventListener('resize', resize);
+    resize();
+    draw();
+})();
+</script>
+<?php } ?>
 </body>
 </html>

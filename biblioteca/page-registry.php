@@ -2,6 +2,7 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/page-blocks.php';
+require_once __DIR__ . '/slug.php';
 
 const BANDPROMO_PAGE_REGISTRY_VERSION = 1;
 const BANDPROMO_PAGE_REQUIRED_ID = 'faq';
@@ -41,14 +42,7 @@ function bandpromo_page_registry_template_path(string $root): string {
 }
 
 function bandpromo_page_slug_from_title(string $title): string {
-    $slug = strtolower(trim($title));
-    $slug = preg_replace('/[^a-z0-9]+/', '-', $slug) ?? '';
-    $slug = trim($slug, '-');
-    if ($slug === '') {
-        $slug = 'page';
-    }
-
-    return substr($slug, 0, 48);
+    return bandpromo_slugify_text($title, 48, 'page');
 }
 
 function bandpromo_page_normalize_registry_entry(array $entry, int $fallbackOrder = 0): ?array {

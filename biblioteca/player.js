@@ -522,21 +522,109 @@ function syncCoverPlaybackVisual() {
     showStillCoverVisual();
 }
 
-function setCoverVisual(song) {
-    const animatedUrl = typeof song?.animated_cover === 'string' ? song.animated_cover.trim() : '';
-    currentLivingCoverUrl = animatedUrl !== '' && !prefersReducedMotion() ? animatedUrl : '';
+function normalizeArtworkPreferredMode(raw) {
+    const mode = String(raw || '').trim().toLowerCase();
+    return ['still', 'living', 'playlist', 'campaign'].includes(mode) ? mode : 'still';
+}
 
-    setImageWithFallback(reflectionImage, songCoverRef(song));
+function getArtworkPreferredMode() {
+    const raw = window.appConfig && window.appConfig.player
+        ? window.appConfig.player.artwork_preferred
+        : '';
+    return normalizeArtworkPreferredMode(raw);
+}
+
+function artworkPreferredForcesFlatCover(mode) {
+    const preferred = normalizeArtworkPreferredMode(mode);
+    return preferred === 'playlist' || preferred === 'campaign';
+}
+
+/**
+ * Soft-apply Preferred type (+ flat-cover body classes) from the playlist release brand.
+ */
+function applyPlaylistArtworkPreferred(brand) {
+    const player = brand && brand.player && typeof brand.player === 'object' ? brand.player : null;
+    if (!player) {
+        return;
+    }
+    const preferred = normalizeArtworkPreferredMode(player.artwork_preferred);
+    const flat = artworkPreferredForcesFlatCover(preferred);
+    window.appConfig = window.appConfig || {};
+    window.appConfig.player = Object.assign({}, window.appConfig.player || {}, {
+        artwork_preferred: preferred,
+        // Playlist / Campaign force reflection off (peeks already none in brand CSS vars).
+        cover_reflection: flat ? false : player.cover_reflection !== false,
+    });
+    syncArtworkPreferredBodyClasses(preferred, flat ? false : player.cover_reflection !== false);
+}
+
+function syncArtworkPreferredBodyClasses(preferredMode, reflectionOn) {
+    const preferred = normalizeArtworkPreferredMode(preferredMode);
+    const body = document.body;
+    if (!body) {
+        return;
+    }
+    body.classList.toggle('artwork-preferred-playlist', preferred === 'playlist');
+    body.classList.toggle('artwork-preferred-campaign', preferred === 'campaign');
+    body.classList.toggle('artwork-preferred-living', preferred === 'living');
+    body.classList.toggle('cover-reflection-off', reflectionOn === false);
+}
+
+/**
+ * Resolve still + optional living URL for the Artwork slot from brand Preferred type.
+ * Fallbacks: preferred source → track still; living only when Preferred is Living.
+ */
+function resolveArtworkVisual(song) {
+    const mode = getArtworkPreferredMode();
+    const trackStill = songCoverRef(song);
+    const trackLiving = typeof song?.animated_cover === 'string' ? song.animated_cover.trim() : '';
+
+    if (mode === 'playlist') {
+        const entry = playlistEntryForId(getActivePlaylistId());
+        const playlistCover = String(entry?.cover || '').trim();
+        if (playlistCover !== '') {
+            return { still: playlistCover, living: '' };
+        }
+        return { still: trackStill, living: '' };
+    }
+
+    if (mode === 'campaign') {
+        const campaignId = String(window.BANDPROMO_CAMPAIGN_ID || '').trim();
+        const catalog = Array.isArray(window.BANDPROMO_CAMPAIGN_CATALOG) ? window.BANDPROMO_CAMPAIGN_CATALOG : [];
+        const campaign = catalog.find((entry) => String(entry?.id || '') === campaignId) || null;
+        const campaignArt = String(campaign?.poster || campaign?.logo || '').trim();
+        if (campaignArt !== '') {
+            return { still: campaignArt, living: '' };
+        }
+        return { still: trackStill, living: '' };
+    }
+
+    if (mode === 'living') {
+        return {
+            still: trackStill,
+            living: trackLiving !== '' && !prefersReducedMotion() ? trackLiving : '',
+        };
+    }
+
+    // still — never promote living video into the Artwork slot.
+    return { still: trackStill, living: '' };
+}
+
+function setCoverVisual(song) {
+    const artwork = resolveArtworkVisual(song);
+    currentLivingCoverUrl = artwork.living;
+
+    setImageWithFallback(reflectionImage, artwork.still);
 
     if (!coverImage) {
         return;
     }
 
-    setImageWithFallback(coverImage, songCoverRef(song));
+    setImageWithFallback(coverImage, artwork.still);
 
     if (coverVideo) {
         if (currentLivingCoverUrl) {
-            const posterUrl = buildCoverUrl(songCoverRef(song));
+            const posterUrl = buildCoverUrl(artwork.still);
             if (posterUrl) {
                 coverVideo.poster = posterUrl;
             } else {
@@ -2396,6 +2484,10 @@ function applyPlaylistBrand(brandId, options = {}) {
         return;
     }
 
+    // Always remirror Preferred type — SSR may have painted shell for this brand while
+    // appConfig.player still held Base; early CSS skip must not leave Still stuck on.
+    applyPlaylistArtworkPreferred(brand);
+
     if (!force && previousApplied === resolvedBrandId) {
         // Same brand as SSR / last apply — keep painted chrome (avoids campaign-switch blink).
         return;
@@ -2801,12 +2893,20 @@ async function loadConfig() {
     }
 }
 
-// Faux spectrum analyzer (fills .player-transport; brand player.analyzer On|Off).
+// Transport animation bars (fills .player-transport; brand player.animation None|Bars).
 const canvas = document.getElementById('analyzer');
 const analyzerEnabled = (() => {
-    const flag = window.appConfig && window.appConfig.player
-        ? window.appConfig.player.analyzer
-        : undefined;
+    const playerCfg = window.appConfig && window.appConfig.player ? window.appConfig.player : null;
+    const animation = playerCfg && typeof playerCfg.animation === 'string'
+        ? String(playerCfg.animation).trim().toLowerCase()
+        : '';
+    if (animation === 'none') {
+        return false;
+    }
+    if (animation === 'bars') {
+        return !document.body.classList.contains('analyzer-off');
+    }
+    const flag = playerCfg ? playerCfg.analyzer : undefined;
     if (flag === false || flag === 0 || flag === '0' || flag === 'false') {
         return false;
     }
@@ -3299,9 +3399,9 @@ function updateVisuals(index) {
     // Scroll page to top
     window.scrollTo(0, 0);
 
-    // Update ghost covers (skip when Branding → Side covers is Off)
+    // Update peek covers (skip when Branding → Peeks is Off)
     const sideDisplay = String(
-        getComputedStyle(document.documentElement).getPropertyValue('--side-cover-display') || 'block'
+        getComputedStyle(document.documentElement).getPropertyValue('--side-cover-display') || 'none'
     ).trim();
     if (sideDisplay !== 'none' && prevCover && nextCover) {
         const prevIndex = (index - 1 + playList.length) % playList.length;
@@ -3386,7 +3486,7 @@ function triggerSongChange(direction) {
     void cardWrapper.offsetWidth; // Force reflow
     cardWrapper.classList.add(animClass);
 
-    // Side cards (images) - Fade out/in animation when Side covers are visible
+    // Peek cards (images) - Fade out/in when Peeks are visible
     if (prevCover && nextCover) {
         const sideDisplay = String(
             getComputedStyle(document.documentElement).getPropertyValue('--side-cover-display') || 'block'
@@ -3636,9 +3736,9 @@ const _lb = window._lb = new Lightbox({
     contentSelector: '.lightbox-content',
 });
 
-function openLightbox(src, altText = '', type = 'image') {
+function openLightbox(src, altText = '', type = 'image', poster = '') {
     if (!lightbox || !lightboxImage) { console.error('❌ Lightbox elements not found!'); return; }
-    _lb.open(src, altText, type);
+    _lb.open(src, altText, type, poster);
 }
 function openLightboxAt(idx) { _lb.openAt(idx); }
 function prevLightbox(e)     { _lb.prev(e); }
@@ -3652,13 +3752,33 @@ window.prevLightbox   = prevLightbox;
 window.nextLightbox   = nextLightbox;
 window.closeLightbox  = closeLightbox;
 
-// Wrapper for opening album cover from playlist
+function isLivingCoverVisuallyActive() {
+    return !!(
+        currentLivingCoverUrl
+        && coverVideo
+        && !coverVideo.hidden
+        && coverVideo.classList.contains('cover-art-video--active')
+    );
+}
+
+// Mirror the Artwork slot: living video when that is what the player shows, else Preferred still.
 function openAlbumCoverLightbox() {
     if (playList.length === 0) { console.error('❌ Playlist is empty!'); return; }
-    openLightbox(
-        preferHugeDeliveryUrl(buildCoverUrl(songCoverRef(playList[currentIndex]))),
-        'Album Cover'
-    );
+    const song = playList[currentIndex];
+    const artwork = resolveArtworkVisual(song);
+    const stillUrl = preferHugeDeliveryUrl(buildCoverUrl(artwork.still))
+        || preferHugeDeliveryUrl(buildCoverUrl(songCoverRef(song)));
+
+    if (isLivingCoverVisuallyActive() && artwork.living) {
+        openLightbox(artwork.living, 'Album Cover', 'video', stillUrl);
+        // Living covers are silent loops — keep lightbox muted like the cover card.
+        if (_lb.vid) {
+            _lb.vid.muted = true;
+        }
+        return;
+    }
+
+    openLightbox(stillUrl, 'Album Cover');
 }
 
 function bindPageGalleryLightboxes() {
@@ -3850,7 +3970,25 @@ function removePulseGuide() {
     playBtn.classList.remove('pulse-guide');
 }
 
+/** Expand Minimalistic Login button into the full form (auth not wired yet). */
+function bindPlayerLoginFormPreview() {
+    document.querySelectorAll('.player-user-login-wrap[data-login-form-mode="minimal"]').forEach((wrap) => {
+        const openBtn = wrap.querySelector('.player-user-login-open');
+        const form = wrap.querySelector('.player-user-login-form');
+        if (!(openBtn instanceof HTMLElement) || !(form instanceof HTMLElement)) {
+            return;
+        }
+        openBtn.addEventListener('click', () => {
+            wrap.classList.add('is-login-expanded');
+            openBtn.hidden = true;
+            form.hidden = false;
+        });
+    });
+}
+
 document.addEventListener('DOMContentLoaded', function() {
+    bindPlayerLoginFormPreview();
+
     if (window.bandpromoShellBackground && typeof window.bandpromoShellBackground.updateBackground === 'function') {
         window.bandpromoShellBackground.updateBackground();
     }
