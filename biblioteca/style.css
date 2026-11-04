@@ -1052,13 +1052,38 @@ button.pulse-guide {
     opacity: 1;
     border-radius: 8px;
     box-shadow: 0 1px 4px rgba(0, 0, 0, 0.45);
-    transition: border-color 0.15s ease, background 0.15s ease, box-shadow 0.15s ease;
+    transition:
+        border-color 0.15s ease,
+        background 0.15s ease,
+        box-shadow 0.15s ease,
+        transform 0.2s ease,
+        opacity 0.2s ease,
+        filter 0.2s ease;
 }
 
 @media (hover: hover) {
     .campaign-logo-strip-item:hover {
         border-color: var(--primary-a45);
         background: rgba(15, 23, 42, 0.98);
+        /* Same light lift as playlist coverflow thumbs. */
+        transform: translateY(-1px);
+    }
+}
+
+/* Idle tone (Branding → Idle items: Full|Soft|Grey) — non-current / non-active only. */
+.campaign-logo-strip-item:not(.is-current),
+.playlist-coverflow-item:not(.is-active),
+.playlist-selector-btn:not(.is-active) {
+    opacity: var(--navigator-idle-opacity, 1);
+    filter: grayscale(var(--navigator-idle-grayscale, 0));
+}
+
+@media (hover: hover) {
+    .campaign-logo-strip-item:not(.is-current):hover,
+    .playlist-coverflow-item:not(.is-active):hover,
+    .playlist-selector-btn:not(.is-active):hover {
+        opacity: 1;
+        filter: none;
     }
 }
 
@@ -2051,6 +2076,7 @@ button.pulse-guide {
     flex: 0 0 auto;
     white-space: nowrap;
     text-transform: none;
+    transition: opacity 0.2s ease, filter 0.2s ease, background 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
 #content-container .playlist-selector-btn.is-active,
@@ -2131,11 +2157,11 @@ button.pulse-guide {
     align-items: center;
     gap: 0;
     color: inherit;
-    /* Full opacity always — translucent unselected thumbs fight living shell backgrounds. */
+    /* Default Full; Soft|Grey mute via --navigator-idle-* on non-active only. */
     opacity: 1;
     flex: 0 0 auto;
     scroll-snap-align: center;
-    transition: transform 0.2s ease;
+    transition: transform 0.2s ease, opacity 0.2s ease, filter 0.2s ease;
 }
 
 .playlist-coverflow-item:hover {

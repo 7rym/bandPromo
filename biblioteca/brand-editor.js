@@ -265,6 +265,27 @@
             }
         }
 
+        function previewFocusRoot() {
+            if (!(previewEl instanceof HTMLElement)) {
+                return null;
+            }
+            // Content / Player remirrors put focus targets inside the preview iframe.
+            const frame = previewEl.querySelector(
+                'iframe.play-preview-content-frame, iframe.play-preview-player-frame'
+            );
+            if (frame instanceof HTMLIFrameElement) {
+                try {
+                    const doc = frame.contentDocument;
+                    if (doc && doc.body) {
+                        return doc;
+                    }
+                } catch (_error) {
+                    // Cross-origin / not ready — fall through to host.
+                }
+            }
+            return previewEl;
+        }
+
         function revealPreviewFocus(focusId) {
             const id = String(focusId || '').trim();
             if (id === '' || !(previewEl instanceof HTMLElement)) {
@@ -276,11 +297,15 @@
             if ((id === 'content-chrome' || id === 'playlist-selector' || id === 'content-panels') && editorTab !== 'content') {
                 setEditorTab('content');
             }
-            const target = previewEl.querySelector(`[data-preview-focus="${id}"]`);
+            const root = previewFocusRoot();
+            if (!root) {
+                return;
+            }
+            const target = root.querySelector(`[data-preview-focus="${id}"]`);
             if (!(target instanceof HTMLElement)) {
                 return;
             }
-            previewEl.querySelectorAll('.is-preview-focus').forEach((el) => {
+            root.querySelectorAll('.is-preview-focus').forEach((el) => {
                 el.classList.remove('is-preview-focus');
             });
             target.classList.add('is-preview-focus');
@@ -837,8 +862,17 @@
                 </div>`;
         }
 
+        function normalizeNavigatorIdle(value) {
+            let mode = String(value || '').trim().toLowerCase();
+            if (mode === 'gray') {
+                mode = 'grey';
+            }
+            return ['full', 'soft', 'grey'].includes(mode) ? mode : 'full';
+        }
+
         function renderPlaylistSelectorFields(locked) {
             const playlistSelected = normalizePlaylistSelectorMode(editorDocument?.player?.playlist_selector);
+            const idleSelected = normalizeNavigatorIdle(editorDocument?.player?.navigator_idle);
             const playlistRadios = [
                 ['dropdown', 'Dropdown'],
                 ['buttons', 'Buttons'],
@@ -851,6 +885,18 @@
                            ${locked ? 'disabled' : ''}>
                     <span>${escapeHtml(label)}</span>
                 </label>`).join('');
+            const idleRadios = [
+                ['full', 'Full'],
+                ['soft', 'Soft'],
+                ['grey', 'Grey'],
+            ].map(([value, label]) => `
+                <label class="brand-player-setting-option">
+                    <input type="radio" name="brandNavigatorIdle" value="${escapeHtml(value)}"
+                           data-player-path="navigator_idle"
+                           ${idleSelected === value ? 'checked' : ''}
+                           ${locked ? 'disabled' : ''}>
+                    <span>${escapeHtml(label)}</span>
+                </label>`).join('');
 
             return `
                 <div class="brand-content-chrome-grid">
@@ -858,6 +904,12 @@
                         <span class="brand-effect-label">Style:</span>
                         <div class="brand-player-setting-toggle" role="group" aria-label="Playlist selector style">
                             ${playlistRadios}
+                        </div>
+                    </div>
+                    <div class="brand-effect-field brand-effect-field--inline">
+                        <span class="brand-effect-label">Idle items:</span>
+                        <div class="brand-player-setting-toggle" role="group" aria-label="Idle campaign and playlist items">
+                            ${idleRadios}
                         </div>
                     </div>
                 </div>
@@ -1800,6 +1852,7 @@
             if (!entry || !brandCanDelete(entry)) {
                 return;
             }
+            const label = String(entry?.title || brandId).trim() || brandId;
             const data = await fetchJson(`/biblioteca/manage-brand.php?brand=${encodeURIComponent(brandId)}`, {
                 method: 'DELETE',
                 credentials: 'same-origin',
@@ -1825,6 +1878,9 @@
                 renderPreview(previewDocument);
             }
             renderPoolList();
+            if (typeof window.bandpromoShowAdminToast === 'function') {
+                window.bandpromoShowAdminToast(`Brand “${label}” deleted.`, 'success');
+            }
         }
 
         function renderPoolList() {
@@ -2018,6 +2074,10 @@
             const playlistSelector = formEl.querySelector('input[name="brandPlaylistSelector"]:checked');
             if (playlistSelector instanceof HTMLInputElement) {
                 editorDocument.player.playlist_selector = normalizePlaylistSelectorMode(playlistSelector.value);
+            }
+            const navigatorIdle = formEl.querySelector('input[name="brandNavigatorIdle"]:checked');
+            if (navigatorIdle instanceof HTMLInputElement) {
+                editorDocument.player.navigator_idle = normalizeNavigatorIdle(navigatorIdle.value);
             }
             const beggarsToggle = formEl.querySelector('input[name="brandBeggarsBanquet"]:checked');
             if (beggarsToggle instanceof HTMLInputElement) {
@@ -2280,6 +2340,7 @@
         });
 
         addFromBaseBtn?.addEventListener('click', () => {
+            // + Add brand always clones the install Base brand (not the selected pool row).
             const sourceId = String(activeBrandId || '').trim();
             if (!sourceId) {
                 notifyBrandError('No base brand to duplicate yet.');
@@ -2593,22 +2654,36 @@
             }
         });
 
+        let brandDuplicateBusy = false;
+
         async function duplicateBrand(sourceId) {
-            if (!sourceId) return;
+            if (!sourceId || brandDuplicateBusy) {
+                return;
+            }
+            brandDuplicateBusy = true;
+            if (addFromBaseBtn instanceof HTMLButtonElement) {
+                addFromBaseBtn.disabled = true;
+            }
+            if (registryStatus) {
+                registryStatus.textContent = 'Duplicating brand…';
+                registryStatus.style.color = '';
+            }
             try {
-                if (registryStatus) {
-                    registryStatus.textContent = 'Duplicating brand…';
-                    registryStatus.style.color = '';
-                }
                 const data = await fetchJson('/biblioteca/duplicate-brand.php', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json; charset=utf-8' },
                     body: JSON.stringify({ source_id: sourceId }),
                 });
                 await loadRegistry();
-                const newId = data.document?.id;
-                if (registryStatus) {
-                    registryStatus.textContent = '';
+                const newId = String(data.document?.id || '').trim();
+                const newTitle = String(data.document?.title || '').trim();
+                if (typeof window.bandpromoShowAdminToast === 'function') {
+                    window.bandpromoShowAdminToast(
+                        newTitle !== ''
+                            ? `Brand “${newTitle}” created from Base.`
+                            : 'Brand created from Base.',
+                        'success'
+                    );
                 }
                 if (newId) {
                     await openBrandEditor(newId);
@@ -2619,6 +2694,16 @@
                     registryStatus.style.color = '#f87171';
                 }
                 notifyBrandError(error.message || 'Could not duplicate brand');
+            } finally {
+                brandDuplicateBusy = false;
+                if (addFromBaseBtn instanceof HTMLButtonElement) {
+                    addFromBaseBtn.disabled = false;
+                }
+                // Clear the busy line unless an error message is showing.
+                if (registryStatus && !String(registryStatus.textContent || '').startsWith('❌')) {
+                    registryStatus.textContent = '';
+                    registryStatus.style.color = '';
+                }
             }
         }
 

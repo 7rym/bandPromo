@@ -63,6 +63,12 @@
     scroll-behavior: smooth;
 }
 
+/* Player/Content remirror iframes own their scroll — avoid a second bar on the frame. */
+.brand-editor-preview-frame:has(> .play-preview-content-host),
+.brand-editor-preview-frame:has(> .play-preview-player-host) {
+    overflow: hidden;
+}
+
 /* Shell + chrome fill the sticky preview height so backdrop/video cover the column. */
 .brand-editor-preview-frame > .theme-preview-shell,
 .brand-editor-preview-frame > .play-preview-shell {
@@ -192,7 +198,8 @@
  * Player Live preview — independent remirror (stacked).
  * Frame loads the same #mediaplayer markup + style.css as /play with demo content.
  */
-.brand-editor-preview-frame > .play-preview-player-host {
+.brand-editor-preview-frame > .play-preview-player-host,
+.brand-editor-preview-frame > .play-preview-content-host {
     flex: 1 1 auto;
     display: flex;
     flex-direction: column;
@@ -206,7 +213,8 @@
     background: rgba(0, 0, 0, 0.25);
 }
 
-.play-preview-player-host.is-loading::after {
+.play-preview-player-host.is-loading::after,
+.play-preview-content-host.is-loading::after {
     content: 'Loading player preview…';
     display: block;
     padding: 1rem;
@@ -214,7 +222,12 @@
     font-size: 0.85rem;
 }
 
-.play-preview-player-frame {
+.play-preview-content-host.is-loading::after {
+    content: 'Loading content preview…';
+}
+
+.play-preview-player-frame,
+.play-preview-content-frame {
     flex: 1 1 auto;
     width: 100%;
     min-height: 100%;

@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-11-04 21:40 - Branding Content Live preview: drop nested forced scrollbars on stacked playlist/panel samples (one iframe scroll only).
+
+2026-11-04 21:20 - Branding Content navigator polish: preview chips use brand logo/poster (not letter placeholders); campaign hover lift matches coverflow; **Idle items:** Full|Soft|Grey (`player.navigator_idle`, default Full) mutes non-active campaign/playlist chips live; demo playlist track rows above Panels in Content preview.
+
+2026-11-04 16:50 - Content Live preview: load `page-content.css` + live `.page-prose-row > .page-richtext` panel structure (glass fill works); demo campaigns/playlists are generic placeholders only (brand logo/poster — never install catalogue names). Brand duplicate busy-lock + delete/create toasts.
+
+2026-11-04 16:30 - Branding Live preview **Content remirror**: shared `content-chrome.php` + `play-preview-content-frame.php` / `.js` (live `#content-container` classes, demo multi-campaign + playlist selector + panel). Shell | Player | Content preview parity complete. Stay signed in / Lyrics tab already on **611**.
+
 2026-11-04 15:55 - Settings → Basics: **Stay signed in** On|Off (default On) — long-lived login cookie (~1 year) so listeners are not idle-kicked; Off restores host ~24‑minute idle timeout. Config `install.security.stay_signed_in`. Docs: [PLAYER-SESSIONS.md](PLAYER-SESSIONS.md).
 
 2026-11-04 15:45 - Player: picking a playlist track no longer auto-switches to Lyrics (tab stays put; Lyrics still falls back when empty). Login ping now renews the PHP session so an open tab stays signed in past ~24 minutes idle. Tester note for login vs 15‑minute listening analytics: [PLAYER-SESSIONS.md](PLAYER-SESSIONS.md).

@@ -240,7 +240,10 @@
             }
             return '<p class="brand-editor-empty">Player preview is unavailable.</p>';
         }
-        return renderContentPreviewChrome(document);
+        if (window.bandpromoPlayPreviewContent && typeof window.bandpromoPlayPreviewContent.renderMarkup === 'function') {
+            return window.bandpromoPlayPreviewContent.renderMarkup(document);
+        }
+        return '<p class="brand-editor-empty">Content preview is unavailable.</p>';
     }
 
     function render(container, document, options = {}) {
@@ -249,12 +252,15 @@
         }
         const styleId = String(options.styleId || 'bandpromo-shared-brand-preview-style');
         const previewMode = normalizePreviewMode(options.mode);
-        let defaultSelector = `#${container.id} .theme-preview-shell--content`;
+        let defaultSelector = `#${container.id} .play-preview-content-host`;
         if (previewMode === 'shell') {
             defaultSelector = `#${container.id} .play-preview-shell-stage`;
         } else if (previewMode === 'player') {
             // Brand tokens for Player remirror are applied inside the preview frame.
             defaultSelector = `#${container.id} .play-preview-player-host`;
+        } else if (previewMode === 'content') {
+            // Brand tokens for Content remirror are applied inside the preview frame.
+            defaultSelector = `#${container.id} .play-preview-content-host`;
         }
         const selector = String(options.selector || defaultSelector);
         let style = document?.ownerDocument?.getElementById(styleId)
@@ -551,6 +557,11 @@
             window.bandpromoPlayPreviewPlayer.renderInto(container, document);
             return;
         }
+        if (previewMode === 'content' && window.bandpromoPlayPreviewContent?.renderInto) {
+            // Shared /play Content chrome (PHP + style.css) with demo content — async frame.
+            window.bandpromoPlayPreviewContent.renderInto(container, document);
+            return;
+        }
 
         container.innerHTML = renderMarkup(document, previewMode);
         startPreviewVideos(container);
@@ -575,16 +586,17 @@
 
         // Demo = multi-campaign install with multi-playlist selected campaign
         // (same chrome shape as /play Playlists panel — PLATFORM-MODEL navigator).
+        // Brand-jailed placeholders only (never install campaign/playlist names).
         const sampleCampaigns = [
-            { title: 'HITZ', initial: 'H', current: true },
-            { title: 'Remixes', initial: 'R', current: false },
-            { title: 'Chronicles', initial: 'C', current: false },
+            { title: 'Campaign one', initial: '1', current: true },
+            { title: 'Campaign two', initial: '2', current: false },
+            { title: 'Campaign three', initial: '3', current: false },
         ];
         const samplePlaylists = [
-            { title: 'Main playlist', active: true, initial: 'M' },
-            { title: 'B-sides', active: false, initial: 'B' },
-            { title: 'Live set', active: false, initial: 'L' },
-            { title: 'Radio hour', active: false, initial: 'R' },
+            { title: 'First playlist', active: true, initial: 'A' },
+            { title: 'Second playlist', active: false, initial: 'B' },
+            { title: 'Third playlist', active: false, initial: 'C' },
+            { title: 'Fourth playlist', active: false, initial: 'D' },
         ];
 
         const campaignStrip = `

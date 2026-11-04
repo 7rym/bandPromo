@@ -852,6 +852,8 @@ function bandpromo_brand_default_document(): array
         // Player chrome preferences owned by the brand (Base brand drives /play).
         'player' => [
             'playlist_selector' => 'coverflow',
+            // Idle campaign/playlist chips: full | soft | grey (same scale names as Peeks colour).
+            'navigator_idle' => 'full',
             // Support banner (#beggars-banquet DOM / key kept for PCF). Destination/label from Settings → Support.
             'beggars_banquet' => true,
             // Guest login form in #player-user-area: none | minimal | full.
@@ -891,6 +893,49 @@ function bandpromo_brand_normalize_playlist_selector_mode(mixed $value): string
 }
 
 /**
+ * Idle tone for non-current campaign chips and non-active playlist selector items.
+ * Same named scale as Peeks colour (Full|Soft|Grey); separate storage key.
+ */
+function bandpromo_brand_normalize_navigator_idle(mixed $value): string
+{
+    $mode = strtolower(trim((string) $value));
+    if ($mode === 'gray') {
+        $mode = 'grey';
+    }
+    if (in_array($mode, ['full', 'soft', 'grey'], true)) {
+        return $mode;
+    }
+
+    return 'full';
+}
+
+/**
+ * CSS vars for navigator idle mute (campaign strip + playlist selector).
+ *
+ * @return array<string, string>
+ */
+function bandpromo_brand_navigator_idle_css_variables(array $document): array
+{
+    $player = bandpromo_brand_normalize_player($document);
+    $mode = (string) ($player['navigator_idle'] ?? 'full');
+    $opacityMap = [
+        'full' => '1',
+        'soft' => '0.72',
+        'grey' => '0.88',
+    ];
+    $grayscaleMap = [
+        'full' => '0',
+        'soft' => '0.45',
+        'grey' => '1',
+    ];
+
+    return [
+        '--navigator-idle-opacity' => $opacityMap[$mode] ?? '1',
+        '--navigator-idle-grayscale' => $grayscaleMap[$mode] ?? '0',
+    ];
+}
+
+/**
  * Resolve playlist selector for a brand document, migrating from legacy web-config when absent.
  *
  * @param array<string, mixed> $input
@@ -915,6 +960,7 @@ function bandpromo_brand_legacy_playlist_selector_fallback(): string
  * @param array<string, mixed> $input
  * @return array{
  *   playlist_selector: string,
+ *   navigator_idle: string,
  *   beggars_banquet: bool,
  *   login_form: string,
  *   login_status: bool,
@@ -940,6 +986,7 @@ function bandpromo_brand_normalize_player(array $input): array
     } else {
         $selector = bandpromo_brand_normalize_playlist_selector_mode($raw);
     }
+    $navigatorIdle = bandpromo_brand_normalize_navigator_idle($player['navigator_idle'] ?? 'full');
 
     // Missing key defaults to on so existing brands keep showing Support when configured.
     if (!array_key_exists('beggars_banquet', $player)) {
@@ -985,6 +1032,7 @@ function bandpromo_brand_normalize_player(array $input): array
 
     return [
         'playlist_selector' => $selector,
+        'navigator_idle' => $navigatorIdle,
         'beggars_banquet' => $beggarsBanquet,
         'login_form' => $loginForm,
         // Dual-write for older PCFs / readers that only know the bool.
@@ -2947,6 +2995,10 @@ function bandpromo_brand_css_variables(array $document): array
     }
 
     foreach (bandpromo_brand_side_covers_css_variables($document) as $cssVar => $value) {
+        $vars[$cssVar] = $value;
+    }
+
+    foreach (bandpromo_brand_navigator_idle_css_variables($document) as $cssVar => $value) {
         $vars[$cssVar] = $value;
     }
 
