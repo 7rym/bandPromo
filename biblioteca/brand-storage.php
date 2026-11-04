@@ -1248,7 +1248,9 @@ function bandpromo_brand_side_covers_css_variables(array $document): array
         '--side-cover-opacity-hover' => (string) $hover,
         '--side-cover-offset' => $offset . 'px',
         '--side-cover-grayscale' => $grayscale,
-        '--side-cover-pointer-events' => ($enabled && $navigate) ? 'auto' : 'none',
+        // Visible + Jump both receive pointer events so Fill hover brightens peeks;
+        // Jump alone uses pointer cursor (click wired on live only).
+        '--side-cover-pointer-events' => $enabled ? 'auto' : 'none',
         '--side-cover-cursor' => ($enabled && $navigate) ? 'pointer' : 'default',
     ];
 }

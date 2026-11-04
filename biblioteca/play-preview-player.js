@@ -238,7 +238,8 @@
             '--side-cover-opacity-hover': String(hover),
             '--side-cover-offset': `${offset}px`,
             '--side-cover-grayscale': grayscaleMap[colour] || '0.5',
-            '--side-cover-pointer-events': navigate ? 'auto' : 'none',
+            // Visible + Jump: allow hover (Fill). Jump alone uses pointer cursor.
+            '--side-cover-pointer-events': peeksOn ? 'auto' : 'none',
             '--side-cover-cursor': navigate ? 'pointer' : 'default',
         };
 

@@ -2,6 +2,8 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-11-04 15:40 - Publish **v0.8.100** for Site update: Player Artwork Preferred type + soft brand; Playlist/Campaign flat art; User area Login/Support; slug fold; chrome-only preview remirror; Peeks hover in preview; Content preview multi-campaign+playlist demo; Support banner as full-rail panel (not pill); tester map [PLAYER-ARTWORK-MAP.md](PLAYER-ARTWORK-MAP.md).
+
 2026-11-04 14:55 - Checkpoint: Player Artwork Preferred type (Still|Living|Playlist|Campaign) soft-applies with playlist brand; Playlist/Campaign force reflection+peeks off and Campaign uses contain; cover lightbox mirrors living; Repeat off vs all clearer; Branding Player settings grouped; preview remirrors `#mediaplayer` only (shell stays); Login form None|Minimalistic|Full + Support banner Markdown; platform ASCII slug fold + remix deep-link disambiguation; tester map [PLAYER-ARTWORK-MAP.md](PLAYER-ARTWORK-MAP.md).
 
 2026-11-04 13:30 - Settings → Support: **Button text** is multiline Markdown (300 chars); Support banner renders it with hard line breaks (nested links flattened — the banner is the link).

@@ -164,20 +164,14 @@
     }
 
     function renderContentPreviewChrome(document) {
-        const assets = document?.assets && typeof document.assets === 'object' ? document.assets : {};
-        const logo = String(assets.logo || '').trim();
-        const logoMarkup = logo
-            ? `<img class="theme-preview-shell-logo" src="${escapeHtml(logo)}" alt="" loading="lazy" onerror="this.style.opacity=0.25">`
-            : '<span class="theme-preview-muted">No logo assigned</span>';
         const backdrop = renderShellBackdrop(document);
+        // Multi-campaign demo: Content header logo is hidden on live (≥2 campaigns).
+        // Campaign strip carries identity instead.
 
         return `
             <div class="theme-preview-shell theme-preview-shell--content">
                 ${backdrop.openTag}
                     ${backdrop.videoMarkup}
-                    <div class="theme-preview-shell-header">
-                        ${logoMarkup}
-                    </div>
                     <section class="theme-preview-section theme-preview-section--content-chrome" data-preview-focus="content-chrome" aria-label="Buttons sample">
                         <p class="theme-preview-section-label">Buttons</p>
                         <div class="theme-preview-content-toggle" role="presentation">
@@ -255,7 +249,7 @@
         }
         const styleId = String(options.styleId || 'bandpromo-shared-brand-preview-style');
         const previewMode = normalizePreviewMode(options.mode);
-        let defaultSelector = `#${container.id} .theme-preview-shell-chrome`;
+        let defaultSelector = `#${container.id} .theme-preview-shell--content`;
         if (previewMode === 'shell') {
             defaultSelector = `#${container.id} .play-preview-shell-stage`;
         } else if (previewMode === 'player') {
@@ -575,43 +569,71 @@
 
     function renderPlaylistSelectorPreview(document) {
         const mode = normalizePlaylistSelectorMode(document);
-        const poster = String(document?.assets?.poster || '').trim();
+        const assets = document?.assets && typeof document.assets === 'object' ? document.assets : {};
+        const logo = String(assets.logo || '').trim();
+        const poster = String(assets.poster || '').trim();
+
+        // Demo = multi-campaign install with multi-playlist selected campaign
+        // (same chrome shape as /play Playlists panel — PLATFORM-MODEL navigator).
+        const sampleCampaigns = [
+            { title: 'HITZ', initial: 'H', current: true },
+            { title: 'Remixes', initial: 'R', current: false },
+            { title: 'Chronicles', initial: 'C', current: false },
+        ];
         const samplePlaylists = [
             { title: 'Main playlist', active: true, initial: 'M' },
             { title: 'B-sides', active: false, initial: 'B' },
             { title: 'Live set', active: false, initial: 'L' },
+            { title: 'Radio hour', active: false, initial: 'R' },
         ];
 
-        let body = '';
+        const campaignStrip = `
+            <div class="theme-preview-campaign-strip" role="listbox" aria-label="Campaigns">
+                ${sampleCampaigns.map((entry) => {
+                    const media = entry.current && logo
+                        ? `<img class="theme-preview-campaign-logo" src="${escapeHtml(logo)}" alt="" loading="lazy">`
+                        : `<span class="theme-preview-campaign-placeholder" aria-hidden="true">${escapeHtml(entry.initial)}</span>`;
+                    return `
+                        <span class="theme-preview-campaign-chip${entry.current ? ' is-current' : ''}"
+                              role="option"
+                              aria-selected="${entry.current ? 'true' : 'false'}"
+                              title="${escapeHtml(entry.title)}">${media}</span>`;
+                }).join('')}
+            </div>`;
+
+        let playlistBody = '';
         if (mode === 'buttons') {
-            body = `
+            playlistBody = `
                 <div class="theme-preview-playlist-buttons">
                     ${samplePlaylists.map((entry) => `
                         <span class="theme-preview-playlist-btn${entry.active ? ' is-active' : ''}">${escapeHtml(entry.title)}</span>
                     `).join('')}
                 </div>`;
         } else if (mode === 'coverflow') {
-            body = `
+            playlistBody = `
                 <div class="theme-preview-playlist-coverflow">
                     ${samplePlaylists.map((entry) => {
                         const thumb = poster
                             ? `<img class="theme-preview-playlist-thumb" src="${escapeHtml(poster)}" alt="" loading="lazy">`
                             : `<span class="theme-preview-playlist-thumb theme-preview-playlist-placeholder">${escapeHtml(entry.initial)}</span>`;
-                        return `<span class="theme-preview-playlist-cover-item${entry.active ? ' is-active' : ''}">${thumb}</span>`;
+                        return `<span class="theme-preview-playlist-cover-item${entry.active ? ' is-active' : ''}" title="${escapeHtml(entry.title)}">${thumb}</span>`;
                     }).join('')}
                 </div>`;
         } else {
-            body = `
+            playlistBody = `
                 <span class="theme-preview-playlist-select" aria-hidden="true">
                     <span class="theme-preview-playlist-select-value">Main playlist</span>
                 </span>`;
         }
 
         return `
-            <section class="theme-preview-section theme-preview-section--playlist-selector" data-preview-focus="playlist-selector" aria-label="Playlist selector sample">
-                <p class="theme-preview-section-label">Playlist selector</p>
-                <div class="theme-preview-playlist-selector theme-preview-playlist-selector--${escapeHtml(mode)}">
-                    ${body}
+            <section class="theme-preview-section theme-preview-section--playlist-selector" data-preview-focus="playlist-selector" aria-label="Campaigns and playlist selector sample">
+                <p class="theme-preview-section-label">Campaigns + playlists</p>
+                <div class="theme-preview-playlist-scope" data-has-campaigns="1" data-has-playlists="1">
+                    ${campaignStrip}
+                    <div class="theme-preview-playlist-selector theme-preview-playlist-selector--${escapeHtml(mode)}">
+                        ${playlistBody}
+                    </div>
                 </div>
             </section>`;
     }

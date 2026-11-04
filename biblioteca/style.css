@@ -1133,15 +1133,16 @@ button.pulse-guide {
 
 .support-link-button {
     position: relative;
-    display: inline-flex;
+    display: flex;
     align-items: center;
     justify-content: center;
     flex-wrap: wrap;
     gap: 8px;
-    margin: 8px auto 0;
+    margin: 6px 0 0;
     min-height: 40px;
-    padding: 8px 14px;
-    border-radius: 999px;
+    padding: 0.45rem 0.65rem;
+    /* Panel plate (match login wrap) — not a pill; huge radius wasted rail width. */
+    border-radius: var(--player-panel-radius, 10px);
     background: var(--support-button-background, #323842);
     color: var(--support-button-text, #ffffff);
     text-decoration: none;
@@ -1152,10 +1153,10 @@ button.pulse-guide {
     white-space: normal;
     overflow-wrap: anywhere;
     word-break: break-word;
-    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.28);
-    /* Fill the rail so narrow columns wrap (Chrome-like multi-line); up to ~3 lines. */
+    box-shadow: none;
+    /* Full player rail — same footprint as the login plate above. */
     width: 100%;
-    max-width: min(100%, 19rem);
+    max-width: none;
     height: auto;
     box-sizing: border-box;
     z-index: 20;
@@ -1230,13 +1231,13 @@ button.pulse-guide {
 
 #beggars-banquet {
     display: flex;
-    justify-content: center;
-    /* Same chrome floor as transport — not crushed to a small cover. */
+    justify-content: stretch;
+    /* Same chrome floor as transport / login wrap — not crushed to a small cover. */
     width: min(100%, max(var(--player-chrome-min), var(--player-rail)));
-    max-width: 100%;
+    max-width: var(--player-rail, 100%);
     align-self: center;
     margin: 0 auto;
-    padding: 0 8px 4px;
+    padding: 0 0 4px;
     box-sizing: border-box;
     flex-shrink: 0;
     z-index: 20;
@@ -2806,11 +2807,11 @@ audio {
     .support-link-button {
         margin-top: 4px;
         min-height: 36px;
-        padding: 6px 10px;
+        padding: 0.4rem 0.55rem;
         font-size: 0.75rem;
         gap: 5px;
-        border-radius: 18px;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.26);
+        border-radius: var(--player-panel-radius, 10px);
+        box-shadow: none;
     }
 
     .content-toggle {
@@ -3161,12 +3162,12 @@ audio {
     .support-link-button {
         margin-top: 2px;
         min-height: 0;
-        padding: 5px 8px;
+        padding: 0.35rem 0.5rem;
         font-size: 0.68rem;
         line-height: 1.2;
         gap: 3px;
-        border-radius: 14px;
-        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.24);
+        border-radius: var(--player-panel-radius, 10px);
+        box-shadow: none;
         width: 100%;
         max-width: none;
         white-space: normal;

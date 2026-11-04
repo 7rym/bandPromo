@@ -81,8 +81,8 @@ function bandpromo_player_chrome_render(array $options = []): string
         ? ' src="' . $esc($nextCoverUrl) . '"'
         : ' src=""';
 
-    // Preview must not run live transport handlers. Keep #player-user-area
-    // interactive so Minimalistic Login can expand the form in Branding preview.
+    // Preview: no live transport handlers. Keep .scene interactive so Peeks
+    // hover (Fill) matches /play; transport/Support stay inert.
     $prevClick = $preview ? '' : ' onclick="prevSong()"';
     $nextClick = $preview ? '' : ' onclick="nextSong()"';
     $playClick = $preview ? '' : ' onclick="togglePlay()"';
@@ -131,7 +131,8 @@ function bandpromo_player_chrome_render(array $options = []): string
         $html .= '</div>';
     }
 
-    $html .= '<div class="scene"' . $chromeInert . '>';
+    // Do not mark .scene inert in preview — that blocks :hover on peeks.
+    $html .= '<div class="scene">';
     $html .= '<div class="side-card prev"' . $prevClick . '>';
     $html .= '<img' . $prevImgAttrs . ' id="prevCover" alt="Previous">';
     $html .= '</div>';

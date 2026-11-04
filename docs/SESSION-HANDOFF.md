@@ -2,11 +2,11 @@
 
 ## Resume point
 
-**Closed:** Player size + Campaign navigator (**605**). Site health Keep-choice (**607**). Branding Player remirror (**608**). Local checkpoint **609**: Preferred type + soft brand, flat Playlist/Campaign art, User area Login/Support, slug fold + remix deep links, preview chrome-only remirror, tester [PLAYER-ARTWORK-MAP.md](PLAYER-ARTWORK-MAP.md).
+**Closed:** Player size + Campaign navigator (**605**). Site health Keep-choice (**607**). Branding Player remirror (**608**). Artwork Preferred / User area / slug fold / chrome remirror / Peeks hover / Content multi-campaign selector demo / Support panel — published this build.
 
-**Active now:** Branding **Content** Live preview remirror (`play-preview-content-*`, same live render + demo content). Publish **609** for Site update when operator asks.
+**Active now:** Branding **Content** Live preview remirror (`play-preview-content-*`, same live render + demo content).
 
-**Last published:** **v0.8.100 build 608** — Branding Player remirror. Local HEAD **609** (not published yet). Prior: **607** Keep-choice; **605** Player size r11.
+**Last published:** **v0.8.100** (this Site update). Prior: **608** Player remirror; **607** Keep-choice; **605** Player size r11.
 
 **Parked / later:**
 - Files pool / living-cover picker latency (undercount disk probe + full Visual list for video-only pick).
@@ -15,7 +15,7 @@
 
 **Operator rule (this session):** Do **not** delete, prune, janitor-Apply, or discard any runtime files (`data/`, `media/`, `log/`, `backups/`, Ready archives, leftover `original/`) unless this user names the exact paths in the same message.
 
-**Next:** Content remirror. Optional: publish this build for testers when ready.
+**Next:** Content remirror.
 
 ### Policy locked (do not reopen)
 

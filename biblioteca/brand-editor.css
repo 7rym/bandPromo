@@ -155,8 +155,9 @@
 }
 
 .play-preview-shell-stage .shell-logo-img {
-    max-width: 280px;
-    max-height: 88px;
+    /* Branding Shell preview — larger than live lockup so operators can judge the asset. */
+    max-width: min(100%, 560px);
+    max-height: 176px;
 }
 
 .play-preview-shell-logo-placeholder {
@@ -737,9 +738,75 @@
     border: 0;
 }
 
+/* Multi-campaign + multi-playlist demo (mirrors /play .playlist-scope-toolbar). */
+.theme-preview-playlist-scope {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.55rem;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.theme-preview-campaign-strip {
+    display: flex;
+    flex-wrap: nowrap;
+    align-items: flex-end;
+    justify-content: center;
+    gap: 0.35rem;
+    width: 100%;
+    overflow-x: auto;
+    overflow-y: hidden;
+    padding: 0.15rem 0 0.25rem;
+    scrollbar-width: thin;
+}
+
+.theme-preview-campaign-chip {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 auto;
+    width: 4.5rem;
+    height: 2.25rem;
+    padding: 0.2rem 0.35rem;
+    border-radius: 8px;
+    border: 1px solid rgba(255, 255, 255, 0.22);
+    background: var(--color-surface-mid, #1e1e24);
+    opacity: 1;
+    box-sizing: border-box;
+    transform: scale(0.92);
+    transform-origin: bottom center;
+}
+
+.theme-preview-campaign-chip.is-current {
+    width: 5.25rem;
+    height: 2.65rem;
+    border-color: var(--primary-color, #00d2ff);
+    box-shadow: 0 0 12px var(--primary-a40, color-mix(in srgb, var(--primary-color) 40%, transparent));
+    transform: scale(1);
+}
+
+.theme-preview-campaign-logo,
+.theme-preview-campaign-placeholder {
+    display: block;
+    max-width: 100%;
+    max-height: 100%;
+    width: auto;
+    height: auto;
+    object-fit: contain;
+}
+
+.theme-preview-campaign-placeholder {
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: var(--color-text-muted, #bbb);
+    line-height: 1;
+}
+
 .theme-preview-playlist-selector {
     display: flex;
     align-items: center;
+    justify-content: center;
     gap: 0.55rem;
     width: 100%;
     box-sizing: border-box;
@@ -808,10 +875,14 @@
 
 .theme-preview-playlist-coverflow {
     display: flex;
+    flex-wrap: nowrap;
     align-items: flex-end;
     justify-content: center;
     gap: 0.45rem;
+    width: 100%;
+    overflow-x: auto;
     padding: 0.15rem 0;
+    scrollbar-width: thin;
 }
 
 .theme-preview-playlist-cover-item {
@@ -819,12 +890,13 @@
     border: 0;
     padding: 0;
     background: transparent;
-    opacity: 0.72;
+    /* Match live: full opacity always; selected is larger. */
+    opacity: 1;
     transform: scale(0.92);
+    transform-origin: bottom center;
 }
 
 .theme-preview-playlist-cover-item.is-active {
-    opacity: 1;
     transform: scale(1);
 }
 
