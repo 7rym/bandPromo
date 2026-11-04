@@ -56,6 +56,9 @@
       "logo": "",
       "welcome_audio": "",
       "loggedin_audio": ""
+    },
+    "security": {
+      "stay_signed_in": true
     }
   },
   "release": {

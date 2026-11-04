@@ -2,11 +2,11 @@
 
 ## Resume point
 
-**Closed:** Player size + Campaign navigator (**605**). Site health Keep-choice (**607**). Branding Player remirror (**608**). Artwork Preferred / User area / slug fold / chrome remirror / Peeks hover / Content multi-campaign selector demo / Support panel — published this build.
+**Closed:** Player size + Campaign navigator (**605**). Site health Keep-choice (**607**). Branding Player remirror (**608**). Artwork Preferred / User area / slug fold / chrome remirror / Peeks hover / Content multi-campaign selector demo / Support panel — published **v0.8.100**.
 
-**Active now:** Branding **Content** Live preview remirror (`play-preview-content-*`, same live render + demo content).
+**Active now:** Stay signed in (Settings → Basics, default On) + earlier tester fixes (no Lyrics auto-switch; session ping renew; [PLAYER-SESSIONS.md](PLAYER-SESSIONS.md)). Ready to checkpoint. Then Branding **Content** Live preview remirror.
 
-**Last published:** **v0.8.100** (this Site update). Prior: **608** Player remirror; **607** Keep-choice; **605** Player size r11.
+**Last published:** **v0.8.100**. Prior: **608** Player remirror; **607** Keep-choice; **605** Player size r11.
 
 **Parked / later:**
 - Files pool / living-cover picker latency (undercount disk probe + full Visual list for video-only pick).
@@ -15,7 +15,7 @@
 
 **Operator rule (this session):** Do **not** delete, prune, janitor-Apply, or discard any runtime files (`data/`, `media/`, `log/`, `backups/`, Ready archives, leftover `original/`) unless this user names the exact paths in the same message.
 
-**Next:** Content remirror.
+**Next:** Checkpoint when ready; then Content remirror.
 
 ### Policy locked (do not reopen)
 

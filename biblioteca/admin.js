@@ -9915,6 +9915,44 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 });
             }
 
+            const cfgStaySignedInSaveBtn = document.getElementById('cfgStaySignedInSaveBtn');
+            const cfgStaySignedInStatus = document.getElementById('cfgStaySignedInStatus');
+            if (cfgStaySignedInSaveBtn) {
+                cfgStaySignedInSaveBtn.addEventListener('click', async () => {
+                    if (cfgStaySignedInStatus) {
+                        cfgStaySignedInStatus.textContent = 'Saving…';
+                        cfgStaySignedInStatus.style.color = '#aaa';
+                    }
+
+                    const selected = document.querySelector('input[name="cfgStaySignedIn"]:checked');
+                    const staySignedIn = !(selected instanceof HTMLInputElement) || selected.value !== '0';
+
+                    try {
+                        const resp = await fetch('/biblioteca/save-session-prefs.php', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                stay_signed_in: staySignedIn,
+                            }),
+                        });
+                        const data = await resp.json();
+                        if (!resp.ok || !data.ok) {
+                            throw new Error(data.error || 'Save failed');
+                        }
+                        if (cfgStaySignedInStatus) {
+                            cfgStaySignedInStatus.textContent = '✅ Saved. Reloading…';
+                            cfgStaySignedInStatus.style.color = '#6f6';
+                        }
+                        window.setTimeout(() => window.location.reload(), 500);
+                    } catch (error) {
+                        if (cfgStaySignedInStatus) {
+                            cfgStaySignedInStatus.textContent = '❌ ' + error.message;
+                            cfgStaySignedInStatus.style.color = '#f55';
+                        }
+                    }
+                });
+            }
+
             const cfgDemoCatalogHidden = document.getElementById('cfgDemoCatalogHidden');
             const cfgDemoCatalogStatus = document.getElementById('cfgDemoCatalogStatus');
             if (cfgDemoCatalogHidden) {

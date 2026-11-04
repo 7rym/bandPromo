@@ -70,9 +70,43 @@ function bandpromo_is_https_request(): bool
     return $forwardedProto === 'https';
 }
 
+/** Persistent login cookie / GC lifetime when Stay signed in is On (seconds). */
+function bandpromo_session_stay_signed_in_lifetime(): int
+{
+    return 365 * 24 * 60 * 60;
+}
+
+/**
+ * Install-wide Stay signed in policy (`install.security.stay_signed_in`).
+ * Missing key ⇒ On (default). Does not require an active PHP session.
+ *
+ * @param array<string, mixed>|null $config Optional preloaded web-config root.
+ */
+function bandpromo_session_stay_signed_in(?array $config = null): bool
+{
+    if ($config === null) {
+        $path = dirname(__DIR__) . '/web-config.json';
+        if (!is_file($path)) {
+            return true;
+        }
+        $raw = @file_get_contents($path);
+        $decoded = is_string($raw) ? json_decode($raw, true) : null;
+        $config = is_array($decoded) ? $decoded : [];
+    }
+
+    $install = isset($config['install']) && is_array($config['install']) ? $config['install'] : [];
+    $security = isset($install['security']) && is_array($install['security']) ? $install['security'] : [];
+    if (!array_key_exists('stay_signed_in', $security)) {
+        return true;
+    }
+
+    return $security['stay_signed_in'] !== false;
+}
+
 /**
  * Keep PHP session files off synced folders (e.g. Google Drive worktrees).
  * Session lock/read on a synced path routinely costs multi-second waits per request.
+ * Also applies Stay signed in cookie / GC lifetime before session_start().
  */
 function bandpromo_configure_session_storage(): void
 {
@@ -96,6 +130,29 @@ function bandpromo_configure_session_storage(): void
             session_save_path(str_replace('/', DIRECTORY_SEPARATOR, $path));
         }
     }
+
+    // Stay signed in On: long-lived cookie + GC. Off: leave host PHP defaults (idle timeout).
+    if (!bandpromo_session_stay_signed_in()) {
+        return;
+    }
+
+    $lifetime = bandpromo_session_stay_signed_in_lifetime();
+    @ini_set('session.gc_maxlifetime', (string) $lifetime);
+
+    $params = session_get_cookie_params();
+    $sameSite = $params['samesite'] ?? 'Lax';
+    if (!is_string($sameSite) || $sameSite === '') {
+        $sameSite = 'Lax';
+    }
+
+    session_set_cookie_params([
+        'lifetime' => $lifetime,
+        'path' => (string) ($params['path'] ?? '/'),
+        'domain' => (string) ($params['domain'] ?? ''),
+        'secure' => !empty($params['secure']) || bandpromo_is_https_request(),
+        'httponly' => true,
+        'samesite' => $sameSite,
+    ]);
 }
 
 function bandpromo_current_scheme(): string

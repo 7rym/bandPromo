@@ -2861,6 +2861,33 @@ if ($tab === 'analytics') {
                 </div>
             </div>
 
+            <?php
+            $staySignedIn = bandpromo_session_stay_signed_in($cfgFull);
+            ?>
+            <div class="card">
+                <h3>🔐 Sign-in</h3>
+                <p class="card-note">
+                    On keeps listeners and operators signed in across visits (about a year, renewed while the site is open). Off returns to the host idle timeout (about 24 minutes without a refresh). Logout always works. This does not change listening stats.
+                </p>
+                <div class="content-editor-field content-editor-field--inline">
+                    <span class="content-editor-field-label" id="cfgStaySignedInLabel">Stay signed in:</span>
+                    <div class="content-editor-setting-toggle" role="group" aria-labelledby="cfgStaySignedInLabel">
+                        <label class="content-editor-setting-option">
+                            <input type="radio" name="cfgStaySignedIn" value="1"<?php echo $staySignedIn ? ' checked' : ''; ?>>
+                            <span>On</span>
+                        </label>
+                        <label class="content-editor-setting-option">
+                            <input type="radio" name="cfgStaySignedIn" value="0"<?php echo !$staySignedIn ? ' checked' : ''; ?>>
+                            <span>Off</span>
+                        </label>
+                    </div>
+                </div>
+                <div class="card-actions">
+                    <button type="button" id="cfgStaySignedInSaveBtn" class="btn btn-primary">💾 Save sign-in</button>
+                    <span id="cfgStaySignedInStatus" class="status-text"></span>
+                </div>
+            </div>
+
             <div class="card">
                 <h3>🎭 Demo campaign</h3>
                 <p class="card-note">

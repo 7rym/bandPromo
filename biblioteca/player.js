@@ -3719,8 +3719,8 @@ function playTrackFromPlaylist(index) {
     // Update the playlist view to show which track is now current
     renderPlaylist();
 
-    // flip back to lyrics view so user sees the cover/info
-    toggleView(getPreferredPrimaryView(playList[currentIndex]));
+    // Keep the current content tab (Playlists / Lyrics / pages). Only leave Lyrics
+    // when the newly selected track has nothing to show there (see syncLyricsTab).
 
     // scroll the whole page to top so the cover is visible
     window.scrollTo({ top: 0, behavior: 'smooth' });
