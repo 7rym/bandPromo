@@ -8,9 +8,11 @@
 
 **Closed:** **v0.8.101 build 617** published — Create Start cheapest OpenAI + fal vendor edit models (logo refs required).
 
-**Active now:** Publishing OpenAI prompt models → GPT-6 Luna (default) / Sol / Astra.
+**Closed:** **v0.8.101 build 619** published — Create OpenAI prompt models are GPT-6 Luna (default), Sol, Astra.
 
-**Last published:** **v0.8.101 build 617**. Prior: **615** logo on Nano Banana 2; **614** Create foundation.
+**Active now:** Operator smoke Create model pickers (Luna/Sol/Astra + fal vendor edits) with keys + base brand logo; Create tool UIs later.
+
+**Last published:** **v0.8.101 build 619**. Prior: **617** fal vendor edits; **615** logo on Nano Banana 2.
 
 **Parked / later:**
 - Create tool sub-tabs (blurb writer, artwork studio, living artwork) beyond Start + connection proof.

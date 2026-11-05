@@ -2,6 +2,7 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-11-05 20:32 - Handoff: Create OpenAI Luna/Sol/Astra published as **v0.8.101 build 619**.
 2026-11-05 20:30 - Publish Create → Start OpenAI models: GPT-6 Luna (default), Sol, Astra (drop nano / 4o-mini / 5-mini).
 2026-11-05 19:30 - Create → Start OpenAI models: keep GPT-6 Luna (default); replace other chat picks with GPT-6 Sol and GPT-6 Astra.
 2026-11-05 19:25 - Publish **v0.8.101 build 617** — Create Start model pickers (cheapest OpenAI + fal vendor edit models with logo refs).
