@@ -2,6 +2,7 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-11-05 19:25 - Publish **v0.8.101 build 617** — Create Start model pickers (cheapest OpenAI + fal vendor edit models with logo refs).
 2026-11-05 19:22 - Create → Start image models: add Alibaba Qwen (`fal-ai/qwen-image-edit`, ~$0.03/MP) to the reference-capable vendor list.
 2026-11-05 19:20 - Create → Start image models: only reference-capable fal edit endpoints — cheapest per vendor (OpenAI, Meta, Flux, Grok, ByteDance, Google); default `fal-ai/gpt-image-1.5/edit`; brand logo required; dropdown picker (6 options).
 2026-11-05 19:05 - Create → Start: curated OpenAI + fal model pickers (cheapest defaults `gpt-5-nano` / `fal-ai/flux/schnell`); price hints and estimated run cost on each test; Nano Banana 2 remains the logo-reference option.

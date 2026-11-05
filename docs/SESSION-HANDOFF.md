@@ -6,9 +6,11 @@
 
 **Closed:** **v0.8.101 build 615** published — Create Test connections attaches base brand logo to fal Nano Banana 2 as a reference image.
 
-**Active now:** Create Start reference-only fal vendor models + cheapest defaults — publishing.
+**Closed:** **v0.8.101 build 617** published — Create Start cheapest OpenAI + fal vendor edit models (logo refs required).
 
-**Last published:** **v0.8.101 build 615**. Prior: **614** Create foundation; **612** Content remirror.
+**Active now:** Operator smoke Create model pickers on a host with keys + base brand logo; then Create tool UIs later.
+
+**Last published:** **v0.8.101 build 617**. Prior: **615** logo on Nano Banana 2; **614** Create foundation.
 
 **Parked / later:**
 - Create tool sub-tabs (blurb writer, artwork studio, living artwork) beyond Start + connection proof.
