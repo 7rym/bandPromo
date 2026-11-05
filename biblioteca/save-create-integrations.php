@@ -73,11 +73,36 @@ if (array_key_exists('fal_api_key', $payload)) {
     }
 }
 
+if (array_key_exists('openai_model', $payload)) {
+    $next = bandpromo_create_integrations_normalize_openai_model((string) $payload['openai_model']);
+    if ($next !== (string) ($current['openai_model'] ?? '')) {
+        $patch['openai_model'] = $next;
+        $changed[] = 'openai_model';
+    }
+}
+
+if (array_key_exists('fal_model', $payload)) {
+    $next = bandpromo_create_integrations_normalize_fal_model((string) $payload['fal_model']);
+    if ($next !== (string) ($current['fal_model'] ?? '')) {
+        $patch['fal_model'] = $next;
+        $changed[] = 'fal_model';
+    }
+}
+
 if ($patch === []) {
+    // Model picker may re-save the current choice; treat that as success.
+    if (array_key_exists('openai_model', $payload) || array_key_exists('fal_model', $payload)) {
+        $status = bandpromo_create_integrations_status_payload($root, $username);
+        echo json_encode([
+            'ok' => true,
+            'integrations' => $status,
+        ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+        exit;
+    }
     http_response_code(400);
     echo json_encode([
         'ok' => false,
-        'error' => 'Nothing to save. Paste a new key, or use Clear for a service.',
+        'error' => 'Nothing to save. Paste a new key, pick a model, or use Clear for a service.',
     ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
     exit;
 }
@@ -86,7 +111,7 @@ if (!bandpromo_create_integrations_save($root, $username, $patch)) {
     http_response_code(500);
     echo json_encode([
         'ok' => false,
-        'error' => 'Could not save API keys. Check data/ permissions.',
+        'error' => 'Could not save Create preferences. Check data/ permissions.',
     ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
     exit;
 }

@@ -2752,10 +2752,10 @@ if ($tab === 'analytics') {
             <div class="admin-help-box collapsed" id="help-create">
                 <?php if ($createTab === 'start'): ?>
                     <ul>
-                        <li>Create is where creative helper tools will live. Follow <strong>Connect → Test → Confirm</strong> to prove OpenAI and fal.ai with your own keys.</li>
+                        <li>Create is where creative helper tools will live. Follow <strong>Connect → Test of openAI for text → Test of fal.ai for images</strong> to prove both services with your own keys.</li>
                         <li><strong>Writing help</strong> drafts blurbs from catalogue details; <strong>Artwork help</strong> invents stills from lyrics, logos, photos, and brand colours; <strong>Living artwork</strong> (later) turns a still into a short moving clip.</li>
                         <li>Create is developer-only while it is a connection proof. Keys stay with your signed-in developer account on this install. They are not shared between accounts and are not exported in campaign or brand packages.</li>
-                        <li>Test asks OpenAI for a short artwork prompt from your base brand, then fal paints a small still with the base brand logo attached as a reference image when Branding has one. That uses a small paid generation on each connected service.</li>
+                        <li><strong>Create image prompt</strong> asks OpenAI for a short artwork prompt from your base brand. <strong>Create image from prompt</strong> asks fal to edit/paint a still using your base brand logo as a reference. Image models are the cheapest reference-capable pick from OpenAI, Meta, Flux, Grok, Alibaba (Qwen), ByteDance, and Google — all via fal.ai. Defaults are the cheapest option on each panel.</li>
                     </ul>
                 <?php endif; ?>
             </div>
@@ -2775,53 +2775,37 @@ if ($tab === 'analytics') {
             <?php if ($tab === 'create' && $createTab === 'start'): ?>
             <div class="create-start-shell" id="createStartShell">
                 <p class="create-start-lead">
-                    Optional AI helpers for blurbs and artwork. Connect your keys, run a small paid proof, then confirm the still looks right — your catalogue and player keep working without this.
+                    Optional AI helpers for blurbs and artwork. Connect your keys, ask OpenAI for an image prompt from your base brand, then ask fal to paint a still — your catalogue and player keep working without this.
                 </p>
-
-                <nav class="create-workflow-rail" aria-label="Create setup steps">
-                    <ol class="create-workflow-rail-list">
-                        <li class="create-workflow-rail-item is-current" data-step="connect">
-                            <span class="create-workflow-rail-mark" aria-hidden="true">1</span>
-                            <span class="create-workflow-rail-label">Connect</span>
-                        </li>
-                        <li class="create-workflow-rail-item" data-step="test">
-                            <span class="create-workflow-rail-mark" aria-hidden="true">2</span>
-                            <span class="create-workflow-rail-label">Test</span>
-                        </li>
-                        <li class="create-workflow-rail-item" data-step="confirm">
-                            <span class="create-workflow-rail-mark" aria-hidden="true">3</span>
-                            <span class="create-workflow-rail-label">Confirm</span>
-                        </li>
-                    </ol>
-                </nav>
 
                 <div class="create-workflow-panels" id="createWorkflowPanels">
                     <section class="create-workflow-panel is-current" id="createConnectCard" data-step="connect" aria-labelledby="createConnectTitle">
-                        <h3 id="createConnectTitle">Connect</h3>
+                        <h3 id="createConnectTitle" class="create-workflow-panel-title">
+                            <span class="create-workflow-panel-mark" aria-hidden="true">1</span>
+                            <span class="create-workflow-panel-label">Connect</span>
+                        </h3>
                         <p class="card-note">
                             Paste your own
                             <a href="https://platform.openai.com/api-keys" target="_blank" rel="noopener noreferrer">OpenAI</a>
                             and
                             <a href="https://fal.ai/dashboard/keys" target="_blank" rel="noopener noreferrer">fal.ai</a>
-                            keys. Both are needed before Test unlocks.
+                            keys. OpenAI unlocks the prompt step; fal unlocks the image step.
                         </p>
                         <div id="createKeysEmptyHelp" class="message warning create-keys-empty-help" hidden>
-                            No API keys recorded yet. Add both keys below, then Save.
+                            No API keys recorded yet. Add keys below, then Save.
                             <?php if ($currentUserRole === 'developer'): ?>
                             <span class="create-keys-empty-help-dev">Developer: optional install fallbacks <code>OPENAI_API_KEY</code> / <code>FAL_KEY</code> in <code>.env</code> also count.</span>
                             <?php endif; ?>
                         </div>
                         <div class="create-keys-grid">
-                            <div class="form-group brand-effect-field--inline">
+                            <div class="form-group create-key-field">
                                 <label for="createOpenAiKey">OpenAI API key:</label>
-                                <input type="password" id="createOpenAiKey" name="create_openai_api_key" autocomplete="off" spellcheck="false" placeholder="Paste key to set or replace">
+                                <input type="text" id="createOpenAiKey" name="create_openai_api_key" class="create-key-input" autocomplete="off" spellcheck="false" placeholder="Paste key to set or replace">
                             </div>
-                            <p class="hint create-key-meta" id="createOpenAiMeta">Not configured</p>
-                            <div class="form-group brand-effect-field--inline">
+                            <div class="form-group create-key-field">
                                 <label for="createFalKey">fal.ai API key:</label>
-                                <input type="password" id="createFalKey" name="create_fal_api_key" autocomplete="off" spellcheck="false" placeholder="Paste key to set or replace">
+                                <input type="text" id="createFalKey" name="create_fal_api_key" class="create-key-input" autocomplete="off" spellcheck="false" placeholder="Paste key to set or replace">
                             </div>
-                            <p class="hint create-key-meta" id="createFalMeta">Not configured</p>
                         </div>
                         <div class="card-actions create-connect-actions">
                             <button type="button" class="btn btn-good" id="createKeysSaveBtn">Save keys</button>
@@ -2831,38 +2815,50 @@ if ($tab === 'analytics') {
                         </div>
                     </section>
 
-                    <section class="create-workflow-panel is-disabled" id="createTestCard" data-step="test" aria-labelledby="createTestTitle">
-                        <h3 id="createTestTitle">Test</h3>
-                        <p class="card-note">
-                            Small paid proof: OpenAI drafts an artwork prompt from your <strong>base brand</strong>, then fal paints one small square still — with the brand <strong>logo</strong> as a reference when Branding has one.
-                        </p>
-                        <p class="create-workflow-panel-locked" id="createTestLockedNote">Save both keys in Connect to unlock this step.</p>
+                    <section class="create-workflow-panel is-disabled" id="createTestCard" data-step="prompt" aria-labelledby="createTestTitle">
+                        <h3 id="createTestTitle" class="create-workflow-panel-title">
+                            <span class="create-workflow-panel-mark" aria-hidden="true">2</span>
+                            <span class="create-workflow-panel-label">Test of openAI for text</span>
+                        </h3>
+                        <p class="create-workflow-panel-locked" id="createTestLockedNote">Save an OpenAI key in Connect to unlock this step.</p>
+                        <div class="create-model-field create-model-field--inline" id="createOpenAiModelField">
+                            <span class="create-model-label">Model:</span>
+                            <div class="brand-player-setting-toggle create-model-toggle" id="createOpenAiModelToggle" role="group" aria-label="OpenAI model"></div>
+                        </div>
+                        <p class="hint create-model-price" id="createOpenAiModelPrice"></p>
                         <div class="card-actions create-test-actions">
-                            <button type="button" class="btn btn-good" id="createTestConnectionsBtn" disabled>Test connections</button>
-                            <span id="createTestStatus" class="status-text" aria-live="polite"></span>
+                            <button type="button" class="btn btn-good" id="createPromptBtn" disabled>Create image prompt</button>
+                            <span id="createPromptStatus" class="status-text" aria-live="polite"></span>
+                        </div>
+                        <div id="createPromptResult" class="create-test-result" hidden>
+                            <p class="hint" id="createTestBrandMeta"></p>
+                            <pre class="create-test-prompt" id="createTestPrompt"></pre>
+                            <p class="hint" id="createTestOpenAiCost" hidden></p>
+                            <p class="status-text is-error" id="createTestOpenAiError" hidden></p>
                         </div>
                     </section>
 
-                    <section class="create-workflow-panel is-disabled" id="createConfirmCard" data-step="confirm" aria-labelledby="createConfirmTitle">
-                        <h3 id="createConfirmTitle">Confirm</h3>
-                        <p class="card-note">
-                            When the test succeeds, the prompt and still appear here so you can check the connections look right.
-                        </p>
-                        <p class="create-workflow-panel-locked" id="createConfirmWaiting">Run Test to unlock this step.</p>
-                        <div id="createTestResult" class="create-test-result" hidden>
-                            <div class="create-test-provider" id="createTestOpenAiBlock">
-                                <h4>OpenAI artwork prompt</h4>
-                                <p class="hint" id="createTestBrandMeta"></p>
-                                <pre class="create-test-prompt" id="createTestPrompt"></pre>
-                                <p class="status-text is-error" id="createTestOpenAiError" hidden></p>
-                            </div>
-                            <div class="create-test-provider" id="createTestFalBlock">
-                                <h4>fal still</h4>
-                                <p class="hint" id="createTestFalLogoMeta"></p>
-                                <img id="createTestImage" class="create-test-image" alt="Test artwork from fal" hidden>
-                                <p class="status-text is-error" id="createTestFalError" hidden></p>
-                                <p class="hint" id="createTestFalHelp" hidden></p>
-                            </div>
+                    <section class="create-workflow-panel is-disabled" id="createConfirmCard" data-step="image" aria-labelledby="createConfirmTitle">
+                        <h3 id="createConfirmTitle" class="create-workflow-panel-title">
+                            <span class="create-workflow-panel-mark" aria-hidden="true">3</span>
+                            <span class="create-workflow-panel-label">Test of fal.ai for images</span>
+                        </h3>
+                        <p class="create-workflow-panel-locked" id="createConfirmWaiting">Create an image prompt first.</p>
+                        <div class="create-model-field create-model-field--inline" id="createFalModelField">
+                            <label class="create-model-label" for="createFalModelSelect">Model:</label>
+                            <select id="createFalModelSelect" class="create-model-select" aria-label="fal image model"></select>
+                        </div>
+                        <p class="hint create-model-price" id="createFalModelPrice"></p>
+                        <div class="card-actions create-test-actions">
+                            <button type="button" class="btn btn-good" id="createImageBtn" disabled>Create image from prompt</button>
+                            <span id="createImageStatus" class="status-text" aria-live="polite"></span>
+                        </div>
+                        <div id="createImageResult" class="create-test-result" hidden>
+                            <p class="hint" id="createTestFalLogoMeta"></p>
+                            <img id="createTestImage" class="create-test-image" alt="Test artwork from fal" hidden>
+                            <p class="hint" id="createTestFalCost" hidden></p>
+                            <p class="status-text is-error" id="createTestFalError" hidden></p>
+                            <p class="hint" id="createTestFalHelp" hidden></p>
                         </div>
                     </section>
                 </div>

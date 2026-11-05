@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-11-05 19:22 - Create → Start image models: add Alibaba Qwen (`fal-ai/qwen-image-edit`, ~$0.03/MP) to the reference-capable vendor list.
+2026-11-05 19:20 - Create → Start image models: only reference-capable fal edit endpoints — cheapest per vendor (OpenAI, Meta, Flux, Grok, ByteDance, Google); default `fal-ai/gpt-image-1.5/edit`; brand logo required; dropdown picker (6 options).
+2026-11-05 19:05 - Create → Start: curated OpenAI + fal model pickers (cheapest defaults `gpt-5-nano` / `fal-ai/flux/schnell`); price hints and estimated run cost on each test; Nano Banana 2 remains the logo-reference option.
+2026-11-05 18:55 - Create → Start: panel 2 is “Test of openAI for text” with **Create image prompt** (result in-panel); panel 3 is “Test of fal.ai for images” with **Create image from prompt** (result in-panel); helper blurbs removed from those panels.
+2026-11-05 18:50 - Create → Start: drop the outer Connect|Test|Confirm rail (numbered titles live in each panel); show configured key status inside the input fields.
 2026-11-05 18:35 - Create tab (and its connection APIs) are developer-only for now — proof of concept until real helper tools ship; admins no longer see the nav entry.
 2026-11-05 16:30 - Create → Start: reshape into Connect | Test | Confirm panels with a step rail; enable Connect when keys are missing, Test when both keys are present, and Confirm when the connection proof succeeds (admin density + btn-good / btn-available ladder).
 2026-11-05 15:55 - Create → Test connections: attach the base brand logo as a fal Nano Banana 2 `context` reference image (data URI from delivery when possible) so the still can use the real mark.

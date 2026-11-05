@@ -12,14 +12,246 @@ declare(strict_types=1);
 require_once __DIR__ . '/json-file-helpers.php';
 
 /**
- * @return array{openai_api_key:string,fal_api_key:string,updated_at_utc:string}
+ * @return array{openai_api_key:string,fal_api_key:string,openai_model:string,fal_model:string,updated_at_utc:string}
  */
 function bandpromo_create_integrations_defaults(): array
 {
     return [
         'openai_api_key' => '',
         'fal_api_key' => '',
+        'openai_model' => bandpromo_create_integrations_default_openai_model(),
+        'fal_model' => bandpromo_create_integrations_default_fal_model(),
         'updated_at_utc' => '',
+    ];
+}
+
+/**
+ * Curated OpenAI chat models for Create prompt tests (cheapest first).
+ * Rates are USD per 1M tokens (standard tier) — used for operator cost hints.
+ *
+ * @return list<array{id:string,label:string,price_hint:string,input_per_mtok:float,output_per_mtok:float}>
+ */
+function bandpromo_create_integrations_openai_models(): array
+{
+    return [
+        [
+            'id' => 'gpt-5-nano',
+            'label' => 'GPT-5 nano',
+            'price_hint' => '~$0.05 / $0.40 per 1M in/out',
+            'input_per_mtok' => 0.05,
+            'output_per_mtok' => 0.40,
+        ],
+        [
+            'id' => 'gpt-6-luna',
+            'label' => 'GPT-6 Luna',
+            'price_hint' => '~$0.10 / $0.50 per 1M in/out',
+            'input_per_mtok' => 0.10,
+            'output_per_mtok' => 0.50,
+        ],
+        [
+            'id' => 'gpt-4o-mini',
+            'label' => 'GPT-4o mini',
+            'price_hint' => '~$0.15 / $0.60 per 1M in/out',
+            'input_per_mtok' => 0.15,
+            'output_per_mtok' => 0.60,
+        ],
+        [
+            'id' => 'gpt-5-mini',
+            'label' => 'GPT-5 mini',
+            'price_hint' => '~$0.25 / $2.00 per 1M in/out',
+            'input_per_mtok' => 0.25,
+            'output_per_mtok' => 2.00,
+        ],
+    ];
+}
+
+/**
+ * Curated fal edit models that accept a brand-logo reference (cheapest first).
+ * One pick per major vendor, all served through fal.ai.
+ *
+ * @return list<array{id:string,label:string,vendor:string,price_hint:string,estimate_usd:float,supports_logo:bool,family:string}>
+ */
+function bandpromo_create_integrations_fal_models(): array
+{
+    return [
+        [
+            'id' => 'fal-ai/gpt-image-1.5/edit',
+            'label' => 'OpenAI GPT Image 1.5',
+            'vendor' => 'OpenAI',
+            'price_hint' => '~$0.009 / image (low quality)',
+            'estimate_usd' => 0.009,
+            'supports_logo' => true,
+            'family' => 'openai_gpt_image',
+        ],
+        [
+            'id' => 'meta/muse-image/edit',
+            'label' => 'Meta Muse',
+            'vendor' => 'Meta',
+            'price_hint' => '~$0.01 / image',
+            'estimate_usd' => 0.01,
+            'supports_logo' => true,
+            'family' => 'meta_muse',
+        ],
+        [
+            'id' => 'fal-ai/flux-2/flash/edit',
+            'label' => 'FLUX 2 Flash',
+            'vendor' => 'Flux',
+            'price_hint' => '~$0.01 / edit (1 MP in + out)',
+            'estimate_usd' => 0.01,
+            'supports_logo' => true,
+            'family' => 'flux_flash_edit',
+        ],
+        [
+            'id' => 'xai/grok-imagine-image/edit',
+            'label' => 'Grok Imagine',
+            'vendor' => 'Grok',
+            'price_hint' => '~$0.022 / image',
+            'estimate_usd' => 0.022,
+            'supports_logo' => true,
+            'family' => 'grok_imagine',
+        ],
+        [
+            'id' => 'fal-ai/qwen-image-edit',
+            'label' => 'Qwen Image Edit',
+            'vendor' => 'Alibaba',
+            'price_hint' => '~$0.03 / MP',
+            'estimate_usd' => 0.03,
+            'supports_logo' => true,
+            'family' => 'qwen_edit',
+        ],
+        [
+            'id' => 'fal-ai/bytedance/seedream/v5/lite/edit',
+            'label' => 'Seedream 5 Lite',
+            'vendor' => 'ByteDance',
+            'price_hint' => '~$0.035 / image',
+            'estimate_usd' => 0.035,
+            'supports_logo' => true,
+            'family' => 'seedream_lite',
+        ],
+        [
+            'id' => 'fal-ai/nano-banana-2/edit',
+            'label' => 'Nano Banana 2',
+            'vendor' => 'Google',
+            'price_hint' => '~$0.06 at 0.5K',
+            'estimate_usd' => 0.06,
+            'supports_logo' => true,
+            'family' => 'nano_banana_2_edit',
+        ],
+    ];
+}
+
+function bandpromo_create_integrations_default_openai_model(): string
+{
+    $models = bandpromo_create_integrations_openai_models();
+
+    return (string) ($models[0]['id'] ?? 'gpt-5-nano');
+}
+
+function bandpromo_create_integrations_default_fal_model(): string
+{
+    $models = bandpromo_create_integrations_fal_models();
+
+    return (string) ($models[0]['id'] ?? 'fal-ai/gpt-image-1.5/edit');
+}
+
+function bandpromo_create_integrations_normalize_openai_model(string $model): string
+{
+    $model = trim($model);
+    foreach (bandpromo_create_integrations_openai_models() as $row) {
+        if ($row['id'] === $model) {
+            return $model;
+        }
+    }
+
+    return bandpromo_create_integrations_default_openai_model();
+}
+
+function bandpromo_create_integrations_normalize_fal_model(string $model): string
+{
+    $model = trim($model);
+    foreach (bandpromo_create_integrations_fal_models() as $row) {
+        if ($row['id'] === $model) {
+            return $model;
+        }
+    }
+
+    return bandpromo_create_integrations_default_fal_model();
+}
+
+/**
+ * @return array<string, mixed>|null
+ */
+function bandpromo_create_integrations_openai_model_meta(string $model): ?array
+{
+    $model = bandpromo_create_integrations_normalize_openai_model($model);
+    foreach (bandpromo_create_integrations_openai_models() as $row) {
+        if ($row['id'] === $model) {
+            return $row;
+        }
+    }
+
+    return null;
+}
+
+/**
+ * @return array<string, mixed>|null
+ */
+function bandpromo_create_integrations_fal_model_meta(string $model): ?array
+{
+    $model = bandpromo_create_integrations_normalize_fal_model($model);
+    foreach (bandpromo_create_integrations_fal_models() as $row) {
+        if ($row['id'] === $model) {
+            return $row;
+        }
+    }
+
+    return null;
+}
+
+/**
+ * @param array{prompt_tokens?:int|float,completion_tokens?:int|float,total_tokens?:int|float}|null $usage
+ * @return array{prompt_tokens:int,completion_tokens:int,total_tokens:int,estimate_usd:float,estimate_label:string}
+ */
+function bandpromo_create_integrations_openai_cost_from_usage(string $model, $usage): array
+{
+    $meta = bandpromo_create_integrations_openai_model_meta($model);
+    $promptTokens = is_array($usage) ? (int) ($usage['prompt_tokens'] ?? 0) : 0;
+    $completionTokens = is_array($usage) ? (int) ($usage['completion_tokens'] ?? 0) : 0;
+    $totalTokens = is_array($usage) ? (int) ($usage['total_tokens'] ?? ($promptTokens + $completionTokens)) : ($promptTokens + $completionTokens);
+    $estimate = 0.0;
+    if ($meta) {
+        $estimate = ($promptTokens / 1000000.0) * (float) $meta['input_per_mtok']
+            + ($completionTokens / 1000000.0) * (float) $meta['output_per_mtok'];
+    }
+    $label = $totalTokens > 0
+        ? sprintf('About $%s (%s tokens)', rtrim(rtrim(number_format($estimate, 6, '.', ''), '0'), '.'), number_format($totalTokens))
+        : 'Cost unknown (no token usage returned)';
+
+    return [
+        'prompt_tokens' => $promptTokens,
+        'completion_tokens' => $completionTokens,
+        'total_tokens' => $totalTokens,
+        'estimate_usd' => round($estimate, 8),
+        'estimate_label' => $label,
+    ];
+}
+
+/**
+ * @return array{estimate_usd:float,estimate_label:string,supports_logo:bool}
+ */
+function bandpromo_create_integrations_fal_cost_estimate(string $model): array
+{
+    $meta = bandpromo_create_integrations_fal_model_meta($model);
+    $usd = $meta ? (float) $meta['estimate_usd'] : 0.0;
+    $hint = $meta ? (string) $meta['price_hint'] : '';
+    $label = $usd > 0
+        ? sprintf('About $%s%s', rtrim(rtrim(number_format($usd, 4, '.', ''), '0'), '.'), $hint !== '' ? ' — ' . $hint : '')
+        : 'Cost unknown';
+
+    return [
+        'estimate_usd' => $usd,
+        'estimate_label' => $label,
+        'supports_logo' => $meta ? !empty($meta['supports_logo']) : false,
     ];
 }
 
@@ -63,20 +295,26 @@ function bandpromo_create_integrations_path(string $root, string $username): str
 }
 
 /**
- * @return array{openai_api_key:string,fal_api_key:string,updated_at_utc:string}
+ * @return array{openai_api_key:string,fal_api_key:string,openai_model:string,fal_model:string,updated_at_utc:string}
  */
 function bandpromo_create_integrations_normalize(array $decoded): array
 {
     $out = bandpromo_create_integrations_defaults();
     $out['openai_api_key'] = trim((string) ($decoded['openai_api_key'] ?? ''));
     $out['fal_api_key'] = trim((string) ($decoded['fal_api_key'] ?? ''));
+    $out['openai_model'] = bandpromo_create_integrations_normalize_openai_model(
+        (string) ($decoded['openai_model'] ?? $out['openai_model'])
+    );
+    $out['fal_model'] = bandpromo_create_integrations_normalize_fal_model(
+        (string) ($decoded['fal_model'] ?? $out['fal_model'])
+    );
     $out['updated_at_utc'] = trim((string) ($decoded['updated_at_utc'] ?? ''));
 
     return $out;
 }
 
 /**
- * @return array{openai_api_key:string,fal_api_key:string,updated_at_utc:string}
+ * @return array{openai_api_key:string,fal_api_key:string,openai_model:string,fal_model:string,updated_at_utc:string}
  */
 function bandpromo_create_integrations_load(string $root, string $username): array
 {
@@ -94,7 +332,7 @@ function bandpromo_create_integrations_load(string $root, string $username): arr
 }
 
 /**
- * @param array{openai_api_key?:string,fal_api_key?:string} $patch
+ * @param array{openai_api_key?:string,fal_api_key?:string,openai_model?:string,fal_model?:string} $patch
  */
 function bandpromo_create_integrations_save(string $root, string $username, array $patch): bool
 {
@@ -109,6 +347,12 @@ function bandpromo_create_integrations_save(string $root, string $username, arra
     }
     if (array_key_exists('fal_api_key', $patch)) {
         $current['fal_api_key'] = trim((string) $patch['fal_api_key']);
+    }
+    if (array_key_exists('openai_model', $patch)) {
+        $current['openai_model'] = bandpromo_create_integrations_normalize_openai_model((string) $patch['openai_model']);
+    }
+    if (array_key_exists('fal_model', $patch)) {
+        $current['fal_model'] = bandpromo_create_integrations_normalize_fal_model((string) $patch['fal_model']);
     }
     $current['updated_at_utc'] = gmdate('Y-m-d\TH:i:s\Z');
 
@@ -251,6 +495,10 @@ function bandpromo_create_integrations_resolve_keys(string $root, string $userna
  *   fal_preview:string,
  *   openai_source:string,
  *   fal_source:string,
+ *   openai_model:string,
+ *   fal_model:string,
+ *   openai_models:list<array<string,mixed>>,
+ *   fal_models:list<array<string,mixed>>,
  *   updated_at_utc:string
  * }
  */
@@ -270,6 +518,10 @@ function bandpromo_create_integrations_status_payload(string $root, string $user
             : '',
         'openai_source' => $resolved['openai_source'],
         'fal_source' => $resolved['fal_source'],
+        'openai_model' => bandpromo_create_integrations_normalize_openai_model((string) $stored['openai_model']),
+        'fal_model' => bandpromo_create_integrations_normalize_fal_model((string) $stored['fal_model']),
+        'openai_models' => bandpromo_create_integrations_openai_models(),
+        'fal_models' => bandpromo_create_integrations_fal_models(),
         'updated_at_utc' => (string) $stored['updated_at_utc'],
     ];
 }
@@ -562,17 +814,28 @@ function bandpromo_create_integrations_base_brand_brief(string $root): array
 }
 
 /**
- * @return array{ok:bool,prompt:string,error:string,status:int,needs_setup?:bool,help?:string}
+ * @return array{
+ *   ok:bool,
+ *   prompt:string,
+ *   error:string,
+ *   status:int,
+ *   model:string,
+ *   cost?:array{prompt_tokens:int,completion_tokens:int,total_tokens:int,estimate_usd:float,estimate_label:string},
+ *   needs_setup?:bool,
+ *   help?:string
+ * }
  */
-function bandpromo_create_integrations_openai_artwork_prompt(string $apiKey, string $brandBrief): array
+function bandpromo_create_integrations_openai_artwork_prompt(string $apiKey, string $brandBrief, string $model = ''): array
 {
     $apiKey = trim($apiKey);
+    $model = bandpromo_create_integrations_normalize_openai_model($model);
     if ($apiKey === '') {
         return [
             'ok' => false,
             'prompt' => '',
             'error' => 'OpenAI API key is missing.',
             'status' => 0,
+            'model' => $model,
             'needs_setup' => true,
             'help' => 'Add an OpenAI API key under Create → Connect services (or set OPENAI_API_KEY in the install .env). Create a key at https://platform.openai.com/api-keys',
         ];
@@ -585,6 +848,21 @@ function bandpromo_create_integrations_openai_artwork_prompt(string $apiKey, str
         . 'When a brand logo reference is available, say the logo should appear prominently and stay recognisable.';
     $user = "Write an artwork prompt for this base brand:\n\n" . $brandBrief;
 
+    $body = [
+        'model' => $model,
+        'messages' => [
+            ['role' => 'system', 'content' => $system],
+            ['role' => 'user', 'content' => $user],
+        ],
+    ];
+    // gpt-4o* still uses max_tokens + temperature; newer chat models prefer max_completion_tokens.
+    if (strpos($model, 'gpt-4o') === 0) {
+        $body['temperature'] = 0.8;
+        $body['max_tokens'] = 180;
+    } else {
+        $body['max_completion_tokens'] = 180;
+    }
+
     $response = bandpromo_create_integrations_http_json(
         'POST',
         'https://api.openai.com/v1/chat/completions',
@@ -593,15 +871,7 @@ function bandpromo_create_integrations_openai_artwork_prompt(string $apiKey, str
             'Content-Type' => 'application/json',
             'Accept' => 'application/json',
         ],
-        [
-            'model' => 'gpt-4o-mini',
-            'temperature' => 0.8,
-            'max_tokens' => 180,
-            'messages' => [
-                ['role' => 'system', 'content' => $system],
-                ['role' => 'user', 'content' => $user],
-            ],
-        ],
+        $body,
         60
     );
 
@@ -621,6 +891,7 @@ function bandpromo_create_integrations_openai_artwork_prompt(string $apiKey, str
             'prompt' => '',
             'error' => $message,
             'status' => $response['status'],
+            'model' => $model,
             'needs_setup' => $needsSetup,
             'help' => $needsSetup
                 ? 'Check the OpenAI key under Create → Connect services. Create or rotate keys at https://platform.openai.com/api-keys'
@@ -629,8 +900,12 @@ function bandpromo_create_integrations_openai_artwork_prompt(string $apiKey, str
     }
 
     $prompt = '';
+    $usage = null;
     if (is_array($decoded)) {
         $prompt = trim((string) ($decoded['choices'][0]['message']['content'] ?? ''));
+        if (isset($decoded['usage']) && is_array($decoded['usage'])) {
+            $usage = $decoded['usage'];
+        }
     }
     $prompt = trim($prompt, " \t\n\r\0\x0B\"'");
     if ($prompt === '') {
@@ -639,6 +914,7 @@ function bandpromo_create_integrations_openai_artwork_prompt(string $apiKey, str
             'prompt' => '',
             'error' => 'OpenAI returned an empty prompt.',
             'status' => $response['status'],
+            'model' => $model,
         ];
     }
 
@@ -647,11 +923,92 @@ function bandpromo_create_integrations_openai_artwork_prompt(string $apiKey, str
         'prompt' => $prompt,
         'error' => '',
         'status' => $response['status'],
+        'model' => $model,
+        'cost' => bandpromo_create_integrations_openai_cost_from_usage($model, $usage),
     ];
 }
 
 /**
- * Queue submit + poll for fal-ai/nano-banana-2. Does not resubmit on ambiguity.
+ * Build fal queue payload for a curated Create image edit model.
+ * Every curated model requires a usable brand-logo reference URL.
+ *
+ * @return array{endpoint:string,payload:array<string,mixed>,logo_attached:bool,cost:array{estimate_usd:float,estimate_label:string,supports_logo:bool},error?:string}
+ */
+function bandpromo_create_integrations_fal_build_request(string $model, string $prompt, string $logoImageUrl = ''): array
+{
+    $model = bandpromo_create_integrations_normalize_fal_model($model);
+    $meta = bandpromo_create_integrations_fal_model_meta($model);
+    $family = is_array($meta) ? (string) ($meta['family'] ?? '') : '';
+    $logoImageUrl = trim($logoImageUrl);
+    $logoUsable = $logoImageUrl !== ''
+        && (preg_match('#^https?://#i', $logoImageUrl) === 1 || preg_match('#^data:image/#i', $logoImageUrl) === 1);
+    $cost = bandpromo_create_integrations_fal_cost_estimate($model);
+    $endpoint = 'https://queue.fal.run/' . $model;
+
+    if (!$logoUsable) {
+        return [
+            'endpoint' => $endpoint,
+            'payload' => [],
+            'logo_attached' => false,
+            'cost' => $cost,
+            'error' => 'These image models need a brand logo reference. Set one under Content → Branding, then try again.',
+        ];
+    }
+
+    $payload = [
+        'prompt' => $prompt,
+        'num_images' => 1,
+    ];
+
+    if ($family === 'qwen_edit') {
+        // Classic Qwen edit takes a single image_url (not image_urls).
+        $payload['image_url'] = $logoImageUrl;
+        $payload['image_size'] = 'square_hd';
+        $payload['output_format'] = 'png';
+        $payload['enable_safety_checker'] = true;
+        $payload['acceleration'] = 'regular';
+    } else {
+        $payload['image_urls'] = [$logoImageUrl];
+
+        if ($family === 'openai_gpt_image') {
+            $payload['image_size'] = '1024x1024';
+            $payload['quality'] = 'low';
+            $payload['input_fidelity'] = 'high';
+            $payload['output_format'] = 'png';
+        } elseif ($family === 'meta_muse') {
+            $payload['aspect_ratio'] = '1:1';
+            $payload['output_format'] = 'png';
+        } elseif ($family === 'flux_flash_edit') {
+            $payload['image_size'] = 'square_hd';
+            $payload['output_format'] = 'png';
+            $payload['enable_safety_checker'] = true;
+        } elseif ($family === 'grok_imagine') {
+            $payload['aspect_ratio'] = '1:1';
+            $payload['resolution'] = '1k';
+            $payload['output_format'] = 'png';
+        } elseif ($family === 'seedream_lite') {
+            $payload['image_size'] = 'square_hd';
+            $payload['enable_safety_checker'] = true;
+        } else {
+            // Google Nano Banana 2 edit — cheapest Google tier for this test.
+            $payload['aspect_ratio'] = '1:1';
+            $payload['resolution'] = '0.5K';
+            $payload['output_format'] = 'png';
+            $payload['limit_generations'] = true;
+            $payload['system_prompt'] = 'Use the brand logo reference image. Keep the logo recognisable while following the prompt.';
+        }
+    }
+
+    return [
+        'endpoint' => $endpoint,
+        'payload' => $payload,
+        'logo_attached' => true,
+        'cost' => $cost,
+    ];
+}
+
+/**
+ * Queue submit + poll for a curated fal image model. Does not resubmit on ambiguity.
  *
  * @return array{
  *   ok:bool,
@@ -659,15 +1016,18 @@ function bandpromo_create_integrations_openai_artwork_prompt(string $apiKey, str
  *   request_id:string,
  *   error:string,
  *   status:int,
+ *   model:string,
  *   logo_attached:bool,
+ *   cost?:array{estimate_usd:float,estimate_label:string,supports_logo:bool},
  *   needs_setup?:bool,
  *   needs_credits?:bool,
  *   help?:string
  * }
  */
-function bandpromo_create_integrations_fal_nano_banana2(string $apiKey, string $prompt, string $logoImageUrl = ''): array
+function bandpromo_create_integrations_fal_image(string $apiKey, string $prompt, string $logoImageUrl = '', string $model = ''): array
 {
     $apiKey = trim($apiKey);
+    $model = bandpromo_create_integrations_normalize_fal_model($model);
     if ($apiKey === '') {
         return [
             'ok' => false,
@@ -675,6 +1035,7 @@ function bandpromo_create_integrations_fal_nano_banana2(string $apiKey, string $
             'request_id' => '',
             'error' => 'fal.ai API key is missing.',
             'status' => 0,
+            'model' => $model,
             'logo_attached' => false,
             'needs_setup' => true,
             'help' => 'Add a fal.ai API key under Create → Connect services (or set FAL_KEY in the install .env). Create a key at https://fal.ai/dashboard/keys',
@@ -689,6 +1050,7 @@ function bandpromo_create_integrations_fal_nano_banana2(string $apiKey, string $
             'request_id' => '',
             'error' => 'Missing image prompt for fal.',
             'status' => 0,
+            'model' => $model,
             'logo_attached' => false,
         ];
     }
@@ -699,37 +1061,28 @@ function bandpromo_create_integrations_fal_nano_banana2(string $apiKey, string $
         'Accept' => 'application/json',
     ];
 
-    $logoImageUrl = trim($logoImageUrl);
-    $logoAttached = $logoImageUrl !== ''
-        && (preg_match('#^https?://#i', $logoImageUrl) === 1 || preg_match('#^data:image/#i', $logoImageUrl) === 1);
-
-    $payload = [
-        'prompt' => $prompt,
-        'num_images' => 1,
-        'resolution' => '0.5K',
-        'aspect_ratio' => '1:1',
-        'output_format' => 'png',
-        'limit_generations' => true,
-    ];
-    if ($logoAttached) {
-        $payload['context'] = [
-            [
-                'type' => 'image',
-                'image_url' => $logoImageUrl,
-            ],
-            [
-                'type' => 'text',
-                'text' => 'This is the brand logo. Keep it recognisable and use it as a primary visual reference in the artwork.',
-            ],
+    $built = bandpromo_create_integrations_fal_build_request($model, $prompt, $logoImageUrl);
+    $logoAttached = !empty($built['logo_attached']);
+    $cost = is_array($built['cost'] ?? null) ? $built['cost'] : bandpromo_create_integrations_fal_cost_estimate($model);
+    if (!empty($built['error'])) {
+        return [
+            'ok' => false,
+            'image_url' => '',
+            'request_id' => '',
+            'error' => (string) $built['error'],
+            'status' => 0,
+            'model' => $model,
+            'logo_attached' => false,
+            'cost' => $cost,
+            'help' => 'Open Content → Branding and set a logo on the base brand, then run Create image from prompt again.',
         ];
-        $payload['system_prompt'] = 'Use the attached brand logo as a key visual reference. Preserve recognisable logo identity while following the prompt.';
     }
 
     $submit = bandpromo_create_integrations_http_json(
         'POST',
-        'https://queue.fal.run/fal-ai/nano-banana-2',
+        (string) $built['endpoint'],
         $authHeaders,
-        $payload,
+        $built['payload'],
         60
     );
 
@@ -737,6 +1090,8 @@ function bandpromo_create_integrations_fal_nano_banana2(string $apiKey, string $
     if (!$submit['ok']) {
         $err = bandpromo_create_integrations_fal_error_payload($submit, $submitDecoded);
         $err['logo_attached'] = $logoAttached;
+        $err['model'] = $model;
+        $err['cost'] = $cost;
 
         return $err;
     }
@@ -760,7 +1115,9 @@ function bandpromo_create_integrations_fal_nano_banana2(string $apiKey, string $
                 'request_id' => $requestId,
                 'error' => '',
                 'status' => $submit['status'],
+                'model' => $model,
                 'logo_attached' => $logoAttached,
+                'cost' => $cost,
             ];
         }
 
@@ -770,7 +1127,9 @@ function bandpromo_create_integrations_fal_nano_banana2(string $apiKey, string $
             'request_id' => $requestId,
             'error' => 'fal queue response did not include a usable status URL.',
             'status' => $submit['status'],
+            'model' => $model,
             'logo_attached' => $logoAttached,
+            'cost' => $cost,
         ];
     }
 
@@ -790,6 +1149,8 @@ function bandpromo_create_integrations_fal_nano_banana2(string $apiKey, string $
         if (!$poll['ok'] && $poll['status'] >= 400) {
             $err = bandpromo_create_integrations_fal_error_payload($poll, $pollDecoded, $requestId);
             $err['logo_attached'] = $logoAttached;
+            $err['model'] = $model;
+            $err['cost'] = $cost;
 
             return $err;
         }
@@ -820,7 +1181,9 @@ function bandpromo_create_integrations_fal_nano_banana2(string $apiKey, string $
                 'request_id' => $requestId,
                 'error' => $detail !== '' ? $detail : ('fal job ' . strtolower($queueStatus)),
                 'status' => $lastStatus,
+                'model' => $model,
                 'logo_attached' => $logoAttached,
+                'cost' => $cost,
             ];
         }
     }
@@ -832,7 +1195,9 @@ function bandpromo_create_integrations_fal_nano_banana2(string $apiKey, string $
             'request_id' => $requestId,
             'error' => 'fal job finished without a usable result URL (not resubmitted).',
             'status' => $lastStatus,
+            'model' => $model,
             'logo_attached' => $logoAttached,
+            'cost' => $cost,
         ];
     }
 
@@ -844,6 +1209,8 @@ function bandpromo_create_integrations_fal_nano_banana2(string $apiKey, string $
     if (!$result['ok']) {
         $err = bandpromo_create_integrations_fal_error_payload($result, $resultDecoded, $requestId);
         $err['logo_attached'] = $logoAttached;
+        $err['model'] = $model;
+        $err['cost'] = $cost;
 
         return $err;
     }
@@ -856,7 +1223,9 @@ function bandpromo_create_integrations_fal_nano_banana2(string $apiKey, string $
             'request_id' => $requestId,
             'error' => 'fal returned no image URL.',
             'status' => $result['status'],
+            'model' => $model,
             'logo_attached' => $logoAttached,
+            'cost' => $cost,
         ];
     }
 
@@ -866,9 +1235,20 @@ function bandpromo_create_integrations_fal_nano_banana2(string $apiKey, string $
         'request_id' => $requestId,
         'error' => '',
         'status' => $result['status'],
+        'model' => $model,
         'logo_attached' => $logoAttached,
+        'cost' => $cost,
     ];
 }
+
+/**
+ * @deprecated Prefer bandpromo_create_integrations_fal_image()
+ */
+function bandpromo_create_integrations_fal_nano_banana2(string $apiKey, string $prompt, string $logoImageUrl = ''): array
+{
+    return bandpromo_create_integrations_fal_image($apiKey, $prompt, $logoImageUrl, 'fal-ai/nano-banana-2/edit');
+}
+
 
 /**
  * @param array{ok:bool,status:int,body:string,error:string} $response

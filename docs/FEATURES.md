@@ -74,9 +74,9 @@ bandPromo is a modern, self-hosted platform for private music releases and fan e
 - Social sharing metadata and web manifest generation
 
 ### Create (AI helpers foundation)
-- **Developer-only for now** (proof of concept): **Create** tab between Content and Settings with a **Start** sub-tab — **Connect → Test → Confirm** workflow panels (Connect when keys are missing, Test when both keys are present, Confirm when the proof succeeds)
+- **Developer-only for now** (proof of concept): **Create** tab between Content and Settings with a **Start** sub-tab — **Connect → Test of openAI for text → Test of fal.ai for images**
 - Per developer OpenAI + fal.ai API keys stored under `data/admin-integrations/` (masked in the UI; optional `.env` `OPENAI_API_KEY` / `FAL_KEY` fallbacks)
-- **Test connections** drafts a base-brand artwork prompt via OpenAI (`gpt-4o-mini`) and paints a small still via fal Nano Banana 2 (`fal-ai/nano-banana-2` at 0.5K), with the base brand logo as a fal reference when set; Confirm shows the prompt and still
+- **Create image prompt** / **Create image from prompt** use curated model pickers (cheapest defaults: OpenAI `gpt-5-nano`, fal `fal-ai/gpt-image-1.5/edit`). Image models are reference-capable only — cheapest fal edit pick from OpenAI, Meta, Flux, Grok, Alibaba (Qwen), ByteDance, and Google; all attach the base brand logo
 
 ### Security & Privacy
 - Session-based authentication with admin vs listener role separation on admin surfaces

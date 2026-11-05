@@ -6,7 +6,7 @@
 
 **Closed:** **v0.8.101 build 615** published — Create Test connections attaches base brand logo to fal Nano Banana 2 as a reference image.
 
-**Active now:** Create tab gated **developer-only** (PoC); Connect | Test | Confirm redesign still unpublished. Checkpoint / publish when operator asks.
+**Active now:** Create Start reference-only fal vendor models + cheapest defaults — publishing.
 
 **Last published:** **v0.8.101 build 615**. Prior: **614** Create foundation; **612** Content remirror.
 
@@ -19,7 +19,7 @@
 
 **Operator rule (this session):** Do **not** delete, prune, janitor-Apply, or discard any runtime files (`data/`, `media/`, `log/`, `backups/`, Ready archives, leftover `original/`) unless this user names the exact paths in the same message.
 
-**Next:** Operator smoke Create → Connect services → Test connections with real keys; then checkpoint when ready. Living-art / blurb tool UIs stay later.
+**Next:** After publish, operator smoke Create → Connect → pick models (or keep cheapest defaults) → prompt + image tests with a base brand logo. Living-art / blurb tool UIs stay later.
 
 ### Policy locked (do not reopen)
 
@@ -64,7 +64,7 @@
 - Large audio upload final chunk: return after assemble + spawn finalize worker only (do not sync master move / tags / scan / delivery on the upload request — HITZ proxy 504)
 - Player load-failure **Operator:** hints are admin/developer only (`BANDPROMO_IS_OPERATOR`); public listeners get title + soft detail only
 - Visual master embed: non-ASCII titles via UTF-8 ffmetadata (never `-metadata title=…` argv on ASCII hosts); video tag work dir beside master + EXDEV-safe replace
-- Create tab is **developer-only** until helper tools ship; AI keys are per signed-in developer; Test connections = OpenAI brand artwork prompt + fal `nano-banana-2` 0.5K still (living video later)
+- Create tab is **developer-only** until helper tools ship; AI keys + preferred models are per signed-in developer; Create defaults to cheapest curated models (`gpt-5-nano` / `fal-ai/gpt-image-1.5/edit`); fal image picks are reference-capable only (OpenAI / Meta / Flux / Grok / Alibaba Qwen / ByteDance / Google via fal); brand logo required (living video later)
 
 ### Local workspace
 
