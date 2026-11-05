@@ -2,6 +2,8 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-11-05 20:30 - Publish Create → Start OpenAI models: GPT-6 Luna (default), Sol, Astra (drop nano / 4o-mini / 5-mini).
+2026-11-05 19:30 - Create → Start OpenAI models: keep GPT-6 Luna (default); replace other chat picks with GPT-6 Sol and GPT-6 Astra.
 2026-11-05 19:25 - Publish **v0.8.101 build 617** — Create Start model pickers (cheapest OpenAI + fal vendor edit models with logo refs).
 2026-11-05 19:22 - Create → Start image models: add Alibaba Qwen (`fal-ai/qwen-image-edit`, ~$0.03/MP) to the reference-capable vendor list.
 2026-11-05 19:20 - Create → Start image models: only reference-capable fal edit endpoints — cheapest per vendor (OpenAI, Meta, Flux, Grok, ByteDance, Google); default `fal-ai/gpt-image-1.5/edit`; brand logo required; dropdown picker (6 options).

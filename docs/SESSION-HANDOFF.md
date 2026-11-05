@@ -8,7 +8,7 @@
 
 **Closed:** **v0.8.101 build 617** published — Create Start cheapest OpenAI + fal vendor edit models (logo refs required).
 
-**Active now:** Operator smoke Create model pickers on a host with keys + base brand logo; then Create tool UIs later.
+**Active now:** Publishing OpenAI prompt models → GPT-6 Luna (default) / Sol / Astra.
 
 **Last published:** **v0.8.101 build 617**. Prior: **615** logo on Nano Banana 2; **614** Create foundation.
 
@@ -66,7 +66,7 @@
 - Large audio upload final chunk: return after assemble + spawn finalize worker only (do not sync master move / tags / scan / delivery on the upload request — HITZ proxy 504)
 - Player load-failure **Operator:** hints are admin/developer only (`BANDPROMO_IS_OPERATOR`); public listeners get title + soft detail only
 - Visual master embed: non-ASCII titles via UTF-8 ffmetadata (never `-metadata title=…` argv on ASCII hosts); video tag work dir beside master + EXDEV-safe replace
-- Create tab is **developer-only** until helper tools ship; AI keys + preferred models are per signed-in developer; Create defaults to cheapest curated models (`gpt-5-nano` / `fal-ai/gpt-image-1.5/edit`); fal image picks are reference-capable only (OpenAI / Meta / Flux / Grok / Alibaba Qwen / ByteDance / Google via fal); brand logo required (living video later)
+- Create tab is **developer-only** until helper tools ship; AI keys + preferred models are per signed-in developer; Create defaults to cheapest curated models (`gpt-6-luna` / `fal-ai/gpt-image-1.5/edit`; OpenAI also Sol / Astra); fal image picks are reference-capable only (OpenAI / Meta / Flux / Grok / Alibaba Qwen / ByteDance / Google via fal); brand logo required (living video later)
 
 ### Local workspace
 

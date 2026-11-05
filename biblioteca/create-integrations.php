@@ -35,13 +35,6 @@ function bandpromo_create_integrations_openai_models(): array
 {
     return [
         [
-            'id' => 'gpt-5-nano',
-            'label' => 'GPT-5 nano',
-            'price_hint' => '~$0.05 / $0.40 per 1M in/out',
-            'input_per_mtok' => 0.05,
-            'output_per_mtok' => 0.40,
-        ],
-        [
             'id' => 'gpt-6-luna',
             'label' => 'GPT-6 Luna',
             'price_hint' => '~$0.10 / $0.50 per 1M in/out',
@@ -49,18 +42,18 @@ function bandpromo_create_integrations_openai_models(): array
             'output_per_mtok' => 0.50,
         ],
         [
-            'id' => 'gpt-4o-mini',
-            'label' => 'GPT-4o mini',
-            'price_hint' => '~$0.15 / $0.60 per 1M in/out',
-            'input_per_mtok' => 0.15,
-            'output_per_mtok' => 0.60,
+            'id' => 'gpt-6-sol',
+            'label' => 'GPT-6 Sol',
+            'price_hint' => '~$2.00 / $10.00 per 1M in/out',
+            'input_per_mtok' => 2.00,
+            'output_per_mtok' => 10.00,
         ],
         [
-            'id' => 'gpt-5-mini',
-            'label' => 'GPT-5 mini',
-            'price_hint' => '~$0.25 / $2.00 per 1M in/out',
-            'input_per_mtok' => 0.25,
-            'output_per_mtok' => 2.00,
+            'id' => 'gpt-6-astra',
+            'label' => 'GPT-6 Astra',
+            'price_hint' => '~$10.00 / $50.00 per 1M in/out',
+            'input_per_mtok' => 10.00,
+            'output_per_mtok' => 50.00,
         ],
     ];
 }
@@ -144,7 +137,7 @@ function bandpromo_create_integrations_default_openai_model(): string
 {
     $models = bandpromo_create_integrations_openai_models();
 
-    return (string) ($models[0]['id'] ?? 'gpt-5-nano');
+    return (string) ($models[0]['id'] ?? 'gpt-6-luna');
 }
 
 function bandpromo_create_integrations_default_fal_model(): string
