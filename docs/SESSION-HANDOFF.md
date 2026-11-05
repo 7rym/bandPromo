@@ -4,9 +4,9 @@
 
 **Closed:** Player size + Campaign navigator (**605**). Site health Keep-choice (**607**). Branding Player remirror (**608**). Artwork / User area / slug fold / Support — **v0.8.100**. Stay signed in + Lyrics tab — **611**. Content remirror + navigator polish (Idle items Full|Soft|Grey, brand images, demo playlist rows).
 
-**Active now:** Idle — Content remirror + navigator polish checkpointed locally (publish when ready).
+**Active now:** Idle — Content remirror + navigator polish published.
 
-**Last published:** **v0.8.100 build 611**. Prior: **608** Player remirror; **607** Keep-choice; **605** Player size r11.
+**Last published:** **v0.8.100 build 612** (Content Live preview remirror, Idle items, scrollbar cleanup). Prior: **611** Stay signed in / Lyrics; **608** Player remirror; **607** Keep-choice.
 
 **Parked / later:**
 - Files pool / living-cover picker latency (undercount disk probe + full Visual list for video-only pick).
@@ -16,7 +16,7 @@
 
 **Operator rule (this session):** Do **not** delete, prune, janitor-Apply, or discard any runtime files (`data/`, `media/`, `log/`, `backups/`, Ready archives, leftover `original/`) unless this user names the exact paths in the same message.
 
-**Next:** Publish Content remirror + navigator idle when ready.
+**Next:** Fresh session — pick parked work or new operator ask.
 
 ### Policy locked (do not reopen)
 

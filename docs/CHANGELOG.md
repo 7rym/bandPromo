@@ -2,6 +2,8 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-11-05 14:58 - Publish Content Live preview remirror + navigator Idle items + preview scrollbar cleanup for Site update.
+
 2026-11-04 21:40 - Branding Content Live preview: drop nested forced scrollbars on stacked playlist/panel samples (one iframe scroll only).
 
 2026-11-04 21:20 - Branding Content navigator polish: preview chips use brand logo/poster (not letter placeholders); campaign hover lift matches coverflow; **Idle items:** Full|Soft|Grey (`player.navigator_idle`, default Full) mutes non-active campaign/playlist chips live; demo playlist track rows above Panels in Content preview.
