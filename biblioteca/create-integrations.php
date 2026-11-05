@@ -126,7 +126,8 @@ function bandpromo_create_integrations_mask_key(string $key): string
         return str_repeat('•', $len);
     }
 
-    return substr($key, 0, 4) . str_repeat('•', max(4, $len - 8)) . substr($key, -4);
+    // Fixed short preview — never mirror full key length with dots.
+    return substr($key, 0, 4) . '••••' . substr($key, -4);
 }
 
 /**

@@ -16869,6 +16869,8 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 const keysStatus = document.getElementById('createKeysStatus');
                 const testBtn = document.getElementById('createTestConnectionsBtn');
                 const testStatus = document.getElementById('createTestStatus');
+                const testLockedNote = document.getElementById('createTestLockedNote');
+                const confirmWaiting = document.getElementById('createConfirmWaiting');
                 const testResult = document.getElementById('createTestResult');
                 const testBrandMeta = document.getElementById('createTestBrandMeta');
                 const testPrompt = document.getElementById('createTestPrompt');
@@ -16877,6 +16879,16 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 const testImage = document.getElementById('createTestImage');
                 const testFalError = document.getElementById('createTestFalError');
                 const testFalHelp = document.getElementById('createTestFalHelp');
+                const railItems = Array.from(document.querySelectorAll('.create-workflow-rail-item[data-step]'));
+                const panels = {
+                    connect: connectCard,
+                    test: document.getElementById('createTestCard'),
+                    confirm: document.getElementById('createConfirmCard'),
+                };
+
+                let latestIntegrations = {};
+                let testPassed = false;
+                let busy = false;
 
                 function csrfToken() {
                     if (typeof adminCsrf === 'string' && adminCsrf) {
@@ -16890,9 +16902,104 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                         return 'saved for your account';
                     }
                     if (source === 'env') {
-                        return 'using install .env fallback';
+                        return 'using install fallback';
                     }
                     return '';
+                }
+
+                function keysReady(integrations) {
+                    const data = integrations && typeof integrations === 'object' ? integrations : {};
+                    return data.openai_configured === true && data.fal_configured === true;
+                }
+
+                function resolveStage(integrations) {
+                    if (!keysReady(integrations)) {
+                        return 'connect';
+                    }
+                    if (!testPassed) {
+                        return 'test';
+                    }
+                    return 'confirm';
+                }
+
+                function setButtonProposed(btn, proposed) {
+                    if (!(btn instanceof HTMLButtonElement)) {
+                        return;
+                    }
+                    btn.classList.remove('btn-primary', 'btn-good', 'btn-available');
+                    btn.classList.add(proposed ? 'btn-good' : 'btn-available');
+                }
+
+                function applyWorkflow(integrations) {
+                    latestIntegrations = integrations && typeof integrations === 'object' ? integrations : {};
+                    const stage = resolveStage(latestIntegrations);
+                    const ready = keysReady(latestIntegrations);
+                    const steps = ['connect', 'test', 'confirm'];
+
+                    steps.forEach((step) => {
+                        const panel = panels[step];
+                        if (!panel) {
+                            return;
+                        }
+                        panel.classList.remove('is-current', 'is-done', 'is-disabled');
+                        if (step === stage) {
+                            panel.classList.add('is-current');
+                        } else if (
+                            (step === 'connect' && ready) ||
+                            (step === 'test' && testPassed) ||
+                            (step === 'confirm' && testPassed && stage === 'confirm')
+                        ) {
+                            panel.classList.add('is-done');
+                        } else if (
+                            (step === 'test' && !ready) ||
+                            (step === 'confirm' && !testPassed)
+                        ) {
+                            panel.classList.add('is-disabled');
+                        }
+                    });
+
+                    railItems.forEach((item) => {
+                        const step = item.getAttribute('data-step');
+                        item.classList.remove('is-current', 'is-done');
+                        if (step === stage) {
+                            item.classList.add('is-current');
+                        } else if (
+                            (step === 'connect' && ready) ||
+                            (step === 'test' && testPassed) ||
+                            (step === 'confirm' && testPassed)
+                        ) {
+                            item.classList.add('is-done');
+                        }
+                    });
+
+                    if (testLockedNote) {
+                        testLockedNote.hidden = ready;
+                    }
+                    if (confirmWaiting) {
+                        confirmWaiting.hidden = testPassed;
+                    }
+                    if (testResult) {
+                        testResult.hidden = !testPassed;
+                    }
+
+                    if (saveBtn instanceof HTMLButtonElement) {
+                        saveBtn.disabled = busy;
+                        setButtonProposed(saveBtn, stage === 'connect');
+                    }
+                    if (clearOpenAiBtn instanceof HTMLButtonElement) {
+                        clearOpenAiBtn.disabled = busy;
+                        clearOpenAiBtn.classList.remove('btn-primary', 'btn-good');
+                        clearOpenAiBtn.classList.add('btn-available');
+                    }
+                    if (clearFalBtn instanceof HTMLButtonElement) {
+                        clearFalBtn.disabled = busy;
+                        clearFalBtn.classList.remove('btn-primary', 'btn-good');
+                        clearFalBtn.classList.add('btn-available');
+                    }
+                    if (testBtn instanceof HTMLButtonElement) {
+                        testBtn.disabled = busy || !ready;
+                        setButtonProposed(testBtn, stage === 'test');
+                    }
                 }
 
                 function renderStatus(integrations) {
@@ -16919,7 +17026,40 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                         }
                     }
                     if (emptyHelp) {
-                        emptyHelp.hidden = openaiConfigured || falConfigured;
+                        emptyHelp.hidden = openaiConfigured && falConfigured;
+                    }
+                    applyWorkflow(data);
+                }
+
+                function clearConfirmProof() {
+                    testPassed = false;
+                    if (testPrompt) {
+                        testPrompt.textContent = '';
+                    }
+                    if (testBrandMeta) {
+                        testBrandMeta.textContent = '';
+                    }
+                    if (testFalLogoMeta) {
+                        testFalLogoMeta.textContent = '';
+                    }
+                    if (testOpenAiError) {
+                        testOpenAiError.hidden = true;
+                        testOpenAiError.textContent = '';
+                    }
+                    if (testFalError) {
+                        testFalError.hidden = true;
+                        testFalError.textContent = '';
+                    }
+                    if (testFalHelp) {
+                        testFalHelp.hidden = true;
+                        testFalHelp.textContent = '';
+                    }
+                    if (testImage instanceof HTMLImageElement) {
+                        testImage.hidden = true;
+                        testImage.removeAttribute('src');
+                    }
+                    if (testResult) {
+                        testResult.hidden = true;
                     }
                 }
 
@@ -16972,52 +17112,31 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     if (falInput instanceof HTMLInputElement) {
                         falInput.value = '';
                     }
+                    clearConfirmProof();
                     renderStatus(data.integrations || {});
                     return data.integrations || {};
                 }
 
                 function setBusy(isBusy, label) {
-                    const busy = isBusy === true;
-                    [saveBtn, clearOpenAiBtn, clearFalBtn, testBtn].forEach((btn) => {
-                        if (btn instanceof HTMLButtonElement) {
-                            btn.disabled = busy;
-                        }
-                    });
-                    if (testStatus) {
+                    busy = isBusy === true;
+                    applyWorkflow(latestIntegrations);
+                    if (testStatus && busy) {
                         testStatus.classList.remove('is-error');
-                        testStatus.textContent = busy ? (label || 'Working…') : testStatus.textContent;
+                        testStatus.textContent = label || 'Working…';
                     }
                 }
 
                 async function runTest() {
-                    if (testResult) {
-                        testResult.hidden = true;
+                    if (!keysReady(latestIntegrations)) {
+                        if (testStatus) {
+                            testStatus.textContent = 'Save both OpenAI and fal.ai keys in Connect first.';
+                            testStatus.classList.add('is-error');
+                        }
+                        return;
                     }
-                    if (testPrompt) {
-                        testPrompt.textContent = '';
-                    }
-                    if (testBrandMeta) {
-                        testBrandMeta.textContent = '';
-                    }
-                    if (testFalLogoMeta) {
-                        testFalLogoMeta.textContent = '';
-                    }
-                    if (testOpenAiError) {
-                        testOpenAiError.hidden = true;
-                        testOpenAiError.textContent = '';
-                    }
-                    if (testFalError) {
-                        testFalError.hidden = true;
-                        testFalError.textContent = '';
-                    }
-                    if (testFalHelp) {
-                        testFalHelp.hidden = true;
-                        testFalHelp.textContent = '';
-                    }
-                    if (testImage instanceof HTMLImageElement) {
-                        testImage.hidden = true;
-                        testImage.removeAttribute('src');
-                    }
+
+                    clearConfirmProof();
+                    applyWorkflow(latestIntegrations);
 
                     setBusy(true, 'Testing connections… this can take a minute.');
                     if (keysStatus) {
@@ -17040,9 +17159,6 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                             body: JSON.stringify({ csrf_token: csrfToken() }),
                         });
                         const data = await resp.json().catch(() => null);
-                        if (testResult) {
-                            testResult.hidden = false;
-                        }
 
                         const brand = data && data.brand ? data.brand : {};
                         const openai = data && data.openai ? data.openai : {};
@@ -17099,20 +17215,38 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                         }
 
                         if (data && data.ok === true) {
+                            testPassed = true;
+                            if (testResult) {
+                                testResult.hidden = false;
+                            }
                             if (testStatus) {
-                                testStatus.textContent = 'Connections OK — prompt and still are shown below.';
+                                testStatus.textContent = 'Connections OK — check the prompt and still in Confirm.';
                                 testStatus.classList.remove('is-error');
                             }
                         } else {
-                            const message = (data && data.error)
-                                ? String(data.error)
-                                : ((data && data.help) ? String(data.help) : 'Connection test failed.');
+                            testPassed = false;
+                            const bits = [];
+                            if (data && data.error) {
+                                bits.push(String(data.error));
+                            } else if (data && data.help) {
+                                bits.push(String(data.help));
+                            }
+                            if (openai.error) {
+                                bits.push(String(openai.error));
+                            }
+                            if (fal.error) {
+                                bits.push(String(fal.error));
+                            }
+                            if (bits.length === 0) {
+                                bits.push('Connection test failed.');
+                            }
                             if (testStatus) {
-                                testStatus.textContent = message;
+                                testStatus.textContent = bits.join(' ');
                                 testStatus.classList.add('is-error');
                             }
                         }
                     } catch (error) {
+                        testPassed = false;
                         if (testStatus) {
                             testStatus.textContent = error && error.message
                                 ? String(error.message)
@@ -17131,9 +17265,11 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                             keysStatus.classList.remove('is-error');
                         }
                         saveKeys({})
-                            .then(() => {
+                            .then((integrations) => {
                                 if (keysStatus) {
-                                    keysStatus.textContent = 'Saved.';
+                                    keysStatus.textContent = keysReady(integrations)
+                                        ? 'Saved. Test is ready.'
+                                        : 'Saved. Add the other key to unlock Test.';
                                 }
                             })
                             .catch((error) => {
@@ -17199,6 +17335,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     });
                 }
 
+                applyWorkflow({});
                 loadStatus().catch((error) => {
                     if (keysStatus) {
                         keysStatus.textContent = error && error.message

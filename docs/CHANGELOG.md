@@ -2,6 +2,8 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-11-05 18:35 - Create tab (and its connection APIs) are developer-only for now — proof of concept until real helper tools ship; admins no longer see the nav entry.
+2026-11-05 16:30 - Create → Start: reshape into Connect | Test | Confirm panels with a step rail; enable Connect when keys are missing, Test when both keys are present, and Confirm when the connection proof succeeds (admin density + btn-good / btn-available ladder).
 2026-11-05 15:55 - Create → Test connections: attach the base brand logo as a fal Nano Banana 2 `context` reference image (data URI from delivery when possible) so the still can use the real mark.
 
 2026-11-05 15:36 - Admin primary nav: Notifications control is icon + count only (label removed; `aria-label` / title kept).

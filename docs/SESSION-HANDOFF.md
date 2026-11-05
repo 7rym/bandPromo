@@ -4,11 +4,11 @@
 
 **Closed:** Player size + Campaign navigator (**605**). Site health Keep-choice (**607**). Branding Player remirror (**608**). Artwork / User area / slug fold / Support — **v0.8.100**. Stay signed in + Lyrics tab — **611**. Content remirror + navigator polish (Idle items Full|Soft|Grey, brand images, demo playlist rows) — **612**.
 
-**Closed:** **v0.8.101 build 614** — Create foundation + Notifications icon-only (live smoke OK on bandpromo.site).
+**Closed:** **v0.8.101 build 615** published — Create Test connections attaches base brand logo to fal Nano Banana 2 as a reference image.
 
-**Active now:** Publishing Create Test connections logo reference (fal `context` image) for remote retest.
+**Active now:** Create tab gated **developer-only** (PoC); Connect | Test | Confirm redesign still unpublished. Checkpoint / publish when operator asks.
 
-**Last published:** **v0.8.101 build 614**. Prior: **612** Content remirror; **611** Stay signed in / Lyrics.
+**Last published:** **v0.8.101 build 615**. Prior: **614** Create foundation; **612** Content remirror.
 
 **Parked / later:**
 - Create tool sub-tabs (blurb writer, artwork studio, living artwork) beyond Start + connection proof.
@@ -64,7 +64,7 @@
 - Large audio upload final chunk: return after assemble + spawn finalize worker only (do not sync master move / tags / scan / delivery on the upload request — HITZ proxy 504)
 - Player load-failure **Operator:** hints are admin/developer only (`BANDPROMO_IS_OPERATOR`); public listeners get title + soft detail only
 - Visual master embed: non-ASCII titles via UTF-8 ffmetadata (never `-metadata title=…` argv on ASCII hosts); video tag work dir beside master + EXDEV-safe replace
-- Create AI keys are **per signed-in admin/developer**; Test connections = OpenAI brand artwork prompt + fal `nano-banana-2` 0.5K still (living video later)
+- Create tab is **developer-only** until helper tools ship; AI keys are per signed-in developer; Test connections = OpenAI brand artwork prompt + fal `nano-banana-2` 0.5K still (living video later)
 
 ### Local workspace
 

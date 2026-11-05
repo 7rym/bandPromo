@@ -454,6 +454,11 @@ $tab = $_GET['tab'] ?? 'welcome';
 if (!in_array($tab, ['welcome', 'analytics', 'users', 'files', 'content', 'create', 'settings', 'system', 'docs'], true)) {
     $tab = 'welcome';
 }
+// Create is developer-only while it remains a connection proof of concept.
+if ($tab === 'create' && $currentUserRole !== 'developer') {
+    header('Location: /admin.php?tab=welcome');
+    exit;
+}
 
 // Files sub-tab
 $filesPanel = $_GET['fpanel'] ?? 'audio';
@@ -746,7 +751,9 @@ if ($tab === 'analytics') {
             <?php renderTabLink('users',     $tab, '👥', 'Users'); ?>
             <?php renderTabLink('files',     $tab, '📁', 'Files'); ?>
             <?php renderTabLink('content',   $tab, '📄', 'Content'); ?>
+            <?php if ($currentUserRole === 'developer'): ?>
             <?php renderTabLink('create',    $tab, '✨', 'Create'); ?>
+            <?php endif; ?>
             <?php renderTabLink('settings',  $tab, '⚙️', 'Settings'); ?>
             <?php renderTabLink('system',    $tab, '🛠️', 'System'); ?>
             <?php renderTabLink('docs',      $tab, '📚', 'Documentation'); ?>
@@ -2745,9 +2752,10 @@ if ($tab === 'analytics') {
             <div class="admin-help-box collapsed" id="help-create">
                 <?php if ($createTab === 'start'): ?>
                     <ul>
-                        <li>Create is where creative helper tools will live. Start by connecting your own OpenAI and fal.ai keys, then use <strong>Test connections</strong> to prove both services work.</li>
-                        <li>Keys stay with your signed-in admin or developer account on this install. They are not shared between accounts and are not exported in campaign or brand packages.</li>
-                        <li>Test connections writes a short artwork prompt from your base brand, then asks fal to paint a small still with the base brand logo attached as a reference image when one is set. That uses a small paid generation on each connected service.</li>
+                        <li>Create is where creative helper tools will live. Follow <strong>Connect → Test → Confirm</strong> to prove OpenAI and fal.ai with your own keys.</li>
+                        <li><strong>Writing help</strong> drafts blurbs from catalogue details; <strong>Artwork help</strong> invents stills from lyrics, logos, photos, and brand colours; <strong>Living artwork</strong> (later) turns a still into a short moving clip.</li>
+                        <li>Create is developer-only while it is a connection proof. Keys stay with your signed-in developer account on this install. They are not shared between accounts and are not exported in campaign or brand packages.</li>
+                        <li>Test asks OpenAI for a short artwork prompt from your base brand, then fal paints a small still with the base brand logo attached as a reference image when Branding has one. That uses a small paid generation on each connected service.</li>
                     </ul>
                 <?php endif; ?>
             </div>
@@ -2765,73 +2773,98 @@ if ($tab === 'analytics') {
             ?>
 
             <?php if ($tab === 'create' && $createTab === 'start'): ?>
-            <div class="card create-start-card">
-                <h3>What Create can help with</h3>
-                <p class="card-note">These helpers use external AI services you connect below. They stay optional — your catalogue and player keep working without them.</p>
-                <ul class="create-start-list">
-                    <li><strong>Writing help</strong> — draft blurbs and other short texts for tracks, playlists, and campaigns from the details you already keep in bandPromo.</li>
-                    <li><strong>Artwork help</strong> — invent new stills that lean on what you already uploaded: lyrics, logos, photos, brand colours, and related cues.</li>
-                    <li><strong>Living artwork</strong> — turn a still into a short animated video so cover art and posters can move. Living-art tools arrive in a later Create sub-tab; Start proves the connections first.</li>
-                </ul>
-            </div>
-
-            <div class="card create-connect-card" id="createConnectCard">
-                <h3>Connect services</h3>
-                <p class="card-note">
-                    Each admin or developer account stores its own keys on this install.
-                    Create keys at
-                    <a href="https://platform.openai.com/api-keys" target="_blank" rel="noopener noreferrer">OpenAI API keys</a>
-                    and
-                    <a href="https://fal.ai/dashboard/keys" target="_blank" rel="noopener noreferrer">fal.ai API keys</a>,
-                    then paste them here. Keys travel only with a full site backup of <code>data/</code> — not with PCF or PBF exports.
+            <div class="create-start-shell" id="createStartShell">
+                <p class="create-start-lead">
+                    Optional AI helpers for blurbs and artwork. Connect your keys, run a small paid proof, then confirm the still looks right — your catalogue and player keep working without this.
                 </p>
-                <div id="createKeysEmptyHelp" class="message warning create-keys-empty-help" hidden>
-                    No API keys are recorded for your account yet. Add OpenAI and fal.ai keys below (or set optional install fallbacks <code>OPENAI_API_KEY</code> / <code>FAL_KEY</code> in <code>.env</code>), then save and run Test connections.
-                </div>
-                <div class="config-form-grid create-keys-grid">
-                    <div class="form-group brand-effect-field--inline">
-                        <label for="createOpenAiKey">OpenAI API key:</label>
-                        <input type="password" id="createOpenAiKey" name="create_openai_api_key" autocomplete="off" spellcheck="false" placeholder="Paste key to set or replace">
-                    </div>
-                    <p class="hint create-key-meta" id="createOpenAiMeta">Not configured</p>
-                    <div class="form-group brand-effect-field--inline">
-                        <label for="createFalKey">fal.ai API key:</label>
-                        <input type="password" id="createFalKey" name="create_fal_api_key" autocomplete="off" spellcheck="false" placeholder="Paste key to set or replace">
-                    </div>
-                    <p class="hint create-key-meta" id="createFalMeta">Not configured</p>
-                </div>
-                <div class="card-actions create-connect-actions">
-                    <button type="button" class="btn btn-primary" id="createKeysSaveBtn">Save keys</button>
-                    <button type="button" class="btn" id="createOpenAiClearBtn">Clear OpenAI</button>
-                    <button type="button" class="btn" id="createFalClearBtn">Clear fal</button>
-                    <span id="createKeysStatus" class="status-text" aria-live="polite"></span>
-                </div>
-            </div>
 
-            <div class="card create-test-card" id="createTestCard">
-                <h3>Test connections</h3>
-                <p class="card-note">
-                    Runs a small paid proof: OpenAI drafts an artwork prompt from your <strong>base brand</strong>, then fal Nano Banana 2 paints one small square still from that prompt — with the base brand <strong>logo</strong> attached as a visual reference when Branding has one.
-                    Use this after saving keys. If a key is missing, the result explains how to get set up.
-                </p>
-                <div class="card-actions">
-                    <button type="button" class="btn btn-primary" id="createTestConnectionsBtn">Test connections</button>
-                    <span id="createTestStatus" class="status-text" aria-live="polite"></span>
-                </div>
-                <div id="createTestResult" class="create-test-result" hidden>
-                    <div class="create-test-provider" id="createTestOpenAiBlock">
-                        <h4>OpenAI artwork prompt</h4>
-                        <p class="hint" id="createTestBrandMeta"></p>
-                        <pre class="create-test-prompt" id="createTestPrompt"></pre>
-                        <p class="status-text is-error" id="createTestOpenAiError" hidden></p>
-                    </div>
-                    <div class="create-test-provider" id="createTestFalBlock">
-                        <h4>fal Nano Banana 2 still</h4>
-                        <p class="hint" id="createTestFalLogoMeta"></p>
-                        <img id="createTestImage" class="create-test-image" alt="Test artwork from fal" hidden>
-                        <p class="status-text is-error" id="createTestFalError" hidden></p>
-                        <p class="hint" id="createTestFalHelp" hidden></p>
-                    </div>
+                <nav class="create-workflow-rail" aria-label="Create setup steps">
+                    <ol class="create-workflow-rail-list">
+                        <li class="create-workflow-rail-item is-current" data-step="connect">
+                            <span class="create-workflow-rail-mark" aria-hidden="true">1</span>
+                            <span class="create-workflow-rail-label">Connect</span>
+                        </li>
+                        <li class="create-workflow-rail-item" data-step="test">
+                            <span class="create-workflow-rail-mark" aria-hidden="true">2</span>
+                            <span class="create-workflow-rail-label">Test</span>
+                        </li>
+                        <li class="create-workflow-rail-item" data-step="confirm">
+                            <span class="create-workflow-rail-mark" aria-hidden="true">3</span>
+                            <span class="create-workflow-rail-label">Confirm</span>
+                        </li>
+                    </ol>
+                </nav>
+
+                <div class="create-workflow-panels" id="createWorkflowPanels">
+                    <section class="create-workflow-panel is-current" id="createConnectCard" data-step="connect" aria-labelledby="createConnectTitle">
+                        <h3 id="createConnectTitle">Connect</h3>
+                        <p class="card-note">
+                            Paste your own
+                            <a href="https://platform.openai.com/api-keys" target="_blank" rel="noopener noreferrer">OpenAI</a>
+                            and
+                            <a href="https://fal.ai/dashboard/keys" target="_blank" rel="noopener noreferrer">fal.ai</a>
+                            keys. Both are needed before Test unlocks.
+                        </p>
+                        <div id="createKeysEmptyHelp" class="message warning create-keys-empty-help" hidden>
+                            No API keys recorded yet. Add both keys below, then Save.
+                            <?php if ($currentUserRole === 'developer'): ?>
+                            <span class="create-keys-empty-help-dev">Developer: optional install fallbacks <code>OPENAI_API_KEY</code> / <code>FAL_KEY</code> in <code>.env</code> also count.</span>
+                            <?php endif; ?>
+                        </div>
+                        <div class="create-keys-grid">
+                            <div class="form-group brand-effect-field--inline">
+                                <label for="createOpenAiKey">OpenAI API key:</label>
+                                <input type="password" id="createOpenAiKey" name="create_openai_api_key" autocomplete="off" spellcheck="false" placeholder="Paste key to set or replace">
+                            </div>
+                            <p class="hint create-key-meta" id="createOpenAiMeta">Not configured</p>
+                            <div class="form-group brand-effect-field--inline">
+                                <label for="createFalKey">fal.ai API key:</label>
+                                <input type="password" id="createFalKey" name="create_fal_api_key" autocomplete="off" spellcheck="false" placeholder="Paste key to set or replace">
+                            </div>
+                            <p class="hint create-key-meta" id="createFalMeta">Not configured</p>
+                        </div>
+                        <div class="card-actions create-connect-actions">
+                            <button type="button" class="btn btn-good" id="createKeysSaveBtn">Save keys</button>
+                            <button type="button" class="btn btn-available" id="createOpenAiClearBtn">Clear OpenAI</button>
+                            <button type="button" class="btn btn-available" id="createFalClearBtn">Clear fal</button>
+                            <span id="createKeysStatus" class="status-text" aria-live="polite"></span>
+                        </div>
+                    </section>
+
+                    <section class="create-workflow-panel is-disabled" id="createTestCard" data-step="test" aria-labelledby="createTestTitle">
+                        <h3 id="createTestTitle">Test</h3>
+                        <p class="card-note">
+                            Small paid proof: OpenAI drafts an artwork prompt from your <strong>base brand</strong>, then fal paints one small square still — with the brand <strong>logo</strong> as a reference when Branding has one.
+                        </p>
+                        <p class="create-workflow-panel-locked" id="createTestLockedNote">Save both keys in Connect to unlock this step.</p>
+                        <div class="card-actions create-test-actions">
+                            <button type="button" class="btn btn-good" id="createTestConnectionsBtn" disabled>Test connections</button>
+                            <span id="createTestStatus" class="status-text" aria-live="polite"></span>
+                        </div>
+                    </section>
+
+                    <section class="create-workflow-panel is-disabled" id="createConfirmCard" data-step="confirm" aria-labelledby="createConfirmTitle">
+                        <h3 id="createConfirmTitle">Confirm</h3>
+                        <p class="card-note">
+                            When the test succeeds, the prompt and still appear here so you can check the connections look right.
+                        </p>
+                        <p class="create-workflow-panel-locked" id="createConfirmWaiting">Run Test to unlock this step.</p>
+                        <div id="createTestResult" class="create-test-result" hidden>
+                            <div class="create-test-provider" id="createTestOpenAiBlock">
+                                <h4>OpenAI artwork prompt</h4>
+                                <p class="hint" id="createTestBrandMeta"></p>
+                                <pre class="create-test-prompt" id="createTestPrompt"></pre>
+                                <p class="status-text is-error" id="createTestOpenAiError" hidden></p>
+                            </div>
+                            <div class="create-test-provider" id="createTestFalBlock">
+                                <h4>fal still</h4>
+                                <p class="hint" id="createTestFalLogoMeta"></p>
+                                <img id="createTestImage" class="create-test-image" alt="Test artwork from fal" hidden>
+                                <p class="status-text is-error" id="createTestFalError" hidden></p>
+                                <p class="hint" id="createTestFalHelp" hidden></p>
+                            </div>
+                        </div>
+                    </section>
                 </div>
             </div>
             <?php endif; ?>

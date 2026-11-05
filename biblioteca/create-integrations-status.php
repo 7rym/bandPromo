@@ -22,6 +22,11 @@ if ($username === '') {
     echo json_encode(['ok' => false, 'error' => 'Not signed in.'], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
     exit;
 }
+if (!isDeveloperUser($username)) {
+    http_response_code(403);
+    echo json_encode(['ok' => false, 'error' => 'Create is developer-only for now.'], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+    exit;
+}
 
 $root = dirname(__DIR__);
 $status = bandpromo_create_integrations_status_payload($root, $username);
