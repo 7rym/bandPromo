@@ -384,13 +384,77 @@ function bandpromo_create_integrations_http_json(string $method, string $url, ar
 }
 
 /**
+ * Turn a brand shell delivery web path into a fal-usable image URL.
+ * Prefers a data URI from disk so fal does not need to reach this host.
+ */
+function bandpromo_create_integrations_logo_image_ref(string $root, string $webPath): string
+{
+    $webPath = trim($webPath);
+    if ($webPath === '') {
+        return '';
+    }
+
+    if (preg_match('#^data:image/#i', $webPath) === 1) {
+        return $webPath;
+    }
+
+    $absHttp = '';
+    if (preg_match('#^https?://#i', $webPath) === 1) {
+        $absHttp = $webPath;
+    } elseif (isset($webPath[0]) && $webPath[0] === '/') {
+        try {
+            require_once __DIR__ . '/config-loader.php';
+            $siteUrl = '';
+            if (function_exists('get_config_nonempty')) {
+                $siteUrl = rtrim((string) get_config_nonempty('install.site.url', get_config('site.url', '')), '/');
+            }
+            if ($siteUrl !== '' && stripos($siteUrl, 'example.com') === false) {
+                $absHttp = $siteUrl . $webPath;
+            }
+        } catch (Throwable $e) {
+            $absHttp = '';
+        }
+    }
+
+    $diskPath = '';
+    if ($webPath[0] === '/') {
+        $diskPath = rtrim($root, '/\\') . str_replace('/', DIRECTORY_SEPARATOR, $webPath);
+    }
+
+    if ($diskPath !== '' && is_file($diskPath) && is_readable($diskPath)) {
+        $size = @filesize($diskPath);
+        // Keep under fal image context comfort; logos are small.
+        if (is_int($size) && $size > 0 && $size <= 4 * 1024 * 1024) {
+            $bytes = @file_get_contents($diskPath);
+            if (is_string($bytes) && $bytes !== '') {
+                $mime = 'image/png';
+                $ext = strtolower(pathinfo($diskPath, PATHINFO_EXTENSION));
+                if ($ext === 'jpg' || $ext === 'jpeg') {
+                    $mime = 'image/jpeg';
+                } elseif ($ext === 'webp') {
+                    $mime = 'image/webp';
+                } elseif ($ext === 'gif') {
+                    $mime = 'image/gif';
+                }
+
+                return 'data:' . $mime . ';base64,' . base64_encode($bytes);
+            }
+        }
+    }
+
+    return $absHttp;
+}
+
+/**
  * @return array{
  *   ok:bool,
  *   used_fallback:bool,
  *   brand_id:string,
  *   brand_title:string,
  *   brief:string,
- *   filled_slots:list<string>
+ *   filled_slots:list<string>,
+ *   logo_web_path:string,
+ *   logo_image_url:string
  * }
  */
 function bandpromo_create_integrations_base_brand_brief(string $root): array
@@ -461,6 +525,18 @@ function bandpromo_create_integrations_base_brand_brief(string $root): array
         }
     }
 
+    $logoWebPath = '';
+    if (!$usedFallback) {
+        try {
+            $logoWebPath = trim(bandpromo_brand_resolve_shell_slot_url($root, $document, 'logo'));
+        } catch (Throwable $e) {
+            $logoWebPath = '';
+        }
+    }
+    $logoImageUrl = $logoWebPath !== ''
+        ? bandpromo_create_integrations_logo_image_ref($root, $logoWebPath)
+        : '';
+
     $lines = [
         'Brand title: ' . $brandTitle,
         'Brand id: ' . ($brandId !== '' ? $brandId : 'unknown'),
@@ -469,6 +545,7 @@ function bandpromo_create_integrations_base_brand_brief(string $root): array
         'Keywords: ' . ($keywords !== [] ? implode(', ', $keywords) : 'n/a'),
         'Colours: ' . ($colors !== [] ? implode(', ', $colors) : 'n/a'),
         'Filled shell slots: ' . ($filledSlots !== [] ? implode(', ', $filledSlots) : 'none yet'),
+        'Brand logo reference: ' . ($logoImageUrl !== '' ? 'available (will be attached for image generation)' : 'none'),
     ];
 
     return [
@@ -478,6 +555,8 @@ function bandpromo_create_integrations_base_brand_brief(string $root): array
         'brand_title' => $brandTitle,
         'brief' => implode("\n", $lines),
         'filled_slots' => $filledSlots,
+        'logo_web_path' => $logoWebPath,
+        'logo_image_url' => $logoImageUrl,
     ];
 }
 
@@ -501,7 +580,8 @@ function bandpromo_create_integrations_openai_artwork_prompt(string $apiKey, str
     $system = 'You write concise image-generation prompts for music promotional artwork. '
         . 'Reply with one plain prompt only — no markdown, no quotes, no preamble. '
         . 'UK English spelling is fine. Keep it under 80 words. '
-        . 'Describe a square promotional still that fits the brand brief.';
+        . 'Describe a square promotional still that fits the brand brief. '
+        . 'When a brand logo reference is available, say the logo should appear prominently and stay recognisable.';
     $user = "Write an artwork prompt for this base brand:\n\n" . $brandBrief;
 
     $response = bandpromo_create_integrations_http_json(
@@ -578,12 +658,13 @@ function bandpromo_create_integrations_openai_artwork_prompt(string $apiKey, str
  *   request_id:string,
  *   error:string,
  *   status:int,
+ *   logo_attached:bool,
  *   needs_setup?:bool,
  *   needs_credits?:bool,
  *   help?:string
  * }
  */
-function bandpromo_create_integrations_fal_nano_banana2(string $apiKey, string $prompt): array
+function bandpromo_create_integrations_fal_nano_banana2(string $apiKey, string $prompt, string $logoImageUrl = ''): array
 {
     $apiKey = trim($apiKey);
     if ($apiKey === '') {
@@ -593,6 +674,7 @@ function bandpromo_create_integrations_fal_nano_banana2(string $apiKey, string $
             'request_id' => '',
             'error' => 'fal.ai API key is missing.',
             'status' => 0,
+            'logo_attached' => false,
             'needs_setup' => true,
             'help' => 'Add a fal.ai API key under Create → Connect services (or set FAL_KEY in the install .env). Create a key at https://fal.ai/dashboard/keys',
         ];
@@ -606,6 +688,7 @@ function bandpromo_create_integrations_fal_nano_banana2(string $apiKey, string $
             'request_id' => '',
             'error' => 'Missing image prompt for fal.',
             'status' => 0,
+            'logo_attached' => false,
         ];
     }
 
@@ -615,24 +698,46 @@ function bandpromo_create_integrations_fal_nano_banana2(string $apiKey, string $
         'Accept' => 'application/json',
     ];
 
+    $logoImageUrl = trim($logoImageUrl);
+    $logoAttached = $logoImageUrl !== ''
+        && (preg_match('#^https?://#i', $logoImageUrl) === 1 || preg_match('#^data:image/#i', $logoImageUrl) === 1);
+
+    $payload = [
+        'prompt' => $prompt,
+        'num_images' => 1,
+        'resolution' => '0.5K',
+        'aspect_ratio' => '1:1',
+        'output_format' => 'png',
+        'limit_generations' => true,
+    ];
+    if ($logoAttached) {
+        $payload['context'] = [
+            [
+                'type' => 'image',
+                'image_url' => $logoImageUrl,
+            ],
+            [
+                'type' => 'text',
+                'text' => 'This is the brand logo. Keep it recognisable and use it as a primary visual reference in the artwork.',
+            ],
+        ];
+        $payload['system_prompt'] = 'Use the attached brand logo as a key visual reference. Preserve recognisable logo identity while following the prompt.';
+    }
+
     $submit = bandpromo_create_integrations_http_json(
         'POST',
         'https://queue.fal.run/fal-ai/nano-banana-2',
         $authHeaders,
-        [
-            'prompt' => $prompt,
-            'num_images' => 1,
-            'resolution' => '0.5K',
-            'aspect_ratio' => '1:1',
-            'output_format' => 'png',
-            'limit_generations' => true,
-        ],
+        $payload,
         60
     );
 
     $submitDecoded = json_decode($submit['body'], true);
     if (!$submit['ok']) {
-        return bandpromo_create_integrations_fal_error_payload($submit, $submitDecoded);
+        $err = bandpromo_create_integrations_fal_error_payload($submit, $submitDecoded);
+        $err['logo_attached'] = $logoAttached;
+
+        return $err;
     }
 
     $requestId = '';
@@ -654,6 +759,7 @@ function bandpromo_create_integrations_fal_nano_banana2(string $apiKey, string $
                 'request_id' => $requestId,
                 'error' => '',
                 'status' => $submit['status'],
+                'logo_attached' => $logoAttached,
             ];
         }
 
@@ -663,6 +769,7 @@ function bandpromo_create_integrations_fal_nano_banana2(string $apiKey, string $
             'request_id' => $requestId,
             'error' => 'fal queue response did not include a usable status URL.',
             'status' => $submit['status'],
+            'logo_attached' => $logoAttached,
         ];
     }
 
@@ -680,7 +787,10 @@ function bandpromo_create_integrations_fal_nano_banana2(string $apiKey, string $
         $pollDecoded = json_decode($poll['body'], true);
 
         if (!$poll['ok'] && $poll['status'] >= 400) {
-            return bandpromo_create_integrations_fal_error_payload($poll, $pollDecoded, $requestId);
+            $err = bandpromo_create_integrations_fal_error_payload($poll, $pollDecoded, $requestId);
+            $err['logo_attached'] = $logoAttached;
+
+            return $err;
         }
 
         $queueStatus = '';
@@ -709,6 +819,7 @@ function bandpromo_create_integrations_fal_nano_banana2(string $apiKey, string $
                 'request_id' => $requestId,
                 'error' => $detail !== '' ? $detail : ('fal job ' . strtolower($queueStatus)),
                 'status' => $lastStatus,
+                'logo_attached' => $logoAttached,
             ];
         }
     }
@@ -720,6 +831,7 @@ function bandpromo_create_integrations_fal_nano_banana2(string $apiKey, string $
             'request_id' => $requestId,
             'error' => 'fal job finished without a usable result URL (not resubmitted).',
             'status' => $lastStatus,
+            'logo_attached' => $logoAttached,
         ];
     }
 
@@ -729,7 +841,10 @@ function bandpromo_create_integrations_fal_nano_banana2(string $apiKey, string $
     ], null, 60);
     $resultDecoded = json_decode($result['body'], true);
     if (!$result['ok']) {
-        return bandpromo_create_integrations_fal_error_payload($result, $resultDecoded, $requestId);
+        $err = bandpromo_create_integrations_fal_error_payload($result, $resultDecoded, $requestId);
+        $err['logo_attached'] = $logoAttached;
+
+        return $err;
     }
 
     $imageUrl = bandpromo_create_integrations_fal_extract_image_url(is_array($resultDecoded) ? $resultDecoded : []);
@@ -740,6 +855,7 @@ function bandpromo_create_integrations_fal_nano_banana2(string $apiKey, string $
             'request_id' => $requestId,
             'error' => 'fal returned no image URL.',
             'status' => $result['status'],
+            'logo_attached' => $logoAttached,
         ];
     }
 
@@ -749,6 +865,7 @@ function bandpromo_create_integrations_fal_nano_banana2(string $apiKey, string $
         'request_id' => $requestId,
         'error' => '',
         'status' => $result['status'],
+        'logo_attached' => $logoAttached,
     ];
 }
 
@@ -803,6 +920,7 @@ function bandpromo_create_integrations_fal_error_payload(array $response, $decod
         'request_id' => $requestId,
         'error' => $message,
         'status' => $response['status'],
+        'logo_attached' => false,
         'needs_setup' => $needsSetup,
         'needs_credits' => $needsCredits,
         'help' => $help,

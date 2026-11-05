@@ -46,6 +46,9 @@ $root = dirname(__DIR__);
 $resolved = bandpromo_create_integrations_resolve_keys($root, $username);
 $brand = bandpromo_create_integrations_base_brand_brief($root);
 
+$logoImageUrl = trim((string) ($brand['logo_image_url'] ?? ''));
+$logoAttached = $logoImageUrl !== '';
+
 $result = [
     'ok' => false,
     'brand' => [
@@ -53,6 +56,8 @@ $result = [
         'title' => $brand['brand_title'],
         'used_fallback' => !empty($brand['used_fallback']),
         'filled_slots' => $brand['filled_slots'],
+        'logo_available' => $logoAttached,
+        'logo_web_path' => trim((string) ($brand['logo_web_path'] ?? '')),
     ],
     'openai' => [
         'ok' => false,
@@ -73,6 +78,7 @@ $result = [
         'help' => '',
         'needs_setup' => false,
         'needs_credits' => false,
+        'logo_attached' => false,
     ],
 ];
 
@@ -122,7 +128,8 @@ if (!$result['openai']['ok']) {
 
 $fal = bandpromo_create_integrations_fal_nano_banana2(
     $resolved['fal_api_key'],
-    (string) $result['openai']['prompt']
+    (string) $result['openai']['prompt'],
+    $logoImageUrl
 );
 $result['fal']['ok'] = !empty($fal['ok']);
 $result['fal']['image_url'] = (string) ($fal['image_url'] ?? '');
@@ -131,6 +138,7 @@ $result['fal']['error'] = (string) ($fal['error'] ?? '');
 $result['fal']['help'] = (string) ($fal['help'] ?? '');
 $result['fal']['needs_setup'] = !empty($fal['needs_setup']);
 $result['fal']['needs_credits'] = !empty($fal['needs_credits']);
+$result['fal']['logo_attached'] = !empty($fal['logo_attached']);
 
 $result['ok'] = $result['openai']['ok'] && $result['fal']['ok'];
 
@@ -145,6 +153,7 @@ bandpromo_admin_audit_log('create_connections_tested', [
         'fal_request_id' => $result['fal']['request_id'] !== '' ? 'present' : '',
         'fal_needs_credits' => $result['fal']['needs_credits'],
         'fal_needs_setup' => $result['fal']['needs_setup'],
+        'logo_attached' => $result['fal']['logo_attached'],
     ],
 ]);
 

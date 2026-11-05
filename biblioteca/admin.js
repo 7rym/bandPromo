@@ -16873,6 +16873,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 const testBrandMeta = document.getElementById('createTestBrandMeta');
                 const testPrompt = document.getElementById('createTestPrompt');
                 const testOpenAiError = document.getElementById('createTestOpenAiError');
+                const testFalLogoMeta = document.getElementById('createTestFalLogoMeta');
                 const testImage = document.getElementById('createTestImage');
                 const testFalError = document.getElementById('createTestFalError');
                 const testFalHelp = document.getElementById('createTestFalHelp');
@@ -16998,6 +16999,9 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     if (testBrandMeta) {
                         testBrandMeta.textContent = '';
                     }
+                    if (testFalLogoMeta) {
+                        testFalLogoMeta.textContent = '';
+                    }
                     if (testOpenAiError) {
                         testOpenAiError.hidden = true;
                         testOpenAiError.textContent = '';
@@ -17048,9 +17052,12 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                             const title = brand.title ? String(brand.title) : 'Base brand';
                             const id = brand.id ? String(brand.id) : '';
                             const fallback = brand.used_fallback === true ? ' (generic fallback brief)' : '';
+                            const logoNote = brand.logo_available === true
+                                ? ' · logo reference ready'
+                                : ' · no logo on base brand';
                             testBrandMeta.textContent = id
-                                ? `Based on base brand “${title}” (${id})${fallback}`
-                                : `Based on base brand “${title}”${fallback}`;
+                                ? `Based on base brand “${title}” (${id})${fallback}${logoNote}`
+                                : `Based on base brand “${title}”${fallback}${logoNote}`;
                         }
 
                         if (openai.prompt && testPrompt) {
@@ -17066,6 +17073,16 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                             }
                             testOpenAiError.textContent = bits.join(' ');
                             testOpenAiError.hidden = bits.length === 0;
+                        }
+
+                        if (testFalLogoMeta) {
+                            if (fal.logo_attached === true) {
+                                testFalLogoMeta.textContent = 'Brand logo was attached as a fal reference image.';
+                            } else if (brand.logo_available === true) {
+                                testFalLogoMeta.textContent = 'Brand logo was available but was not attached to this fal request.';
+                            } else {
+                                testFalLogoMeta.textContent = 'No base brand logo to attach — set one under Content → Branding.';
+                            }
                         }
 
                         if (fal.ok && fal.image_url && testImage instanceof HTMLImageElement) {

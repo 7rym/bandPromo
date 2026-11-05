@@ -2,6 +2,8 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-11-05 15:55 - Create → Test connections: attach the base brand logo as a fal Nano Banana 2 `context` reference image (data URI from delivery when possible) so the still can use the real mark.
+
 2026-11-05 15:36 - Admin primary nav: Notifications control is icon + count only (label removed; `aria-label` / title kept).
 
 2026-11-05 15:35 - Admin **Create** tab (between Content and Settings): Start page explains AI writing / artwork / living-art helpers; per-admin OpenAI + fal.ai keys; Test connections drafts a base-brand artwork prompt (`gpt-4o-mini`) then paints a Nano Banana 2 still (`fal-ai/nano-banana-2`). Optional `.env` `OPENAI_API_KEY` / `FAL_KEY` fallbacks.

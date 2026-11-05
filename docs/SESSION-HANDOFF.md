@@ -4,9 +4,11 @@
 
 **Closed:** Player size + Campaign navigator (**605**). Site health Keep-choice (**607**). Branding Player remirror (**608**). Artwork / User area / slug fold / Support — **v0.8.100**. Stay signed in + Lyrics tab — **611**. Content remirror + navigator polish (Idle items Full|Soft|Grey, brand images, demo playlist rows) — **612**.
 
-**Active now:** Publishing **v0.8.101** — Admin **Create** tab foundation (Start + per-admin OpenAI/fal keys + Test connections: base-brand prompt → fal Nano Banana 2 still) + Notifications icon-only control.
+**Closed:** **v0.8.101 build 614** — Create foundation + Notifications icon-only (live smoke OK on bandpromo.site).
 
-**Last published:** **v0.8.100 build 612** (Content Live preview remirror, Idle items, scrollbar cleanup). Prior: **611** Stay signed in / Lyrics; **608** Player remirror; **607** Keep-choice.
+**Active now:** Publishing Create Test connections logo reference (fal `context` image) for remote retest.
+
+**Last published:** **v0.8.101 build 614**. Prior: **612** Content remirror; **611** Stay signed in / Lyrics.
 
 **Parked / later:**
 - Create tool sub-tabs (blurb writer, artwork studio, living artwork) beyond Start + connection proof.

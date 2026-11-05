@@ -2747,7 +2747,7 @@ if ($tab === 'analytics') {
                     <ul>
                         <li>Create is where creative helper tools will live. Start by connecting your own OpenAI and fal.ai keys, then use <strong>Test connections</strong> to prove both services work.</li>
                         <li>Keys stay with your signed-in admin or developer account on this install. They are not shared between accounts and are not exported in campaign or brand packages.</li>
-                        <li>Test connections writes a short artwork prompt from your base brand, then asks fal to paint a small still. That uses a small paid generation on each connected service.</li>
+                        <li>Test connections writes a short artwork prompt from your base brand, then asks fal to paint a small still with the base brand logo attached as a reference image when one is set. That uses a small paid generation on each connected service.</li>
                     </ul>
                 <?php endif; ?>
             </div>
@@ -2811,7 +2811,7 @@ if ($tab === 'analytics') {
             <div class="card create-test-card" id="createTestCard">
                 <h3>Test connections</h3>
                 <p class="card-note">
-                    Runs a small paid proof: OpenAI drafts an artwork prompt from your <strong>base brand</strong>, then fal Nano Banana 2 paints one small square still from that prompt.
+                    Runs a small paid proof: OpenAI drafts an artwork prompt from your <strong>base brand</strong>, then fal Nano Banana 2 paints one small square still from that prompt — with the base brand <strong>logo</strong> attached as a visual reference when Branding has one.
                     Use this after saving keys. If a key is missing, the result explains how to get set up.
                 </p>
                 <div class="card-actions">
@@ -2827,6 +2827,7 @@ if ($tab === 'analytics') {
                     </div>
                     <div class="create-test-provider" id="createTestFalBlock">
                         <h4>fal Nano Banana 2 still</h4>
+                        <p class="hint" id="createTestFalLogoMeta"></p>
                         <img id="createTestImage" class="create-test-image" alt="Test artwork from fal" hidden>
                         <p class="status-text is-error" id="createTestFalError" hidden></p>
                         <p class="hint" id="createTestFalHelp" hidden></p>
