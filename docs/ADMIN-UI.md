@@ -4,7 +4,7 @@ Operator chrome for `admin.php` (and shared Content editor CSS). Public player b
 
 ## Primary navigation
 
-Main tabs (Dashboard, Analytics, Users, Files, Content, Settings, System, Documentation) remember the last used **sub-tab** in `localStorage` (`bandpromo_admin_nav_memory`). Switching Files → Content → Files returns to Visual (or whichever Files panel you left), not always Audio. Deep links that already name a sub-tab (`fpanel`, `cntab`, `ctab`, `stab`, `atab`, `doc_scope`) are unchanged.
+Main tabs (Dashboard, Analytics, Users, Files, Content, Create, Settings, System, Documentation) remember the last used **sub-tab** in `localStorage` (`bandpromo_admin_nav_memory`). Switching Files → Content → Files returns to Visual (or whichever Files panel you left), not always Audio. Deep links that already name a sub-tab (`fpanel`, `cntab`, `crtab`, `ctab`, `stab`, `atab`, `doc_scope`) are unchanged.
 
 ## Page headings under the nav bar (required)
 
@@ -23,6 +23,7 @@ Prefer breadcrumb + **inline-editable entity title** on editors — not a plain 
 | Files editor modal | `📁 Files > {panel} > Editor > [title]` (title input at the tail when editable) |
 | Content pool / list | `📄 Content > {emoji} {Section} > Pool` |
 | Content editor | `📄 Content > {emoji} {Section} > Editor` + title input at the crumb tail; section chips (when present) in the **left column header** |
+| Create | `✨ Create > Start` (further Create tool sub-tabs will stack under the same root) |
 | Settings | `⚙️ Settings > Basics\|Support\|Sharing` |
 | System Status | Default: `🛠️ System > 📊 Status` landing (Site health **and** Storage tool cards — **no Activity**). Open Site health → `… > Status > Site health` Action hub (Quick / Full / Force; no Activity). Open Storage → `… > Status > Storage` (Chart.js host gauge + install/reclaim doughnuts and media-tier bar; discard leftover intake and unregistered junk; ← Back / Status crumb returns to landing). While a Site health job runs → Action checklist + Stop (mode in the crumb) with **Activity** visible underneath; no Good/Bad/Ugly. When finished → **Diagnosis** (Good/Bad/Ugly + Review when findings exist; Activity). **Review** → `… > Diagnosis > Proposed treatment`. **Apply** → Action checklist + Activity, then `… > Treatment result`. Hub resume opens last Diagnosis. Post–Site update / stale auto-start opens the Quick check checklist directly. |
 | System Audit / Backup / Environment | `🛠️ System > 🛡️ Audit` · `🛠️ System > 💾 Backup, export & import` · `🛠️ System > 🖥️ Environment` |

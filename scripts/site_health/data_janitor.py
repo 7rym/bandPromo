@@ -3,7 +3,7 @@
 Site health data janitor — ephemeral junk under data/ + orphan containers.
 
 Policy:
-- Never touch terces, setup marker, install-preferences, analytics, assets,
+- Never touch terces, setup marker, install-preferences, admin-integrations, analytics, assets,
   campaigns docs, brands, or site-health plan/fingerprint files.
 - Ephemeral junk (OS junk, empty dirs, stale upload_tmp) → Treat prune.
 - Invisible container docs that already stamp a valid campaign_id → Treat
@@ -53,6 +53,7 @@ _PROTECTED_TOP = frozenset({
     'campaigns',
     'brands',
     'install',
+    'admin-integrations',
     'site-health-plan.json',
     'site-health-fingerprint.json',
     'site-health-treat-selection.json',

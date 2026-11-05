@@ -451,7 +451,7 @@ if (in_array($requestedTab, ['config', 'build', 'audit'], true)) {
 
 // Primary tab
 $tab = $_GET['tab'] ?? 'welcome';
-if (!in_array($tab, ['welcome', 'analytics', 'users', 'files', 'content', 'settings', 'system', 'docs'], true)) {
+if (!in_array($tab, ['welcome', 'analytics', 'users', 'files', 'content', 'create', 'settings', 'system', 'docs'], true)) {
     $tab = 'welcome';
 }
 
@@ -589,6 +589,12 @@ if ($tab === 'content') {
 }
 $activeContentPage = $editablePages[$contentPage];
 $activePageIsLoginOnly = ($activeContentPage['surface'] ?? '') === 'login';
+
+// Create sub-tab
+$createTab = $_GET['crtab'] ?? 'start';
+if (!in_array($createTab, ['start'], true)) {
+    $createTab = 'start';
+}
 
 // Settings sub-tab
 $configTab = $_GET['ctab'] ?? 'basics';
@@ -740,12 +746,12 @@ if ($tab === 'analytics') {
             <?php renderTabLink('users',     $tab, '👥', 'Users'); ?>
             <?php renderTabLink('files',     $tab, '📁', 'Files'); ?>
             <?php renderTabLink('content',   $tab, '📄', 'Content'); ?>
+            <?php renderTabLink('create',    $tab, '✨', 'Create'); ?>
             <?php renderTabLink('settings',  $tab, '⚙️', 'Settings'); ?>
             <?php renderTabLink('system',    $tab, '🛠️', 'System'); ?>
             <?php renderTabLink('docs',      $tab, '📚', 'Documentation'); ?>
-            <button type="button" id="operatorNotificationsToggle" class="operator-notifications-toggle" aria-expanded="false" aria-controls="operatorNotificationsModal">
-                <span class="operator-notifications-icon">🔔</span>
-                <span class="operator-notifications-label">Notifications</span>
+            <button type="button" id="operatorNotificationsToggle" class="operator-notifications-toggle" aria-expanded="false" aria-controls="operatorNotificationsModal" aria-label="Notifications" title="Notifications">
+                <span class="operator-notifications-icon" aria-hidden="true">🔔</span>
                 <span id="operatorNotificationsCount" class="operator-notifications-count is-empty">0</span>
             </button>
         </div>
@@ -2717,6 +2723,117 @@ if ($tab === 'analytics') {
                     <button type="button" class="btn" id="adminConfirmModalCancelBtn">Cancel</button>
                 </div>
             </div>
+        </div>
+
+        <!-- ===================== CREATE TAB ===================== -->
+        <div id="tab-create" class="tab-content <?php echo $tab === 'create' ? 'active' : ''; ?>">
+            <div class="tabs sub-tabs">
+                <?php
+                $createTabs = [
+                    'start' => ['✨', 'Start'],
+                ];
+                foreach ($createTabs as $ct => [$emoji, $label]):
+                    $active = $ct === $createTab ? 'active' : '';
+                    $url = '?tab=create&crtab=' . urlencode($ct);
+                ?>
+                <a href="<?php echo $url; ?>" class="tab-link <?php echo $active; ?>">
+                    <?php echo htmlspecialchars($emoji . ' ' . $label); ?>
+                </a>
+                <?php endforeach; ?>
+                <button class="help-toggle-btn collapsed" id="helpBtn-create" onclick="toggleHelp('create')" title="Show/hide help">ⓘ</button>
+            </div>
+            <div class="admin-help-box collapsed" id="help-create">
+                <?php if ($createTab === 'start'): ?>
+                    <ul>
+                        <li>Create is where creative helper tools will live. Start by connecting your own OpenAI and fal.ai keys, then use <strong>Test connections</strong> to prove both services work.</li>
+                        <li>Keys stay with your signed-in admin or developer account on this install. They are not shared between accounts and are not exported in campaign or brand packages.</li>
+                        <li>Test connections writes a short artwork prompt from your base brand, then asks fal to paint a small still. That uses a small paid generation on each connected service.</li>
+                    </ul>
+                <?php endif; ?>
+            </div>
+
+            <?php
+            bandpromo_admin_render_content_breadcrumb([
+                'id_prefix' => 'createPage',
+                'aria_label' => 'Create location',
+                'path' => bandpromo_admin_breadcrumb_preset_page(
+                    '✨ Create',
+                    '?tab=create&crtab=' . rawurlencode((string) $createTab),
+                    'Start'
+                ),
+            ]);
+            ?>
+
+            <?php if ($tab === 'create' && $createTab === 'start'): ?>
+            <div class="card create-start-card">
+                <h3>What Create can help with</h3>
+                <p class="card-note">These helpers use external AI services you connect below. They stay optional — your catalogue and player keep working without them.</p>
+                <ul class="create-start-list">
+                    <li><strong>Writing help</strong> — draft blurbs and other short texts for tracks, playlists, and campaigns from the details you already keep in bandPromo.</li>
+                    <li><strong>Artwork help</strong> — invent new stills that lean on what you already uploaded: lyrics, logos, photos, brand colours, and related cues.</li>
+                    <li><strong>Living artwork</strong> — turn a still into a short animated video so cover art and posters can move. Living-art tools arrive in a later Create sub-tab; Start proves the connections first.</li>
+                </ul>
+            </div>
+
+            <div class="card create-connect-card" id="createConnectCard">
+                <h3>Connect services</h3>
+                <p class="card-note">
+                    Each admin or developer account stores its own keys on this install.
+                    Create keys at
+                    <a href="https://platform.openai.com/api-keys" target="_blank" rel="noopener noreferrer">OpenAI API keys</a>
+                    and
+                    <a href="https://fal.ai/dashboard/keys" target="_blank" rel="noopener noreferrer">fal.ai API keys</a>,
+                    then paste them here. Keys travel only with a full site backup of <code>data/</code> — not with PCF or PBF exports.
+                </p>
+                <div id="createKeysEmptyHelp" class="message warning create-keys-empty-help" hidden>
+                    No API keys are recorded for your account yet. Add OpenAI and fal.ai keys below (or set optional install fallbacks <code>OPENAI_API_KEY</code> / <code>FAL_KEY</code> in <code>.env</code>), then save and run Test connections.
+                </div>
+                <div class="config-form-grid create-keys-grid">
+                    <div class="form-group brand-effect-field--inline">
+                        <label for="createOpenAiKey">OpenAI API key:</label>
+                        <input type="password" id="createOpenAiKey" name="create_openai_api_key" autocomplete="off" spellcheck="false" placeholder="Paste key to set or replace">
+                    </div>
+                    <p class="hint create-key-meta" id="createOpenAiMeta">Not configured</p>
+                    <div class="form-group brand-effect-field--inline">
+                        <label for="createFalKey">fal.ai API key:</label>
+                        <input type="password" id="createFalKey" name="create_fal_api_key" autocomplete="off" spellcheck="false" placeholder="Paste key to set or replace">
+                    </div>
+                    <p class="hint create-key-meta" id="createFalMeta">Not configured</p>
+                </div>
+                <div class="card-actions create-connect-actions">
+                    <button type="button" class="btn btn-primary" id="createKeysSaveBtn">Save keys</button>
+                    <button type="button" class="btn" id="createOpenAiClearBtn">Clear OpenAI</button>
+                    <button type="button" class="btn" id="createFalClearBtn">Clear fal</button>
+                    <span id="createKeysStatus" class="status-text" aria-live="polite"></span>
+                </div>
+            </div>
+
+            <div class="card create-test-card" id="createTestCard">
+                <h3>Test connections</h3>
+                <p class="card-note">
+                    Runs a small paid proof: OpenAI drafts an artwork prompt from your <strong>base brand</strong>, then fal Nano Banana 2 paints one small square still from that prompt.
+                    Use this after saving keys. If a key is missing, the result explains how to get set up.
+                </p>
+                <div class="card-actions">
+                    <button type="button" class="btn btn-primary" id="createTestConnectionsBtn">Test connections</button>
+                    <span id="createTestStatus" class="status-text" aria-live="polite"></span>
+                </div>
+                <div id="createTestResult" class="create-test-result" hidden>
+                    <div class="create-test-provider" id="createTestOpenAiBlock">
+                        <h4>OpenAI artwork prompt</h4>
+                        <p class="hint" id="createTestBrandMeta"></p>
+                        <pre class="create-test-prompt" id="createTestPrompt"></pre>
+                        <p class="status-text is-error" id="createTestOpenAiError" hidden></p>
+                    </div>
+                    <div class="create-test-provider" id="createTestFalBlock">
+                        <h4>fal Nano Banana 2 still</h4>
+                        <img id="createTestImage" class="create-test-image" alt="Test artwork from fal" hidden>
+                        <p class="status-text is-error" id="createTestFalError" hidden></p>
+                        <p class="hint" id="createTestFalHelp" hidden></p>
+                    </div>
+                </div>
+            </div>
+            <?php endif; ?>
         </div>
 
         <!-- ===================== SETTINGS TAB ===================== -->

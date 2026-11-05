@@ -123,8 +123,8 @@ h1 {
 .operator-notifications-toggle {
     display: inline-flex;
     align-items: center;
-    gap: 8px;
-    padding: 6px 12px;
+    gap: 6px;
+    padding: 6px 10px;
     border-radius: 999px;
     border: 1px solid rgba(255, 255, 255, 0.14);
     background: rgba(255, 255, 255, 0.05);
@@ -148,12 +148,7 @@ h1 {
 
 .operator-notifications-icon {
     font-size: 16px;
-}
-
-.operator-notifications-label {
-    font-size: 13px;
-    font-weight: 700;
-    white-space: nowrap;
+    line-height: 1;
 }
 
 .operator-notifications-count {
@@ -3296,10 +3291,71 @@ canvas { max-width: 100%; height: auto; }
 
 #tab-files > .tabs.sub-tabs,
 #tab-content > .tabs.sub-tabs,
+#tab-create > .tabs.sub-tabs,
 #tab-system > .tabs.sub-tabs {
     position: sticky;
     top: var(--admin-subtabs-sticky-top);
     z-index: 50;
+}
+
+.create-start-list {
+    margin: 0.5rem 0 0;
+    padding-left: 1.25rem;
+}
+
+.create-start-list li + li {
+    margin-top: 0.35rem;
+}
+
+.create-keys-grid .brand-effect-field--inline {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.create-keys-grid .brand-effect-field--inline label {
+    min-width: 9rem;
+}
+
+.create-keys-grid .brand-effect-field--inline input[type="password"] {
+    flex: 1 1 16rem;
+    min-width: 12rem;
+}
+
+.create-key-meta {
+    margin: 0 0 0.75rem;
+}
+
+.create-connect-actions {
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+.create-test-result {
+    margin-top: 0.75rem;
+    display: grid;
+    gap: 0.75rem;
+}
+
+.create-test-prompt {
+    margin: 0.35rem 0 0;
+    padding: 0.5rem 0.65rem;
+    white-space: pre-wrap;
+    word-break: break-word;
+    background: rgba(15, 23, 42, 0.55);
+    border: 1px solid var(--border2, #334155);
+    border-radius: 4px;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 0.85rem;
+}
+
+.create-test-image {
+    display: block;
+    max-width: min(100%, 320px);
+    margin-top: 0.35rem;
+    border-radius: 4px;
+    border: 1px solid var(--border2, #334155);
 }
 
 .media-pool-sticky-chrome {

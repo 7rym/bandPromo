@@ -643,6 +643,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
         analytics: { key: 'atab', allowed: ['dashboard', 'tracks', 'user-activities', 'listening-patterns', 'log'] },
         files: { key: 'fpanel', allowed: ['audio', 'visual', 'sfx'] },
         content: { key: 'cntab', allowed: ['campaign', 'playlist', 'gallery', 'pages', 'branding'] },
+        create: { key: 'crtab', allowed: ['start'] },
         settings: { key: 'ctab', allowed: ['basics', 'support', 'sharing'] },
         system: { key: 'stab', allowed: ['deliverables', 'audit', 'backup', 'security'] },
         docs: { key: 'doc_scope', allowed: ['operator', 'developer', 'all'] },
@@ -16849,5 +16850,345 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                         importBrandPackage().catch(() => {});
                     });
                 }
+            })();
+
+            (function initCreateStart() {
+                const connectCard = document.getElementById('createConnectCard');
+                if (!connectCard) {
+                    return;
+                }
+
+                const openAiInput = document.getElementById('createOpenAiKey');
+                const falInput = document.getElementById('createFalKey');
+                const openAiMeta = document.getElementById('createOpenAiMeta');
+                const falMeta = document.getElementById('createFalMeta');
+                const emptyHelp = document.getElementById('createKeysEmptyHelp');
+                const saveBtn = document.getElementById('createKeysSaveBtn');
+                const clearOpenAiBtn = document.getElementById('createOpenAiClearBtn');
+                const clearFalBtn = document.getElementById('createFalClearBtn');
+                const keysStatus = document.getElementById('createKeysStatus');
+                const testBtn = document.getElementById('createTestConnectionsBtn');
+                const testStatus = document.getElementById('createTestStatus');
+                const testResult = document.getElementById('createTestResult');
+                const testBrandMeta = document.getElementById('createTestBrandMeta');
+                const testPrompt = document.getElementById('createTestPrompt');
+                const testOpenAiError = document.getElementById('createTestOpenAiError');
+                const testImage = document.getElementById('createTestImage');
+                const testFalError = document.getElementById('createTestFalError');
+                const testFalHelp = document.getElementById('createTestFalHelp');
+
+                function csrfToken() {
+                    if (typeof adminCsrf === 'string' && adminCsrf) {
+                        return adminCsrf;
+                    }
+                    return typeof adminCsrfToken === 'string' ? adminCsrfToken : '';
+                }
+
+                function sourceLabel(source) {
+                    if (source === 'user') {
+                        return 'saved for your account';
+                    }
+                    if (source === 'env') {
+                        return 'using install .env fallback';
+                    }
+                    return '';
+                }
+
+                function renderStatus(integrations) {
+                    const data = integrations && typeof integrations === 'object' ? integrations : {};
+                    const openaiConfigured = data.openai_configured === true;
+                    const falConfigured = data.fal_configured === true;
+
+                    if (openAiMeta) {
+                        if (openaiConfigured) {
+                            const preview = data.openai_preview ? String(data.openai_preview) : 'configured';
+                            const src = sourceLabel(data.openai_source);
+                            openAiMeta.textContent = src ? `Configured (${preview}) — ${src}` : `Configured (${preview})`;
+                        } else {
+                            openAiMeta.textContent = 'Not configured';
+                        }
+                    }
+                    if (falMeta) {
+                        if (falConfigured) {
+                            const preview = data.fal_preview ? String(data.fal_preview) : 'configured';
+                            const src = sourceLabel(data.fal_source);
+                            falMeta.textContent = src ? `Configured (${preview}) — ${src}` : `Configured (${preview})`;
+                        } else {
+                            falMeta.textContent = 'Not configured';
+                        }
+                    }
+                    if (emptyHelp) {
+                        emptyHelp.hidden = openaiConfigured || falConfigured;
+                    }
+                }
+
+                async function loadStatus() {
+                    const resp = await fetch('/biblioteca/create-integrations-status.php', {
+                        method: 'GET',
+                        credentials: 'same-origin',
+                        headers: { Accept: 'application/json' },
+                    });
+                    const data = await resp.json().catch(() => null);
+                    if (!resp.ok || !data || data.ok !== true) {
+                        throw new Error((data && data.error) ? String(data.error) : 'Could not load Create connection status.');
+                    }
+                    renderStatus(data.integrations || {});
+                    return data.integrations || {};
+                }
+
+                async function saveKeys(options) {
+                    const opts = options && typeof options === 'object' ? options : {};
+                    const body = { csrf_token: csrfToken() };
+                    if (opts.clearOpenAi) {
+                        body.clear_openai = true;
+                        body.openai_api_key = '';
+                    } else if (openAiInput instanceof HTMLInputElement && openAiInput.value.trim() !== '') {
+                        body.openai_api_key = openAiInput.value.trim();
+                    }
+                    if (opts.clearFal) {
+                        body.clear_fal = true;
+                        body.fal_api_key = '';
+                    } else if (falInput instanceof HTMLInputElement && falInput.value.trim() !== '') {
+                        body.fal_api_key = falInput.value.trim();
+                    }
+
+                    const resp = await fetch('/biblioteca/save-create-integrations.php', {
+                        method: 'POST',
+                        credentials: 'same-origin',
+                        headers: {
+                            Accept: 'application/json',
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify(body),
+                    });
+                    const data = await resp.json().catch(() => null);
+                    if (!resp.ok || !data || data.ok !== true) {
+                        throw new Error((data && data.error) ? String(data.error) : 'Could not save API keys.');
+                    }
+                    if (openAiInput instanceof HTMLInputElement) {
+                        openAiInput.value = '';
+                    }
+                    if (falInput instanceof HTMLInputElement) {
+                        falInput.value = '';
+                    }
+                    renderStatus(data.integrations || {});
+                    return data.integrations || {};
+                }
+
+                function setBusy(isBusy, label) {
+                    const busy = isBusy === true;
+                    [saveBtn, clearOpenAiBtn, clearFalBtn, testBtn].forEach((btn) => {
+                        if (btn instanceof HTMLButtonElement) {
+                            btn.disabled = busy;
+                        }
+                    });
+                    if (testStatus) {
+                        testStatus.classList.remove('is-error');
+                        testStatus.textContent = busy ? (label || 'Working…') : testStatus.textContent;
+                    }
+                }
+
+                async function runTest() {
+                    if (testResult) {
+                        testResult.hidden = true;
+                    }
+                    if (testPrompt) {
+                        testPrompt.textContent = '';
+                    }
+                    if (testBrandMeta) {
+                        testBrandMeta.textContent = '';
+                    }
+                    if (testOpenAiError) {
+                        testOpenAiError.hidden = true;
+                        testOpenAiError.textContent = '';
+                    }
+                    if (testFalError) {
+                        testFalError.hidden = true;
+                        testFalError.textContent = '';
+                    }
+                    if (testFalHelp) {
+                        testFalHelp.hidden = true;
+                        testFalHelp.textContent = '';
+                    }
+                    if (testImage instanceof HTMLImageElement) {
+                        testImage.hidden = true;
+                        testImage.removeAttribute('src');
+                    }
+
+                    setBusy(true, 'Testing connections… this can take a minute.');
+                    if (keysStatus) {
+                        keysStatus.textContent = '';
+                        keysStatus.classList.remove('is-error');
+                    }
+                    if (testStatus) {
+                        testStatus.textContent = 'Testing connections… OpenAI drafts a prompt, then fal paints a still.';
+                        testStatus.classList.remove('is-error');
+                    }
+
+                    try {
+                        const resp = await fetch('/biblioteca/test-create-connections.php', {
+                            method: 'POST',
+                            credentials: 'same-origin',
+                            headers: {
+                                Accept: 'application/json',
+                                'Content-Type': 'application/json',
+                            },
+                            body: JSON.stringify({ csrf_token: csrfToken() }),
+                        });
+                        const data = await resp.json().catch(() => null);
+                        if (testResult) {
+                            testResult.hidden = false;
+                        }
+
+                        const brand = data && data.brand ? data.brand : {};
+                        const openai = data && data.openai ? data.openai : {};
+                        const fal = data && data.fal ? data.fal : {};
+
+                        if (testBrandMeta) {
+                            const title = brand.title ? String(brand.title) : 'Base brand';
+                            const id = brand.id ? String(brand.id) : '';
+                            const fallback = brand.used_fallback === true ? ' (generic fallback brief)' : '';
+                            testBrandMeta.textContent = id
+                                ? `Based on base brand “${title}” (${id})${fallback}`
+                                : `Based on base brand “${title}”${fallback}`;
+                        }
+
+                        if (openai.prompt && testPrompt) {
+                            testPrompt.textContent = String(openai.prompt);
+                        }
+                        if (!openai.ok && testOpenAiError) {
+                            const bits = [];
+                            if (openai.error) {
+                                bits.push(String(openai.error));
+                            }
+                            if (openai.help) {
+                                bits.push(String(openai.help));
+                            }
+                            testOpenAiError.textContent = bits.join(' ');
+                            testOpenAiError.hidden = bits.length === 0;
+                        }
+
+                        if (fal.ok && fal.image_url && testImage instanceof HTMLImageElement) {
+                            testImage.src = String(fal.image_url);
+                            testImage.hidden = false;
+                        }
+                        if (!fal.ok && testFalError) {
+                            testFalError.textContent = fal.error ? String(fal.error) : 'fal test failed.';
+                            testFalError.hidden = false;
+                        }
+                        if (fal.help && testFalHelp) {
+                            testFalHelp.textContent = String(fal.help);
+                            testFalHelp.hidden = false;
+                        }
+
+                        if (data && data.ok === true) {
+                            if (testStatus) {
+                                testStatus.textContent = 'Connections OK — prompt and still are shown below.';
+                                testStatus.classList.remove('is-error');
+                            }
+                        } else {
+                            const message = (data && data.error)
+                                ? String(data.error)
+                                : ((data && data.help) ? String(data.help) : 'Connection test failed.');
+                            if (testStatus) {
+                                testStatus.textContent = message;
+                                testStatus.classList.add('is-error');
+                            }
+                        }
+                    } catch (error) {
+                        if (testStatus) {
+                            testStatus.textContent = error && error.message
+                                ? String(error.message)
+                                : 'Connection test failed.';
+                            testStatus.classList.add('is-error');
+                        }
+                    } finally {
+                        setBusy(false);
+                    }
+                }
+
+                if (saveBtn) {
+                    saveBtn.addEventListener('click', () => {
+                        if (keysStatus) {
+                            keysStatus.textContent = 'Saving…';
+                            keysStatus.classList.remove('is-error');
+                        }
+                        saveKeys({})
+                            .then(() => {
+                                if (keysStatus) {
+                                    keysStatus.textContent = 'Saved.';
+                                }
+                            })
+                            .catch((error) => {
+                                if (keysStatus) {
+                                    keysStatus.textContent = error && error.message
+                                        ? String(error.message)
+                                        : 'Could not save API keys.';
+                                    keysStatus.classList.add('is-error');
+                                }
+                            });
+                    });
+                }
+
+                if (clearOpenAiBtn) {
+                    clearOpenAiBtn.addEventListener('click', () => {
+                        if (keysStatus) {
+                            keysStatus.textContent = 'Clearing OpenAI key…';
+                            keysStatus.classList.remove('is-error');
+                        }
+                        saveKeys({ clearOpenAi: true })
+                            .then(() => {
+                                if (keysStatus) {
+                                    keysStatus.textContent = 'OpenAI key cleared.';
+                                }
+                            })
+                            .catch((error) => {
+                                if (keysStatus) {
+                                    keysStatus.textContent = error && error.message
+                                        ? String(error.message)
+                                        : 'Could not clear OpenAI key.';
+                                    keysStatus.classList.add('is-error');
+                                }
+                            });
+                    });
+                }
+
+                if (clearFalBtn) {
+                    clearFalBtn.addEventListener('click', () => {
+                        if (keysStatus) {
+                            keysStatus.textContent = 'Clearing fal key…';
+                            keysStatus.classList.remove('is-error');
+                        }
+                        saveKeys({ clearFal: true })
+                            .then(() => {
+                                if (keysStatus) {
+                                    keysStatus.textContent = 'fal key cleared.';
+                                }
+                            })
+                            .catch((error) => {
+                                if (keysStatus) {
+                                    keysStatus.textContent = error && error.message
+                                        ? String(error.message)
+                                        : 'Could not clear fal key.';
+                                    keysStatus.classList.add('is-error');
+                                }
+                            });
+                    });
+                }
+
+                if (testBtn) {
+                    testBtn.addEventListener('click', () => {
+                        runTest().catch(() => {});
+                    });
+                }
+
+                loadStatus().catch((error) => {
+                    if (keysStatus) {
+                        keysStatus.textContent = error && error.message
+                            ? String(error.message)
+                            : 'Could not load Create connection status.';
+                        keysStatus.classList.add('is-error');
+                    }
+                });
             })();
         })();

@@ -2,13 +2,14 @@
 
 ## Resume point
 
-**Closed:** Player size + Campaign navigator (**605**). Site health Keep-choice (**607**). Branding Player remirror (**608**). Artwork / User area / slug fold / Support — **v0.8.100**. Stay signed in + Lyrics tab — **611**. Content remirror + navigator polish (Idle items Full|Soft|Grey, brand images, demo playlist rows).
+**Closed:** Player size + Campaign navigator (**605**). Site health Keep-choice (**607**). Branding Player remirror (**608**). Artwork / User area / slug fold / Support — **v0.8.100**. Stay signed in + Lyrics tab — **611**. Content remirror + navigator polish (Idle items Full|Soft|Grey, brand images, demo playlist rows) — **612**.
 
-**Active now:** Idle — Content remirror + navigator polish published.
+**Active now:** Publishing **v0.8.101** — Admin **Create** tab foundation (Start + per-admin OpenAI/fal keys + Test connections: base-brand prompt → fal Nano Banana 2 still) + Notifications icon-only control.
 
 **Last published:** **v0.8.100 build 612** (Content Live preview remirror, Idle items, scrollbar cleanup). Prior: **611** Stay signed in / Lyrics; **608** Player remirror; **607** Keep-choice.
 
 **Parked / later:**
+- Create tool sub-tabs (blurb writer, artwork studio, living artwork) beyond Start + connection proof.
 - Files pool / living-cover picker latency (undercount disk probe + full Visual list for video-only pick).
 - Lyrics: density|size Branding control; timed cues / `.srt` / bidirectional anchors.
 - Favicon + PWA icons from Branding; legacy audit refresh (remaining exit-gate items).
@@ -16,7 +17,7 @@
 
 **Operator rule (this session):** Do **not** delete, prune, janitor-Apply, or discard any runtime files (`data/`, `media/`, `log/`, `backups/`, Ready archives, leftover `original/`) unless this user names the exact paths in the same message.
 
-**Next:** Fresh session — pick parked work or new operator ask.
+**Next:** Operator smoke Create → Connect services → Test connections with real keys; then checkpoint when ready. Living-art / blurb tool UIs stay later.
 
 ### Policy locked (do not reopen)
 
@@ -61,6 +62,7 @@
 - Large audio upload final chunk: return after assemble + spawn finalize worker only (do not sync master move / tags / scan / delivery on the upload request — HITZ proxy 504)
 - Player load-failure **Operator:** hints are admin/developer only (`BANDPROMO_IS_OPERATOR`); public listeners get title + soft detail only
 - Visual master embed: non-ASCII titles via UTF-8 ffmetadata (never `-metadata title=…` argv on ASCII hosts); video tag work dir beside master + EXDEV-safe replace
+- Create AI keys are **per signed-in admin/developer**; Test connections = OpenAI brand artwork prompt + fal `nano-banana-2` 0.5K still (living video later)
 
 ### Local workspace
 

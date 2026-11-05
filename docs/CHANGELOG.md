@@ -2,6 +2,10 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-11-05 15:36 - Admin primary nav: Notifications control is icon + count only (label removed; `aria-label` / title kept).
+
+2026-11-05 15:35 - Admin **Create** tab (between Content and Settings): Start page explains AI writing / artwork / living-art helpers; per-admin OpenAI + fal.ai keys; Test connections drafts a base-brand artwork prompt (`gpt-4o-mini`) then paints a Nano Banana 2 still (`fal-ai/nano-banana-2`). Optional `.env` `OPENAI_API_KEY` / `FAL_KEY` fallbacks.
+
 2026-11-05 14:58 - Publish Content Live preview remirror + navigator Idle items + preview scrollbar cleanup for Site update.
 
 2026-11-04 21:40 - Branding Content Live preview: drop nested forced scrollbars on stacked playlist/panel samples (one iframe scroll only).
