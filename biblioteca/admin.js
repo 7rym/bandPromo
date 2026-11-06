@@ -16853,11 +16853,18 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
             })();
 
             (function initCreateStart() {
-                const connectCard = document.getElementById('createConnectCard');
-                if (!connectCard) {
+                const shell = document.getElementById('createStartShell');
+                if (!shell) {
                     return;
                 }
 
+                const configuredView = document.getElementById('createStartConfigured');
+                const setupView = document.getElementById('createStartSetup');
+                const manualView = document.getElementById('createStartManual');
+                const wizardView = document.getElementById('createStartWizard');
+                const reconfigureBtn = document.getElementById('createReconfigureBtn');
+                const connectCard = document.getElementById('createConnectCard');
+                const prefsCard = document.getElementById('createPrefsCard');
                 const openAiInput = document.getElementById('createOpenAiKey');
                 const falInput = document.getElementById('createFalKey');
                 const emptyHelp = document.getElementById('createKeysEmptyHelp');
@@ -16882,12 +16889,23 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 const testFalError = document.getElementById('createTestFalError');
                 const testFalHelp = document.getElementById('createTestFalHelp');
                 const testFalCost = document.getElementById('createTestFalCost');
-                const openAiModelToggle = document.getElementById('createOpenAiModelToggle');
-                const openAiModelPrice = document.getElementById('createOpenAiModelPrice');
-                const falModelSelect = document.getElementById('createFalModelSelect');
-                const falModelPrice = document.getElementById('createFalModelPrice');
+                const priceTierToggle = document.getElementById('createPriceTierToggle');
+                const llmModelSelect = document.getElementById('createLlmModelSelect');
+                const llmModelPrice = document.getElementById('createLlmModelPrice');
+                const imageModelSelect = document.getElementById('createImageModelSelect');
+                const imageModelPrice = document.getElementById('createImageModelPrice');
+                const videoModelSelect = document.getElementById('createVideoModelSelect');
+                const videoModelPrice = document.getElementById('createVideoModelPrice');
+                const summaryTier = document.getElementById('createSummaryTier');
+                const summaryLlm = document.getElementById('createSummaryLlm');
+                const summaryImage = document.getElementById('createSummaryImage');
+                const summaryVideo = document.getElementById('createSummaryVideo');
+                const summaryOpenAi = document.getElementById('createSummaryOpenAi');
+                const summaryFal = document.getElementById('createSummaryFal');
+                const summaryTests = document.getElementById('createSummaryTests');
                 const panels = {
                     connect: connectCard,
+                    prefs: prefsCard,
                     prompt: document.getElementById('createTestCard'),
                     image: document.getElementById('createConfirmCard'),
                 };
@@ -16899,9 +16917,13 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 let busy = false;
                 let openAiDisplay = '';
                 let falDisplay = '';
-                let selectedOpenAiModel = '';
-                let selectedFalModel = '';
+                let selectedPriceTier = 'cheap';
+                let selectedLlmModel = '';
+                let selectedImageModel = '';
+                let selectedVideoModel = '';
+                let setupMode = 'manual';
                 let modelSaveTimer = null;
+                let suppressModelSave = false;
 
                 function csrfToken() {
                     if (typeof adminCsrf === 'string' && adminCsrf) {
@@ -16943,6 +16965,14 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                         }
                     }
                     return rows[0] || null;
+                }
+
+                function modelLabel(meta, fallbackId) {
+                    if (!meta) {
+                        return fallbackId || '—';
+                    }
+                    const vendor = meta.vendor ? String(meta.vendor) + ' — ' : '';
+                    return vendor + String(meta.label || meta.id || fallbackId || '—');
                 }
 
                 function updateModelPrice(el, meta) {
@@ -16995,6 +17025,9 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 }
 
                 function scheduleModelSave() {
+                    if (suppressModelSave) {
+                        return;
+                    }
                     if (modelSaveTimer) {
                         window.clearTimeout(modelSaveTimer);
                     }
@@ -17006,8 +17039,10 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 async function saveModels() {
                     const body = {
                         csrf_token: csrfToken(),
-                        openai_model: selectedOpenAiModel,
-                        fal_model: selectedFalModel,
+                        price_tier: selectedPriceTier,
+                        llm_model: selectedLlmModel,
+                        image_model: selectedImageModel,
+                        video_model: selectedVideoModel,
                     };
                     const resp = await fetch('/biblioteca/save-create-integrations.php', {
                         method: 'POST',
@@ -17022,45 +17057,82 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     if (!resp.ok || !data || data.ok !== true) {
                         throw new Error((data && data.error) ? String(data.error) : 'Could not save model preference.');
                     }
-                    latestIntegrations = data.integrations || latestIntegrations;
-                    selectedOpenAiModel = String(latestIntegrations.openai_model || selectedOpenAiModel);
-                    selectedFalModel = String(latestIntegrations.fal_model || selectedFalModel);
-                    return latestIntegrations;
+                    const next = data.integrations || latestIntegrations;
+                    if (next.prompt_tested !== true) {
+                        clearPromptProof();
+                    } else if (next.image_tested !== true) {
+                        clearImageProof();
+                    }
+                    renderStatus(next);
+                    return next;
                 }
 
                 function syncModelPickers(integrations) {
                     const data = integrations && typeof integrations === 'object' ? integrations : {};
-                    const openAiRows = modelList(data, 'openai_models');
-                    const falRows = modelList(data, 'fal_models');
-                    selectedOpenAiModel = String(data.openai_model || selectedOpenAiModel || (openAiRows[0] && openAiRows[0].id) || '');
-                    selectedFalModel = String(data.fal_model || selectedFalModel || (falRows[0] && falRows[0].id) || '');
-                    renderModelToggle(openAiModelToggle, 'createOpenAiModel', openAiRows, selectedOpenAiModel, (id) => {
-                        selectedOpenAiModel = id;
-                        updateModelPrice(openAiModelPrice, findModelMeta(openAiRows, id));
+                    const tierRows = modelList(data, 'price_tiers');
+                    const tiers = tierRows.length
+                        ? tierRows
+                        : [
+                            { id: 'cheap', label: 'Cheap' },
+                            { id: 'good', label: 'Good' },
+                            { id: 'premium', label: 'Premium' },
+                        ];
+                    const llmRows = modelList(data, 'llm_models_for_tier');
+                    const imageRows = modelList(data, 'image_models_for_tier');
+                    const videoRows = modelList(data, 'video_models_for_tier');
+
+                    suppressModelSave = true;
+                    selectedPriceTier = String(data.price_tier || selectedPriceTier || 'cheap');
+                    selectedLlmModel = String(data.llm_model || selectedLlmModel || (llmRows[0] && llmRows[0].id) || '');
+                    selectedImageModel = String(data.image_model || selectedImageModel || (imageRows[0] && imageRows[0].id) || '');
+                    selectedVideoModel = String(data.video_model || selectedVideoModel || (videoRows[0] && videoRows[0].id) || '');
+
+                    renderModelToggle(priceTierToggle, 'createPriceTier', tiers, selectedPriceTier, (id) => {
+                        selectedPriceTier = id;
                         scheduleModelSave();
                     });
-                    renderModelSelect(falModelSelect, falRows, selectedFalModel, (id) => {
-                        selectedFalModel = id;
-                        updateModelPrice(falModelPrice, findModelMeta(falRows, id));
+                    renderModelSelect(llmModelSelect, llmRows, selectedLlmModel, (id) => {
+                        selectedLlmModel = id;
+                        updateModelPrice(llmModelPrice, findModelMeta(llmRows, id));
                         scheduleModelSave();
                     });
-                    updateModelPrice(openAiModelPrice, findModelMeta(openAiRows, selectedOpenAiModel));
-                    updateModelPrice(falModelPrice, findModelMeta(falRows, selectedFalModel));
+                    renderModelSelect(imageModelSelect, imageRows, selectedImageModel, (id) => {
+                        selectedImageModel = id;
+                        updateModelPrice(imageModelPrice, findModelMeta(imageRows, id));
+                        scheduleModelSave();
+                    });
+                    renderModelSelect(videoModelSelect, videoRows, selectedVideoModel, (id) => {
+                        selectedVideoModel = id;
+                        updateModelPrice(videoModelPrice, findModelMeta(videoRows, id));
+                        scheduleModelSave();
+                    });
+                    updateModelPrice(llmModelPrice, findModelMeta(llmRows, selectedLlmModel));
+                    updateModelPrice(imageModelPrice, findModelMeta(imageRows, selectedImageModel));
+                    updateModelPrice(videoModelPrice, findModelMeta(videoRows, selectedVideoModel));
+                    suppressModelSave = false;
                 }
 
-                function openaiReady(integrations) {
+                function promptKeyReady(integrations) {
                     const data = integrations && typeof integrations === 'object' ? integrations : {};
-                    return data.openai_configured === true;
+                    return data.prompt_key_ready === true;
                 }
 
                 function falReady(integrations) {
                     const data = integrations && typeof integrations === 'object' ? integrations : {};
-                    return data.fal_configured === true;
+                    return data.fal_configured === true || data.image_key_ready === true;
+                }
+
+                function keysPresent(integrations) {
+                    const data = integrations && typeof integrations === 'object' ? integrations : {};
+                    return data.openai_configured === true || data.fal_configured === true;
                 }
 
                 function resolveStage(integrations) {
-                    if (!openaiReady(integrations)) {
+                    if (!keysPresent(integrations)) {
                         return 'connect';
+                    }
+                    if (!promptKeyReady(integrations)) {
+                        return 'prefs';
                     }
                     if (!promptReady) {
                         return 'prompt';
@@ -17079,12 +17151,79 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     btn.classList.add(proposed ? 'btn-good' : 'btn-available');
                 }
 
+                function applySetupMode() {
+                    const showWizard = setupMode === 'wizard';
+                    if (manualView) {
+                        manualView.hidden = showWizard;
+                    }
+                    if (wizardView) {
+                        wizardView.hidden = !showWizard;
+                    }
+                }
+
+                function applyShellMode(integrations) {
+                    const data = integrations && typeof integrations === 'object' ? integrations : {};
+                    const complete = data.setup_complete === true;
+                    if (configuredView) {
+                        configuredView.hidden = !complete;
+                    }
+                    if (setupView) {
+                        setupView.hidden = complete;
+                    }
+                }
+
+                function renderConfiguredSummary(integrations) {
+                    const data = integrations && typeof integrations === 'object' ? integrations : {};
+                    if (summaryTier) {
+                        summaryTier.textContent = String(data.price_tier_label || data.price_tier || '—');
+                    }
+                    if (summaryLlm) {
+                        summaryLlm.textContent = modelLabel(data.llm_meta, data.llm_model);
+                    }
+                    if (summaryImage) {
+                        summaryImage.textContent = modelLabel(data.image_meta, data.image_model);
+                    }
+                    if (summaryVideo) {
+                        summaryVideo.textContent = modelLabel(data.video_meta, data.video_model);
+                    }
+                    if (summaryOpenAi) {
+                        summaryOpenAi.textContent = configuredDisplay(
+                            data.openai_configured === true,
+                            data.openai_preview,
+                            data.openai_source
+                        );
+                    }
+                    if (summaryFal) {
+                        summaryFal.textContent = configuredDisplay(
+                            data.fal_configured === true,
+                            data.fal_preview,
+                            data.fal_source
+                        );
+                    }
+                    if (summaryTests) {
+                        const bits = [];
+                        bits.push(data.prompt_tested === true ? 'Text passed' : 'Text not passed');
+                        bits.push(data.image_tested === true ? 'Image passed' : 'Image not passed');
+                        if (data.setup_completed_at_utc) {
+                            bits.push('Ready ' + String(data.setup_completed_at_utc));
+                        }
+                        summaryTests.textContent = bits.join(' · ');
+                    }
+                }
+
                 function applyWorkflow(integrations) {
                     latestIntegrations = integrations && typeof integrations === 'object' ? integrations : {};
+                    applyShellMode(latestIntegrations);
+                    renderConfiguredSummary(latestIntegrations);
+                    if (latestIntegrations.setup_complete === true) {
+                        return;
+                    }
+
                     const stage = resolveStage(latestIntegrations);
-                    const hasOpenAi = openaiReady(latestIntegrations);
+                    const hasKeys = keysPresent(latestIntegrations);
+                    const canPrompt = promptKeyReady(latestIntegrations);
                     const hasFal = falReady(latestIntegrations);
-                    const steps = ['connect', 'prompt', 'image'];
+                    const steps = ['connect', 'prefs', 'prompt', 'image'];
 
                     steps.forEach((step) => {
                         const panel = panels[step];
@@ -17095,13 +17234,14 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                         if (step === stage) {
                             panel.classList.add('is-current');
                         } else if (
-                            (step === 'connect' && hasOpenAi) ||
+                            (step === 'connect' && hasKeys) ||
+                            (step === 'prefs' && canPrompt) ||
                             (step === 'prompt' && promptReady) ||
                             (step === 'image' && imageReady)
                         ) {
                             panel.classList.add('is-done');
                         } else if (
-                            (step === 'prompt' && !hasOpenAi) ||
+                            (step === 'prompt' && !canPrompt) ||
                             (step === 'image' && !promptReady)
                         ) {
                             panel.classList.add('is-disabled');
@@ -17109,9 +17249,14 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     });
 
                     if (promptLockedNote) {
-                        promptLockedNote.hidden = hasOpenAi;
-                        if (!hasOpenAi) {
-                            promptLockedNote.textContent = 'Save an OpenAI key in Connect to unlock this step.';
+                        if (canPrompt) {
+                            promptLockedNote.hidden = true;
+                        } else {
+                            promptLockedNote.hidden = false;
+                            const route = String(latestIntegrations.llm_route || 'fal');
+                            promptLockedNote.textContent = route === 'openai'
+                                ? 'Save an OpenAI key in Connect to unlock this step for the selected text model.'
+                                : 'Save a fal.ai key in Connect to unlock this step for the selected text model.';
                         }
                     }
                     if (imageLockedNote) {
@@ -17150,7 +17295,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                         clearFalBtn.classList.add('btn-available');
                     }
                     if (promptBtn instanceof HTMLButtonElement) {
-                        promptBtn.disabled = busy || !hasOpenAi;
+                        promptBtn.disabled = busy || !canPrompt;
                         setButtonProposed(promptBtn, stage === 'prompt');
                     }
                     if (imageBtn instanceof HTMLButtonElement) {
@@ -17219,6 +17364,15 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
 
                 function renderStatus(integrations) {
                     const data = integrations && typeof integrations === 'object' ? integrations : {};
+                    if (data.setup_complete === true) {
+                        promptReady = true;
+                        imageReady = true;
+                    } else {
+                        // Prompt proof needs the live prompt text in this browser session.
+                        promptReady = data.prompt_tested === true && latestPrompt !== '';
+                        imageReady = data.image_tested === true;
+                    }
+
                     const openaiConfigured = data.openai_configured === true;
                     const falConfigured = data.fal_configured === true;
 
@@ -17347,13 +17501,38 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     if (falInput instanceof HTMLInputElement) {
                         falInput.dataset.editing = '0';
                     }
-                    if (opts.clearOpenAi) {
-                        clearPromptProof();
-                    } else if (opts.clearFal) {
-                        clearImageProof();
-                    } else {
+                    if (opts.clearOpenAi || opts.clearFal) {
                         clearPromptProof();
                     }
+                    renderStatus(data.integrations || {});
+                    return data.integrations || {};
+                }
+
+                async function clearSetup() {
+                    const resp = await fetch('/biblioteca/save-create-integrations.php', {
+                        method: 'POST',
+                        credentials: 'same-origin',
+                        headers: {
+                            Accept: 'application/json',
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                            csrf_token: csrfToken(),
+                            clear_setup: true,
+                        }),
+                    });
+                    const data = await resp.json().catch(() => null);
+                    if (!resp.ok || !data || data.ok !== true) {
+                        throw new Error((data && data.error) ? String(data.error) : 'Could not open reconfigure.');
+                    }
+                    clearPromptProof();
+                    setupMode = 'manual';
+                    document.querySelectorAll('input[name="createSetupMode"]').forEach((input) => {
+                        if (input instanceof HTMLInputElement) {
+                            input.checked = input.value === 'manual';
+                        }
+                    });
+                    applySetupMode();
                     renderStatus(data.integrations || {});
                     return data.integrations || {};
                 }
@@ -17372,9 +17551,9 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 }
 
                 async function runPrompt() {
-                    if (!openaiReady(latestIntegrations)) {
+                    if (!promptKeyReady(latestIntegrations)) {
                         if (promptStatus) {
-                            promptStatus.textContent = 'Save an OpenAI key in Connect first.';
+                            promptStatus.textContent = 'Save the key needed for your text model first.';
                             promptStatus.classList.add('is-error');
                         }
                         return;
@@ -17382,7 +17561,10 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
 
                     clearPromptProof();
                     applyWorkflow(latestIntegrations);
-                    setBusy(true, 'Asking OpenAI for an image prompt…', 'prompt');
+                    const route = String(latestIntegrations.llm_route || 'fal');
+                    setBusy(true, route === 'openai'
+                        ? 'Asking OpenAI for an image prompt…'
+                        : 'Asking fal for an image prompt…', 'prompt');
                     if (keysStatus) {
                         keysStatus.textContent = '';
                         keysStatus.classList.remove('is-error');
@@ -17399,57 +17581,67 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                             body: JSON.stringify({
                                 csrf_token: csrfToken(),
                                 step: 'prompt',
-                                openai_model: selectedOpenAiModel,
+                                llm_model: selectedLlmModel,
                             }),
                         });
                         const data = await resp.json().catch(() => null);
                         const brand = data && data.brand ? data.brand : {};
+                        const llm = data && data.llm ? data.llm : {};
                         const openai = data && data.openai ? data.openai : {};
+                        const promptText = llm.prompt || openai.prompt || '';
+                        const usedModel = llm.model || openai.model || selectedLlmModel;
+                        const cost = llm.cost || openai.cost || null;
+                        const ok = data && data.ok === true && !!promptText;
 
                         if (testBrandMeta) {
                             const title = brand.title ? String(brand.title) : 'Base brand';
                             const id = brand.id ? String(brand.id) : '';
-                            const model = openai.model ? String(openai.model) : selectedOpenAiModel;
                             const fallback = brand.used_fallback === true ? ' (generic fallback brief)' : '';
+                            const via = llm.route ? ` via ${String(llm.route)}` : '';
                             testBrandMeta.textContent = id
-                                ? `Based on base brand “${title}” (${id})${fallback} · ${model}`
-                                : `Based on base brand “${title}”${fallback} · ${model}`;
+                                ? `Based on base brand “${title}” (${id})${fallback} · ${usedModel}${via}`
+                                : `Based on base brand “${title}”${fallback} · ${usedModel}${via}`;
                         }
 
-                        if (openai.prompt && testPrompt) {
-                            testPrompt.textContent = String(openai.prompt);
+                        if (promptText && testPrompt) {
+                            testPrompt.textContent = String(promptText);
                         }
                         if (testOpenAiCost) {
-                            const costLabel = openai.cost && openai.cost.estimate_label
-                                ? String(openai.cost.estimate_label)
+                            const costLabel = cost && cost.estimate_label
+                                ? String(cost.estimate_label)
                                 : '';
                             testOpenAiCost.textContent = costLabel;
                             testOpenAiCost.hidden = costLabel === '';
                         }
-                        if (!openai.ok && testOpenAiError) {
+                        if (!ok && testOpenAiError) {
                             const bits = [];
-                            if (openai.error) {
-                                bits.push(String(openai.error));
+                            if (llm.error || openai.error) {
+                                bits.push(String(llm.error || openai.error));
                             }
-                            if (openai.help) {
-                                bits.push(String(openai.help));
+                            if (llm.help || openai.help) {
+                                bits.push(String(llm.help || openai.help));
                             }
                             testOpenAiError.textContent = bits.join(' ');
                             testOpenAiError.hidden = bits.length === 0;
                         }
 
-                        if (data && data.ok === true && openai.prompt) {
+                        if (ok) {
                             promptReady = true;
-                            latestPrompt = String(openai.prompt);
+                            latestPrompt = String(promptText);
                             if (promptResult) {
                                 promptResult.hidden = false;
                             }
                             if (promptStatus) {
-                                const costBit = openai.cost && openai.cost.estimate_label
-                                    ? ` · ${String(openai.cost.estimate_label)}`
+                                const costBit = cost && cost.estimate_label
+                                    ? ` · ${String(cost.estimate_label)}`
                                     : '';
-                                promptStatus.textContent = `Prompt ready — continue in panel 3${costBit}`;
+                                promptStatus.textContent = `Prompt ready — continue with Test image${costBit}`;
                                 promptStatus.classList.remove('is-error');
+                            }
+                            if (data.integrations) {
+                                renderStatus(data.integrations);
+                                promptReady = true;
+                                latestPrompt = String(promptText);
                             }
                         } else {
                             promptReady = false;
@@ -17459,7 +17651,9 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                             }
                             const message = (data && data.error)
                                 ? String(data.error)
-                                : ((openai.error) ? String(openai.error) : 'Could not create image prompt.');
+                                : ((llm.error || openai.error)
+                                    ? String(llm.error || openai.error)
+                                    : 'Could not create image prompt.');
                             if (promptStatus) {
                                 promptStatus.textContent = message;
                                 promptStatus.classList.add('is-error');
@@ -17511,13 +17705,13 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                                 csrf_token: csrfToken(),
                                 step: 'image',
                                 prompt: latestPrompt,
-                                fal_model: selectedFalModel,
+                                image_model: selectedImageModel,
                             }),
                         });
                         const data = await resp.json().catch(() => null);
                         const brand = data && data.brand ? data.brand : {};
                         const fal = data && data.fal ? data.fal : {};
-                        const falModelUsed = fal.model ? String(fal.model) : selectedFalModel;
+                        const falModelUsed = fal.model ? String(fal.model) : selectedImageModel;
 
                         if (testFalLogoMeta) {
                             if (fal.logo_attached === true) {
@@ -17561,6 +17755,16 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                                 imageStatus.textContent = `Image ready${costBit}`;
                                 imageStatus.classList.remove('is-error');
                             }
+                            if (data.integrations) {
+                                latestPrompt = latestPrompt;
+                                renderStatus(data.integrations);
+                                imageReady = true;
+                                promptReady = data.integrations.prompt_tested === true || promptReady;
+                                if (data.integrations.setup_complete === true) {
+                                    applyShellMode(data.integrations);
+                                    renderConfiguredSummary(data.integrations);
+                                }
+                            }
                         } else {
                             imageReady = false;
                             if (imageResult) {
@@ -17596,12 +17800,12 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                         saveKeys({})
                             .then((integrations) => {
                                 if (keysStatus) {
-                                    if (openaiReady(integrations) && falReady(integrations)) {
-                                        keysStatus.textContent = 'Saved. Prompt and image steps are ready.';
-                                    } else if (openaiReady(integrations)) {
-                                        keysStatus.textContent = 'Saved. Prompt step is ready.';
+                                    if (promptKeyReady(integrations) && falReady(integrations)) {
+                                        keysStatus.textContent = 'Saved. Text and image tests can run.';
+                                    } else if (promptKeyReady(integrations)) {
+                                        keysStatus.textContent = 'Saved. Text test can run; add fal for images.';
                                     } else if (falReady(integrations)) {
-                                        keysStatus.textContent = 'Saved. Add an OpenAI key for the prompt step.';
+                                        keysStatus.textContent = 'Saved. Pick a fal text model, or add an OpenAI key.';
                                     } else {
                                         keysStatus.textContent = 'Saved.';
                                     }
@@ -17674,9 +17878,32 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                         runImage().catch(() => {});
                     });
                 }
+                if (reconfigureBtn) {
+                    reconfigureBtn.addEventListener('click', () => {
+                        clearSetup().catch((error) => {
+                            if (keysStatus) {
+                                keysStatus.textContent = error && error.message
+                                    ? String(error.message)
+                                    : 'Could not open reconfigure.';
+                                keysStatus.classList.add('is-error');
+                            }
+                        });
+                    });
+                }
+
+                document.querySelectorAll('input[name="createSetupMode"]').forEach((input) => {
+                    input.addEventListener('change', () => {
+                        if (!(input instanceof HTMLInputElement) || !input.checked) {
+                            return;
+                        }
+                        setupMode = String(input.value || 'manual');
+                        applySetupMode();
+                    });
+                });
 
                 bindKeyField(openAiInput, () => openAiDisplay);
                 bindKeyField(falInput, () => falDisplay);
+                applySetupMode();
                 applyWorkflow({});
                 loadStatus().catch((error) => {
                     if (keysStatus) {

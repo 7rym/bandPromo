@@ -10,150 +10,90 @@ declare(strict_types=1);
  */
 
 require_once __DIR__ . '/json-file-helpers.php';
+require_once __DIR__ . '/create-integrations-prefs.php';
 
 /**
- * @return array{openai_api_key:string,fal_api_key:string,openai_model:string,fal_model:string,updated_at_utc:string}
+ * @return array{
+ *   openai_api_key:string,
+ *   fal_api_key:string,
+ *   price_tier:string,
+ *   llm_model:string,
+ *   image_model:string,
+ *   video_model:string,
+ *   openai_model:string,
+ *   fal_model:string,
+ *   setup_complete:bool,
+ *   prompt_tested:bool,
+ *   image_tested:bool,
+ *   setup_completed_at_utc:string,
+ *   updated_at_utc:string
+ * }
  */
 function bandpromo_create_integrations_defaults(): array
 {
+    $tier = 'cheap';
+
     return [
         'openai_api_key' => '',
         'fal_api_key' => '',
-        'openai_model' => bandpromo_create_integrations_default_openai_model(),
-        'fal_model' => bandpromo_create_integrations_default_fal_model(),
+        'price_tier' => $tier,
+        'llm_model' => bandpromo_create_integrations_default_llm_model($tier),
+        'image_model' => bandpromo_create_integrations_default_image_model($tier),
+        'video_model' => bandpromo_create_integrations_default_video_model($tier),
+        // Legacy aliases kept in sync with llm/image prefs.
+        'openai_model' => 'gpt-6-luna',
+        'fal_model' => bandpromo_create_integrations_default_image_model($tier),
+        'setup_complete' => false,
+        'prompt_tested' => false,
+        'image_tested' => false,
+        'setup_completed_at_utc' => '',
         'updated_at_utc' => '',
     ];
 }
 
-/**
- * Curated OpenAI chat models for Create prompt tests (cheapest first).
- * Rates are USD per 1M tokens (standard tier) — used for operator cost hints.
- *
- * @return list<array{id:string,label:string,price_hint:string,input_per_mtok:float,output_per_mtok:float}>
- */
+/** @deprecated Prefer llm_models() */
 function bandpromo_create_integrations_openai_models(): array
 {
-    return [
-        [
-            'id' => 'gpt-6-luna',
-            'label' => 'GPT-6 Luna',
-            'price_hint' => '~$0.10 / $0.50 per 1M in/out',
-            'input_per_mtok' => 0.10,
-            'output_per_mtok' => 0.50,
-        ],
-        [
-            'id' => 'gpt-6-sol',
-            'label' => 'GPT-6 Sol',
-            'price_hint' => '~$2.00 / $10.00 per 1M in/out',
-            'input_per_mtok' => 2.00,
-            'output_per_mtok' => 10.00,
-        ],
-        [
-            'id' => 'gpt-6-astra',
-            'label' => 'GPT-6 Astra',
-            'price_hint' => '~$10.00 / $50.00 per 1M in/out',
-            'input_per_mtok' => 10.00,
-            'output_per_mtok' => 50.00,
-        ],
-    ];
+    $out = [];
+    foreach (bandpromo_create_integrations_llm_models() as $row) {
+        if (($row['route'] ?? '') !== 'openai') {
+            continue;
+        }
+        $out[] = [
+            'id' => (string) $row['provider_model'],
+            'label' => (string) $row['label'],
+            'price_hint' => (string) $row['price_hint'],
+            'input_per_mtok' => 0.0,
+            'output_per_mtok' => 0.0,
+        ];
+    }
+
+    return $out;
 }
 
-/**
- * Curated fal edit models that accept a brand-logo reference (cheapest first).
- * One pick per major vendor, all served through fal.ai.
- *
- * @return list<array{id:string,label:string,vendor:string,price_hint:string,estimate_usd:float,supports_logo:bool,family:string}>
- */
+/** @deprecated Prefer image_models() */
 function bandpromo_create_integrations_fal_models(): array
 {
-    return [
-        [
-            'id' => 'fal-ai/gpt-image-1.5/edit',
-            'label' => 'OpenAI GPT Image 1.5',
-            'vendor' => 'OpenAI',
-            'price_hint' => '~$0.009 / image (low quality)',
-            'estimate_usd' => 0.009,
-            'supports_logo' => true,
-            'family' => 'openai_gpt_image',
-        ],
-        [
-            'id' => 'meta/muse-image/edit',
-            'label' => 'Meta Muse',
-            'vendor' => 'Meta',
-            'price_hint' => '~$0.01 / image',
-            'estimate_usd' => 0.01,
-            'supports_logo' => true,
-            'family' => 'meta_muse',
-        ],
-        [
-            'id' => 'fal-ai/flux-2/flash/edit',
-            'label' => 'FLUX 2 Flash',
-            'vendor' => 'Flux',
-            'price_hint' => '~$0.01 / edit (1 MP in + out)',
-            'estimate_usd' => 0.01,
-            'supports_logo' => true,
-            'family' => 'flux_flash_edit',
-        ],
-        [
-            'id' => 'xai/grok-imagine-image/edit',
-            'label' => 'Grok Imagine',
-            'vendor' => 'Grok',
-            'price_hint' => '~$0.022 / image',
-            'estimate_usd' => 0.022,
-            'supports_logo' => true,
-            'family' => 'grok_imagine',
-        ],
-        [
-            'id' => 'fal-ai/qwen-image-edit',
-            'label' => 'Qwen Image Edit',
-            'vendor' => 'Alibaba',
-            'price_hint' => '~$0.03 / MP',
-            'estimate_usd' => 0.03,
-            'supports_logo' => true,
-            'family' => 'qwen_edit',
-        ],
-        [
-            'id' => 'fal-ai/bytedance/seedream/v5/lite/edit',
-            'label' => 'Seedream 5 Lite',
-            'vendor' => 'ByteDance',
-            'price_hint' => '~$0.035 / image',
-            'estimate_usd' => 0.035,
-            'supports_logo' => true,
-            'family' => 'seedream_lite',
-        ],
-        [
-            'id' => 'fal-ai/nano-banana-2/edit',
-            'label' => 'Nano Banana 2',
-            'vendor' => 'Google',
-            'price_hint' => '~$0.06 at 0.5K',
-            'estimate_usd' => 0.06,
-            'supports_logo' => true,
-            'family' => 'nano_banana_2_edit',
-        ],
-    ];
+    return bandpromo_create_integrations_image_models();
 }
 
 function bandpromo_create_integrations_default_openai_model(): string
 {
-    $models = bandpromo_create_integrations_openai_models();
-
-    return (string) ($models[0]['id'] ?? 'gpt-6-luna');
+    return 'gpt-6-luna';
 }
 
 function bandpromo_create_integrations_default_fal_model(): string
 {
-    $models = bandpromo_create_integrations_fal_models();
-
-    return (string) ($models[0]['id'] ?? 'fal-ai/gpt-image-1.5/edit');
+    return bandpromo_create_integrations_default_image_model('cheap');
 }
 
 function bandpromo_create_integrations_normalize_openai_model(string $model): string
 {
-    $model = trim($model);
-    foreach (bandpromo_create_integrations_openai_models() as $row) {
-        if ($row['id'] === $model) {
-            return $model;
-        }
+    $meta = bandpromo_create_integrations_llm_model_meta(
+        strpos($model, 'openai:') === 0 ? $model : ('openai:' . $model)
+    );
+    if ($meta && ($meta['route'] ?? '') === 'openai') {
+        return (string) $meta['provider_model'];
     }
 
     return bandpromo_create_integrations_default_openai_model();
@@ -161,14 +101,7 @@ function bandpromo_create_integrations_normalize_openai_model(string $model): st
 
 function bandpromo_create_integrations_normalize_fal_model(string $model): string
 {
-    $model = trim($model);
-    foreach (bandpromo_create_integrations_fal_models() as $row) {
-        if ($row['id'] === $model) {
-            return $model;
-        }
-    }
-
-    return bandpromo_create_integrations_default_fal_model();
+    return bandpromo_create_integrations_normalize_image_model($model);
 }
 
 /**
@@ -176,14 +109,9 @@ function bandpromo_create_integrations_normalize_fal_model(string $model): strin
  */
 function bandpromo_create_integrations_openai_model_meta(string $model): ?array
 {
-    $model = bandpromo_create_integrations_normalize_openai_model($model);
-    foreach (bandpromo_create_integrations_openai_models() as $row) {
-        if ($row['id'] === $model) {
-            return $row;
-        }
-    }
-
-    return null;
+    return bandpromo_create_integrations_llm_model_meta(
+        strpos($model, 'openai:') === 0 ? $model : ('openai:' . $model)
+    );
 }
 
 /**
@@ -191,14 +119,7 @@ function bandpromo_create_integrations_openai_model_meta(string $model): ?array
  */
 function bandpromo_create_integrations_fal_model_meta(string $model): ?array
 {
-    $model = bandpromo_create_integrations_normalize_fal_model($model);
-    foreach (bandpromo_create_integrations_fal_models() as $row) {
-        if ($row['id'] === $model) {
-            return $row;
-        }
-    }
-
-    return null;
+    return bandpromo_create_integrations_image_model_meta($model);
 }
 
 /**
@@ -212,13 +133,20 @@ function bandpromo_create_integrations_openai_cost_from_usage(string $model, $us
     $completionTokens = is_array($usage) ? (int) ($usage['completion_tokens'] ?? 0) : 0;
     $totalTokens = is_array($usage) ? (int) ($usage['total_tokens'] ?? ($promptTokens + $completionTokens)) : ($promptTokens + $completionTokens);
     $estimate = 0.0;
-    if ($meta) {
-        $estimate = ($promptTokens / 1000000.0) * (float) $meta['input_per_mtok']
-            + ($completionTokens / 1000000.0) * (float) $meta['output_per_mtok'];
+    $inRate = is_array($meta) ? (float) ($meta['input_per_mtok'] ?? 0) : 0.0;
+    $outRate = is_array($meta) ? (float) ($meta['output_per_mtok'] ?? 0) : 0.0;
+    if ($inRate > 0 || $outRate > 0) {
+        $estimate = ($promptTokens / 1000000.0) * $inRate
+            + ($completionTokens / 1000000.0) * $outRate;
     }
-    $label = $totalTokens > 0
-        ? sprintf('About $%s (%s tokens)', rtrim(rtrim(number_format($estimate, 6, '.', ''), '0'), '.'), number_format($totalTokens))
-        : 'Cost unknown (no token usage returned)';
+    $hint = is_array($meta) ? trim((string) ($meta['price_hint'] ?? '')) : '';
+    if ($totalTokens > 0 && $estimate > 0) {
+        $label = sprintf('About $%s (%s tokens)', rtrim(rtrim(number_format($estimate, 6, '.', ''), '0'), '.'), number_format($totalTokens));
+    } elseif ($totalTokens > 0) {
+        $label = sprintf('%s tokens%s', number_format($totalTokens), $hint !== '' ? ' — ' . $hint : '');
+    } else {
+        $label = $hint !== '' ? $hint : 'Cost unknown (no token usage returned)';
+    }
 
     return [
         'prompt_tokens' => $promptTokens,
@@ -287,28 +215,48 @@ function bandpromo_create_integrations_path(string $root, string $username): str
     return bandpromo_create_integrations_dir($root) . DIRECTORY_SEPARATOR . $safe . '.json';
 }
 
-/**
- * @return array{openai_api_key:string,fal_api_key:string,openai_model:string,fal_model:string,updated_at_utc:string}
- */
 function bandpromo_create_integrations_normalize(array $decoded): array
 {
     $out = bandpromo_create_integrations_defaults();
     $out['openai_api_key'] = trim((string) ($decoded['openai_api_key'] ?? ''));
     $out['fal_api_key'] = trim((string) ($decoded['fal_api_key'] ?? ''));
-    $out['openai_model'] = bandpromo_create_integrations_normalize_openai_model(
-        (string) ($decoded['openai_model'] ?? $out['openai_model'])
+    $out['price_tier'] = bandpromo_create_integrations_normalize_price_tier(
+        (string) ($decoded['price_tier'] ?? $out['price_tier'])
     );
-    $out['fal_model'] = bandpromo_create_integrations_normalize_fal_model(
-        (string) ($decoded['fal_model'] ?? $out['fal_model'])
-    );
+    $tier = $out['price_tier'];
+
+    $legacyOpenAi = trim((string) ($decoded['openai_model'] ?? ''));
+    $legacyFal = trim((string) ($decoded['fal_model'] ?? ''));
+    $llmRaw = trim((string) ($decoded['llm_model'] ?? ''));
+    if ($llmRaw === '' && $legacyOpenAi !== '') {
+        $llmRaw = 'openai:' . $legacyOpenAi;
+    }
+    $imageRaw = trim((string) ($decoded['image_model'] ?? $legacyFal));
+    $videoRaw = trim((string) ($decoded['video_model'] ?? ''));
+
+    $out['llm_model'] = bandpromo_create_integrations_normalize_llm_model($llmRaw, $tier);
+    $out['image_model'] = bandpromo_create_integrations_normalize_image_model($imageRaw, $tier);
+    $out['video_model'] = bandpromo_create_integrations_normalize_video_model($videoRaw, $tier);
+
+    $llmMeta = bandpromo_create_integrations_llm_model_meta($out['llm_model']);
+    $out['openai_model'] = ($llmMeta && ($llmMeta['route'] ?? '') === 'openai')
+        ? (string) $llmMeta['provider_model']
+        : bandpromo_create_integrations_default_openai_model();
+    $out['fal_model'] = $out['image_model'];
+
+    $out['setup_complete'] = !empty($decoded['setup_complete']);
+    $out['prompt_tested'] = !empty($decoded['prompt_tested']);
+    $out['image_tested'] = !empty($decoded['image_tested']);
+    $out['setup_completed_at_utc'] = trim((string) ($decoded['setup_completed_at_utc'] ?? ''));
     $out['updated_at_utc'] = trim((string) ($decoded['updated_at_utc'] ?? ''));
+
+    if ($out['setup_complete'] && (!$out['prompt_tested'] || !$out['image_tested'])) {
+        $out['setup_complete'] = false;
+    }
 
     return $out;
 }
 
-/**
- * @return array{openai_api_key:string,fal_api_key:string,openai_model:string,fal_model:string,updated_at_utc:string}
- */
 function bandpromo_create_integrations_load(string $root, string $username): array
 {
     $path = bandpromo_create_integrations_path($root, $username);
@@ -325,7 +273,7 @@ function bandpromo_create_integrations_load(string $root, string $username): arr
 }
 
 /**
- * @param array{openai_api_key?:string,fal_api_key?:string,openai_model?:string,fal_model?:string} $patch
+ * @param array<string, mixed> $patch
  */
 function bandpromo_create_integrations_save(string $root, string $username, array $patch): bool
 {
@@ -335,18 +283,108 @@ function bandpromo_create_integrations_save(string $root, string $username, arra
     }
 
     $current = bandpromo_create_integrations_load($root, $username);
+    $beforeTier = (string) $current['price_tier'];
+    $beforeLlm = (string) $current['llm_model'];
+    $beforeImage = (string) $current['image_model'];
+    $beforeVideo = (string) $current['video_model'];
+
     if (array_key_exists('openai_api_key', $patch)) {
         $current['openai_api_key'] = trim((string) $patch['openai_api_key']);
     }
     if (array_key_exists('fal_api_key', $patch)) {
         $current['fal_api_key'] = trim((string) $patch['fal_api_key']);
     }
-    if (array_key_exists('openai_model', $patch)) {
-        $current['openai_model'] = bandpromo_create_integrations_normalize_openai_model((string) $patch['openai_model']);
+    if (array_key_exists('price_tier', $patch)) {
+        $current['price_tier'] = bandpromo_create_integrations_normalize_price_tier((string) $patch['price_tier']);
     }
-    if (array_key_exists('fal_model', $patch)) {
-        $current['fal_model'] = bandpromo_create_integrations_normalize_fal_model((string) $patch['fal_model']);
+    $tier = (string) $current['price_tier'];
+    if (array_key_exists('llm_model', $patch)) {
+        $current['llm_model'] = bandpromo_create_integrations_normalize_llm_model((string) $patch['llm_model'], $tier);
+    } elseif (array_key_exists('openai_model', $patch)) {
+        $current['llm_model'] = bandpromo_create_integrations_normalize_llm_model(
+            'openai:' . trim((string) $patch['openai_model']),
+            $tier
+        );
     }
+    if (array_key_exists('image_model', $patch)) {
+        $current['image_model'] = bandpromo_create_integrations_normalize_image_model((string) $patch['image_model'], $tier);
+    } elseif (array_key_exists('fal_model', $patch)) {
+        $current['image_model'] = bandpromo_create_integrations_normalize_image_model((string) $patch['fal_model'], $tier);
+    }
+    if (array_key_exists('video_model', $patch)) {
+        $current['video_model'] = bandpromo_create_integrations_normalize_video_model((string) $patch['video_model'], $tier);
+    }
+    if (array_key_exists('prompt_tested', $patch)) {
+        $current['prompt_tested'] = !empty($patch['prompt_tested']);
+    }
+    if (array_key_exists('image_tested', $patch)) {
+        $current['image_tested'] = !empty($patch['image_tested']);
+    }
+    if (array_key_exists('setup_complete', $patch)) {
+        $current['setup_complete'] = !empty($patch['setup_complete']);
+        if ($current['setup_complete']) {
+            $current['setup_completed_at_utc'] = gmdate('Y-m-d\TH:i:s\Z');
+        } else {
+            $current['setup_completed_at_utc'] = '';
+        }
+    }
+    if (array_key_exists('clear_setup', $patch) && !empty($patch['clear_setup'])) {
+        $current['setup_complete'] = false;
+        $current['prompt_tested'] = false;
+        $current['image_tested'] = false;
+        $current['setup_completed_at_utc'] = '';
+    }
+
+    // Keep selections inside the chosen tier.
+    $llmMeta = bandpromo_create_integrations_llm_model_meta((string) $current['llm_model']);
+    if (!$llmMeta || ($llmMeta['price_tier'] ?? '') !== $tier) {
+        $current['llm_model'] = bandpromo_create_integrations_default_llm_model($tier);
+        $llmMeta = bandpromo_create_integrations_llm_model_meta((string) $current['llm_model']);
+    }
+    $imageMeta = bandpromo_create_integrations_image_model_meta((string) $current['image_model']);
+    if (!$imageMeta || ($imageMeta['price_tier'] ?? '') !== $tier) {
+        $current['image_model'] = bandpromo_create_integrations_default_image_model($tier);
+    }
+    $videoMeta = bandpromo_create_integrations_video_model_meta((string) $current['video_model']);
+    if (!$videoMeta || ($videoMeta['price_tier'] ?? '') !== $tier) {
+        $current['video_model'] = bandpromo_create_integrations_default_video_model($tier);
+    }
+
+    $current['openai_model'] = ($llmMeta && ($llmMeta['route'] ?? '') === 'openai')
+        ? (string) $llmMeta['provider_model']
+        : bandpromo_create_integrations_default_openai_model();
+    $current['fal_model'] = (string) $current['image_model'];
+
+    $prefsChanged = $tier !== $beforeTier
+        || (string) $current['llm_model'] !== $beforeLlm
+        || (string) $current['image_model'] !== $beforeImage
+        || (string) $current['video_model'] !== $beforeVideo;
+    if ($prefsChanged) {
+        if (($tier !== $beforeTier || (string) $current['llm_model'] !== $beforeLlm)
+            && !array_key_exists('prompt_tested', $patch)
+        ) {
+            $current['prompt_tested'] = false;
+        }
+        if (($tier !== $beforeTier
+                || (string) $current['llm_model'] !== $beforeLlm
+                || (string) $current['image_model'] !== $beforeImage)
+            && !array_key_exists('image_tested', $patch)
+        ) {
+            $current['image_tested'] = false;
+        }
+        if (!$current['prompt_tested'] || !$current['image_tested']) {
+            $current['setup_complete'] = false;
+            $current['setup_completed_at_utc'] = '';
+        }
+    }
+
+    if (!empty($current['prompt_tested']) && !empty($current['image_tested'])) {
+        $current['setup_complete'] = true;
+        if (trim((string) $current['setup_completed_at_utc']) === '') {
+            $current['setup_completed_at_utc'] = gmdate('Y-m-d\TH:i:s\Z');
+        }
+    }
+
     $current['updated_at_utc'] = gmdate('Y-m-d\TH:i:s\Z');
 
     return bandpromo_json_write_file($path, $current);
@@ -481,40 +519,75 @@ function bandpromo_create_integrations_resolve_keys(string $root, string $userna
 }
 
 /**
- * @return array{
- *   openai_configured:bool,
- *   fal_configured:bool,
- *   openai_preview:string,
- *   fal_preview:string,
- *   openai_source:string,
- *   fal_source:string,
- *   openai_model:string,
- *   fal_model:string,
- *   openai_models:list<array<string,mixed>>,
- *   fal_models:list<array<string,mixed>>,
- *   updated_at_utc:string
- * }
+ * @return array<string, mixed>
  */
 function bandpromo_create_integrations_status_payload(string $root, string $username): array
 {
     $stored = bandpromo_create_integrations_load($root, $username);
     $resolved = bandpromo_create_integrations_resolve_keys($root, $username);
+    $tier = bandpromo_create_integrations_normalize_price_tier((string) $stored['price_tier']);
+    $llmModel = bandpromo_create_integrations_normalize_llm_model((string) $stored['llm_model'], $tier);
+    $imageModel = bandpromo_create_integrations_normalize_image_model((string) $stored['image_model'], $tier);
+    $videoModel = bandpromo_create_integrations_normalize_video_model((string) $stored['video_model'], $tier);
+    $llmMeta = bandpromo_create_integrations_llm_model_meta($llmModel);
+    $imageMeta = bandpromo_create_integrations_image_model_meta($imageModel);
+    $videoMeta = bandpromo_create_integrations_video_model_meta($videoModel);
+
+    $llmRoute = is_array($llmMeta) ? (string) ($llmMeta['route'] ?? 'fal') : 'fal';
+    $openaiConfigured = $resolved['openai_api_key'] !== '';
+    $falConfigured = $resolved['fal_api_key'] !== '';
+    $promptKeyReady = $llmRoute === 'openai' ? $openaiConfigured : $falConfigured;
 
     return [
-        'openai_configured' => $resolved['openai_api_key'] !== '',
-        'fal_configured' => $resolved['fal_api_key'] !== '',
-        'openai_preview' => $resolved['openai_api_key'] !== ''
+        'openai_configured' => $openaiConfigured,
+        'fal_configured' => $falConfigured,
+        'openai_preview' => $openaiConfigured
             ? bandpromo_create_integrations_mask_key($resolved['openai_api_key'])
             : '',
-        'fal_preview' => $resolved['fal_api_key'] !== ''
+        'fal_preview' => $falConfigured
             ? bandpromo_create_integrations_mask_key($resolved['fal_api_key'])
             : '',
         'openai_source' => $resolved['openai_source'],
         'fal_source' => $resolved['fal_source'],
+        'price_tier' => $tier,
+        'price_tier_label' => bandpromo_create_integrations_price_tier_label($tier),
+        'price_tiers' => [
+            ['id' => 'cheap', 'label' => 'Cheap'],
+            ['id' => 'good', 'label' => 'Good'],
+            ['id' => 'premium', 'label' => 'Premium'],
+        ],
+        'llm_model' => $llmModel,
+        'image_model' => $imageModel,
+        'video_model' => $videoModel,
+        'llm_meta' => $llmMeta,
+        'image_meta' => $imageMeta,
+        'video_meta' => $videoMeta,
+        'llm_route' => $llmRoute,
+        'prompt_key_ready' => $promptKeyReady,
+        'image_key_ready' => $falConfigured,
         'openai_model' => bandpromo_create_integrations_normalize_openai_model((string) $stored['openai_model']),
-        'fal_model' => bandpromo_create_integrations_normalize_fal_model((string) $stored['fal_model']),
+        'fal_model' => $imageModel,
         'openai_models' => bandpromo_create_integrations_openai_models(),
-        'fal_models' => bandpromo_create_integrations_fal_models(),
+        'fal_models' => bandpromo_create_integrations_image_models(),
+        'llm_models' => bandpromo_create_integrations_llm_models(),
+        'image_models' => bandpromo_create_integrations_image_models(),
+        'video_models' => bandpromo_create_integrations_video_models(),
+        'llm_models_for_tier' => bandpromo_create_integrations_models_for_tier(
+            bandpromo_create_integrations_llm_models(),
+            $tier
+        ),
+        'image_models_for_tier' => bandpromo_create_integrations_models_for_tier(
+            bandpromo_create_integrations_image_models(),
+            $tier
+        ),
+        'video_models_for_tier' => bandpromo_create_integrations_models_for_tier(
+            bandpromo_create_integrations_video_models(),
+            $tier
+        ),
+        'setup_complete' => !empty($stored['setup_complete']),
+        'prompt_tested' => !empty($stored['prompt_tested']),
+        'image_tested' => !empty($stored['image_tested']),
+        'setup_completed_at_utc' => (string) $stored['setup_completed_at_utc'],
         'updated_at_utc' => (string) $stored['updated_at_utc'],
     ];
 }
@@ -923,6 +996,163 @@ function bandpromo_create_integrations_openai_artwork_prompt(string $apiKey, str
         'model' => $model,
         'cost' => bandpromo_create_integrations_openai_cost_from_usage($model, $usage),
     ];
+}
+
+/**
+ * Artwork prompt via fal-ai/any-llm.
+ *
+ * @return array{ok:bool,prompt:string,error:string,status:int,model:string,cost?:array<string,mixed>,needs_setup?:bool,help?:string}
+ */
+function bandpromo_create_integrations_fal_artwork_prompt(string $apiKey, string $brandBrief, string $providerModel): array
+{
+    $apiKey = trim($apiKey);
+    $providerModel = trim($providerModel);
+    if ($apiKey === '') {
+        return [
+            'ok' => false,
+            'prompt' => '',
+            'error' => 'fal.ai API key is missing.',
+            'status' => 0,
+            'model' => $providerModel,
+            'needs_setup' => true,
+            'help' => 'Add a fal.ai API key under Create → Connect (or set FAL_KEY in the install .env).',
+        ];
+    }
+
+    $system = 'You write concise image-generation prompts for music promotional artwork. '
+        . 'Reply with one plain prompt only — no markdown, no quotes, no preamble. '
+        . 'UK English spelling is fine. Keep it under 1000 characters. '
+        . 'Describe a square promotional still that fits the brand brief. '
+        . 'When a brand logo reference is available, say the logo should appear prominently and stay recognisable. '
+        . 'Do not ask for large blocks of readable text, slogans, paragraphs, or words copied from this brief. '
+        . 'If any lettering appears at all, keep it to a short title or artist name at most — otherwise prefer no text in the image. '
+        . 'Describe mood, colour, composition, and lighting instead of writing copy to render.';
+    $user = "Write an artwork prompt for this base brand:\n\n" . $brandBrief;
+
+    $response = bandpromo_create_integrations_http_json(
+        'POST',
+        'https://fal.run/fal-ai/any-llm',
+        [
+            'Authorization' => 'Key ' . $apiKey,
+            'Content-Type' => 'application/json',
+            'Accept' => 'application/json',
+        ],
+        [
+            'model' => $providerModel,
+            'system_prompt' => $system,
+            'prompt' => $user,
+            'max_tokens' => 400,
+            'priority' => 'latency',
+        ],
+        60
+    );
+
+    $decoded = json_decode($response['body'], true);
+    if (!$response['ok']) {
+        $message = '';
+        if (is_array($decoded)) {
+            $message = trim((string) ($decoded['error'] ?? $decoded['detail'] ?? $decoded['message'] ?? ''));
+        }
+        if ($message === '') {
+            $message = $response['error'] !== '' ? $response['error'] : 'fal LLM request failed.';
+        }
+        $needsSetup = in_array($response['status'], [401, 403], true);
+
+        return [
+            'ok' => false,
+            'prompt' => '',
+            'error' => $message,
+            'status' => $response['status'],
+            'model' => $providerModel,
+            'needs_setup' => $needsSetup,
+            'help' => $needsSetup
+                ? 'Check the fal.ai key under Create → Connect. Create or rotate keys at https://fal.ai/dashboard/keys'
+                : '',
+        ];
+    }
+
+    $prompt = '';
+    if (is_array($decoded)) {
+        $prompt = trim((string) ($decoded['output'] ?? ''));
+    }
+    $prompt = trim($prompt, " \t\n\r\0\x0B\"'");
+    if ($prompt === '') {
+        return [
+            'ok' => false,
+            'prompt' => '',
+            'error' => 'fal LLM returned an empty prompt.',
+            'status' => $response['status'],
+            'model' => $providerModel,
+        ];
+    }
+
+    $meta = null;
+    foreach (bandpromo_create_integrations_llm_models() as $row) {
+        if (($row['route'] ?? '') === 'fal' && ($row['provider_model'] ?? '') === $providerModel) {
+            $meta = $row;
+            break;
+        }
+    }
+    $hint = is_array($meta) ? (string) ($meta['price_hint'] ?? '') : 'fal any-llm';
+
+    return [
+        'ok' => true,
+        'prompt' => $prompt,
+        'error' => '',
+        'status' => $response['status'],
+        'model' => $providerModel,
+        'cost' => [
+            'prompt_tokens' => 0,
+            'completion_tokens' => 0,
+            'total_tokens' => 0,
+            'estimate_usd' => 0.0,
+            'estimate_label' => $hint,
+        ],
+    ];
+}
+
+/**
+ * Route artwork prompt to OpenAI or fal any-llm from a unified llm_model id.
+ *
+ * @return array{ok:bool,prompt:string,error:string,status:int,model:string,route:string,cost?:array<string,mixed>,needs_setup?:bool,help?:string}
+ */
+function bandpromo_create_integrations_artwork_prompt(
+    string $root,
+    string $username,
+    string $brandBrief,
+    string $llmModel = ''
+): array {
+    $resolved = bandpromo_create_integrations_resolve_keys($root, $username);
+    $prefs = bandpromo_create_integrations_load($root, $username);
+    $llmModel = bandpromo_create_integrations_normalize_llm_model(
+        $llmModel !== '' ? $llmModel : (string) $prefs['llm_model'],
+        (string) $prefs['price_tier']
+    );
+    $meta = bandpromo_create_integrations_llm_model_meta($llmModel);
+    $route = is_array($meta) ? (string) ($meta['route'] ?? 'fal') : 'fal';
+    $providerModel = is_array($meta) ? (string) ($meta['provider_model'] ?? '') : '';
+
+    if ($route === 'openai') {
+        $result = bandpromo_create_integrations_openai_artwork_prompt(
+            $resolved['openai_api_key'],
+            $brandBrief,
+            $providerModel
+        );
+        $result['route'] = 'openai';
+        $result['llm_model'] = $llmModel;
+
+        return $result;
+    }
+
+    $result = bandpromo_create_integrations_fal_artwork_prompt(
+        $resolved['fal_api_key'],
+        $brandBrief,
+        $providerModel
+    );
+    $result['route'] = 'fal';
+    $result['llm_model'] = $llmModel;
+
+    return $result;
 }
 
 /**

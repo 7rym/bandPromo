@@ -73,25 +73,74 @@ if (array_key_exists('fal_api_key', $payload)) {
     }
 }
 
-if (array_key_exists('openai_model', $payload)) {
-    $next = bandpromo_create_integrations_normalize_openai_model((string) $payload['openai_model']);
-    if ($next !== (string) ($current['openai_model'] ?? '')) {
-        $patch['openai_model'] = $next;
-        $changed[] = 'openai_model';
+if (!empty($payload['clear_setup'])) {
+    $patch['clear_setup'] = true;
+    $changed[] = 'setup_cleared';
+}
+
+if (array_key_exists('price_tier', $payload)) {
+    $next = bandpromo_create_integrations_normalize_price_tier((string) $payload['price_tier']);
+    if ($next !== (string) ($current['price_tier'] ?? '')) {
+        $patch['price_tier'] = $next;
+        $changed[] = 'price_tier';
     }
 }
 
-if (array_key_exists('fal_model', $payload)) {
-    $next = bandpromo_create_integrations_normalize_fal_model((string) $payload['fal_model']);
-    if ($next !== (string) ($current['fal_model'] ?? '')) {
-        $patch['fal_model'] = $next;
-        $changed[] = 'fal_model';
+$tierForModels = array_key_exists('price_tier', $patch)
+    ? (string) $patch['price_tier']
+    : (string) ($current['price_tier'] ?? 'cheap');
+
+if (array_key_exists('llm_model', $payload)) {
+    $next = bandpromo_create_integrations_normalize_llm_model((string) $payload['llm_model'], $tierForModels);
+    if ($next !== (string) ($current['llm_model'] ?? '')) {
+        $patch['llm_model'] = $next;
+        $changed[] = 'llm_model';
+    }
+} elseif (array_key_exists('openai_model', $payload)) {
+    $next = bandpromo_create_integrations_normalize_llm_model(
+        'openai:' . trim((string) $payload['openai_model']),
+        $tierForModels
+    );
+    if ($next !== (string) ($current['llm_model'] ?? '')) {
+        $patch['llm_model'] = $next;
+        $changed[] = 'llm_model';
+    }
+}
+
+if (array_key_exists('image_model', $payload)) {
+    $next = bandpromo_create_integrations_normalize_image_model((string) $payload['image_model'], $tierForModels);
+    if ($next !== (string) ($current['image_model'] ?? '')) {
+        $patch['image_model'] = $next;
+        $changed[] = 'image_model';
+    }
+} elseif (array_key_exists('fal_model', $payload)) {
+    $next = bandpromo_create_integrations_normalize_image_model((string) $payload['fal_model'], $tierForModels);
+    if ($next !== (string) ($current['image_model'] ?? '')) {
+        $patch['image_model'] = $next;
+        $changed[] = 'image_model';
+    }
+}
+
+if (array_key_exists('video_model', $payload)) {
+    $next = bandpromo_create_integrations_normalize_video_model((string) $payload['video_model'], $tierForModels);
+    if ($next !== (string) ($current['video_model'] ?? '')) {
+        $patch['video_model'] = $next;
+        $changed[] = 'video_model';
+    }
+}
+
+$prefKeys = ['price_tier', 'llm_model', 'image_model', 'video_model', 'openai_model', 'fal_model', 'clear_setup'];
+$hadPrefIntent = false;
+foreach ($prefKeys as $key) {
+    if (array_key_exists($key, $payload) || ($key === 'clear_setup' && !empty($payload['clear_setup']))) {
+        $hadPrefIntent = true;
+        break;
     }
 }
 
 if ($patch === []) {
-    // Model picker may re-save the current choice; treat that as success.
-    if (array_key_exists('openai_model', $payload) || array_key_exists('fal_model', $payload)) {
+    // Model / tier picker may re-save the current choice; treat that as success.
+    if ($hadPrefIntent) {
         $status = bandpromo_create_integrations_status_payload($root, $username);
         echo json_encode([
             'ok' => true,
@@ -102,7 +151,7 @@ if ($patch === []) {
     http_response_code(400);
     echo json_encode([
         'ok' => false,
-        'error' => 'Nothing to save. Paste a new key, pick a model, or use Clear for a service.',
+        'error' => 'Nothing to save. Paste a new key, pick a preference, or use Clear for a service.',
     ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
     exit;
 }

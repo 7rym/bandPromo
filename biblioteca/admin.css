@@ -3310,6 +3310,76 @@ canvas { max-width: 100%; height: auto; }
     max-width: 52rem;
 }
 
+.create-start-configured,
+.create-start-setup {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.create-start-configured[hidden],
+.create-start-setup[hidden],
+.create-start-manual[hidden],
+.create-start-wizard[hidden] {
+    display: none !important;
+}
+
+.create-setup-mode {
+    margin: 0 0 4px;
+}
+
+.create-wizard-placeholder {
+    margin: 0;
+    padding: 8px;
+    font-size: 13px;
+    line-height: 1.45;
+    max-width: 40rem;
+}
+
+.create-prefs-summary {
+    margin: 0;
+    max-width: 40rem;
+}
+
+.create-prefs-summary-title {
+    margin: 0 0 8px;
+    font-size: 16px;
+    font-weight: 700;
+}
+
+.create-prefs-summary-list {
+    margin: 0 0 8px;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.create-prefs-summary-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 8px;
+    margin: 0;
+}
+
+.create-prefs-summary-row dt {
+    margin: 0;
+    flex: 0 0 auto;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text);
+}
+
+.create-prefs-summary-row dd {
+    margin: 0;
+    flex: 1 1 12rem;
+    min-width: 0;
+    font-size: 13px;
+    line-height: 1.35;
+    color: var(--muted, #999);
+}
+
 .create-workflow-panels {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr));

@@ -2,6 +2,8 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-11-06 14:05 - Publish Create → Start preferences: Cheap|Good|Premium LLM/image/video catalogs (OpenAI + fal any-llm; media must take reference images); register passed text+image tests and show summary + Reconfigure; wizard placeholder only.
+2026-11-06 14:04 - Create → Start: after text + image tests pass, show saved preferences with Reconfigure; manual Cheap|Good|Premium pickers for LLM (OpenAI + fal any-llm), image, and video (reference-capable only); wizard mode is a placeholder for now.
 2026-11-06 13:32 - Publish Create → Start image prompt: tell OpenAI to avoid filling the still with readable prompt/brief text (short title only, or no lettering).
 2026-11-06 13:26 - Handoff: Create 1000-character image prompts published as **v0.8.101 build 621**.
 2026-11-06 13:25 - Publish Create → Start image prompt: raise OpenAI reply limit from ~80 words to 1000 characters (completion budget 400 tokens).
