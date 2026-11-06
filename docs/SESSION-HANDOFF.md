@@ -10,7 +10,7 @@
 
 **Closed:** **v0.8.101 build 619** published — Create OpenAI prompt models are GPT-6 Luna (default), Sol, Astra.
 
-**Active now:** Operator smoke Create model pickers (Luna/Sol/Astra + fal vendor edits) with keys + base brand logo; Create tool UIs later.
+**Active now:** Publishing Create image-prompt 1000-character limit.
 
 **Last published:** **v0.8.101 build 619**. Prior: **617** fal vendor edits; **615** logo on Nano Banana 2.
 

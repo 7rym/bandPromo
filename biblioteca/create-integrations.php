@@ -836,7 +836,7 @@ function bandpromo_create_integrations_openai_artwork_prompt(string $apiKey, str
 
     $system = 'You write concise image-generation prompts for music promotional artwork. '
         . 'Reply with one plain prompt only — no markdown, no quotes, no preamble. '
-        . 'UK English spelling is fine. Keep it under 80 words. '
+        . 'UK English spelling is fine. Keep it under 1000 characters. '
         . 'Describe a square promotional still that fits the brand brief. '
         . 'When a brand logo reference is available, say the logo should appear prominently and stay recognisable.';
     $user = "Write an artwork prompt for this base brand:\n\n" . $brandBrief;
@@ -849,11 +849,12 @@ function bandpromo_create_integrations_openai_artwork_prompt(string $apiKey, str
         ],
     ];
     // gpt-4o* still uses max_tokens + temperature; newer chat models prefer max_completion_tokens.
+    // ~1000 characters needs headroom beyond a short reply (~400 completion tokens).
     if (strpos($model, 'gpt-4o') === 0) {
         $body['temperature'] = 0.8;
-        $body['max_tokens'] = 180;
+        $body['max_tokens'] = 400;
     } else {
-        $body['max_completion_tokens'] = 180;
+        $body['max_completion_tokens'] = 400;
     }
 
     $response = bandpromo_create_integrations_http_json(
