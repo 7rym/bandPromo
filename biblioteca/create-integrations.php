@@ -838,7 +838,10 @@ function bandpromo_create_integrations_openai_artwork_prompt(string $apiKey, str
         . 'Reply with one plain prompt only — no markdown, no quotes, no preamble. '
         . 'UK English spelling is fine. Keep it under 1000 characters. '
         . 'Describe a square promotional still that fits the brand brief. '
-        . 'When a brand logo reference is available, say the logo should appear prominently and stay recognisable.';
+        . 'When a brand logo reference is available, say the logo should appear prominently and stay recognisable. '
+        . 'Do not ask for large blocks of readable text, slogans, paragraphs, or words copied from this brief. '
+        . 'If any lettering appears at all, keep it to a short title or artist name at most — otherwise prefer no text in the image. '
+        . 'Describe mood, colour, composition, and lighting instead of writing copy to render.';
     $user = "Write an artwork prompt for this base brand:\n\n" . $brandBrief;
 
     $body = [

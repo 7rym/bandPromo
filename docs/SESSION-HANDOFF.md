@@ -12,9 +12,11 @@
 
 **Closed:** **v0.8.101 build 621** published — Create image prompt limit raised to 1000 characters.
 
-**Active now:** Operator smoke Create prompt/image tests; Create tool UIs later.
+**Closed:** **v0.8.101 build 623** published — Create image prompts avoid filling stills with readable brief/prompt text.
 
-**Last published:** **v0.8.101 build 621**. Prior: **619** Luna/Sol/Astra; **617** fal vendor edits.
+**Active now:** Operator smoke Create prompt/image tests (less lettering); Create tool UIs later.
+
+**Last published:** **v0.8.101 build 623**. Prior: **621** 1000-char prompts; **619** Luna/Sol/Astra.
 
 **Parked / later:**
 - Create tool sub-tabs (blurb writer, artwork studio, living artwork) beyond Start + connection proof.
@@ -25,7 +27,7 @@
 
 **Operator rule (this session):** Do **not** delete, prune, janitor-Apply, or discard any runtime files (`data/`, `media/`, `log/`, `backups/`, Ready archives, leftover `original/`) unless this user names the exact paths in the same message.
 
-**Next:** After publish, operator smoke Create → Connect → pick models (or keep cheapest defaults) → prompt + image tests with a base brand logo. Living-art / blurb tool UIs stay later.
+**Next:** Operator smoke Create prompt → image with base brand logo; confirm stills are not filled with prompt text. Living-art / blurb tool UIs stay later.
 
 ### Policy locked (do not reopen)
 
@@ -61,6 +63,7 @@
 - Product resolve never falls back to archival `original/` or legacy `img`/`photo`/`video`/`special` when the master is missing (fail loud / empty)
 - Never invent `original_filename` from `master_filename` on register/normalize/Treat
 - VERSION **session** number bumps only when the operator explicitly starts a session (`session-start.ps1 -BumpSession` / `/bandpromo-session-start`); agent resume must not bump
+- Handoff Closed / Last published / Next must be written **into the same publish build** — never a follow-up `session-end` only to refresh `SESSION-HANDOFF.md` after `-Push -Publish`
 - PCF/PBF import auto-starts Site health Treat (delivery-focused selection; no silent dedupe delete / Ready-archive prune); Jobs show **Open Status**
 - User shell isolated from admin chrome; Brand not Theme; casing by layer (`.cursor/rules/identifier-casing.mdc`)
 - Branding preview waits until Player + Content public surfaces are correct

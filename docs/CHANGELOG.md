@@ -2,6 +2,7 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-11-06 13:32 - Publish Create → Start image prompt: tell OpenAI to avoid filling the still with readable prompt/brief text (short title only, or no lettering).
 2026-11-06 13:26 - Handoff: Create 1000-character image prompts published as **v0.8.101 build 621**.
 2026-11-06 13:25 - Publish Create → Start image prompt: raise OpenAI reply limit from ~80 words to 1000 characters (completion budget 400 tokens).
 2026-11-05 20:32 - Handoff: Create OpenAI Luna/Sol/Astra published as **v0.8.101 build 619**.
