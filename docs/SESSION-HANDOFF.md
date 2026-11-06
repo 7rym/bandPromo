@@ -10,9 +10,11 @@
 
 **Closed:** **v0.8.101 build 619** published — Create OpenAI prompt models are GPT-6 Luna (default), Sol, Astra.
 
-**Active now:** Publishing Create image-prompt 1000-character limit.
+**Closed:** **v0.8.101 build 621** published — Create image prompt limit raised to 1000 characters.
 
-**Last published:** **v0.8.101 build 619**. Prior: **617** fal vendor edits; **615** logo on Nano Banana 2.
+**Active now:** Operator smoke Create prompt/image tests; Create tool UIs later.
+
+**Last published:** **v0.8.101 build 621**. Prior: **619** Luna/Sol/Astra; **617** fal vendor edits.
 
 **Parked / later:**
 - Create tool sub-tabs (blurb writer, artwork studio, living artwork) beyond Start + connection proof.
