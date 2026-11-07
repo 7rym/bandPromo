@@ -16,12 +16,14 @@
 
 **Closed:** **v0.8.101 build 624** published — Create Start prefs: Cheap|Good|Premium LLM/image/video (fal any-llm + OpenAI), register passed tests, configured summary + Reconfigure; wizard placeholder.
 
-**Active now:** Operator smoke Create Start manual prefs + text/image tests; Create tool UIs later.
+**Closed (local):** Create Start restored as connection proof only (quiet ready + Reconfigure); Preferences subtab with per-panel Cheap|Good|Premium + test/Result + Save; localhost SSL CA bundle for AVG; Preferences UI polish.
+
+**Active now:** Local checkpoint of Create Start/Preferences split — not published yet.
 
 **Last published:** **v0.8.101 build 624**. Prior: **623** less lettering; **621** 1000-char prompts; **619** Luna/Sol/Astra.
 
 **Parked / later:**
-- Create setup wizard (guided prefs) beyond the Manual placeholder.
+- Create setup wizard (guided prefs) if still wanted later.
 - Create tool sub-tabs (blurb writer, artwork studio, living artwork) beyond Start + connection proof.
 - Files pool / living-cover picker latency (undercount disk probe + full Visual list for video-only pick).
 - Lyrics: density|size Branding control; timed cues / `.srt` / bidirectional anchors.
@@ -30,7 +32,7 @@
 
 **Operator rule (this session):** Do **not** delete, prune, janitor-Apply, or discard any runtime files (`data/`, `media/`, `log/`, `backups/`, Ready archives, leftover `original/`) unless this user names the exact paths in the same message.
 
-**Next:** Operator smoke Create → Start: pick price range + models, pass text then image tests, confirm configured summary / Reconfigure. Living-art / blurb tool UIs and wizard stay later.
+**Next:** Publish Create Start/Preferences when ready (`-Push -Publish`). Living-art / blurb tool UIs stay later.
 
 ### Policy locked (do not reopen)
 
@@ -76,7 +78,7 @@
 - Large audio upload final chunk: return after assemble + spawn finalize worker only (do not sync master move / tags / scan / delivery on the upload request — HITZ proxy 504)
 - Player load-failure **Operator:** hints are admin/developer only (`BANDPROMO_IS_OPERATOR`); public listeners get title + soft detail only
 - Visual master embed: non-ASCII titles via UTF-8 ffmetadata (never `-metadata title=…` argv on ASCII hosts); video tag work dir beside master + EXDEV-safe replace
-- Create tab is **developer-only** until helper tools ship; AI keys + preferred models are per signed-in developer; Create Start uses Cheap|Good|Premium catalogs (LLM via OpenAI or fal any-llm; image/video reference-capable only); defaults cheap (`fal:google/gemini-2.5-flash-lite` / `fal-ai/gpt-image-1.5/edit` / PixVerse I2V); passed text+image tests → configured summary + Reconfigure; wizard placeholder only; brand logo required for image tests
+- Create tab is **developer-only** until helper tools ship; AI keys + prefs are per signed-in developer; **Start** = connection proof only (hide after pass until Reconfigure, Dashboard-style); **Preferences** = separate LLM/Image/Video panels with per-panel Cheap|Good|Premium + test/Result + Save; media models must take reference images; brand logo required for image/video tests; localhost HTTPS may need `%USERPROFILE%\.bandpromo\php-ca-bundle.pem` when antivirus MITMs TLS
 
 ### Local workspace
 

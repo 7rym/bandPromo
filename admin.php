@@ -597,7 +597,7 @@ $activePageIsLoginOnly = ($activeContentPage['surface'] ?? '') === 'login';
 
 // Create sub-tab
 $createTab = $_GET['crtab'] ?? 'start';
-if (!in_array($createTab, ['start'], true)) {
+if (!in_array($createTab, ['start', 'preferences'], true)) {
     $createTab = 'start';
 }
 
@@ -2738,6 +2738,7 @@ if ($tab === 'analytics') {
                 <?php
                 $createTabs = [
                     'start' => ['✨', 'Start'],
+                    'preferences' => ['⚙️', 'Preferences'],
                 ];
                 foreach ($createTabs as $ct => [$emoji, $label]):
                     $active = $ct === $createTab ? 'active' : '';
@@ -2752,22 +2753,32 @@ if ($tab === 'analytics') {
             <div class="admin-help-box collapsed" id="help-create">
                 <?php if ($createTab === 'start'): ?>
                     <ul>
-                        <li>Create is where creative helper tools will live. Follow <strong>Connect → Test of openAI for text → Test of fal.ai for images</strong> to prove both services with your own keys.</li>
-                        <li><strong>Writing help</strong> drafts blurbs from catalogue details; <strong>Artwork help</strong> invents stills from lyrics, logos, photos, and brand colours; <strong>Living artwork</strong> (later) turns a still into a short moving clip.</li>
-                        <li>Create is developer-only while it is a connection proof. Keys stay with your signed-in developer account on this install. They are not shared between accounts and are not exported in campaign or brand packages.</li>
-                        <li><strong>Create image prompt</strong> asks OpenAI for a short artwork prompt from your base brand. <strong>Create image from prompt</strong> asks fal to edit/paint a still using your base brand logo as a reference. Image models are the cheapest reference-capable pick from OpenAI, Meta, Flux, Grok, Alibaba (Qwen), ByteDance, and Google — all via fal.ai. Defaults are the cheapest option on each panel.</li>
+                        <li>Start proves your AI keys once: <strong>Connect → Test of openAI for text → Test of fal.ai for images</strong>.</li>
+                        <li>When both tests pass, Start stays quiet (like Dashboard after setup) until you choose <strong>Reconfigure</strong>.</li>
+                        <li>Pick ongoing text, image, and video models under <strong>Create → Preferences</strong>. Keys and preferences stay with your signed-in developer account on this install.</li>
+                    </ul>
+                <?php elseif ($createTab === 'preferences'): ?>
+                    <ul>
+                        <li>Each panel has its own <strong>Cheap | Good | Premium</strong> range, then a list of models in that range.</li>
+                        <li>Image and video models must accept a brand logo reference. Test each panel, then <strong>Save preferences</strong> for your account.</li>
+                        <li>These choices do not change Start’s connection-proof state. Add or rotate keys under Start if a test asks for them.</li>
                     </ul>
                 <?php endif; ?>
             </div>
 
             <?php
+            $createCrumbViews = [
+                'start' => 'Start',
+                'preferences' => 'Preferences',
+            ];
+            $createCrumbCurrent = $createCrumbViews[$createTab] ?? 'Start';
             bandpromo_admin_render_content_breadcrumb([
                 'id_prefix' => 'createPage',
                 'aria_label' => 'Create location',
                 'path' => bandpromo_admin_breadcrumb_preset_page(
                     '✨ Create',
                     '?tab=create&crtab=' . rawurlencode((string) $createTab),
-                    'Start'
+                    $createCrumbCurrent
                 ),
             ]);
             ?>
@@ -2775,178 +2786,208 @@ if ($tab === 'analytics') {
             <?php if ($tab === 'create' && $createTab === 'start'): ?>
             <div class="create-start-shell" id="createStartShell">
                 <section class="create-start-configured" id="createStartConfigured" hidden>
-                    <p class="create-start-lead">
-                        Create helpers are ready for your account. Catalogue and player keep working without them.
-                    </p>
-                    <div class="create-prefs-summary card" id="createPrefsSummary">
-                        <h3 class="create-prefs-summary-title">Your preferences</h3>
-                        <dl class="create-prefs-summary-list">
-                            <div class="create-prefs-summary-row">
-                                <dt>Price range:</dt>
-                                <dd id="createSummaryTier">—</dd>
-                            </div>
-                            <div class="create-prefs-summary-row">
-                                <dt>Text (LLM):</dt>
-                                <dd id="createSummaryLlm">—</dd>
-                            </div>
-                            <div class="create-prefs-summary-row">
-                                <dt>Image:</dt>
-                                <dd id="createSummaryImage">—</dd>
-                            </div>
-                            <div class="create-prefs-summary-row">
-                                <dt>Video:</dt>
-                                <dd id="createSummaryVideo">—</dd>
-                            </div>
-                            <div class="create-prefs-summary-row">
-                                <dt>OpenAI key:</dt>
-                                <dd id="createSummaryOpenAi">—</dd>
-                            </div>
-                            <div class="create-prefs-summary-row">
-                                <dt>fal.ai key:</dt>
-                                <dd id="createSummaryFal">—</dd>
-                            </div>
-                            <div class="create-prefs-summary-row">
-                                <dt>Tests:</dt>
-                                <dd id="createSummaryTests">—</dd>
-                            </div>
-                        </dl>
+                    <div class="card create-start-ready-card">
+                        <h3 class="create-start-ready-title">Connections ready</h3>
+                        <p class="card-note">
+                            Your OpenAI and fal.ai connection tests passed for this account. Catalogue and player keep working without Create helpers. Choose models under <a href="?tab=create&amp;crtab=preferences">Preferences</a>, or reconfigure keys and re-run the proof here.
+                        </p>
                         <div class="card-actions">
-                            <button type="button" class="btn btn-good" id="createReconfigureBtn">Reconfigure</button>
+                            <button type="button" class="btn btn-available" id="createReconfigureBtn">Reconfigure</button>
+                            <a class="btn btn-good" href="?tab=create&amp;crtab=preferences">Open Preferences</a>
                         </div>
                     </div>
                 </section>
 
                 <section class="create-start-setup" id="createStartSetup">
                     <p class="create-start-lead">
-                        Optional AI helpers for blurbs and artwork. Save your keys, pick a price range and models, then prove text and image work — your catalogue and player keep working without this.
+                        Optional AI helpers for blurbs and artwork. Connect your keys, ask OpenAI for an image prompt from your base brand, then ask fal to paint a still — your catalogue and player keep working without this.
                     </p>
 
-                    <div class="create-setup-mode create-model-field create-model-field--inline" id="createSetupModeField">
-                        <span class="create-model-label">Setup:</span>
-                        <div class="brand-player-setting-toggle create-model-toggle" id="createSetupModeToggle" role="group" aria-label="Setup mode">
-                            <label class="brand-player-setting-option">
-                                <input type="radio" name="createSetupMode" value="manual" checked>
-                                <span>Manual</span>
-                            </label>
-                            <label class="brand-player-setting-option">
-                                <input type="radio" name="createSetupMode" value="wizard">
-                                <span>Wizard</span>
-                            </label>
-                        </div>
-                    </div>
+                    <div class="create-workflow-panels" id="createWorkflowPanels">
+                        <section class="create-workflow-panel is-current" id="createConnectCard" data-step="connect" aria-labelledby="createConnectTitle">
+                            <h3 id="createConnectTitle" class="create-workflow-panel-title">
+                                <span class="create-workflow-panel-mark" aria-hidden="true">1</span>
+                                <span class="create-workflow-panel-label">Connect</span>
+                            </h3>
+                            <p class="card-note">
+                                Paste your own
+                                <a href="https://platform.openai.com/api-keys" target="_blank" rel="noopener noreferrer">OpenAI</a>
+                                and
+                                <a href="https://fal.ai/dashboard/keys" target="_blank" rel="noopener noreferrer">fal.ai</a>
+                                keys. OpenAI unlocks the prompt step; fal unlocks the image step.
+                            </p>
+                            <div id="createKeysEmptyHelp" class="message warning create-keys-empty-help" hidden>
+                                No API keys recorded yet. Add keys below, then Save.
+                                <?php if ($currentUserRole === 'developer'): ?>
+                                <span class="create-keys-empty-help-dev">Developer: optional install fallbacks <code>OPENAI_API_KEY</code> / <code>FAL_KEY</code> in <code>.env</code> also count.</span>
+                                <?php endif; ?>
+                            </div>
+                            <div class="create-keys-grid">
+                                <div class="form-group create-key-field">
+                                    <label for="createOpenAiKey">OpenAI API key:</label>
+                                    <input type="text" id="createOpenAiKey" name="create_openai_api_key" class="create-key-input" autocomplete="off" spellcheck="false" placeholder="Paste key to set or replace">
+                                </div>
+                                <div class="form-group create-key-field">
+                                    <label for="createFalKey">fal.ai API key:</label>
+                                    <input type="text" id="createFalKey" name="create_fal_api_key" class="create-key-input" autocomplete="off" spellcheck="false" placeholder="Paste key to set or replace">
+                                </div>
+                            </div>
+                            <div class="card-actions create-connect-actions">
+                                <button type="button" class="btn btn-good" id="createKeysSaveBtn">Save keys</button>
+                                <button type="button" class="btn btn-available" id="createOpenAiClearBtn">Clear OpenAI</button>
+                                <button type="button" class="btn btn-available" id="createFalClearBtn">Clear fal</button>
+                                <span id="createKeysStatus" class="status-text" aria-live="polite"></span>
+                            </div>
+                        </section>
 
-                    <div class="create-start-wizard" id="createStartWizard" hidden>
-                        <div class="message warning create-wizard-placeholder">
-                            Guided setup wizard is coming soon. Use Manual for now to pick a price range and models, then run the prompt and image tests.
-                        </div>
-                    </div>
+                        <section class="create-workflow-panel is-disabled" id="createTestCard" data-step="prompt" aria-labelledby="createTestTitle">
+                            <h3 id="createTestTitle" class="create-workflow-panel-title">
+                                <span class="create-workflow-panel-mark" aria-hidden="true">2</span>
+                                <span class="create-workflow-panel-label">Test of openAI for text</span>
+                            </h3>
+                            <p class="create-workflow-panel-locked" id="createTestLockedNote">Save an OpenAI key in Connect to unlock this step.</p>
+                            <div class="create-model-field create-model-field--inline" id="createOpenAiModelField">
+                                <span class="create-model-label">Model:</span>
+                                <div class="brand-player-setting-toggle create-model-toggle" id="createOpenAiModelToggle" role="group" aria-label="OpenAI model"></div>
+                            </div>
+                            <p class="hint create-model-price" id="createOpenAiModelPrice"></p>
+                            <div class="card-actions create-test-actions">
+                                <button type="button" class="btn btn-good" id="createPromptBtn" disabled>Create image prompt</button>
+                                <span id="createPromptStatus" class="status-text" aria-live="polite"></span>
+                            </div>
+                            <div id="createPromptResult" class="create-test-result" hidden>
+                                <p class="hint" id="createTestBrandMeta"></p>
+                                <pre class="create-test-prompt" id="createTestPrompt"></pre>
+                                <p class="hint" id="createTestOpenAiCost" hidden></p>
+                                <p class="status-text is-error" id="createTestOpenAiError" hidden></p>
+                            </div>
+                        </section>
 
-                    <div class="create-start-manual" id="createStartManual">
-                        <div class="create-workflow-panels" id="createWorkflowPanels">
-                            <section class="create-workflow-panel is-current" id="createConnectCard" data-step="connect" aria-labelledby="createConnectTitle">
-                                <h3 id="createConnectTitle" class="create-workflow-panel-title">
-                                    <span class="create-workflow-panel-mark" aria-hidden="true">1</span>
-                                    <span class="create-workflow-panel-label">Connect</span>
-                                </h3>
-                                <p class="card-note">
-                                    Paste your own
-                                    <a href="https://platform.openai.com/api-keys" target="_blank" rel="noopener noreferrer">OpenAI</a>
-                                    and
-                                    <a href="https://fal.ai/dashboard/keys" target="_blank" rel="noopener noreferrer">fal.ai</a>
-                                    keys. OpenAI is only needed for OpenAI text models; fal covers other text models plus image and video.
-                                </p>
-                                <div id="createKeysEmptyHelp" class="message warning create-keys-empty-help" hidden>
-                                    No API keys recorded yet. Add keys below, then Save.
-                                    <?php if ($currentUserRole === 'developer'): ?>
-                                    <span class="create-keys-empty-help-dev">Developer: optional install fallbacks <code>OPENAI_API_KEY</code> / <code>FAL_KEY</code> in <code>.env</code> also count.</span>
-                                    <?php endif; ?>
-                                </div>
-                                <div class="create-keys-grid">
-                                    <div class="form-group create-key-field">
-                                        <label for="createOpenAiKey">OpenAI API key:</label>
-                                        <input type="text" id="createOpenAiKey" name="create_openai_api_key" class="create-key-input" autocomplete="off" spellcheck="false" placeholder="Paste key to set or replace">
-                                    </div>
-                                    <div class="form-group create-key-field">
-                                        <label for="createFalKey">fal.ai API key:</label>
-                                        <input type="text" id="createFalKey" name="create_fal_api_key" class="create-key-input" autocomplete="off" spellcheck="false" placeholder="Paste key to set or replace">
-                                    </div>
-                                </div>
-                                <div class="card-actions create-connect-actions">
-                                    <button type="button" class="btn btn-good" id="createKeysSaveBtn">Save keys</button>
-                                    <button type="button" class="btn btn-available" id="createOpenAiClearBtn">Clear OpenAI</button>
-                                    <button type="button" class="btn btn-available" id="createFalClearBtn">Clear fal</button>
-                                    <span id="createKeysStatus" class="status-text" aria-live="polite"></span>
-                                </div>
-                            </section>
-
-                            <section class="create-workflow-panel" id="createPrefsCard" data-step="prefs" aria-labelledby="createPrefsTitle">
-                                <h3 id="createPrefsTitle" class="create-workflow-panel-title">
-                                    <span class="create-workflow-panel-mark" aria-hidden="true">2</span>
-                                    <span class="create-workflow-panel-label">Preferences</span>
-                                </h3>
-                                <p class="card-note">
-                                    Choose a price range, then pick text, image, and video models from that range. Image and video models all accept a brand logo reference.
-                                </p>
-                                <div class="create-model-field create-model-field--inline">
-                                    <span class="create-model-label">Price range:</span>
-                                    <div class="brand-player-setting-toggle create-model-toggle" id="createPriceTierToggle" role="group" aria-label="Price range"></div>
-                                </div>
-                                <div class="create-model-field create-model-field--inline">
-                                    <label class="create-model-label" for="createLlmModelSelect">Text (LLM):</label>
-                                    <select id="createLlmModelSelect" class="create-model-select" aria-label="Text model"></select>
-                                </div>
-                                <p class="hint create-model-price" id="createLlmModelPrice"></p>
-                                <div class="create-model-field create-model-field--inline">
-                                    <label class="create-model-label" for="createImageModelSelect">Image:</label>
-                                    <select id="createImageModelSelect" class="create-model-select" aria-label="Image model"></select>
-                                </div>
-                                <p class="hint create-model-price" id="createImageModelPrice"></p>
-                                <div class="create-model-field create-model-field--inline">
-                                    <label class="create-model-label" for="createVideoModelSelect">Video:</label>
-                                    <select id="createVideoModelSelect" class="create-model-select" aria-label="Video model"></select>
-                                </div>
-                                <p class="hint create-model-price" id="createVideoModelPrice"></p>
-                            </section>
-
-                            <section class="create-workflow-panel is-disabled" id="createTestCard" data-step="prompt" aria-labelledby="createTestTitle">
-                                <h3 id="createTestTitle" class="create-workflow-panel-title">
-                                    <span class="create-workflow-panel-mark" aria-hidden="true">3</span>
-                                    <span class="create-workflow-panel-label">Test text</span>
-                                </h3>
-                                <p class="create-workflow-panel-locked" id="createTestLockedNote">Save the key needed for your text model to unlock this step.</p>
-                                <div class="card-actions create-test-actions">
-                                    <button type="button" class="btn btn-good" id="createPromptBtn" disabled>Create image prompt</button>
-                                    <span id="createPromptStatus" class="status-text" aria-live="polite"></span>
-                                </div>
-                                <div id="createPromptResult" class="create-test-result" hidden>
-                                    <p class="hint" id="createTestBrandMeta"></p>
-                                    <pre class="create-test-prompt" id="createTestPrompt"></pre>
-                                    <p class="hint" id="createTestOpenAiCost" hidden></p>
-                                    <p class="status-text is-error" id="createTestOpenAiError" hidden></p>
-                                </div>
-                            </section>
-
-                            <section class="create-workflow-panel is-disabled" id="createConfirmCard" data-step="image" aria-labelledby="createConfirmTitle">
-                                <h3 id="createConfirmTitle" class="create-workflow-panel-title">
-                                    <span class="create-workflow-panel-mark" aria-hidden="true">4</span>
-                                    <span class="create-workflow-panel-label">Test image</span>
-                                </h3>
-                                <p class="create-workflow-panel-locked" id="createConfirmWaiting">Create an image prompt first.</p>
-                                <div class="card-actions create-test-actions">
-                                    <button type="button" class="btn btn-good" id="createImageBtn" disabled>Create image from prompt</button>
-                                    <span id="createImageStatus" class="status-text" aria-live="polite"></span>
-                                </div>
-                                <div id="createImageResult" class="create-test-result" hidden>
-                                    <p class="hint" id="createTestFalLogoMeta"></p>
-                                    <img id="createTestImage" class="create-test-image" alt="Test artwork from fal" hidden>
-                                    <p class="hint" id="createTestFalCost" hidden></p>
-                                    <p class="status-text is-error" id="createTestFalError" hidden></p>
-                                    <p class="hint" id="createTestFalHelp" hidden></p>
-                                </div>
-                            </section>
-                        </div>
+                        <section class="create-workflow-panel is-disabled" id="createConfirmCard" data-step="image" aria-labelledby="createConfirmTitle">
+                            <h3 id="createConfirmTitle" class="create-workflow-panel-title">
+                                <span class="create-workflow-panel-mark" aria-hidden="true">3</span>
+                                <span class="create-workflow-panel-label">Test of fal.ai for images</span>
+                            </h3>
+                            <p class="create-workflow-panel-locked" id="createConfirmWaiting">Create an image prompt first.</p>
+                            <div class="create-model-field create-model-field--inline" id="createFalModelField">
+                                <label class="create-model-label" for="createFalModelSelect">Model:</label>
+                                <select id="createFalModelSelect" class="create-model-select" aria-label="fal image model"></select>
+                            </div>
+                            <p class="hint create-model-price" id="createFalModelPrice"></p>
+                            <div class="card-actions create-test-actions">
+                                <button type="button" class="btn btn-good" id="createImageBtn" disabled>Create image from prompt</button>
+                                <span id="createImageStatus" class="status-text" aria-live="polite"></span>
+                            </div>
+                            <div id="createImageResult" class="create-test-result" hidden>
+                                <p class="hint" id="createTestFalLogoMeta"></p>
+                                <img id="createTestImage" class="create-test-image" alt="Test artwork from fal" hidden>
+                                <p class="hint" id="createTestFalCost" hidden></p>
+                                <p class="status-text is-error" id="createTestFalError" hidden></p>
+                                <p class="hint" id="createTestFalHelp" hidden></p>
+                            </div>
+                        </section>
                     </div>
                 </section>
+            </div>
+            <?php endif; ?>
+
+            <?php if ($tab === 'create' && $createTab === 'preferences'): ?>
+            <div class="create-prefs-shell" id="createPrefsShell">
+                <p class="create-start-lead">
+                    Choose text, image, and video models for your account. Each panel has its own price range. Preferences are not shared with other signed-in users.
+                </p>
+                <div class="create-prefs-panels">
+                    <section class="create-prefs-panel" id="createPrefsLlmPanel" aria-labelledby="createPrefsLlmTitle">
+                        <header class="split-editor__header create-prefs-panel-head">
+                            <h3 id="createPrefsLlmTitle" class="split-editor__title">LLM for text</h3>
+                        </header>
+                        <div class="create-prefs-panel-body">
+                            <div class="create-prefs-panel-controls">
+                                <div class="create-model-field create-model-field--inline">
+                                    <span class="create-model-label">Price range:</span>
+                                    <div class="brand-player-setting-toggle create-model-toggle" id="createPrefsLlmTierToggle" role="group" aria-label="Text price range"></div>
+                                </div>
+                                <div class="create-model-field create-model-field--inline">
+                                    <label class="create-model-label" for="createPrefsLlmSelect">Model:</label>
+                                    <select id="createPrefsLlmSelect" class="create-model-select" aria-label="Text model"></select>
+                                </div>
+                            </div>
+                            <div class="card-actions create-test-actions create-prefs-panel-actions">
+                                <button type="button" class="btn btn-good" id="createPrefsLlmTestBtn">Test text</button>
+                                <span id="createPrefsLlmStatus" class="status-text" aria-live="polite"></span>
+                            </div>
+                            <div class="create-prefs-result" id="createPrefsLlmResult" hidden>
+                                <h4 class="create-prefs-result-title">Result</h4>
+                                <div class="create-prefs-result-body">
+                                    <pre class="create-test-prompt" id="createPrefsLlmPrompt"></pre>
+                                    <p class="status-text is-error" id="createPrefsLlmError" hidden></p>
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+
+                    <section class="create-prefs-panel" id="createPrefsImagePanel" aria-labelledby="createPrefsImageTitle">
+                        <header class="split-editor__header create-prefs-panel-head">
+                            <h3 id="createPrefsImageTitle" class="split-editor__title">Image model</h3>
+                        </header>
+                        <div class="create-prefs-panel-body">
+                            <div class="create-prefs-panel-controls">
+                                <div class="create-model-field create-model-field--inline">
+                                    <span class="create-model-label">Price range:</span>
+                                    <div class="brand-player-setting-toggle create-model-toggle" id="createPrefsImageTierToggle" role="group" aria-label="Image price range"></div>
+                                </div>
+                                <div class="create-model-field create-model-field--inline">
+                                    <label class="create-model-label" for="createPrefsImageSelect">Model:</label>
+                                    <select id="createPrefsImageSelect" class="create-model-select" aria-label="Image model"></select>
+                                </div>
+                            </div>
+                            <div class="card-actions create-test-actions create-prefs-panel-actions">
+                                <button type="button" class="btn btn-good" id="createPrefsImageTestBtn">Test image</button>
+                                <span id="createPrefsImageStatus" class="status-text" aria-live="polite"></span>
+                            </div>
+                            <div class="create-prefs-result" id="createPrefsImageResult" hidden>
+                                <h4 class="create-prefs-result-title">Result</h4>
+                                <div class="create-prefs-result-body">
+                                    <img id="createPrefsImagePreview" class="create-test-image" alt="Preference image test" hidden>
+                                    <p class="status-text is-error" id="createPrefsImageError" hidden></p>
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+
+                    <section class="create-prefs-panel" id="createPrefsVideoPanel" aria-labelledby="createPrefsVideoTitle">
+                        <header class="split-editor__header create-prefs-panel-head">
+                            <h3 id="createPrefsVideoTitle" class="split-editor__title">Video model</h3>
+                        </header>
+                        <div class="create-prefs-panel-body">
+                            <div class="create-prefs-panel-controls">
+                                <div class="create-model-field create-model-field--inline">
+                                    <span class="create-model-label">Price range:</span>
+                                    <div class="brand-player-setting-toggle create-model-toggle" id="createPrefsVideoTierToggle" role="group" aria-label="Video price range"></div>
+                                </div>
+                                <div class="create-model-field create-model-field--inline">
+                                    <label class="create-model-label" for="createPrefsVideoSelect">Model:</label>
+                                    <select id="createPrefsVideoSelect" class="create-model-select" aria-label="Video model"></select>
+                                </div>
+                            </div>
+                            <div class="card-actions create-test-actions create-prefs-panel-actions">
+                                <button type="button" class="btn btn-good" id="createPrefsVideoTestBtn">Test video</button>
+                                <span id="createPrefsVideoStatus" class="status-text" aria-live="polite"></span>
+                            </div>
+                            <div class="create-prefs-result" id="createPrefsVideoResult" hidden>
+                                <h4 class="create-prefs-result-title">Result</h4>
+                                <div class="create-prefs-result-body">
+                                    <video id="createPrefsVideoPreview" class="create-test-video" controls playsinline hidden></video>
+                                    <p class="status-text is-error" id="createPrefsVideoError" hidden></p>
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+                </div>
+                <div class="card-actions create-prefs-save-actions">
+                    <button type="button" class="btn btn-good" id="createPrefsSaveBtn">Save preferences</button>
+                    <span id="createPrefsSaveStatus" class="status-text" aria-live="polite"></span>
+                </div>
             </div>
             <?php endif; ?>
         </div>

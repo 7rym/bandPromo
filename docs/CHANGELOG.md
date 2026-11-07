@@ -2,6 +2,9 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-11-06 14:45 - Create → Preferences polish: Content-style panel headers, fixed Test button row, drop duplicate muted price/meta lines, and show outputs under a Result heading.
+2026-11-06 14:40 - Localhost Create HTTPS: honour optional CA bundle at `%USERPROFILE%\.bandpromo\php-ca-bundle.pem` (or `BANDPROMO_SSL_CAFILE`) so antivirus HTTPS scanning roots (e.g. AVG) work with PHP OpenSSL without turning verification off.
+2026-11-06 14:35 - Create → Start restored as connection proof only (quiet ready + Reconfigure after pass, like Dashboard). Model prefs move to Create → Preferences: separate LLM / Image / Video panels with per-panel Cheap|Good|Premium, test + results, and Save for the signed-in account.
 2026-11-06 14:05 - Publish Create → Start preferences: Cheap|Good|Premium LLM/image/video catalogs (OpenAI + fal any-llm; media must take reference images); register passed text+image tests and show summary + Reconfigure; wizard placeholder only.
 2026-11-06 14:04 - Create → Start: after text + image tests pass, show saved preferences with Reconfigure; manual Cheap|Good|Premium pickers for LLM (OpenAI + fal any-llm), image, and video (reference-capable only); wizard mode is a placeholder for now.
 2026-11-06 13:32 - Publish Create → Start image prompt: tell OpenAI to avoid filling the still with readable prompt/brief text (short title only, or no lettering).

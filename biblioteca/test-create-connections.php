@@ -42,30 +42,35 @@ if (!isDeveloperUser($username)) {
 }
 
 $sessionStep = strtolower(trim((string) ($payload['step'] ?? 'prompt')));
-if (!in_array($sessionStep, ['prompt', 'image'], true)) {
+if (!in_array($sessionStep, ['prompt', 'image', 'video'], true)) {
     http_response_code(400);
-    echo json_encode(['ok' => false, 'error' => 'Unknown step. Use prompt or image.'], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+    echo json_encode(['ok' => false, 'error' => 'Unknown step. Use prompt, image, or video.'], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
     exit;
 }
 
+// Start connection-proof only. Preferences tests must not flip setup_complete.
+$recordSetup = !empty($payload['record_setup']);
+
 session_write_close();
 
-@set_time_limit($sessionStep === 'image' ? 180 : 60);
+@set_time_limit($sessionStep === 'prompt' ? 60 : 180);
 @ignore_user_abort(true);
 
 $root = dirname(__DIR__);
 $resolved = bandpromo_create_integrations_resolve_keys($root, $username);
 $prefs = bandpromo_create_integrations_load($root, $username);
-$tier = bandpromo_create_integrations_normalize_price_tier((string) ($prefs['price_tier'] ?? 'cheap'));
+$llmTier = bandpromo_create_integrations_normalize_price_tier((string) ($prefs['llm_price_tier'] ?? 'cheap'));
+$imageTier = bandpromo_create_integrations_normalize_price_tier((string) ($prefs['image_price_tier'] ?? 'cheap'));
+$videoTier = bandpromo_create_integrations_normalize_price_tier((string) ($prefs['video_price_tier'] ?? 'cheap'));
 
 $llmModel = bandpromo_create_integrations_normalize_llm_model(
     (string) ($payload['llm_model'] ?? $prefs['llm_model'] ?? ''),
-    $tier
+    $llmTier
 );
 if (array_key_exists('openai_model', $payload) && !array_key_exists('llm_model', $payload)) {
     $llmModel = bandpromo_create_integrations_normalize_llm_model(
         'openai:' . trim((string) $payload['openai_model']),
-        $tier
+        $llmTier
     );
 }
 $llmMeta = bandpromo_create_integrations_llm_model_meta($llmModel);
@@ -74,7 +79,11 @@ $providerModel = is_array($llmMeta) ? (string) ($llmMeta['provider_model'] ?? ''
 
 $imageModel = bandpromo_create_integrations_normalize_image_model(
     (string) ($payload['image_model'] ?? $payload['fal_model'] ?? $prefs['image_model'] ?? ''),
-    $tier
+    $imageTier
+);
+$videoModel = bandpromo_create_integrations_normalize_video_model(
+    (string) ($payload['video_model'] ?? $prefs['video_model'] ?? ''),
+    $videoTier
 );
 
 $brand = bandpromo_create_integrations_base_brand_brief($root);
@@ -121,8 +130,9 @@ $result = [
         'ok' => false,
         'configured' => $resolved['fal_api_key'] !== '',
         'source' => $resolved['fal_source'],
-        'model' => $imageModel,
+        'model' => $sessionStep === 'video' ? $videoModel : $imageModel,
         'image_url' => '',
+        'video_url' => '',
         'request_id' => '',
         'error' => '',
         'help' => '',
@@ -185,10 +195,8 @@ if ($sessionStep === 'prompt') {
 
     $result['ok'] = $result['llm']['ok'];
 
-    if ($result['ok']) {
-        // Fresh prompt invalidates the prior image proof.
+    if ($result['ok'] && $recordSetup) {
         bandpromo_create_integrations_save($root, $username, [
-            'llm_model' => $llmModel,
             'prompt_tested' => true,
             'image_tested' => false,
         ]);
@@ -206,6 +214,7 @@ if ($sessionStep === 'prompt') {
             'llm_model' => $result['llm']['llm_model'],
             'provider_model' => $result['llm']['model'],
             'brand_id' => $brand['brand_id'],
+            'record_setup' => $recordSetup,
             'needs_setup' => $result['llm']['needs_setup'],
         ],
     ]);
@@ -218,7 +227,80 @@ if ($sessionStep === 'prompt') {
     exit;
 }
 
-// step === image
+if ($sessionStep === 'image') {
+    if ($resolved['fal_api_key'] === '') {
+        $result['fal']['needs_setup'] = true;
+        $result['fal']['help'] = $keyHelpFal;
+        $result['fal']['error'] = 'No fal.ai key recorded.';
+        $result['error'] = 'No fal.ai key recorded.';
+        $result['help'] = $keyHelpFal;
+        http_response_code(400);
+        echo json_encode($result, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+        exit;
+    }
+
+    $prompt = trim((string) ($payload['prompt'] ?? ''));
+    if ($prompt === '') {
+        // Preferences image test can invent a short prompt from the brand when none is posted.
+        $prompt = 'Square promotional still for '
+            . trim((string) ($brand['brand_title'] ?? 'this brand'))
+            . '. Keep the brand logo recognisable. Prefer mood, colour, and composition over readable text.';
+    }
+
+    $result['llm']['ok'] = true;
+    $result['llm']['prompt'] = $prompt;
+    $result['openai']['ok'] = true;
+    $result['openai']['prompt'] = $prompt;
+
+    $fal = bandpromo_create_integrations_fal_image(
+        $resolved['fal_api_key'],
+        $prompt,
+        $logoImageUrl,
+        $imageModel
+    );
+    $result['fal']['ok'] = !empty($fal['ok']);
+    $result['fal']['image_url'] = (string) ($fal['image_url'] ?? '');
+    $result['fal']['request_id'] = (string) ($fal['request_id'] ?? '');
+    $result['fal']['error'] = (string) ($fal['error'] ?? '');
+    $result['fal']['help'] = (string) ($fal['help'] ?? '');
+    $result['fal']['needs_setup'] = !empty($fal['needs_setup']);
+    $result['fal']['needs_credits'] = !empty($fal['needs_credits']);
+    $result['fal']['logo_attached'] = !empty($fal['logo_attached']);
+    $result['fal']['model'] = (string) ($fal['model'] ?? $imageModel);
+    $result['fal']['cost'] = is_array($fal['cost'] ?? null) ? $fal['cost'] : null;
+    $result['ok'] = $result['fal']['ok'];
+
+    if ($result['ok'] && $recordSetup) {
+        bandpromo_create_integrations_save($root, $username, [
+            'image_tested' => true,
+        ]);
+    }
+
+    $result['integrations'] = bandpromo_create_integrations_status_payload($root, $username);
+
+    bandpromo_admin_audit_log('create_image_tested', [
+        'target_type' => 'admin_integrations',
+        'target_id' => bandpromo_create_integrations_sanitize_username($username),
+        'status' => $result['ok'] ? 'ok' : 'error',
+        'data' => [
+            'fal_ok' => $result['fal']['ok'],
+            'image_model' => $result['fal']['model'],
+            'brand_id' => $brand['brand_id'],
+            'record_setup' => $recordSetup,
+            'fal_needs_credits' => $result['fal']['needs_credits'],
+            'logo_attached' => $result['fal']['logo_attached'],
+        ],
+    ]);
+
+    if (!$result['ok']) {
+        http_response_code(!empty($fal['needs_setup']) || !empty($fal['needs_credits']) ? 400 : 502);
+    }
+
+    echo json_encode($result, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+    exit;
+}
+
+// step === video
 if ($resolved['fal_api_key'] === '') {
     $result['fal']['needs_setup'] = true;
     $result['fal']['help'] = $keyHelpFal;
@@ -232,56 +314,36 @@ if ($resolved['fal_api_key'] === '') {
 
 $prompt = trim((string) ($payload['prompt'] ?? ''));
 if ($prompt === '') {
-    $result['fal']['error'] = 'Create an image prompt first.';
-    $result['error'] = 'Create an image prompt first.';
-    http_response_code(400);
-    echo json_encode($result, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
-    exit;
+    $prompt = 'Subtle living motion for promotional artwork. Keep the brand logo recognisable.';
 }
 
-$result['llm']['ok'] = true;
-$result['llm']['prompt'] = $prompt;
-$result['openai']['ok'] = true;
-$result['openai']['prompt'] = $prompt;
-
-$fal = bandpromo_create_integrations_fal_image(
+$fal = bandpromo_create_integrations_fal_video(
     $resolved['fal_api_key'],
     $prompt,
     $logoImageUrl,
-    $imageModel
+    $videoModel
 );
 $result['fal']['ok'] = !empty($fal['ok']);
-$result['fal']['image_url'] = (string) ($fal['image_url'] ?? '');
+$result['fal']['video_url'] = (string) ($fal['video_url'] ?? '');
 $result['fal']['request_id'] = (string) ($fal['request_id'] ?? '');
 $result['fal']['error'] = (string) ($fal['error'] ?? '');
 $result['fal']['help'] = (string) ($fal['help'] ?? '');
 $result['fal']['needs_setup'] = !empty($fal['needs_setup']);
 $result['fal']['needs_credits'] = !empty($fal['needs_credits']);
 $result['fal']['logo_attached'] = !empty($fal['logo_attached']);
-$result['fal']['model'] = (string) ($fal['model'] ?? $imageModel);
+$result['fal']['model'] = (string) ($fal['model'] ?? $videoModel);
 $result['fal']['cost'] = is_array($fal['cost'] ?? null) ? $fal['cost'] : null;
 $result['ok'] = $result['fal']['ok'];
-
-if ($result['ok']) {
-    bandpromo_create_integrations_save($root, $username, [
-        'image_model' => $imageModel,
-        'image_tested' => true,
-    ]);
-}
-
 $result['integrations'] = bandpromo_create_integrations_status_payload($root, $username);
 
-bandpromo_admin_audit_log('create_image_tested', [
+bandpromo_admin_audit_log('create_video_tested', [
     'target_type' => 'admin_integrations',
     'target_id' => bandpromo_create_integrations_sanitize_username($username),
     'status' => $result['ok'] ? 'ok' : 'error',
     'data' => [
         'fal_ok' => $result['fal']['ok'],
-        'image_model' => $result['fal']['model'],
+        'video_model' => $result['fal']['model'],
         'brand_id' => $brand['brand_id'],
-        'fal_request_id' => $result['fal']['request_id'] !== '' ? 'present' : '',
-        'fal_needs_credits' => $result['fal']['needs_credits'],
-        'fal_needs_setup' => $result['fal']['needs_setup'],
         'logo_attached' => $result['fal']['logo_attached'],
     ],
 ]);

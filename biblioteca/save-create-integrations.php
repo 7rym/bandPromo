@@ -52,7 +52,6 @@ $changed = [];
 
 if (array_key_exists('openai_api_key', $payload)) {
     $value = trim((string) $payload['openai_api_key']);
-    // Blank field means “leave unchanged” unless clear_openai is set.
     if ($value !== '') {
         $patch['openai_api_key'] = $value;
         $changed[] = 'openai';
@@ -78,20 +77,32 @@ if (!empty($payload['clear_setup'])) {
     $changed[] = 'setup_cleared';
 }
 
-if (array_key_exists('price_tier', $payload)) {
-    $next = bandpromo_create_integrations_normalize_price_tier((string) $payload['price_tier']);
-    if ($next !== (string) ($current['price_tier'] ?? '')) {
-        $patch['price_tier'] = $next;
-        $changed[] = 'price_tier';
+foreach (['llm_price_tier', 'image_price_tier', 'video_price_tier', 'price_tier'] as $tierKey) {
+    if (!array_key_exists($tierKey, $payload)) {
+        continue;
+    }
+    $next = bandpromo_create_integrations_normalize_price_tier((string) $payload[$tierKey]);
+    $currentKey = $tierKey === 'price_tier' ? 'llm_price_tier' : $tierKey;
+    if ($next !== (string) ($current[$currentKey] ?? '')) {
+        $patch[$tierKey] = $next;
+        $changed[] = $tierKey;
     }
 }
 
-$tierForModels = array_key_exists('price_tier', $patch)
-    ? (string) $patch['price_tier']
-    : (string) ($current['price_tier'] ?? 'cheap');
+$llmTier = array_key_exists('llm_price_tier', $patch)
+    ? (string) $patch['llm_price_tier']
+    : (array_key_exists('price_tier', $patch)
+        ? (string) $patch['price_tier']
+        : (string) ($current['llm_price_tier'] ?? 'cheap'));
+$imageTier = array_key_exists('image_price_tier', $patch)
+    ? (string) $patch['image_price_tier']
+    : (string) ($current['image_price_tier'] ?? 'cheap');
+$videoTier = array_key_exists('video_price_tier', $patch)
+    ? (string) $patch['video_price_tier']
+    : (string) ($current['video_price_tier'] ?? 'cheap');
 
 if (array_key_exists('llm_model', $payload)) {
-    $next = bandpromo_create_integrations_normalize_llm_model((string) $payload['llm_model'], $tierForModels);
+    $next = bandpromo_create_integrations_normalize_llm_model((string) $payload['llm_model'], $llmTier);
     if ($next !== (string) ($current['llm_model'] ?? '')) {
         $patch['llm_model'] = $next;
         $changed[] = 'llm_model';
@@ -99,7 +110,7 @@ if (array_key_exists('llm_model', $payload)) {
 } elseif (array_key_exists('openai_model', $payload)) {
     $next = bandpromo_create_integrations_normalize_llm_model(
         'openai:' . trim((string) $payload['openai_model']),
-        $tierForModels
+        $llmTier
     );
     if ($next !== (string) ($current['llm_model'] ?? '')) {
         $patch['llm_model'] = $next;
@@ -108,13 +119,13 @@ if (array_key_exists('llm_model', $payload)) {
 }
 
 if (array_key_exists('image_model', $payload)) {
-    $next = bandpromo_create_integrations_normalize_image_model((string) $payload['image_model'], $tierForModels);
+    $next = bandpromo_create_integrations_normalize_image_model((string) $payload['image_model'], $imageTier);
     if ($next !== (string) ($current['image_model'] ?? '')) {
         $patch['image_model'] = $next;
         $changed[] = 'image_model';
     }
 } elseif (array_key_exists('fal_model', $payload)) {
-    $next = bandpromo_create_integrations_normalize_image_model((string) $payload['fal_model'], $tierForModels);
+    $next = bandpromo_create_integrations_normalize_image_model((string) $payload['fal_model'], $imageTier);
     if ($next !== (string) ($current['image_model'] ?? '')) {
         $patch['image_model'] = $next;
         $changed[] = 'image_model';
@@ -122,14 +133,17 @@ if (array_key_exists('image_model', $payload)) {
 }
 
 if (array_key_exists('video_model', $payload)) {
-    $next = bandpromo_create_integrations_normalize_video_model((string) $payload['video_model'], $tierForModels);
+    $next = bandpromo_create_integrations_normalize_video_model((string) $payload['video_model'], $videoTier);
     if ($next !== (string) ($current['video_model'] ?? '')) {
         $patch['video_model'] = $next;
         $changed[] = 'video_model';
     }
 }
 
-$prefKeys = ['price_tier', 'llm_model', 'image_model', 'video_model', 'openai_model', 'fal_model', 'clear_setup'];
+$prefKeys = [
+    'llm_price_tier', 'image_price_tier', 'video_price_tier', 'price_tier',
+    'llm_model', 'image_model', 'video_model', 'openai_model', 'fal_model', 'clear_setup',
+];
 $hadPrefIntent = false;
 foreach ($prefKeys as $key) {
     if (array_key_exists($key, $payload) || ($key === 'clear_setup' && !empty($payload['clear_setup']))) {
@@ -139,7 +153,6 @@ foreach ($prefKeys as $key) {
 }
 
 if ($patch === []) {
-    // Model / tier picker may re-save the current choice; treat that as success.
     if ($hadPrefIntent) {
         $status = bandpromo_create_integrations_status_payload($root, $username);
         echo json_encode([

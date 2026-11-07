@@ -16852,19 +16852,14 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 }
             })();
 
-            (function initCreateStart() {
-                const shell = document.getElementById('createStartShell');
-                if (!shell) {
+                        (function initCreateStart() {
+                const connectCard = document.getElementById('createConnectCard');
+                const configuredView = document.getElementById('createStartConfigured');
+                const setupView = document.getElementById('createStartSetup');
+                if (!connectCard && !configuredView) {
                     return;
                 }
 
-                const configuredView = document.getElementById('createStartConfigured');
-                const setupView = document.getElementById('createStartSetup');
-                const manualView = document.getElementById('createStartManual');
-                const wizardView = document.getElementById('createStartWizard');
-                const reconfigureBtn = document.getElementById('createReconfigureBtn');
-                const connectCard = document.getElementById('createConnectCard');
-                const prefsCard = document.getElementById('createPrefsCard');
                 const openAiInput = document.getElementById('createOpenAiKey');
                 const falInput = document.getElementById('createFalKey');
                 const emptyHelp = document.getElementById('createKeysEmptyHelp');
@@ -16889,23 +16884,13 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 const testFalError = document.getElementById('createTestFalError');
                 const testFalHelp = document.getElementById('createTestFalHelp');
                 const testFalCost = document.getElementById('createTestFalCost');
-                const priceTierToggle = document.getElementById('createPriceTierToggle');
-                const llmModelSelect = document.getElementById('createLlmModelSelect');
-                const llmModelPrice = document.getElementById('createLlmModelPrice');
-                const imageModelSelect = document.getElementById('createImageModelSelect');
-                const imageModelPrice = document.getElementById('createImageModelPrice');
-                const videoModelSelect = document.getElementById('createVideoModelSelect');
-                const videoModelPrice = document.getElementById('createVideoModelPrice');
-                const summaryTier = document.getElementById('createSummaryTier');
-                const summaryLlm = document.getElementById('createSummaryLlm');
-                const summaryImage = document.getElementById('createSummaryImage');
-                const summaryVideo = document.getElementById('createSummaryVideo');
-                const summaryOpenAi = document.getElementById('createSummaryOpenAi');
-                const summaryFal = document.getElementById('createSummaryFal');
-                const summaryTests = document.getElementById('createSummaryTests');
+                const openAiModelToggle = document.getElementById('createOpenAiModelToggle');
+                const openAiModelPrice = document.getElementById('createOpenAiModelPrice');
+                const falModelSelect = document.getElementById('createFalModelSelect');
+                const falModelPrice = document.getElementById('createFalModelPrice');
+                const reconfigureBtn = document.getElementById('createReconfigureBtn');
                 const panels = {
                     connect: connectCard,
-                    prefs: prefsCard,
                     prompt: document.getElementById('createTestCard'),
                     image: document.getElementById('createConfirmCard'),
                 };
@@ -16917,11 +16902,8 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 let busy = false;
                 let openAiDisplay = '';
                 let falDisplay = '';
-                let selectedPriceTier = 'cheap';
-                let selectedLlmModel = '';
-                let selectedImageModel = '';
-                let selectedVideoModel = '';
-                let setupMode = 'manual';
+                let selectedOpenAiModel = '';
+                let selectedFalModel = '';
                 let modelSaveTimer = null;
                 let suppressModelSave = false;
 
@@ -16965,14 +16947,6 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                         }
                     }
                     return rows[0] || null;
-                }
-
-                function modelLabel(meta, fallbackId) {
-                    if (!meta) {
-                        return fallbackId || '—';
-                    }
-                    const vendor = meta.vendor ? String(meta.vendor) + ' — ' : '';
-                    return vendor + String(meta.label || meta.id || fallbackId || '—');
                 }
 
                 function updateModelPrice(el, meta) {
@@ -17037,102 +17011,45 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 }
 
                 async function saveModels() {
-                    const body = {
-                        csrf_token: csrfToken(),
-                        price_tier: selectedPriceTier,
-                        llm_model: selectedLlmModel,
-                        image_model: selectedImageModel,
-                        video_model: selectedVideoModel,
-                    };
-                    const resp = await fetch('/biblioteca/save-create-integrations.php', {
-                        method: 'POST',
-                        credentials: 'same-origin',
-                        headers: {
-                            Accept: 'application/json',
-                            'Content-Type': 'application/json',
-                        },
-                        body: JSON.stringify(body),
-                    });
-                    const data = await resp.json().catch(() => null);
-                    if (!resp.ok || !data || data.ok !== true) {
-                        throw new Error((data && data.error) ? String(data.error) : 'Could not save model preference.');
-                    }
-                    const next = data.integrations || latestIntegrations;
-                    if (next.prompt_tested !== true) {
-                        clearPromptProof();
-                    } else if (next.image_tested !== true) {
-                        clearImageProof();
-                    }
-                    renderStatus(next);
-                    return next;
+                    // Start model picks are for this connection proof only — Preferences owns saved models.
+                    return latestIntegrations;
                 }
 
                 function syncModelPickers(integrations) {
                     const data = integrations && typeof integrations === 'object' ? integrations : {};
-                    const tierRows = modelList(data, 'price_tiers');
-                    const tiers = tierRows.length
-                        ? tierRows
-                        : [
-                            { id: 'cheap', label: 'Cheap' },
-                            { id: 'good', label: 'Good' },
-                            { id: 'premium', label: 'Premium' },
-                        ];
-                    const llmRows = modelList(data, 'llm_models_for_tier');
-                    const imageRows = modelList(data, 'image_models_for_tier');
-                    const videoRows = modelList(data, 'video_models_for_tier');
-
+                    const openAiRows = modelList(data, 'openai_models');
+                    const falRows = modelList(data, 'fal_models');
                     suppressModelSave = true;
-                    selectedPriceTier = String(data.price_tier || selectedPriceTier || 'cheap');
-                    selectedLlmModel = String(data.llm_model || selectedLlmModel || (llmRows[0] && llmRows[0].id) || '');
-                    selectedImageModel = String(data.image_model || selectedImageModel || (imageRows[0] && imageRows[0].id) || '');
-                    selectedVideoModel = String(data.video_model || selectedVideoModel || (videoRows[0] && videoRows[0].id) || '');
-
-                    renderModelToggle(priceTierToggle, 'createPriceTier', tiers, selectedPriceTier, (id) => {
-                        selectedPriceTier = id;
+                    selectedOpenAiModel = String(data.openai_model || selectedOpenAiModel || (openAiRows[0] && openAiRows[0].id) || '');
+                    selectedFalModel = String(data.fal_model || selectedFalModel || (falRows[0] && falRows[0].id) || '');
+                    renderModelToggle(openAiModelToggle, 'createOpenAiModel', openAiRows, selectedOpenAiModel, (id) => {
+                        selectedOpenAiModel = id;
+                        updateModelPrice(openAiModelPrice, findModelMeta(openAiRows, id));
                         scheduleModelSave();
                     });
-                    renderModelSelect(llmModelSelect, llmRows, selectedLlmModel, (id) => {
-                        selectedLlmModel = id;
-                        updateModelPrice(llmModelPrice, findModelMeta(llmRows, id));
+                    renderModelSelect(falModelSelect, falRows, selectedFalModel, (id) => {
+                        selectedFalModel = id;
+                        updateModelPrice(falModelPrice, findModelMeta(falRows, id));
                         scheduleModelSave();
                     });
-                    renderModelSelect(imageModelSelect, imageRows, selectedImageModel, (id) => {
-                        selectedImageModel = id;
-                        updateModelPrice(imageModelPrice, findModelMeta(imageRows, id));
-                        scheduleModelSave();
-                    });
-                    renderModelSelect(videoModelSelect, videoRows, selectedVideoModel, (id) => {
-                        selectedVideoModel = id;
-                        updateModelPrice(videoModelPrice, findModelMeta(videoRows, id));
-                        scheduleModelSave();
-                    });
-                    updateModelPrice(llmModelPrice, findModelMeta(llmRows, selectedLlmModel));
-                    updateModelPrice(imageModelPrice, findModelMeta(imageRows, selectedImageModel));
-                    updateModelPrice(videoModelPrice, findModelMeta(videoRows, selectedVideoModel));
+                    updateModelPrice(openAiModelPrice, findModelMeta(openAiRows, selectedOpenAiModel));
+                    updateModelPrice(falModelPrice, findModelMeta(falRows, selectedFalModel));
                     suppressModelSave = false;
                 }
 
-                function promptKeyReady(integrations) {
+                function openaiReady(integrations) {
                     const data = integrations && typeof integrations === 'object' ? integrations : {};
-                    return data.prompt_key_ready === true;
+                    return data.openai_configured === true;
                 }
 
                 function falReady(integrations) {
                     const data = integrations && typeof integrations === 'object' ? integrations : {};
-                    return data.fal_configured === true || data.image_key_ready === true;
-                }
-
-                function keysPresent(integrations) {
-                    const data = integrations && typeof integrations === 'object' ? integrations : {};
-                    return data.openai_configured === true || data.fal_configured === true;
+                    return data.fal_configured === true;
                 }
 
                 function resolveStage(integrations) {
-                    if (!keysPresent(integrations)) {
+                    if (!openaiReady(integrations)) {
                         return 'connect';
-                    }
-                    if (!promptKeyReady(integrations)) {
-                        return 'prefs';
                     }
                     if (!promptReady) {
                         return 'prompt';
@@ -17151,16 +17068,6 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     btn.classList.add(proposed ? 'btn-good' : 'btn-available');
                 }
 
-                function applySetupMode() {
-                    const showWizard = setupMode === 'wizard';
-                    if (manualView) {
-                        manualView.hidden = showWizard;
-                    }
-                    if (wizardView) {
-                        wizardView.hidden = !showWizard;
-                    }
-                }
-
                 function applyShellMode(integrations) {
                     const data = integrations && typeof integrations === 'object' ? integrations : {};
                     const complete = data.setup_complete === true;
@@ -17172,58 +17079,17 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     }
                 }
 
-                function renderConfiguredSummary(integrations) {
-                    const data = integrations && typeof integrations === 'object' ? integrations : {};
-                    if (summaryTier) {
-                        summaryTier.textContent = String(data.price_tier_label || data.price_tier || '—');
-                    }
-                    if (summaryLlm) {
-                        summaryLlm.textContent = modelLabel(data.llm_meta, data.llm_model);
-                    }
-                    if (summaryImage) {
-                        summaryImage.textContent = modelLabel(data.image_meta, data.image_model);
-                    }
-                    if (summaryVideo) {
-                        summaryVideo.textContent = modelLabel(data.video_meta, data.video_model);
-                    }
-                    if (summaryOpenAi) {
-                        summaryOpenAi.textContent = configuredDisplay(
-                            data.openai_configured === true,
-                            data.openai_preview,
-                            data.openai_source
-                        );
-                    }
-                    if (summaryFal) {
-                        summaryFal.textContent = configuredDisplay(
-                            data.fal_configured === true,
-                            data.fal_preview,
-                            data.fal_source
-                        );
-                    }
-                    if (summaryTests) {
-                        const bits = [];
-                        bits.push(data.prompt_tested === true ? 'Text passed' : 'Text not passed');
-                        bits.push(data.image_tested === true ? 'Image passed' : 'Image not passed');
-                        if (data.setup_completed_at_utc) {
-                            bits.push('Ready ' + String(data.setup_completed_at_utc));
-                        }
-                        summaryTests.textContent = bits.join(' · ');
-                    }
-                }
-
                 function applyWorkflow(integrations) {
                     latestIntegrations = integrations && typeof integrations === 'object' ? integrations : {};
                     applyShellMode(latestIntegrations);
-                    renderConfiguredSummary(latestIntegrations);
                     if (latestIntegrations.setup_complete === true) {
                         return;
                     }
 
                     const stage = resolveStage(latestIntegrations);
-                    const hasKeys = keysPresent(latestIntegrations);
-                    const canPrompt = promptKeyReady(latestIntegrations);
+                    const hasOpenAi = openaiReady(latestIntegrations);
                     const hasFal = falReady(latestIntegrations);
-                    const steps = ['connect', 'prefs', 'prompt', 'image'];
+                    const steps = ['connect', 'prompt', 'image'];
 
                     steps.forEach((step) => {
                         const panel = panels[step];
@@ -17234,14 +17100,13 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                         if (step === stage) {
                             panel.classList.add('is-current');
                         } else if (
-                            (step === 'connect' && hasKeys) ||
-                            (step === 'prefs' && canPrompt) ||
+                            (step === 'connect' && hasOpenAi) ||
                             (step === 'prompt' && promptReady) ||
                             (step === 'image' && imageReady)
                         ) {
                             panel.classList.add('is-done');
                         } else if (
-                            (step === 'prompt' && !canPrompt) ||
+                            (step === 'prompt' && !hasOpenAi) ||
                             (step === 'image' && !promptReady)
                         ) {
                             panel.classList.add('is-disabled');
@@ -17249,14 +17114,9 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     });
 
                     if (promptLockedNote) {
-                        if (canPrompt) {
-                            promptLockedNote.hidden = true;
-                        } else {
-                            promptLockedNote.hidden = false;
-                            const route = String(latestIntegrations.llm_route || 'fal');
-                            promptLockedNote.textContent = route === 'openai'
-                                ? 'Save an OpenAI key in Connect to unlock this step for the selected text model.'
-                                : 'Save a fal.ai key in Connect to unlock this step for the selected text model.';
+                        promptLockedNote.hidden = hasOpenAi;
+                        if (!hasOpenAi) {
+                            promptLockedNote.textContent = 'Save an OpenAI key in Connect to unlock this step.';
                         }
                     }
                     if (imageLockedNote) {
@@ -17295,7 +17155,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                         clearFalBtn.classList.add('btn-available');
                     }
                     if (promptBtn instanceof HTMLButtonElement) {
-                        promptBtn.disabled = busy || !canPrompt;
+                        promptBtn.disabled = busy || !hasOpenAi;
                         setButtonProposed(promptBtn, stage === 'prompt');
                     }
                     if (imageBtn instanceof HTMLButtonElement) {
@@ -17367,10 +17227,8 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     if (data.setup_complete === true) {
                         promptReady = true;
                         imageReady = true;
-                    } else {
-                        // Prompt proof needs the live prompt text in this browser session.
-                        promptReady = data.prompt_tested === true && latestPrompt !== '';
-                        imageReady = data.image_tested === true;
+                    } else if (data.prompt_tested !== true) {
+                        promptReady = latestPrompt !== '' ? promptReady : false;
                     }
 
                     const openaiConfigured = data.openai_configured === true;
@@ -17501,7 +17359,11 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     if (falInput instanceof HTMLInputElement) {
                         falInput.dataset.editing = '0';
                     }
-                    if (opts.clearOpenAi || opts.clearFal) {
+                    if (opts.clearOpenAi) {
+                        clearPromptProof();
+                    } else if (opts.clearFal) {
+                        clearImageProof();
+                    } else {
                         clearPromptProof();
                     }
                     renderStatus(data.integrations || {});
@@ -17526,13 +17388,6 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                         throw new Error((data && data.error) ? String(data.error) : 'Could not open reconfigure.');
                     }
                     clearPromptProof();
-                    setupMode = 'manual';
-                    document.querySelectorAll('input[name="createSetupMode"]').forEach((input) => {
-                        if (input instanceof HTMLInputElement) {
-                            input.checked = input.value === 'manual';
-                        }
-                    });
-                    applySetupMode();
                     renderStatus(data.integrations || {});
                     return data.integrations || {};
                 }
@@ -17551,9 +17406,9 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 }
 
                 async function runPrompt() {
-                    if (!promptKeyReady(latestIntegrations)) {
+                    if (!openaiReady(latestIntegrations)) {
                         if (promptStatus) {
-                            promptStatus.textContent = 'Save the key needed for your text model first.';
+                            promptStatus.textContent = 'Save an OpenAI key in Connect first.';
                             promptStatus.classList.add('is-error');
                         }
                         return;
@@ -17561,10 +17416,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
 
                     clearPromptProof();
                     applyWorkflow(latestIntegrations);
-                    const route = String(latestIntegrations.llm_route || 'fal');
-                    setBusy(true, route === 'openai'
-                        ? 'Asking OpenAI for an image prompt…'
-                        : 'Asking fal for an image prompt…', 'prompt');
+                    setBusy(true, 'Asking OpenAI for an image prompt…', 'prompt');
                     if (keysStatus) {
                         keysStatus.textContent = '';
                         keysStatus.classList.remove('is-error');
@@ -17581,7 +17433,9 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                             body: JSON.stringify({
                                 csrf_token: csrfToken(),
                                 step: 'prompt',
-                                llm_model: selectedLlmModel,
+                                record_setup: true,
+                                llm_model: 'openai:' + selectedOpenAiModel,
+                                openai_model: selectedOpenAiModel,
                             }),
                         });
                         const data = await resp.json().catch(() => null);
@@ -17589,7 +17443,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                         const llm = data && data.llm ? data.llm : {};
                         const openai = data && data.openai ? data.openai : {};
                         const promptText = llm.prompt || openai.prompt || '';
-                        const usedModel = llm.model || openai.model || selectedLlmModel;
+                        const usedModel = llm.model || openai.model || selectedOpenAiModel;
                         const cost = llm.cost || openai.cost || null;
                         const ok = data && data.ok === true && !!promptText;
 
@@ -17597,10 +17451,9 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                             const title = brand.title ? String(brand.title) : 'Base brand';
                             const id = brand.id ? String(brand.id) : '';
                             const fallback = brand.used_fallback === true ? ' (generic fallback brief)' : '';
-                            const via = llm.route ? ` via ${String(llm.route)}` : '';
                             testBrandMeta.textContent = id
-                                ? `Based on base brand “${title}” (${id})${fallback} · ${usedModel}${via}`
-                                : `Based on base brand “${title}”${fallback} · ${usedModel}${via}`;
+                                ? `Based on base brand “${title}” (${id})${fallback} · ${usedModel}`
+                                : `Based on base brand “${title}”${fallback} · ${usedModel}`;
                         }
 
                         if (promptText && testPrompt) {
@@ -17635,13 +17488,11 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                                 const costBit = cost && cost.estimate_label
                                     ? ` · ${String(cost.estimate_label)}`
                                     : '';
-                                promptStatus.textContent = `Prompt ready — continue with Test image${costBit}`;
+                                promptStatus.textContent = `Prompt ready — continue in panel 3${costBit}`;
                                 promptStatus.classList.remove('is-error');
                             }
                             if (data.integrations) {
-                                renderStatus(data.integrations);
-                                promptReady = true;
-                                latestPrompt = String(promptText);
+                                latestIntegrations = data.integrations;
                             }
                         } else {
                             promptReady = false;
@@ -17704,14 +17555,16 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                             body: JSON.stringify({
                                 csrf_token: csrfToken(),
                                 step: 'image',
+                                record_setup: true,
                                 prompt: latestPrompt,
-                                image_model: selectedImageModel,
+                                image_model: selectedFalModel,
+                                fal_model: selectedFalModel,
                             }),
                         });
                         const data = await resp.json().catch(() => null);
                         const brand = data && data.brand ? data.brand : {};
                         const fal = data && data.fal ? data.fal : {};
-                        const falModelUsed = fal.model ? String(fal.model) : selectedImageModel;
+                        const falModelUsed = fal.model ? String(fal.model) : selectedFalModel;
 
                         if (testFalLogoMeta) {
                             if (fal.logo_attached === true) {
@@ -17756,14 +17609,9 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                                 imageStatus.classList.remove('is-error');
                             }
                             if (data.integrations) {
-                                latestPrompt = latestPrompt;
                                 renderStatus(data.integrations);
                                 imageReady = true;
-                                promptReady = data.integrations.prompt_tested === true || promptReady;
-                                if (data.integrations.setup_complete === true) {
-                                    applyShellMode(data.integrations);
-                                    renderConfiguredSummary(data.integrations);
-                                }
+                                promptReady = true;
                             }
                         } else {
                             imageReady = false;
@@ -17800,12 +17648,12 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                         saveKeys({})
                             .then((integrations) => {
                                 if (keysStatus) {
-                                    if (promptKeyReady(integrations) && falReady(integrations)) {
-                                        keysStatus.textContent = 'Saved. Text and image tests can run.';
-                                    } else if (promptKeyReady(integrations)) {
-                                        keysStatus.textContent = 'Saved. Text test can run; add fal for images.';
+                                    if (openaiReady(integrations) && falReady(integrations)) {
+                                        keysStatus.textContent = 'Saved. Prompt and image steps are ready.';
+                                    } else if (openaiReady(integrations)) {
+                                        keysStatus.textContent = 'Saved. Prompt step is ready.';
                                     } else if (falReady(integrations)) {
-                                        keysStatus.textContent = 'Saved. Pick a fal text model, or add an OpenAI key.';
+                                        keysStatus.textContent = 'Saved. Add an OpenAI key for the prompt step.';
                                     } else {
                                         keysStatus.textContent = 'Saved.';
                                     }
@@ -17891,19 +17739,8 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     });
                 }
 
-                document.querySelectorAll('input[name="createSetupMode"]').forEach((input) => {
-                    input.addEventListener('change', () => {
-                        if (!(input instanceof HTMLInputElement) || !input.checked) {
-                            return;
-                        }
-                        setupMode = String(input.value || 'manual');
-                        applySetupMode();
-                    });
-                });
-
                 bindKeyField(openAiInput, () => openAiDisplay);
                 bindKeyField(falInput, () => falDisplay);
-                applySetupMode();
                 applyWorkflow({});
                 loadStatus().catch((error) => {
                     if (keysStatus) {
@@ -17911,6 +17748,532 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                             ? String(error.message)
                             : 'Could not load Create connection status.';
                         keysStatus.classList.add('is-error');
+                    }
+                });
+            })();
+
+            (function initCreatePrefs() {
+                const shell = document.getElementById('createPrefsShell');
+                if (!shell) {
+                    return;
+                }
+
+                const tiers = [
+                    { id: 'cheap', label: 'Cheap' },
+                    { id: 'good', label: 'Good' },
+                    { id: 'premium', label: 'Premium' },
+                ];
+
+                const llmTierToggle = document.getElementById('createPrefsLlmTierToggle');
+                const llmSelect = document.getElementById('createPrefsLlmSelect');
+                const llmTestBtn = document.getElementById('createPrefsLlmTestBtn');
+                const llmStatus = document.getElementById('createPrefsLlmStatus');
+                const llmResult = document.getElementById('createPrefsLlmResult');
+                const llmPrompt = document.getElementById('createPrefsLlmPrompt');
+                const llmError = document.getElementById('createPrefsLlmError');
+
+                const imageTierToggle = document.getElementById('createPrefsImageTierToggle');
+                const imageSelect = document.getElementById('createPrefsImageSelect');
+                const imageTestBtn = document.getElementById('createPrefsImageTestBtn');
+                const imageStatus = document.getElementById('createPrefsImageStatus');
+                const imageResult = document.getElementById('createPrefsImageResult');
+                const imagePreview = document.getElementById('createPrefsImagePreview');
+                const imageError = document.getElementById('createPrefsImageError');
+
+                const videoTierToggle = document.getElementById('createPrefsVideoTierToggle');
+                const videoSelect = document.getElementById('createPrefsVideoSelect');
+                const videoTestBtn = document.getElementById('createPrefsVideoTestBtn');
+                const videoStatus = document.getElementById('createPrefsVideoStatus');
+                const videoResult = document.getElementById('createPrefsVideoResult');
+                const videoPreview = document.getElementById('createPrefsVideoPreview');
+                const videoError = document.getElementById('createPrefsVideoError');
+
+                const saveBtn = document.getElementById('createPrefsSaveBtn');
+                const saveStatus = document.getElementById('createPrefsSaveStatus');
+
+                let allLlm = [];
+                let allImage = [];
+                let allVideo = [];
+                let llmTier = 'cheap';
+                let imageTier = 'cheap';
+                let videoTier = 'cheap';
+                let llmModel = '';
+                let imageModel = '';
+                let videoModel = '';
+                let busy = false;
+
+                function csrfToken() {
+                    if (typeof adminCsrf === 'string' && adminCsrf) {
+                        return adminCsrf;
+                    }
+                    return typeof adminCsrfToken === 'string' ? adminCsrfToken : '';
+                }
+
+                function escapeHtml(value) {
+                    return String(value == null ? '' : value)
+                        .replace(/&/g, '&amp;')
+                        .replace(/</g, '&lt;')
+                        .replace(/>/g, '&gt;')
+                        .replace(/"/g, '&quot;')
+                        .replace(/'/g, '&#39;');
+                }
+
+                function forTier(rows, tier) {
+                    const wanted = String(tier || 'cheap');
+                    return (Array.isArray(rows) ? rows : []).filter((row) => String(row.price_tier || '') === wanted);
+                }
+
+                function findMeta(rows, id) {
+                    const wanted = String(id || '');
+                    for (let i = 0; i < rows.length; i += 1) {
+                        if (rows[i] && String(rows[i].id) === wanted) {
+                            return rows[i];
+                        }
+                    }
+                    return rows[0] || null;
+                }
+
+                function renderTierToggle(container, name, selectedId, onPick) {
+                    if (!container) {
+                        return;
+                    }
+                    const selected = String(selectedId || 'cheap');
+                    container.innerHTML = tiers.map((row) => {
+                        const checked = row.id === selected ? ' checked' : '';
+                        return `<label class="brand-player-setting-option">
+                            <input type="radio" name="${escapeHtml(name)}" value="${escapeHtml(row.id)}"${checked}>
+                            <span>${escapeHtml(row.label)}</span>
+                        </label>`;
+                    }).join('');
+                    container.querySelectorAll('input[type="radio"]').forEach((input) => {
+                        input.addEventListener('change', () => {
+                            if (!(input instanceof HTMLInputElement) || !input.checked) {
+                                return;
+                            }
+                            onPick(String(input.value || 'cheap'));
+                        });
+                    });
+                }
+
+                function renderSelect(select, rows, selectedId, onPick) {
+                    if (!(select instanceof HTMLSelectElement)) {
+                        return;
+                    }
+                    const selected = String(selectedId || (rows[0] && rows[0].id) || '');
+                    select.innerHTML = rows.map((row) => {
+                        const id = String(row.id || '');
+                        const vendor = row.vendor ? String(row.vendor) + ' — ' : '';
+                        const label = String(row.label || id);
+                        const hint = row.price_hint ? ` (${String(row.price_hint)})` : '';
+                        const isSelected = id === selected ? ' selected' : '';
+                        return `<option value="${escapeHtml(id)}"${isSelected}>${escapeHtml(vendor + label + hint)}</option>`;
+                    }).join('');
+                    select.onchange = () => onPick(String(select.value || ''));
+                }
+
+                function refreshPanelLists() {
+                    const llmRows = forTier(allLlm, llmTier);
+                    const imageRows = forTier(allImage, imageTier);
+                    const videoRows = forTier(allVideo, videoTier);
+                    if (!llmRows.some((row) => String(row.id) === llmModel)) {
+                        llmModel = String((llmRows[0] && llmRows[0].id) || '');
+                    }
+                    if (!imageRows.some((row) => String(row.id) === imageModel)) {
+                        imageModel = String((imageRows[0] && imageRows[0].id) || '');
+                    }
+                    if (!videoRows.some((row) => String(row.id) === videoModel)) {
+                        videoModel = String((videoRows[0] && videoRows[0].id) || '');
+                    }
+                    renderSelect(llmSelect, llmRows, llmModel, (id) => {
+                        llmModel = id;
+                    });
+                    renderSelect(imageSelect, imageRows, imageModel, (id) => {
+                        imageModel = id;
+                    });
+                    renderSelect(videoSelect, videoRows, videoModel, (id) => {
+                        videoModel = id;
+                    });
+                }
+
+                function applyStatus(integrations) {
+                    const data = integrations && typeof integrations === 'object' ? integrations : {};
+                    allLlm = Array.isArray(data.llm_models) ? data.llm_models : [];
+                    allImage = Array.isArray(data.image_models) ? data.image_models : [];
+                    allVideo = Array.isArray(data.video_models) ? data.video_models : [];
+                    llmTier = String(data.llm_price_tier || 'cheap');
+                    imageTier = String(data.image_price_tier || 'cheap');
+                    videoTier = String(data.video_price_tier || 'cheap');
+                    llmModel = String(data.llm_model || '');
+                    imageModel = String(data.image_model || '');
+                    videoModel = String(data.video_model || '');
+
+                    renderTierToggle(llmTierToggle, 'createPrefsLlmTier', llmTier, (id) => {
+                        llmTier = id;
+                        refreshPanelLists();
+                    });
+                    renderTierToggle(imageTierToggle, 'createPrefsImageTier', imageTier, (id) => {
+                        imageTier = id;
+                        refreshPanelLists();
+                    });
+                    renderTierToggle(videoTierToggle, 'createPrefsVideoTier', videoTier, (id) => {
+                        videoTier = id;
+                        refreshPanelLists();
+                    });
+                    refreshPanelLists();
+
+                    if (saveBtn instanceof HTMLButtonElement) {
+                        saveBtn.disabled = busy;
+                    }
+                    if (llmTestBtn instanceof HTMLButtonElement) {
+                        llmTestBtn.disabled = busy;
+                    }
+                    if (imageTestBtn instanceof HTMLButtonElement) {
+                        imageTestBtn.disabled = busy;
+                    }
+                    if (videoTestBtn instanceof HTMLButtonElement) {
+                        videoTestBtn.disabled = busy;
+                    }
+                }
+
+                async function loadStatus() {
+                    const resp = await fetch('/biblioteca/create-integrations-status.php', {
+                        method: 'GET',
+                        credentials: 'same-origin',
+                        headers: { Accept: 'application/json' },
+                    });
+                    const data = await resp.json().catch(() => null);
+                    if (!resp.ok || !data || data.ok !== true) {
+                        throw new Error((data && data.error) ? String(data.error) : 'Could not load Create preferences.');
+                    }
+                    applyStatus(data.integrations || {});
+                    return data.integrations || {};
+                }
+
+                async function savePrefs() {
+                    const resp = await fetch('/biblioteca/save-create-integrations.php', {
+                        method: 'POST',
+                        credentials: 'same-origin',
+                        headers: {
+                            Accept: 'application/json',
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                            csrf_token: csrfToken(),
+                            llm_price_tier: llmTier,
+                            image_price_tier: imageTier,
+                            video_price_tier: videoTier,
+                            llm_model: llmModel,
+                            image_model: imageModel,
+                            video_model: videoModel,
+                        }),
+                    });
+                    const data = await resp.json().catch(() => null);
+                    if (!resp.ok || !data || data.ok !== true) {
+                        throw new Error((data && data.error) ? String(data.error) : 'Could not save preferences.');
+                    }
+                    applyStatus(data.integrations || {});
+                    return data.integrations || {};
+                }
+
+                async function runLlmTest() {
+                    busy = true;
+                    applyStatus({
+                        llm_models: allLlm,
+                        image_models: allImage,
+                        video_models: allVideo,
+                        llm_price_tier: llmTier,
+                        image_price_tier: imageTier,
+                        video_price_tier: videoTier,
+                        llm_model: llmModel,
+                        image_model: imageModel,
+                        video_model: videoModel,
+                    });
+                    if (llmStatus) {
+                        llmStatus.classList.remove('is-error');
+                        llmStatus.textContent = 'Asking for an image prompt…';
+                    }
+                    try {
+                        const resp = await fetch('/biblioteca/test-create-connections.php', {
+                            method: 'POST',
+                            credentials: 'same-origin',
+                            headers: {
+                                Accept: 'application/json',
+                                'Content-Type': 'application/json',
+                            },
+                            body: JSON.stringify({
+                                csrf_token: csrfToken(),
+                                step: 'prompt',
+                                llm_model: llmModel,
+                            }),
+                        });
+                        const data = await resp.json().catch(() => null);
+                        const llm = data && data.llm ? data.llm : {};
+                        const brand = data && data.brand ? data.brand : {};
+                        const ok = data && data.ok === true && llm.prompt;
+                        if (llmPrompt) {
+                            llmPrompt.textContent = llm.prompt ? String(llm.prompt) : '';
+                        }
+                        if (llmResult) {
+                            llmResult.hidden = false;
+                        }
+                        if (ok) {
+                            if (llmError) {
+                                llmError.hidden = true;
+                            }
+                            if (llmStatus) {
+                                llmStatus.textContent = 'Text test passed.';
+                                llmStatus.classList.remove('is-error');
+                            }
+                        } else {
+                            const message = (data && data.error)
+                                ? String(data.error)
+                                : (llm.error ? String(llm.error) : 'Text test failed.');
+                            if (llmError) {
+                                llmError.textContent = [message, llm.help ? String(llm.help) : ''].filter(Boolean).join(' ');
+                                llmError.hidden = false;
+                            }
+                            if (llmStatus) {
+                                llmStatus.textContent = message;
+                                llmStatus.classList.add('is-error');
+                            }
+                        }
+                    } catch (error) {
+                        if (llmStatus) {
+                            llmStatus.textContent = error && error.message
+                                ? String(error.message)
+                                : 'Text test failed.';
+                            llmStatus.classList.add('is-error');
+                        }
+                    } finally {
+                        busy = false;
+                        applyStatus({
+                            llm_models: allLlm,
+                            image_models: allImage,
+                            video_models: allVideo,
+                            llm_price_tier: llmTier,
+                            image_price_tier: imageTier,
+                            video_price_tier: videoTier,
+                            llm_model: llmModel,
+                            image_model: imageModel,
+                            video_model: videoModel,
+                        });
+                    }
+                }
+
+                async function runImageTest() {
+                    busy = true;
+                    applyStatus({
+                        llm_models: allLlm,
+                        image_models: allImage,
+                        video_models: allVideo,
+                        llm_price_tier: llmTier,
+                        image_price_tier: imageTier,
+                        video_price_tier: videoTier,
+                        llm_model: llmModel,
+                        image_model: imageModel,
+                        video_model: videoModel,
+                    });
+                    if (imageStatus) {
+                        imageStatus.classList.remove('is-error');
+                        imageStatus.textContent = 'Asking fal for a still… this can take a minute.';
+                    }
+                    try {
+                        const resp = await fetch('/biblioteca/test-create-connections.php', {
+                            method: 'POST',
+                            credentials: 'same-origin',
+                            headers: {
+                                Accept: 'application/json',
+                                'Content-Type': 'application/json',
+                            },
+                            body: JSON.stringify({
+                                csrf_token: csrfToken(),
+                                step: 'image',
+                                image_model: imageModel,
+                            }),
+                        });
+                        const data = await resp.json().catch(() => null);
+                        const fal = data && data.fal ? data.fal : {};
+                        const brand = data && data.brand ? data.brand : {};
+                        if (fal.ok && fal.image_url && imagePreview instanceof HTMLImageElement) {
+                            imagePreview.src = String(fal.image_url);
+                            imagePreview.hidden = false;
+                        }
+                        if (imageResult) {
+                            imageResult.hidden = false;
+                        }
+                        if (data && data.ok === true) {
+                            if (imageError) {
+                                imageError.hidden = true;
+                            }
+                            if (imageStatus) {
+                                imageStatus.textContent = 'Image test passed.';
+                                imageStatus.classList.remove('is-error');
+                            }
+                        } else {
+                            const message = (data && data.error)
+                                ? String(data.error)
+                                : (fal.error ? String(fal.error) : 'Image test failed.');
+                            if (imageError) {
+                                imageError.textContent = message;
+                                imageError.hidden = false;
+                            }
+                            if (imageStatus) {
+                                imageStatus.textContent = message;
+                                imageStatus.classList.add('is-error');
+                            }
+                        }
+                    } catch (error) {
+                        if (imageStatus) {
+                            imageStatus.textContent = error && error.message
+                                ? String(error.message)
+                                : 'Image test failed.';
+                            imageStatus.classList.add('is-error');
+                        }
+                    } finally {
+                        busy = false;
+                        applyStatus({
+                            llm_models: allLlm,
+                            image_models: allImage,
+                            video_models: allVideo,
+                            llm_price_tier: llmTier,
+                            image_price_tier: imageTier,
+                            video_price_tier: videoTier,
+                            llm_model: llmModel,
+                            image_model: imageModel,
+                            video_model: videoModel,
+                        });
+                    }
+                }
+
+                async function runVideoTest() {
+                    busy = true;
+                    applyStatus({
+                        llm_models: allLlm,
+                        image_models: allImage,
+                        video_models: allVideo,
+                        llm_price_tier: llmTier,
+                        image_price_tier: imageTier,
+                        video_price_tier: videoTier,
+                        llm_model: llmModel,
+                        image_model: imageModel,
+                        video_model: videoModel,
+                    });
+                    if (videoStatus) {
+                        videoStatus.classList.remove('is-error');
+                        videoStatus.textContent = 'Asking fal for a short clip… this can take a minute.';
+                    }
+                    try {
+                        const resp = await fetch('/biblioteca/test-create-connections.php', {
+                            method: 'POST',
+                            credentials: 'same-origin',
+                            headers: {
+                                Accept: 'application/json',
+                                'Content-Type': 'application/json',
+                            },
+                            body: JSON.stringify({
+                                csrf_token: csrfToken(),
+                                step: 'video',
+                                video_model: videoModel,
+                            }),
+                        });
+                        const data = await resp.json().catch(() => null);
+                        const fal = data && data.fal ? data.fal : {};
+                        const brand = data && data.brand ? data.brand : {};
+                        if (fal.ok && fal.video_url && videoPreview instanceof HTMLVideoElement) {
+                            videoPreview.src = String(fal.video_url);
+                            videoPreview.hidden = false;
+                        }
+                        if (videoResult) {
+                            videoResult.hidden = false;
+                        }
+                        if (data && data.ok === true) {
+                            if (videoError) {
+                                videoError.hidden = true;
+                            }
+                            if (videoStatus) {
+                                videoStatus.textContent = 'Video test passed.';
+                                videoStatus.classList.remove('is-error');
+                            }
+                        } else {
+                            const message = (data && data.error)
+                                ? String(data.error)
+                                : (fal.error ? String(fal.error) : 'Video test failed.');
+                            if (videoError) {
+                                videoError.textContent = message;
+                                videoError.hidden = false;
+                            }
+                            if (videoStatus) {
+                                videoStatus.textContent = message;
+                                videoStatus.classList.add('is-error');
+                            }
+                        }
+                    } catch (error) {
+                        if (videoStatus) {
+                            videoStatus.textContent = error && error.message
+                                ? String(error.message)
+                                : 'Video test failed.';
+                            videoStatus.classList.add('is-error');
+                        }
+                    } finally {
+                        busy = false;
+                        applyStatus({
+                            llm_models: allLlm,
+                            image_models: allImage,
+                            video_models: allVideo,
+                            llm_price_tier: llmTier,
+                            image_price_tier: imageTier,
+                            video_price_tier: videoTier,
+                            llm_model: llmModel,
+                            image_model: imageModel,
+                            video_model: videoModel,
+                        });
+                    }
+                }
+
+                if (saveBtn) {
+                    saveBtn.addEventListener('click', () => {
+                        if (saveStatus) {
+                            saveStatus.textContent = 'Saving…';
+                            saveStatus.classList.remove('is-error');
+                        }
+                        savePrefs()
+                            .then(() => {
+                                if (saveStatus) {
+                                    saveStatus.textContent = 'Preferences saved for your account.';
+                                }
+                            })
+                            .catch((error) => {
+                                if (saveStatus) {
+                                    saveStatus.textContent = error && error.message
+                                        ? String(error.message)
+                                        : 'Could not save preferences.';
+                                    saveStatus.classList.add('is-error');
+                                }
+                            });
+                    });
+                }
+                if (llmTestBtn) {
+                    llmTestBtn.addEventListener('click', () => {
+                        runLlmTest().catch(() => {});
+                    });
+                }
+                if (imageTestBtn) {
+                    imageTestBtn.addEventListener('click', () => {
+                        runImageTest().catch(() => {});
+                    });
+                }
+                if (videoTestBtn) {
+                    videoTestBtn.addEventListener('click', () => {
+                        runVideoTest().catch(() => {});
+                    });
+                }
+
+                loadStatus().catch((error) => {
+                    if (saveStatus) {
+                        saveStatus.textContent = error && error.message
+                            ? String(error.message)
+                            : 'Could not load Create preferences.';
+                        saveStatus.classList.add('is-error');
                     }
                 });
             })();
