@@ -16867,45 +16867,57 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 const clearOpenAiBtn = document.getElementById('createOpenAiClearBtn');
                 const clearFalBtn = document.getElementById('createFalClearBtn');
                 const keysStatus = document.getElementById('createKeysStatus');
-                const promptBtn = document.getElementById('createPromptBtn');
-                const promptStatus = document.getElementById('createPromptStatus');
-                const promptLockedNote = document.getElementById('createTestLockedNote');
-                const promptResult = document.getElementById('createPromptResult');
-                const imageBtn = document.getElementById('createImageBtn');
-                const imageStatus = document.getElementById('createImageStatus');
-                const imageLockedNote = document.getElementById('createConfirmWaiting');
-                const imageResult = document.getElementById('createImageResult');
-                const testBrandMeta = document.getElementById('createTestBrandMeta');
-                const testPrompt = document.getElementById('createTestPrompt');
-                const testOpenAiError = document.getElementById('createTestOpenAiError');
-                const testOpenAiCost = document.getElementById('createTestOpenAiCost');
-                const testFalLogoMeta = document.getElementById('createTestFalLogoMeta');
-                const testImage = document.getElementById('createTestImage');
-                const testFalError = document.getElementById('createTestFalError');
-                const testFalHelp = document.getElementById('createTestFalHelp');
-                const testFalCost = document.getElementById('createTestFalCost');
-                const openAiModelToggle = document.getElementById('createOpenAiModelToggle');
-                const openAiModelPrice = document.getElementById('createOpenAiModelPrice');
-                const falModelSelect = document.getElementById('createFalModelSelect');
-                const falModelPrice = document.getElementById('createFalModelPrice');
+                const openAiProofBtn = document.getElementById('createOpenAiProofBtn');
+                const openAiProofStatus = document.getElementById('createOpenAiProofStatus');
+                const openAiProofLocked = document.getElementById('createOpenAiProofLocked');
+                const openAiProofModels = document.getElementById('createOpenAiProofModels');
+                const openAiProofResult = document.getElementById('createOpenAiProofResult');
+                const openAiProofBrandMeta = document.getElementById('createOpenAiProofBrandMeta');
+                const openAiProofPrompt = document.getElementById('createOpenAiProofPrompt');
+                const openAiProofLogoMeta = document.getElementById('createOpenAiProofLogoMeta');
+                const openAiProofImage = document.getElementById('createOpenAiProofImage');
+                const openAiProofCost = document.getElementById('createOpenAiProofCost');
+                const openAiProofError = document.getElementById('createOpenAiProofError');
+                const openAiProofHelp = document.getElementById('createOpenAiProofHelp');
+                const falProofBtn = document.getElementById('createFalProofBtn');
+                const falProofStatus = document.getElementById('createFalProofStatus');
+                const falProofLocked = document.getElementById('createFalProofLocked');
+                const falProofModels = document.getElementById('createFalProofModels');
+                const falProofResult = document.getElementById('createFalProofResult');
+                const falProofBrandMeta = document.getElementById('createFalProofBrandMeta');
+                const falProofPrompt = document.getElementById('createFalProofPrompt');
+                const falProofLogoMeta = document.getElementById('createFalProofLogoMeta');
+                const falProofImage = document.getElementById('createFalProofImage');
+                const falProofCost = document.getElementById('createFalProofCost');
+                const falProofError = document.getElementById('createFalProofError');
+                const falProofHelp = document.getElementById('createFalProofHelp');
                 const reconfigureBtn = document.getElementById('createReconfigureBtn');
+                const balancesBox = document.getElementById('createStartBalances');
+                const falBalanceRow = document.getElementById('createStartFalBalance');
+                const falBalanceValue = document.getElementById('createStartFalBalanceValue');
+                const falBuyLink = document.getElementById('createStartFalBuyLink');
+                const lastResultsBox = document.getElementById('createStartLastResults');
+                const lastOpenAiCard = document.getElementById('createStartLastOpenAi');
+                const lastOpenAiMeta = document.getElementById('createStartLastOpenAiMeta');
+                const lastOpenAiPrompt = document.getElementById('createStartLastOpenAiPrompt');
+                const lastOpenAiImage = document.getElementById('createStartLastOpenAiImage');
+                const lastFalCard = document.getElementById('createStartLastFal');
+                const lastFalMeta = document.getElementById('createStartLastFalMeta');
+                const lastFalPrompt = document.getElementById('createStartLastFalPrompt');
+                const lastFalImage = document.getElementById('createStartLastFalImage');
                 const panels = {
                     connect: connectCard,
-                    prompt: document.getElementById('createTestCard'),
-                    image: document.getElementById('createConfirmCard'),
+                    openai: document.getElementById('createOpenAiProofCard'),
+                    fal: document.getElementById('createFalProofCard'),
                 };
 
                 let latestIntegrations = {};
-                let promptReady = false;
-                let latestPrompt = '';
-                let imageReady = false;
+                let openaiTested = false;
+                let falTested = false;
                 let busy = false;
+                let busyProvider = '';
                 let openAiDisplay = '';
                 let falDisplay = '';
-                let selectedOpenAiModel = '';
-                let selectedFalModel = '';
-                let modelSaveTimer = null;
-                let suppressModelSave = false;
 
                 function csrfToken() {
                     if (typeof adminCsrf === 'string' && adminCsrf) {
@@ -16924,117 +16936,61 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     return '';
                 }
 
-                function escapeHtml(value) {
-                    return String(value == null ? '' : value)
-                        .replace(/&/g, '&amp;')
-                        .replace(/</g, '&lt;')
-                        .replace(/>/g, '&gt;')
-                        .replace(/"/g, '&quot;')
-                        .replace(/'/g, '&#39;');
+                function modelLabel(meta) {
+                    if (!meta || typeof meta !== 'object') {
+                        return '';
+                    }
+                    const label = String(meta.label || meta.provider_model || meta.id || '').trim();
+                    const vendor = String(meta.vendor || '').trim();
+                    if (label && vendor) {
+                        return vendor + ' ' + label;
+                    }
+                    return label || vendor;
                 }
 
-                function modelList(integrations, key) {
+                function renderProofModelHints(integrations) {
                     const data = integrations && typeof integrations === 'object' ? integrations : {};
-                    const rows = data[key];
-                    return Array.isArray(rows) ? rows : [];
+                    const proof = data.start_proof_models && typeof data.start_proof_models === 'object'
+                        ? data.start_proof_models
+                        : {};
+                    if (openAiProofModels) {
+                        const text = modelLabel(proof.openai_llm);
+                        const image = modelLabel(proof.openai_image);
+                        openAiProofModels.textContent = (text || image)
+                            ? `Workhorse for this proof: ${text || 'text'} · ${image || 'image'}`
+                            : '';
+                    }
+                    if (falProofModels) {
+                        const text = modelLabel(proof.fal_llm);
+                        const image = modelLabel(proof.fal_image);
+                        falProofModels.textContent = (text || image)
+                            ? `Workhorse for this proof: ${text || 'text'} · ${image || 'image'}`
+                            : '';
+                    }
                 }
 
-                function findModelMeta(rows, id) {
-                    const wanted = String(id || '');
-                    for (let i = 0; i < rows.length; i += 1) {
-                        if (rows[i] && String(rows[i].id) === wanted) {
-                            return rows[i];
+                function renderBalances(integrations) {
+                    const data = integrations && typeof integrations === 'object' ? integrations : {};
+                    if (!balancesBox) {
+                        return;
+                    }
+                    if (data.setup_complete !== true) {
+                        balancesBox.hidden = true;
+                        return;
+                    }
+                    balancesBox.hidden = false;
+                    const fal = data.fal_credits && typeof data.fal_credits === 'object' ? data.fal_credits : null;
+                    if (falBalanceRow && falBalanceValue) {
+                        if (fal && fal.available === true && fal.label) {
+                            falBalanceRow.hidden = false;
+                            falBalanceValue.textContent = String(fal.label);
+                            if (falBuyLink instanceof HTMLAnchorElement && fal.buy_url) {
+                                falBuyLink.href = String(fal.buy_url);
+                            }
+                        } else {
+                            falBalanceRow.hidden = true;
                         }
                     }
-                    return rows[0] || null;
-                }
-
-                function updateModelPrice(el, meta) {
-                    if (!el) {
-                        return;
-                    }
-                    el.textContent = meta && meta.price_hint ? String(meta.price_hint) : '';
-                }
-
-                function renderModelToggle(container, name, rows, selectedId, onPick) {
-                    if (!container) {
-                        return;
-                    }
-                    const selected = String(selectedId || (rows[0] && rows[0].id) || '');
-                    container.innerHTML = rows.map((row) => {
-                        const id = String(row.id || '');
-                        const label = String(row.label || id);
-                        const checked = id === selected ? ' checked' : '';
-                        return `<label class="brand-player-setting-option">
-                            <input type="radio" name="${escapeHtml(name)}" value="${escapeHtml(id)}"${checked}>
-                            <span>${escapeHtml(label)}</span>
-                        </label>`;
-                    }).join('');
-                    container.querySelectorAll('input[type="radio"]').forEach((input) => {
-                        input.addEventListener('change', () => {
-                            if (!(input instanceof HTMLInputElement) || !input.checked) {
-                                return;
-                            }
-                            onPick(String(input.value || ''));
-                        });
-                    });
-                }
-
-                function renderModelSelect(select, rows, selectedId, onPick) {
-                    if (!(select instanceof HTMLSelectElement)) {
-                        return;
-                    }
-                    const selected = String(selectedId || (rows[0] && rows[0].id) || '');
-                    select.innerHTML = rows.map((row) => {
-                        const id = String(row.id || '');
-                        const vendor = row.vendor ? String(row.vendor) + ' — ' : '';
-                        const label = String(row.label || id);
-                        const hint = row.price_hint ? ` (${String(row.price_hint)})` : '';
-                        const isSelected = id === selected ? ' selected' : '';
-                        return `<option value="${escapeHtml(id)}"${isSelected}>${escapeHtml(vendor + label + hint)}</option>`;
-                    }).join('');
-                    select.onchange = () => {
-                        onPick(String(select.value || ''));
-                    };
-                }
-
-                function scheduleModelSave() {
-                    if (suppressModelSave) {
-                        return;
-                    }
-                    if (modelSaveTimer) {
-                        window.clearTimeout(modelSaveTimer);
-                    }
-                    modelSaveTimer = window.setTimeout(() => {
-                        saveModels().catch(() => {});
-                    }, 250);
-                }
-
-                async function saveModels() {
-                    // Start model picks are for this connection proof only — Preferences owns saved models.
-                    return latestIntegrations;
-                }
-
-                function syncModelPickers(integrations) {
-                    const data = integrations && typeof integrations === 'object' ? integrations : {};
-                    const openAiRows = modelList(data, 'openai_models');
-                    const falRows = modelList(data, 'fal_models');
-                    suppressModelSave = true;
-                    selectedOpenAiModel = String(data.openai_model || selectedOpenAiModel || (openAiRows[0] && openAiRows[0].id) || '');
-                    selectedFalModel = String(data.fal_model || selectedFalModel || (falRows[0] && falRows[0].id) || '');
-                    renderModelToggle(openAiModelToggle, 'createOpenAiModel', openAiRows, selectedOpenAiModel, (id) => {
-                        selectedOpenAiModel = id;
-                        updateModelPrice(openAiModelPrice, findModelMeta(openAiRows, id));
-                        scheduleModelSave();
-                    });
-                    renderModelSelect(falModelSelect, falRows, selectedFalModel, (id) => {
-                        selectedFalModel = id;
-                        updateModelPrice(falModelPrice, findModelMeta(falRows, id));
-                        scheduleModelSave();
-                    });
-                    updateModelPrice(openAiModelPrice, findModelMeta(openAiRows, selectedOpenAiModel));
-                    updateModelPrice(falModelPrice, findModelMeta(falRows, selectedFalModel));
-                    suppressModelSave = false;
                 }
 
                 function openaiReady(integrations) {
@@ -17048,16 +17004,18 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 }
 
                 function resolveStage(integrations) {
-                    if (!openaiReady(integrations)) {
+                    const hasOpenAi = openaiReady(integrations);
+                    const hasFal = falReady(integrations);
+                    if (!hasOpenAi || !hasFal) {
                         return 'connect';
                     }
-                    if (!promptReady) {
-                        return 'prompt';
+                    if (!openaiTested) {
+                        return 'openai';
                     }
-                    if (!imageReady) {
-                        return 'image';
+                    if (!falTested) {
+                        return 'fal';
                     }
-                    return 'image';
+                    return 'fal';
                 }
 
                 function setButtonProposed(btn, proposed) {
@@ -17077,6 +17035,11 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     if (setupView) {
                         setupView.hidden = complete;
                     }
+                    if (complete) {
+                        renderBalances(data);
+                    } else if (balancesBox) {
+                        balancesBox.hidden = true;
+                    }
                 }
 
                 function applyWorkflow(integrations) {
@@ -17089,7 +17052,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     const stage = resolveStage(latestIntegrations);
                     const hasOpenAi = openaiReady(latestIntegrations);
                     const hasFal = falReady(latestIntegrations);
-                    const steps = ['connect', 'prompt', 'image'];
+                    const steps = ['connect', 'openai', 'fal'];
 
                     steps.forEach((step) => {
                         const panel = panels[step];
@@ -17100,44 +17063,56 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                         if (step === stage) {
                             panel.classList.add('is-current');
                         } else if (
-                            (step === 'connect' && hasOpenAi) ||
-                            (step === 'prompt' && promptReady) ||
-                            (step === 'image' && imageReady)
+                            (step === 'connect' && hasOpenAi && hasFal) ||
+                            (step === 'openai' && openaiTested) ||
+                            (step === 'fal' && falTested)
                         ) {
                             panel.classList.add('is-done');
                         } else if (
-                            (step === 'prompt' && !hasOpenAi) ||
-                            (step === 'image' && !promptReady)
+                            (step === 'openai' && (!hasOpenAi || !hasFal)) ||
+                            (step === 'fal' && (!hasOpenAi || !hasFal || !openaiTested))
                         ) {
                             panel.classList.add('is-disabled');
                         }
                     });
 
-                    if (promptLockedNote) {
-                        promptLockedNote.hidden = hasOpenAi;
+                    if (openAiProofLocked) {
                         if (!hasOpenAi) {
-                            promptLockedNote.textContent = 'Save an OpenAI key in Connect to unlock this step.';
-                        }
-                    }
-                    if (imageLockedNote) {
-                        if (!promptReady) {
-                            imageLockedNote.hidden = false;
-                            imageLockedNote.textContent = 'Create an image prompt first.';
+                            openAiProofLocked.hidden = false;
+                            openAiProofLocked.textContent = 'Save an OpenAI key in Connect to unlock this proof.';
                         } else if (!hasFal) {
-                            imageLockedNote.hidden = false;
-                            imageLockedNote.textContent = 'Save a fal.ai key in Connect to unlock this step.';
+                            openAiProofLocked.hidden = false;
+                            openAiProofLocked.textContent = 'Save a fal.ai key in Connect as well — Start needs both keys before the proofs.';
                         } else {
-                            imageLockedNote.hidden = true;
+                            openAiProofLocked.hidden = true;
                         }
                     }
-                    if (promptResult) {
-                        promptResult.hidden = !(promptReady || (testPrompt && testPrompt.textContent));
-                        if (!promptReady && testPrompt && !testPrompt.textContent) {
-                            promptResult.hidden = true;
+                    if (falProofLocked) {
+                        if (!hasFal) {
+                            falProofLocked.hidden = false;
+                            falProofLocked.textContent = 'Save a fal.ai key in Connect to unlock this proof.';
+                        } else if (!hasOpenAi) {
+                            falProofLocked.hidden = false;
+                            falProofLocked.textContent = 'Save an OpenAI key in Connect as well — Start needs both keys before the proofs.';
+                        } else if (!openaiTested) {
+                            falProofLocked.hidden = false;
+                            falProofLocked.textContent = 'Pass the OpenAI proof first.';
+                        } else {
+                            falProofLocked.hidden = true;
                         }
                     }
-                    if (imageResult) {
-                        imageResult.hidden = !imageReady;
+
+                    if (openAiProofResult) {
+                        openAiProofResult.hidden = !(openaiTested || (openAiProofPrompt && openAiProofPrompt.textContent));
+                        if (!openaiTested && openAiProofPrompt && !openAiProofPrompt.textContent) {
+                            openAiProofResult.hidden = true;
+                        }
+                    }
+                    if (falProofResult) {
+                        falProofResult.hidden = !(falTested || (falProofPrompt && falProofPrompt.textContent));
+                        if (!falTested && falProofPrompt && !falProofPrompt.textContent) {
+                            falProofResult.hidden = true;
+                        }
                     }
 
                     if (saveBtn instanceof HTMLButtonElement) {
@@ -17154,15 +17129,18 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                         clearFalBtn.classList.remove('btn-primary', 'btn-good');
                         clearFalBtn.classList.add('btn-available');
                     }
-                    if (promptBtn instanceof HTMLButtonElement) {
-                        promptBtn.disabled = busy || !hasOpenAi;
-                        setButtonProposed(promptBtn, stage === 'prompt');
+                    if (openAiProofBtn instanceof HTMLButtonElement) {
+                        openAiProofBtn.disabled = busy || !hasOpenAi || !hasFal;
+                        setButtonProposed(openAiProofBtn, stage === 'openai' && !openaiTested);
+                        if (openaiTested && stage === 'openai') {
+                            setButtonProposed(openAiProofBtn, false);
+                        }
                     }
-                    if (imageBtn instanceof HTMLButtonElement) {
-                        imageBtn.disabled = busy || !promptReady || !hasFal || latestPrompt === '';
-                        setButtonProposed(imageBtn, stage === 'image' && !imageReady);
-                        if (imageReady && stage === 'image') {
-                            setButtonProposed(imageBtn, false);
+                    if (falProofBtn instanceof HTMLButtonElement) {
+                        falProofBtn.disabled = busy || !hasOpenAi || !hasFal || !openaiTested;
+                        setButtonProposed(falProofBtn, stage === 'fal' && !falTested);
+                        if (falTested && stage === 'fal') {
+                            setButtonProposed(falProofBtn, false);
                         }
                     }
                 }
@@ -17222,13 +17200,206 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     });
                 }
 
+                function clearProviderProofUi(provider) {
+                    const isOpenAi = provider === 'openai';
+                    const promptEl = isOpenAi ? openAiProofPrompt : falProofPrompt;
+                    const brandEl = isOpenAi ? openAiProofBrandMeta : falProofBrandMeta;
+                    const logoEl = isOpenAi ? openAiProofLogoMeta : falProofLogoMeta;
+                    const imageEl = isOpenAi ? openAiProofImage : falProofImage;
+                    const costEl = isOpenAi ? openAiProofCost : falProofCost;
+                    const errorEl = isOpenAi ? openAiProofError : falProofError;
+                    const helpEl = isOpenAi ? openAiProofHelp : falProofHelp;
+                    const resultEl = isOpenAi ? openAiProofResult : falProofResult;
+                    const statusEl = isOpenAi ? openAiProofStatus : falProofStatus;
+
+                    if (promptEl) {
+                        promptEl.textContent = '';
+                    }
+                    if (brandEl) {
+                        brandEl.textContent = '';
+                    }
+                    if (logoEl) {
+                        logoEl.textContent = '';
+                    }
+                    if (costEl) {
+                        costEl.hidden = true;
+                        costEl.textContent = '';
+                    }
+                    if (errorEl) {
+                        errorEl.hidden = true;
+                        errorEl.textContent = '';
+                    }
+                    if (helpEl) {
+                        helpEl.hidden = true;
+                        helpEl.textContent = '';
+                    }
+                    if (imageEl instanceof HTMLImageElement) {
+                        imageEl.hidden = true;
+                        imageEl.removeAttribute('src');
+                    }
+                    if (resultEl) {
+                        resultEl.hidden = true;
+                    }
+                    if (statusEl) {
+                        statusEl.textContent = '';
+                        statusEl.classList.remove('is-error');
+                    }
+                }
+
+                function clearOpenAiProof() {
+                    openaiTested = false;
+                    clearProviderProofUi('openai');
+                }
+
+                function clearFalProof() {
+                    falTested = false;
+                    clearProviderProofUi('fal');
+                }
+
+                function clearAllProofs() {
+                    clearOpenAiProof();
+                    clearFalProof();
+                }
+
+                function lastResultsMap(integrations) {
+                    const data = integrations && typeof integrations === 'object' ? integrations : {};
+                    return data.last_results && typeof data.last_results === 'object'
+                        ? data.last_results
+                        : {};
+                }
+
+                function fillStoredProofPanel(provider, row) {
+                    if (!row || row.ok !== true) {
+                        return;
+                    }
+                    const isOpenAi = provider === 'openai';
+                    const brandEl = isOpenAi ? openAiProofBrandMeta : falProofBrandMeta;
+                    const promptEl = isOpenAi ? openAiProofPrompt : falProofPrompt;
+                    const logoEl = isOpenAi ? openAiProofLogoMeta : falProofLogoMeta;
+                    const imageEl = isOpenAi ? openAiProofImage : falProofImage;
+                    const costEl = isOpenAi ? openAiProofCost : falProofCost;
+                    const errorEl = isOpenAi ? openAiProofError : falProofError;
+                    const helpEl = isOpenAi ? openAiProofHelp : falProofHelp;
+                    const resultEl = isOpenAi ? openAiProofResult : falProofResult;
+                    const statusEl = isOpenAi ? openAiProofStatus : falProofStatus;
+                    const models = [row.text_model, row.image_model].filter(Boolean).join(' → ');
+                    if (brandEl) {
+                        const title = row.brand_title ? String(row.brand_title) : 'Base brand';
+                        const id = row.brand_id ? String(row.brand_id) : '';
+                        brandEl.textContent = id
+                            ? `Based on base brand “${title}” (${id})${models ? ' · ' + models : ''}`
+                            : `Based on base brand “${title}”${models ? ' · ' + models : ''}`;
+                    }
+                    if (promptEl) {
+                        promptEl.textContent = row.prompt ? String(row.prompt) : '';
+                    }
+                    if (logoEl) {
+                        logoEl.textContent = row.logo_attached
+                            ? 'Brand logo was sent as a reference image.'
+                            : '';
+                    }
+                    if (imageEl instanceof HTMLImageElement) {
+                        if (row.media_url) {
+                            imageEl.src = String(row.media_url);
+                            imageEl.hidden = false;
+                        } else {
+                            imageEl.hidden = true;
+                            imageEl.removeAttribute('src');
+                        }
+                    }
+                    if (costEl) {
+                        costEl.textContent = row.cost_label ? String(row.cost_label) : '';
+                        costEl.hidden = !row.cost_label;
+                    }
+                    if (errorEl) {
+                        errorEl.hidden = true;
+                        errorEl.textContent = '';
+                    }
+                    if (helpEl) {
+                        helpEl.hidden = true;
+                        helpEl.textContent = '';
+                    }
+                    if (resultEl) {
+                        resultEl.hidden = false;
+                    }
+                    if (statusEl) {
+                        statusEl.textContent = row.cost_label
+                            ? `Last proof saved · ${String(row.cost_label)}`
+                            : 'Last proof saved';
+                        statusEl.classList.remove('is-error');
+                    }
+                }
+
+                function fillReadyLastResult(card, metaEl, promptEl, imageEl, row, label) {
+                    if (!card) {
+                        return false;
+                    }
+                    if (!row || row.ok !== true) {
+                        card.hidden = true;
+                        return false;
+                    }
+                    card.hidden = false;
+                    const models = [row.text_model, row.image_model].filter(Boolean).join(' → ');
+                    if (metaEl) {
+                        const title = row.brand_title ? String(row.brand_title) : 'Base brand';
+                        metaEl.textContent = [
+                            label,
+                            title,
+                            models,
+                            row.at_utc ? String(row.at_utc) : '',
+                        ].filter(Boolean).join(' · ');
+                    }
+                    if (promptEl) {
+                        promptEl.textContent = row.prompt ? String(row.prompt) : '';
+                    }
+                    if (imageEl instanceof HTMLImageElement) {
+                        if (row.media_url) {
+                            imageEl.src = String(row.media_url);
+                            imageEl.hidden = false;
+                        } else {
+                            imageEl.hidden = true;
+                            imageEl.removeAttribute('src');
+                        }
+                    }
+                    return true;
+                }
+
+                function hydrateLastResults(integrations) {
+                    const rows = lastResultsMap(integrations);
+                    const openAiRow = rows.openai_proof || null;
+                    const falRow = rows.fal_proof || null;
+                    fillStoredProofPanel('openai', openAiRow);
+                    fillStoredProofPanel('fal', falRow);
+
+                    const showOpenAi = fillReadyLastResult(
+                        lastOpenAiCard,
+                        lastOpenAiMeta,
+                        lastOpenAiPrompt,
+                        lastOpenAiImage,
+                        openAiRow,
+                        'OpenAI'
+                    );
+                    const showFal = fillReadyLastResult(
+                        lastFalCard,
+                        lastFalMeta,
+                        lastFalPrompt,
+                        lastFalImage,
+                        falRow,
+                        'fal.ai'
+                    );
+                    if (lastResultsBox) {
+                        lastResultsBox.hidden = !(showOpenAi || showFal);
+                    }
+                }
+
                 function renderStatus(integrations) {
                     const data = integrations && typeof integrations === 'object' ? integrations : {};
                     if (data.setup_complete === true) {
-                        promptReady = true;
-                        imageReady = true;
-                    } else if (data.prompt_tested !== true) {
-                        promptReady = latestPrompt !== '' ? promptReady : false;
+                        openaiTested = true;
+                        falTested = true;
+                    } else {
+                        openaiTested = data.openai_tested === true;
+                        falTested = data.fal_tested === true;
                     }
 
                     const openaiConfigured = data.openai_configured === true;
@@ -17246,62 +17417,13 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     );
                     showKeyDisplay(openAiInput, openAiDisplay);
                     showKeyDisplay(falInput, falDisplay);
-                    syncModelPickers(data);
+                    renderProofModelHints(data);
+                    hydrateLastResults(data);
 
                     if (emptyHelp) {
                         emptyHelp.hidden = openaiConfigured || falConfigured;
                     }
                     applyWorkflow(data);
-                }
-
-                function clearPromptProof() {
-                    promptReady = false;
-                    latestPrompt = '';
-                    imageReady = false;
-                    if (testPrompt) {
-                        testPrompt.textContent = '';
-                    }
-                    if (testBrandMeta) {
-                        testBrandMeta.textContent = '';
-                    }
-                    if (testOpenAiCost) {
-                        testOpenAiCost.hidden = true;
-                        testOpenAiCost.textContent = '';
-                    }
-                    if (testOpenAiError) {
-                        testOpenAiError.hidden = true;
-                        testOpenAiError.textContent = '';
-                    }
-                    if (promptResult) {
-                        promptResult.hidden = true;
-                    }
-                    clearImageProof();
-                }
-
-                function clearImageProof() {
-                    imageReady = false;
-                    if (testFalLogoMeta) {
-                        testFalLogoMeta.textContent = '';
-                    }
-                    if (testFalCost) {
-                        testFalCost.hidden = true;
-                        testFalCost.textContent = '';
-                    }
-                    if (testFalError) {
-                        testFalError.hidden = true;
-                        testFalError.textContent = '';
-                    }
-                    if (testFalHelp) {
-                        testFalHelp.hidden = true;
-                        testFalHelp.textContent = '';
-                    }
-                    if (testImage instanceof HTMLImageElement) {
-                        testImage.hidden = true;
-                        testImage.removeAttribute('src');
-                    }
-                    if (imageResult) {
-                        imageResult.hidden = true;
-                    }
                 }
 
                 async function loadStatus() {
@@ -17360,11 +17482,16 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                         falInput.dataset.editing = '0';
                     }
                     if (opts.clearOpenAi) {
-                        clearPromptProof();
+                        clearOpenAiProof();
                     } else if (opts.clearFal) {
-                        clearImageProof();
+                        clearFalProof();
                     } else {
-                        clearPromptProof();
+                        if (Object.prototype.hasOwnProperty.call(body, 'openai_api_key')) {
+                            clearOpenAiProof();
+                        }
+                        if (Object.prototype.hasOwnProperty.call(body, 'fal_api_key')) {
+                            clearFalProof();
+                        }
                     }
                     renderStatus(data.integrations || {});
                     return data.integrations || {};
@@ -17387,36 +17514,158 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     if (!resp.ok || !data || data.ok !== true) {
                         throw new Error((data && data.error) ? String(data.error) : 'Could not open reconfigure.');
                     }
-                    clearPromptProof();
+                    clearAllProofs();
                     renderStatus(data.integrations || {});
                     return data.integrations || {};
                 }
 
-                function setBusy(isBusy, label, which) {
+                function setBusy(isBusy, label, provider) {
                     busy = isBusy === true;
+                    busyProvider = busy ? String(provider || '') : '';
                     applyWorkflow(latestIntegrations);
-                    if (busy && which === 'prompt' && promptStatus) {
-                        promptStatus.classList.remove('is-error');
-                        promptStatus.textContent = label || 'Working…';
-                    }
-                    if (busy && which === 'image' && imageStatus) {
-                        imageStatus.classList.remove('is-error');
-                        imageStatus.textContent = label || 'Working…';
+                    const statusEl = busyProvider === 'fal' ? falProofStatus : openAiProofStatus;
+                    if (busy && statusEl) {
+                        statusEl.classList.remove('is-error');
+                        statusEl.textContent = label || 'Working…';
                     }
                 }
 
-                async function runPrompt() {
-                    if (!openaiReady(latestIntegrations)) {
-                        if (promptStatus) {
-                            promptStatus.textContent = 'Save an OpenAI key in Connect first.';
-                            promptStatus.classList.add('is-error');
+                function costBits(textCost, imageCost) {
+                    const bits = [];
+                    if (textCost && textCost.estimate_label) {
+                        bits.push(String(textCost.estimate_label));
+                    }
+                    if (imageCost && imageCost.estimate_label) {
+                        bits.push(String(imageCost.estimate_label));
+                    }
+                    return bits.join(' · ');
+                }
+
+                function fillProofResult(provider, data) {
+                    const isOpenAi = provider === 'openai';
+                    const brand = data && data.brand ? data.brand : {};
+                    const proof = data && data.proof ? data.proof : {};
+                    const text = proof.text && typeof proof.text === 'object' ? proof.text : {};
+                    const image = proof.image && typeof proof.image === 'object' ? proof.image : {};
+                    const brandEl = isOpenAi ? openAiProofBrandMeta : falProofBrandMeta;
+                    const promptEl = isOpenAi ? openAiProofPrompt : falProofPrompt;
+                    const logoEl = isOpenAi ? openAiProofLogoMeta : falProofLogoMeta;
+                    const imageEl = isOpenAi ? openAiProofImage : falProofImage;
+                    const costEl = isOpenAi ? openAiProofCost : falProofCost;
+                    const errorEl = isOpenAi ? openAiProofError : falProofError;
+                    const helpEl = isOpenAi ? openAiProofHelp : falProofHelp;
+                    const resultEl = isOpenAi ? openAiProofResult : falProofResult;
+
+                    const textModel = text.model ? String(text.model) : '';
+                    const imageModel = image.model ? String(image.model) : '';
+                    if (brandEl) {
+                        const title = brand.title ? String(brand.title) : 'Base brand';
+                        const id = brand.id ? String(brand.id) : '';
+                        const fallback = brand.used_fallback === true ? ' (generic fallback brief)' : '';
+                        const models = [textModel, imageModel].filter(Boolean).join(' → ');
+                        brandEl.textContent = id
+                            ? `Based on base brand “${title}” (${id})${fallback}${models ? ' · ' + models : ''}`
+                            : `Based on base brand “${title}”${fallback}${models ? ' · ' + models : ''}`;
+                    }
+                    if (promptEl) {
+                        promptEl.textContent = text.prompt ? String(text.prompt) : '';
+                    }
+                    if (logoEl) {
+                        if (image.logo_attached === true) {
+                            logoEl.textContent = imageModel
+                                ? `Brand logo was sent as a reference image (${imageModel}).`
+                                : 'Brand logo was sent as a reference image.';
+                        } else if (brand.logo_available === true) {
+                            logoEl.textContent = 'Brand logo was available but was not attached.';
+                        } else {
+                            logoEl.textContent = 'No base brand logo — set one under Content → Branding before creating an image.';
+                        }
+                    }
+                    if (imageEl instanceof HTMLImageElement) {
+                        if (image.ok && image.image_url) {
+                            imageEl.src = String(image.image_url);
+                            imageEl.hidden = false;
+                        } else {
+                            imageEl.hidden = true;
+                            imageEl.removeAttribute('src');
+                        }
+                    }
+                    if (costEl) {
+                        const label = costBits(text.cost, image.cost);
+                        costEl.textContent = label;
+                        costEl.hidden = label === '';
+                    }
+
+                    const errBits = [];
+                    if (text.error) {
+                        errBits.push(String(text.error));
+                    }
+                    if (image.error) {
+                        errBits.push(String(image.error));
+                    }
+                    if (data && data.error && errBits.indexOf(String(data.error)) === -1) {
+                        errBits.push(String(data.error));
+                    }
+                    if (errorEl) {
+                        errorEl.textContent = errBits.join(' ');
+                        errorEl.hidden = errBits.length === 0 || (data && data.ok === true);
+                    }
+                    const helpText = image.help || text.help || (data && data.help) || '';
+                    if (helpEl) {
+                        helpEl.textContent = helpText ? String(helpText) : '';
+                        helpEl.hidden = !helpText || (data && data.ok === true);
+                    }
+                    if (resultEl) {
+                        resultEl.hidden = false;
+                    }
+                }
+
+                async function runProviderProof(provider) {
+                    const isOpenAi = provider === 'openai';
+                    const label = isOpenAi ? 'OpenAI' : 'fal';
+                    const statusEl = isOpenAi ? openAiProofStatus : falProofStatus;
+
+                    if (isOpenAi && !openaiReady(latestIntegrations)) {
+                        if (statusEl) {
+                            statusEl.textContent = 'Save an OpenAI key in Connect first.';
+                            statusEl.classList.add('is-error');
+                        }
+                        return;
+                    }
+                    if (!isOpenAi && !falReady(latestIntegrations)) {
+                        if (statusEl) {
+                            statusEl.textContent = 'Save a fal.ai key in Connect first.';
+                            statusEl.classList.add('is-error');
+                        }
+                        return;
+                    }
+                    if (!openaiReady(latestIntegrations) || !falReady(latestIntegrations)) {
+                        if (statusEl) {
+                            statusEl.textContent = 'Save both keys in Connect before running proofs.';
+                            statusEl.classList.add('is-error');
+                        }
+                        return;
+                    }
+                    if (!isOpenAi && !openaiTested) {
+                        if (statusEl) {
+                            statusEl.textContent = 'Pass the OpenAI proof first.';
+                            statusEl.classList.add('is-error');
                         }
                         return;
                     }
 
-                    clearPromptProof();
+                    clearProviderProofUi(provider);
+                    if (isOpenAi) {
+                        openaiTested = false;
+                    } else {
+                        falTested = false;
+                    }
                     applyWorkflow(latestIntegrations);
-                    setBusy(true, 'Asking OpenAI for an image prompt…', 'prompt');
+                    setBusy(
+                        true,
+                        `Running ${label} text + image proof… this can take a minute.`,
+                        provider
+                    );
                     if (keysStatus) {
                         keysStatus.textContent = '';
                         keysStatus.classList.remove('is-error');
@@ -17432,210 +17681,66 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                             },
                             body: JSON.stringify({
                                 csrf_token: csrfToken(),
-                                step: 'prompt',
+                                step: 'proof',
+                                provider: provider,
                                 record_setup: true,
-                                llm_model: 'openai:' + selectedOpenAiModel,
-                                openai_model: selectedOpenAiModel,
                             }),
                         });
                         const data = await resp.json().catch(() => null);
-                        const brand = data && data.brand ? data.brand : {};
-                        const llm = data && data.llm ? data.llm : {};
-                        const openai = data && data.openai ? data.openai : {};
-                        const promptText = llm.prompt || openai.prompt || '';
-                        const usedModel = llm.model || openai.model || selectedOpenAiModel;
-                        const cost = llm.cost || openai.cost || null;
-                        const ok = data && data.ok === true && !!promptText;
-
-                        if (testBrandMeta) {
-                            const title = brand.title ? String(brand.title) : 'Base brand';
-                            const id = brand.id ? String(brand.id) : '';
-                            const fallback = brand.used_fallback === true ? ' (generic fallback brief)' : '';
-                            testBrandMeta.textContent = id
-                                ? `Based on base brand “${title}” (${id})${fallback} · ${usedModel}`
-                                : `Based on base brand “${title}”${fallback} · ${usedModel}`;
-                        }
-
-                        if (promptText && testPrompt) {
-                            testPrompt.textContent = String(promptText);
-                        }
-                        if (testOpenAiCost) {
-                            const costLabel = cost && cost.estimate_label
-                                ? String(cost.estimate_label)
-                                : '';
-                            testOpenAiCost.textContent = costLabel;
-                            testOpenAiCost.hidden = costLabel === '';
-                        }
-                        if (!ok && testOpenAiError) {
-                            const bits = [];
-                            if (llm.error || openai.error) {
-                                bits.push(String(llm.error || openai.error));
-                            }
-                            if (llm.help || openai.help) {
-                                bits.push(String(llm.help || openai.help));
-                            }
-                            testOpenAiError.textContent = bits.join(' ');
-                            testOpenAiError.hidden = bits.length === 0;
-                        }
-
-                        if (ok) {
-                            promptReady = true;
-                            latestPrompt = String(promptText);
-                            if (promptResult) {
-                                promptResult.hidden = false;
-                            }
-                            if (promptStatus) {
-                                const costBit = cost && cost.estimate_label
-                                    ? ` · ${String(cost.estimate_label)}`
-                                    : '';
-                                promptStatus.textContent = `Prompt ready — continue in panel 3${costBit}`;
-                                promptStatus.classList.remove('is-error');
-                            }
-                            if (data.integrations) {
-                                latestIntegrations = data.integrations;
-                            }
-                        } else {
-                            promptReady = false;
-                            latestPrompt = '';
-                            if (promptResult) {
-                                promptResult.hidden = false;
-                            }
-                            const message = (data && data.error)
-                                ? String(data.error)
-                                : ((llm.error || openai.error)
-                                    ? String(llm.error || openai.error)
-                                    : 'Could not create image prompt.');
-                            if (promptStatus) {
-                                promptStatus.textContent = message;
-                                promptStatus.classList.add('is-error');
-                            }
-                        }
-                    } catch (error) {
-                        promptReady = false;
-                        latestPrompt = '';
-                        if (promptStatus) {
-                            promptStatus.textContent = error && error.message
-                                ? String(error.message)
-                                : 'Could not create image prompt.';
-                            promptStatus.classList.add('is-error');
-                        }
-                    } finally {
-                        setBusy(false, '', 'prompt');
-                    }
-                }
-
-                async function runImage() {
-                    if (!promptReady || latestPrompt === '') {
-                        if (imageStatus) {
-                            imageStatus.textContent = 'Create an image prompt first.';
-                            imageStatus.classList.add('is-error');
-                        }
-                        return;
-                    }
-                    if (!falReady(latestIntegrations)) {
-                        if (imageStatus) {
-                            imageStatus.textContent = 'Save a fal.ai key in Connect first.';
-                            imageStatus.classList.add('is-error');
-                        }
-                        return;
-                    }
-
-                    clearImageProof();
-                    applyWorkflow(latestIntegrations);
-                    setBusy(true, 'Asking fal to paint a still… this can take a minute.', 'image');
-
-                    try {
-                        const resp = await fetch('/biblioteca/test-create-connections.php', {
-                            method: 'POST',
-                            credentials: 'same-origin',
-                            headers: {
-                                Accept: 'application/json',
-                                'Content-Type': 'application/json',
-                            },
-                            body: JSON.stringify({
-                                csrf_token: csrfToken(),
-                                step: 'image',
-                                record_setup: true,
-                                prompt: latestPrompt,
-                                image_model: selectedFalModel,
-                                fal_model: selectedFalModel,
-                            }),
-                        });
-                        const data = await resp.json().catch(() => null);
-                        const brand = data && data.brand ? data.brand : {};
-                        const fal = data && data.fal ? data.fal : {};
-                        const falModelUsed = fal.model ? String(fal.model) : selectedFalModel;
-
-                        if (testFalLogoMeta) {
-                            if (fal.logo_attached === true) {
-                                testFalLogoMeta.textContent = `Brand logo was sent as a reference image (${falModelUsed}).`;
-                            } else if (brand.logo_available === true) {
-                                testFalLogoMeta.textContent = `Brand logo was available but was not attached (${falModelUsed}).`;
-                            } else {
-                                testFalLogoMeta.textContent = 'No base brand logo — set one under Content → Branding before creating an image.';
-                            }
-                        }
-                        if (testFalCost) {
-                            const costLabel = fal.cost && fal.cost.estimate_label
-                                ? String(fal.cost.estimate_label)
-                                : '';
-                            testFalCost.textContent = costLabel;
-                            testFalCost.hidden = costLabel === '';
-                        }
-
-                        if (fal.ok && fal.image_url && testImage instanceof HTMLImageElement) {
-                            testImage.src = String(fal.image_url);
-                            testImage.hidden = false;
-                        }
-                        if (!fal.ok && testFalError) {
-                            testFalError.textContent = fal.error ? String(fal.error) : 'fal image failed.';
-                            testFalError.hidden = false;
-                        }
-                        if (fal.help && testFalHelp) {
-                            testFalHelp.textContent = String(fal.help);
-                            testFalHelp.hidden = false;
-                        }
+                        fillProofResult(provider, data || {});
 
                         if (data && data.ok === true) {
-                            imageReady = true;
-                            if (imageResult) {
-                                imageResult.hidden = false;
+                            if (isOpenAi) {
+                                openaiTested = true;
+                            } else {
+                                falTested = true;
                             }
-                            if (imageStatus) {
-                                const costBit = fal.cost && fal.cost.estimate_label
-                                    ? ` · ${String(fal.cost.estimate_label)}`
-                                    : '';
-                                imageStatus.textContent = `Image ready${costBit}`;
-                                imageStatus.classList.remove('is-error');
+                            if (statusEl) {
+                                const proof = data.proof || {};
+                                const text = proof.text || {};
+                                const image = proof.image || {};
+                                const costBit = costBits(text.cost, image.cost);
+                                statusEl.textContent = costBit
+                                    ? `${label} proof passed · ${costBit}`
+                                    : `${label} proof passed`;
+                                statusEl.classList.remove('is-error');
                             }
                             if (data.integrations) {
                                 renderStatus(data.integrations);
-                                imageReady = true;
-                                promptReady = true;
+                                if (isOpenAi) {
+                                    openaiTested = true;
+                                } else {
+                                    falTested = true;
+                                }
                             }
                         } else {
-                            imageReady = false;
-                            if (imageResult) {
-                                imageResult.hidden = false;
+                            if (isOpenAi) {
+                                openaiTested = false;
+                            } else {
+                                falTested = false;
                             }
                             const message = (data && data.error)
                                 ? String(data.error)
-                                : ((fal.error) ? String(fal.error) : 'Could not create image.');
-                            if (imageStatus) {
-                                imageStatus.textContent = message;
-                                imageStatus.classList.add('is-error');
+                                : `Could not complete the ${label} proof.`;
+                            if (statusEl) {
+                                statusEl.textContent = message;
+                                statusEl.classList.add('is-error');
                             }
                         }
                     } catch (error) {
-                        imageReady = false;
-                        if (imageStatus) {
-                            imageStatus.textContent = error && error.message
+                        if (isOpenAi) {
+                            openaiTested = false;
+                        } else {
+                            falTested = false;
+                        }
+                        if (statusEl) {
+                            statusEl.textContent = error && error.message
                                 ? String(error.message)
-                                : 'Could not create image.';
-                            imageStatus.classList.add('is-error');
+                                : `Could not complete the ${label} proof.`;
+                            statusEl.classList.add('is-error');
                         }
                     } finally {
-                        setBusy(false, '', 'image');
+                        setBusy(false, '', '');
                     }
                 }
 
@@ -17649,11 +17754,11 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                             .then((integrations) => {
                                 if (keysStatus) {
                                     if (openaiReady(integrations) && falReady(integrations)) {
-                                        keysStatus.textContent = 'Saved. Prompt and image steps are ready.';
+                                        keysStatus.textContent = 'Saved. OpenAI and fal proofs are ready.';
                                     } else if (openaiReady(integrations)) {
-                                        keysStatus.textContent = 'Saved. Prompt step is ready.';
+                                        keysStatus.textContent = 'Saved. Add a fal.ai key as well.';
                                     } else if (falReady(integrations)) {
-                                        keysStatus.textContent = 'Saved. Add an OpenAI key for the prompt step.';
+                                        keysStatus.textContent = 'Saved. Add an OpenAI key as well.';
                                     } else {
                                         keysStatus.textContent = 'Saved.';
                                     }
@@ -17716,14 +17821,14 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     });
                 }
 
-                if (promptBtn) {
-                    promptBtn.addEventListener('click', () => {
-                        runPrompt().catch(() => {});
+                if (openAiProofBtn) {
+                    openAiProofBtn.addEventListener('click', () => {
+                        runProviderProof('openai').catch(() => {});
                     });
                 }
-                if (imageBtn) {
-                    imageBtn.addEventListener('click', () => {
-                        runImage().catch(() => {});
+                if (falProofBtn) {
+                    falProofBtn.addEventListener('click', () => {
+                        runProviderProof('fal').catch(() => {});
                     });
                 }
                 if (reconfigureBtn) {
@@ -17895,6 +18000,82 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     });
                 }
 
+                function hydratePrefsResults(integrations) {
+                    const data = integrations && typeof integrations === 'object' ? integrations : {};
+                    const rows = data.last_results && typeof data.last_results === 'object'
+                        ? data.last_results
+                        : {};
+
+                    const llmRow = rows.prefs_llm;
+                    if (llmRow && llmRow.ok === true && llmRow.prompt) {
+                        if (llmPrompt) {
+                            llmPrompt.textContent = String(llmRow.prompt);
+                        }
+                        if (llmError) {
+                            llmError.hidden = true;
+                        }
+                        if (llmResult) {
+                            llmResult.hidden = false;
+                        }
+                        if (llmStatus) {
+                            llmStatus.textContent = llmRow.cost_label
+                                ? `Last text result · ${String(llmRow.cost_label)}`
+                                : 'Last text result';
+                            llmStatus.classList.remove('is-error');
+                        }
+                    }
+
+                    const imageRow = rows.prefs_image;
+                    if (imageRow && imageRow.ok === true) {
+                        if (imagePreview instanceof HTMLImageElement) {
+                            if (imageRow.media_url) {
+                                imagePreview.src = String(imageRow.media_url);
+                                imagePreview.hidden = false;
+                            } else {
+                                imagePreview.hidden = true;
+                                imagePreview.removeAttribute('src');
+                            }
+                        }
+                        if (imageError) {
+                            imageError.hidden = true;
+                        }
+                        if (imageResult) {
+                            imageResult.hidden = false;
+                        }
+                        if (imageStatus) {
+                            imageStatus.textContent = imageRow.cost_label
+                                ? `Last image result · ${String(imageRow.cost_label)}`
+                                : 'Last image result';
+                            imageStatus.classList.remove('is-error');
+                        }
+                    }
+
+                    const videoRow = rows.prefs_video;
+                    if (videoRow && videoRow.ok === true) {
+                        if (videoPreview instanceof HTMLVideoElement) {
+                            if (videoRow.media_url) {
+                                videoPreview.src = String(videoRow.media_url);
+                                videoPreview.hidden = false;
+                            } else {
+                                videoPreview.hidden = true;
+                                videoPreview.removeAttribute('src');
+                            }
+                        }
+                        if (videoError) {
+                            videoError.hidden = true;
+                        }
+                        if (videoResult) {
+                            videoResult.hidden = false;
+                        }
+                        if (videoStatus) {
+                            videoStatus.textContent = videoRow.cost_label
+                                ? `Last video result · ${String(videoRow.cost_label)}`
+                                : 'Last video result';
+                            videoStatus.classList.remove('is-error');
+                        }
+                    }
+                }
+
                 function applyStatus(integrations) {
                     const data = integrations && typeof integrations === 'object' ? integrations : {};
                     allLlm = Array.isArray(data.llm_models) ? data.llm_models : [];
@@ -17920,6 +18101,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                         refreshPanelLists();
                     });
                     refreshPanelLists();
+                    hydratePrefsResults(data);
 
                     if (saveBtn instanceof HTMLButtonElement) {
                         saveBtn.disabled = busy;

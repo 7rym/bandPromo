@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-11-07 16:45 - Publish Create → Start dual workhorse proofs (OpenAI + fal text+image), durable last results, fal reasoning fix, and video loop/no-audio prompt; Preferences catalogue from JSON.
+2026-11-07 16:30 - Create video test prompt also asks for no audio.
+2026-11-07 14:35 - Create stores last Start proofs and Preferences test results (local media copies) and shows them again when the page opens.
+2026-11-07 14:25 - Create video test prompt asks for a perfect loop with constant motion (no ease-in/out).
+2026-11-07 14:15 - Create fal LLM calls set `reasoning: true` on openrouter/router (fal’s default false breaks mandatory-reasoning models such as Claude Sonnet 5.5).
+2026-11-07 14:00 - Create → Start: same text+image proof on OpenAI and fal (workhorse models, no Start model pickers); Preferences keeps everyday model choice; `step=proof` + `openai_tested`/`fal_tested`.
+2026-11-07 13:45 - Create → Start: Preferences-style proof panels; Connect requires both keys before tests; every connected key always has a proof (key change/clear invalidates that proof); policy locked for later multi-provider Connect.
+2026-11-07 13:35 - Create → Start keeps proving **both** OpenAI (text) and fal.ai (image); ready summary + inspirational copy, Preferences primary / Reconfigure secondary; live fal balance (no cache) + OpenAI billing link; prompt proof no longer clears a completed image proof; Start fal picker limited to Cheap models.
+2026-11-07 13:25 - Create → Start ready state polish (superseded clarification: both APIs remain required for the PoC proof).
+2026-11-07 13:10 - ROADMAP/TODO: Create Preferences model catalogue stays data-driven (JSON, no hardcoded page lists); add later **catalogue update function** so fal/OpenRouter list refreshes are an explicit product task, not a one-off edit.
+2026-11-07 13:05 - Create → Preferences loads nine curated fal model lists (LLM/Image/Video × Cheap/Good/Premium) from `biblioteca/create-model-catalog.json`; curation instructions stored in `create-model-catalog-instructions.md`; LLM tests use fal OpenRouter router; video tests send first+last frame params.
+2026-11-07 12:50 - Session start with `-BumpSession` prints a Cursor chat title (`Session v<major>.<minor>.<session>`) and the slash prompt / handoff rule tell the agent to rename the chat tab via `rename_chat`.
 2026-11-07 12:40 - Publish Create → Start as connection proof only + Preferences subtab (per-panel Cheap|Good|Premium, test/Result, Save); localhost SSL CA bundle; Preferences UI polish.
 2026-11-06 14:45 - Create → Preferences polish: Content-style panel headers, fixed Test button row, drop duplicate muted price/meta lines, and show outputs under a Result heading.
 2026-11-06 14:40 - Localhost Create HTTPS: honour optional CA bundle at `%USERPROFILE%\.bandpromo\php-ca-bundle.pem` (or `BANDPROMO_SSL_CAFILE`) so antivirus HTTPS scanning roots (e.g. AVG) work with PHP OpenSSL without turning verification off.

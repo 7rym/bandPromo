@@ -49,13 +49,18 @@ function bandpromo_create_integrations_defaults(): array
         'image_model' => bandpromo_create_integrations_default_image_model($tier),
         'video_model' => bandpromo_create_integrations_default_video_model($tier),
         // Legacy aliases kept in sync with llm/image prefs.
-        'openai_model' => 'gpt-6-luna',
+        'openai_model' => 'gpt-6-luna', // legacy alias; Preferences LLM uses fal OpenRouter ids
         'fal_model' => bandpromo_create_integrations_default_image_model($tier),
         'setup_complete' => false,
+        // Provider proofs (each key: text + image). Legacy aliases kept in sync.
+        'openai_tested' => false,
+        'fal_tested' => false,
         'prompt_tested' => false,
         'image_tested' => false,
         'setup_completed_at_utc' => '',
         'updated_at_utc' => '',
+        // Last successful Start proofs + Preferences tests (media under user results dir).
+        'last_results' => [],
     ];
 }
 
@@ -223,6 +228,357 @@ function bandpromo_create_integrations_path(string $root, string $username): str
     return bandpromo_create_integrations_dir($root) . DIRECTORY_SEPARATOR . $safe . '.json';
 }
 
+/**
+ * Local copies of last Create test media (remote fal/OpenAI URLs expire).
+ */
+function bandpromo_create_integrations_results_dir(string $root, string $username): string
+{
+    $safe = bandpromo_create_integrations_sanitize_username($username);
+    if ($safe === '') {
+        return '';
+    }
+
+    return bandpromo_create_integrations_dir($root)
+        . DIRECTORY_SEPARATOR . $safe
+        . DIRECTORY_SEPARATOR . 'results';
+}
+
+/**
+ * @return array<string, array{ext:string, mime:string, type:string}>
+ */
+function bandpromo_create_integrations_result_media_kinds(): array
+{
+    return [
+        'openai_proof_image' => ['ext' => 'png', 'mime' => 'image/png', 'type' => 'image'],
+        'fal_proof_image' => ['ext' => 'png', 'mime' => 'image/png', 'type' => 'image'],
+        'prefs_image' => ['ext' => 'png', 'mime' => 'image/png', 'type' => 'image'],
+        'prefs_video' => ['ext' => 'mp4', 'mime' => 'video/mp4', 'type' => 'video'],
+    ];
+}
+
+/**
+ * @param array<string, mixed> $raw
+ * @return array<string, array<string, mixed>>
+ */
+function bandpromo_create_integrations_normalize_last_results(array $raw): array
+{
+    $slots = ['openai_proof', 'fal_proof', 'prefs_llm', 'prefs_image', 'prefs_video'];
+    $out = [];
+    foreach ($slots as $slot) {
+        if (!isset($raw[$slot]) || !is_array($raw[$slot])) {
+            continue;
+        }
+        $row = $raw[$slot];
+        $out[$slot] = [
+            'ok' => !empty($row['ok']),
+            'at_utc' => trim((string) ($row['at_utc'] ?? '')),
+            'brand_title' => trim((string) ($row['brand_title'] ?? '')),
+            'brand_id' => trim((string) ($row['brand_id'] ?? '')),
+            'prompt' => trim((string) ($row['prompt'] ?? '')),
+            'text_model' => trim((string) ($row['text_model'] ?? '')),
+            'image_model' => trim((string) ($row['image_model'] ?? '')),
+            'video_model' => trim((string) ($row['video_model'] ?? '')),
+            'logo_attached' => !empty($row['logo_attached']),
+            'cost_label' => trim((string) ($row['cost_label'] ?? '')),
+            'media_kind' => trim((string) ($row['media_kind'] ?? '')),
+            'media_ext' => trim((string) ($row['media_ext'] ?? '')),
+        ];
+    }
+
+    return $out;
+}
+
+function bandpromo_create_integrations_result_media_path(string $root, string $username, string $kind): string
+{
+    $kinds = bandpromo_create_integrations_result_media_kinds();
+    if (!isset($kinds[$kind])) {
+        return '';
+    }
+    $dir = bandpromo_create_integrations_results_dir($root, $username);
+    if ($dir === '' || !is_dir($dir)) {
+        return '';
+    }
+    $matches = glob($dir . DIRECTORY_SEPARATOR . $kind . '.*') ?: [];
+    foreach ($matches as $path) {
+        if (is_file($path)) {
+            return $path;
+        }
+    }
+
+    return '';
+}
+
+function bandpromo_create_integrations_delete_result_media(string $root, string $username, string $kind): void
+{
+    $kinds = bandpromo_create_integrations_result_media_kinds();
+    if (!isset($kinds[$kind])) {
+        return;
+    }
+    $dir = bandpromo_create_integrations_results_dir($root, $username);
+    if ($dir === '' || !is_dir($dir)) {
+        return;
+    }
+    foreach (glob($dir . DIRECTORY_SEPARATOR . $kind . '.*') ?: [] as $path) {
+        if (is_file($path)) {
+            @unlink($path);
+        }
+    }
+}
+
+/**
+ * @return array{ok:bool,bytes:string,mime:string,ext:string,error:string}
+ */
+function bandpromo_create_integrations_fetch_result_bytes(string $source): array
+{
+    $source = trim($source);
+    if ($source === '') {
+        return ['ok' => false, 'bytes' => '', 'mime' => '', 'ext' => '', 'error' => 'Empty media source.'];
+    }
+
+    if (preg_match('#^data:([a-z0-9.+/-]+);base64,(.+)$#is', $source, $m) === 1) {
+        $mime = strtolower(trim((string) $m[1]));
+        $raw = base64_decode((string) $m[2], true);
+        if (!is_string($raw) || $raw === '') {
+            return ['ok' => false, 'bytes' => '', 'mime' => '', 'ext' => '', 'error' => 'Could not decode data URL.'];
+        }
+        $ext = 'bin';
+        if (strpos($mime, 'png') !== false) {
+            $ext = 'png';
+        } elseif (strpos($mime, 'jpeg') !== false || strpos($mime, 'jpg') !== false) {
+            $ext = 'jpg';
+        } elseif (strpos($mime, 'webp') !== false) {
+            $ext = 'webp';
+        } elseif (strpos($mime, 'gif') !== false) {
+            $ext = 'gif';
+        } elseif (strpos($mime, 'mp4') !== false) {
+            $ext = 'mp4';
+        } elseif (strpos($mime, 'webm') !== false) {
+            $ext = 'webm';
+        }
+
+        return ['ok' => true, 'bytes' => $raw, 'mime' => $mime, 'ext' => $ext, 'error' => ''];
+    }
+
+    if (preg_match('#^https?://#i', $source) !== 1) {
+        return ['ok' => false, 'bytes' => '', 'mime' => '', 'ext' => '', 'error' => 'Unsupported media source.'];
+    }
+
+    $ch = curl_init($source);
+    if ($ch === false) {
+        return ['ok' => false, 'bytes' => '', 'mime' => '', 'ext' => '', 'error' => 'Could not start download.'];
+    }
+    $opts = [
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_FOLLOWLOCATION => true,
+        CURLOPT_MAXREDIRS => 5,
+        CURLOPT_CONNECTTIMEOUT => 20,
+        CURLOPT_TIMEOUT => 120,
+        CURLOPT_SSL_VERIFYPEER => true,
+        CURLOPT_SSL_VERIFYHOST => 2,
+        CURLOPT_HTTPHEADER => ['Accept: */*'],
+        CURLOPT_USERAGENT => 'bandPromo-create-results/1.0',
+    ];
+    if (function_exists('bandpromo_ssl_curl_setopt_ca')) {
+        $opts = bandpromo_ssl_curl_setopt_ca($opts);
+    }
+    curl_setopt_array($ch, $opts);
+    $body = curl_exec($ch);
+    $status = (int) curl_getinfo($ch, CURLINFO_RESPONSE_CODE);
+    $mime = strtolower(trim((string) curl_getinfo($ch, CURLINFO_CONTENT_TYPE)));
+    $err = curl_error($ch);
+    curl_close($ch);
+    if (!is_string($body) || $body === '' || $status < 200 || $status >= 300) {
+        return [
+            'ok' => false,
+            'bytes' => '',
+            'mime' => '',
+            'ext' => '',
+            'error' => $err !== '' ? $err : ('Download failed (HTTP ' . $status . ').'),
+        ];
+    }
+    if (strlen($body) > 25 * 1024 * 1024) {
+        return ['ok' => false, 'bytes' => '', 'mime' => '', 'ext' => '', 'error' => 'Media too large to keep locally.'];
+    }
+    if (strpos($mime, ';') !== false) {
+        $mime = trim(explode(';', $mime, 2)[0]);
+    }
+    $ext = 'bin';
+    if (strpos($mime, 'png') !== false || preg_match('#\\.png(\\?|$)#i', $source) === 1) {
+        $ext = 'png';
+    } elseif (strpos($mime, 'jpeg') !== false || strpos($mime, 'jpg') !== false || preg_match('#\\.jpe?g(\\?|$)#i', $source) === 1) {
+        $ext = 'jpg';
+    } elseif (strpos($mime, 'webp') !== false) {
+        $ext = 'webp';
+    } elseif (strpos($mime, 'gif') !== false) {
+        $ext = 'gif';
+    } elseif (strpos($mime, 'mp4') !== false || preg_match('#\\.mp4(\\?|$)#i', $source) === 1) {
+        $ext = 'mp4';
+    } elseif (strpos($mime, 'webm') !== false || preg_match('#\\.webm(\\?|$)#i', $source) === 1) {
+        $ext = 'webm';
+    } elseif (strpos($source, 'image') !== false) {
+        $ext = 'png';
+        $mime = $mime !== '' ? $mime : 'image/png';
+    }
+
+    return ['ok' => true, 'bytes' => $body, 'mime' => $mime, 'ext' => $ext, 'error' => ''];
+}
+
+/**
+ * @return array{ok:bool,media_kind:string,media_ext:string,error:string}
+ */
+function bandpromo_create_integrations_store_result_media(
+    string $root,
+    string $username,
+    string $kind,
+    string $sourceUrl
+): array {
+    $kinds = bandpromo_create_integrations_result_media_kinds();
+    if (!isset($kinds[$kind])) {
+        return ['ok' => false, 'media_kind' => $kind, 'media_ext' => '', 'error' => 'Unknown result media kind.'];
+    }
+    $dir = bandpromo_create_integrations_results_dir($root, $username);
+    if ($dir === '') {
+        return ['ok' => false, 'media_kind' => $kind, 'media_ext' => '', 'error' => 'Missing results directory.'];
+    }
+    if (!is_dir($dir) && !@mkdir($dir, 0755, true) && !is_dir($dir)) {
+        return ['ok' => false, 'media_kind' => $kind, 'media_ext' => '', 'error' => 'Could not create results directory.'];
+    }
+
+    $fetched = bandpromo_create_integrations_fetch_result_bytes($sourceUrl);
+    if (!$fetched['ok']) {
+        return [
+            'ok' => false,
+            'media_kind' => $kind,
+            'media_ext' => '',
+            'error' => (string) $fetched['error'],
+        ];
+    }
+
+    $ext = (string) $fetched['ext'];
+    if ($ext === '' || $ext === 'bin') {
+        $ext = (string) $kinds[$kind]['ext'];
+    }
+    // Prefer kind default for video/image family mismatches.
+    if (($kinds[$kind]['type'] ?? '') === 'video' && !in_array($ext, ['mp4', 'webm'], true)) {
+        $ext = 'mp4';
+    }
+    if (($kinds[$kind]['type'] ?? '') === 'image' && !in_array($ext, ['png', 'jpg', 'jpeg', 'webp', 'gif'], true)) {
+        $ext = 'png';
+    }
+
+    bandpromo_create_integrations_delete_result_media($root, $username, $kind);
+    $path = $dir . DIRECTORY_SEPARATOR . $kind . '.' . $ext;
+    if (@file_put_contents($path, $fetched['bytes']) === false) {
+        return ['ok' => false, 'media_kind' => $kind, 'media_ext' => '', 'error' => 'Could not write result media.'];
+    }
+
+    return ['ok' => true, 'media_kind' => $kind, 'media_ext' => $ext, 'error' => ''];
+}
+
+function bandpromo_create_integrations_result_media_url(string $kind, string $atUtc = ''): string
+{
+    $kinds = bandpromo_create_integrations_result_media_kinds();
+    if (!isset($kinds[$kind])) {
+        return '';
+    }
+    $t = preg_replace('/[^0-9A-Za-z._-]/', '', $atUtc) ?: (string) time();
+
+    return '/biblioteca/create-integrations-result-media.php?kind=' . rawurlencode($kind) . '&t=' . rawurlencode((string) $t);
+}
+
+/**
+ * @param mixed ...$costs
+ */
+function bandpromo_create_integrations_join_cost_labels(...$costs): string
+{
+    $bits = [];
+    foreach ($costs as $cost) {
+        if (!is_array($cost)) {
+            continue;
+        }
+        $label = trim((string) ($cost['estimate_label'] ?? ''));
+        if ($label !== '') {
+            $bits[] = $label;
+        }
+    }
+
+    return implode(' · ', $bits);
+}
+
+/**
+ * @param array<string, mixed> $payload
+ */
+function bandpromo_create_integrations_record_last_result(
+    string $root,
+    string $username,
+    string $slot,
+    array $payload
+): bool {
+    $path = bandpromo_create_integrations_path($root, $username);
+    if ($path === '') {
+        return false;
+    }
+    $current = bandpromo_create_integrations_load($root, $username);
+    if (!isset($current['last_results']) || !is_array($current['last_results'])) {
+        $current['last_results'] = [];
+    }
+    $current['last_results'][$slot] = [
+        'ok' => !empty($payload['ok']),
+        'at_utc' => trim((string) ($payload['at_utc'] ?? gmdate('Y-m-d\TH:i:s\Z'))),
+        'brand_title' => trim((string) ($payload['brand_title'] ?? '')),
+        'brand_id' => trim((string) ($payload['brand_id'] ?? '')),
+        'prompt' => trim((string) ($payload['prompt'] ?? '')),
+        'text_model' => trim((string) ($payload['text_model'] ?? '')),
+        'image_model' => trim((string) ($payload['image_model'] ?? '')),
+        'video_model' => trim((string) ($payload['video_model'] ?? '')),
+        'logo_attached' => !empty($payload['logo_attached']),
+        'cost_label' => trim((string) ($payload['cost_label'] ?? '')),
+        'media_kind' => trim((string) ($payload['media_kind'] ?? '')),
+        'media_ext' => trim((string) ($payload['media_ext'] ?? '')),
+    ];
+    $current['last_results'] = bandpromo_create_integrations_normalize_last_results($current['last_results']);
+    $current['updated_at_utc'] = gmdate('Y-m-d\TH:i:s\Z');
+
+    return bandpromo_json_write_file($path, $current);
+}
+
+/**
+ * @return array<string, array<string, mixed>>
+ */
+function bandpromo_create_integrations_last_results_payload(string $root, string $username): array
+{
+    $stored = bandpromo_create_integrations_load($root, $username);
+    $rows = is_array($stored['last_results'] ?? null) ? $stored['last_results'] : [];
+    $out = [];
+    foreach ($rows as $slot => $row) {
+        if (!is_array($row)) {
+            continue;
+        }
+        $kind = trim((string) ($row['media_kind'] ?? ''));
+        $mediaUrl = '';
+        if ($kind !== '' && bandpromo_create_integrations_result_media_path($root, $username, $kind) !== '') {
+            $mediaUrl = bandpromo_create_integrations_result_media_url($kind, (string) ($row['at_utc'] ?? ''));
+        }
+        $out[$slot] = [
+            'ok' => !empty($row['ok']),
+            'at_utc' => (string) ($row['at_utc'] ?? ''),
+            'brand_title' => (string) ($row['brand_title'] ?? ''),
+            'brand_id' => (string) ($row['brand_id'] ?? ''),
+            'prompt' => (string) ($row['prompt'] ?? ''),
+            'text_model' => (string) ($row['text_model'] ?? ''),
+            'image_model' => (string) ($row['image_model'] ?? ''),
+            'video_model' => (string) ($row['video_model'] ?? ''),
+            'logo_attached' => !empty($row['logo_attached']),
+            'cost_label' => (string) ($row['cost_label'] ?? ''),
+            'media_kind' => $kind,
+            'media_ext' => (string) ($row['media_ext'] ?? ''),
+            'media_url' => $mediaUrl,
+        ];
+    }
+
+    return $out;
+}
+
 function bandpromo_create_integrations_normalize(array $decoded): array
 {
     $out = bandpromo_create_integrations_defaults();
@@ -272,12 +628,18 @@ function bandpromo_create_integrations_normalize(array $decoded): array
     $out['fal_model'] = $out['image_model'];
 
     $out['setup_complete'] = !empty($decoded['setup_complete']);
-    $out['prompt_tested'] = !empty($decoded['prompt_tested']);
-    $out['image_tested'] = !empty($decoded['image_tested']);
+    // Prefer explicit provider flags; fall back to legacy prompt/image tested.
+    $out['openai_tested'] = !empty($decoded['openai_tested']) || !empty($decoded['prompt_tested']);
+    $out['fal_tested'] = !empty($decoded['fal_tested']) || !empty($decoded['image_tested']);
+    $out['prompt_tested'] = $out['openai_tested'];
+    $out['image_tested'] = $out['fal_tested'];
     $out['setup_completed_at_utc'] = trim((string) ($decoded['setup_completed_at_utc'] ?? ''));
     $out['updated_at_utc'] = trim((string) ($decoded['updated_at_utc'] ?? ''));
+    $out['last_results'] = bandpromo_create_integrations_normalize_last_results(
+        is_array($decoded['last_results'] ?? null) ? $decoded['last_results'] : []
+    );
 
-    if ($out['setup_complete'] && (!$out['prompt_tested'] || !$out['image_tested'])) {
+    if ($out['setup_complete'] && (!$out['openai_tested'] || !$out['fal_tested'])) {
         $out['setup_complete'] = false;
     }
 
@@ -313,9 +675,26 @@ function bandpromo_create_integrations_save(string $root, string $username, arra
 
     if (array_key_exists('openai_api_key', $patch)) {
         $current['openai_api_key'] = trim((string) $patch['openai_api_key']);
+        // Every connected key must be re-proven after change or clear.
+        $current['openai_tested'] = false;
+        $current['prompt_tested'] = false;
+        $current['setup_complete'] = false;
+        $current['setup_completed_at_utc'] = '';
+        if (isset($current['last_results']) && is_array($current['last_results'])) {
+            unset($current['last_results']['openai_proof']);
+        }
+        bandpromo_create_integrations_delete_result_media($root, $username, 'openai_proof_image');
     }
     if (array_key_exists('fal_api_key', $patch)) {
         $current['fal_api_key'] = trim((string) $patch['fal_api_key']);
+        $current['fal_tested'] = false;
+        $current['image_tested'] = false;
+        $current['setup_complete'] = false;
+        $current['setup_completed_at_utc'] = '';
+        if (isset($current['last_results']) && is_array($current['last_results'])) {
+            unset($current['last_results']['fal_proof']);
+        }
+        bandpromo_create_integrations_delete_result_media($root, $username, 'fal_proof_image');
     }
 
     if (array_key_exists('llm_price_tier', $patch)) {
@@ -351,11 +730,19 @@ function bandpromo_create_integrations_save(string $root, string $username, arra
         $current['video_model'] = bandpromo_create_integrations_normalize_video_model((string) $patch['video_model'], $videoTier);
     }
 
-    if (array_key_exists('prompt_tested', $patch)) {
+    if (array_key_exists('openai_tested', $patch)) {
+        $current['openai_tested'] = !empty($patch['openai_tested']);
+        $current['prompt_tested'] = $current['openai_tested'];
+    } elseif (array_key_exists('prompt_tested', $patch)) {
         $current['prompt_tested'] = !empty($patch['prompt_tested']);
+        $current['openai_tested'] = $current['prompt_tested'];
     }
-    if (array_key_exists('image_tested', $patch)) {
+    if (array_key_exists('fal_tested', $patch)) {
+        $current['fal_tested'] = !empty($patch['fal_tested']);
+        $current['image_tested'] = $current['fal_tested'];
+    } elseif (array_key_exists('image_tested', $patch)) {
         $current['image_tested'] = !empty($patch['image_tested']);
+        $current['fal_tested'] = $current['image_tested'];
     }
     if (array_key_exists('setup_complete', $patch)) {
         $current['setup_complete'] = !empty($patch['setup_complete']);
@@ -367,9 +754,12 @@ function bandpromo_create_integrations_save(string $root, string $username, arra
     }
     if (array_key_exists('clear_setup', $patch) && !empty($patch['clear_setup'])) {
         $current['setup_complete'] = false;
+        $current['openai_tested'] = false;
+        $current['fal_tested'] = false;
         $current['prompt_tested'] = false;
         $current['image_tested'] = false;
         $current['setup_completed_at_utc'] = '';
+        // Keep last proof media so Reconfigure still shows what passed before.
     }
 
     // Keep each selection inside its own panel tier. Preference edits never clear Start setup.
@@ -393,11 +783,19 @@ function bandpromo_create_integrations_save(string $root, string $username, arra
         : bandpromo_create_integrations_default_openai_model();
     $current['fal_model'] = (string) $current['image_model'];
 
-    if (!empty($current['prompt_tested']) && !empty($current['image_tested'])) {
+    // Keep legacy aliases aligned with provider proofs.
+    $current['prompt_tested'] = !empty($current['openai_tested']);
+    $current['image_tested'] = !empty($current['fal_tested']);
+
+    // Ready only when every connected provider proof has passed (OpenAI + fal today).
+    if (!empty($current['openai_tested']) && !empty($current['fal_tested'])) {
         $current['setup_complete'] = true;
         if (trim((string) $current['setup_completed_at_utc']) === '') {
             $current['setup_completed_at_utc'] = gmdate('Y-m-d\TH:i:s\Z');
         }
+    } else {
+        $current['setup_complete'] = false;
+        $current['setup_completed_at_utc'] = '';
     }
 
     $current['updated_at_utc'] = gmdate('Y-m-d\TH:i:s\Z');
@@ -418,6 +816,108 @@ function bandpromo_create_integrations_mask_key(string $key): string
 
     // Fixed short preview — never mirror full key length with dots.
     return substr($key, 0, 4) . '••••' . substr($key, -4);
+}
+
+/**
+ * Best-effort fal credit balance. Needs a key with billing:usage:read (BILLING / READONLY / FULL).
+ *
+ * @return array{ok:bool,available:bool,balance:?float,currency:string,label:string,buy_url:string,error:string}
+ */
+function bandpromo_create_integrations_fal_credits(string $apiKey): array
+{
+    $buyUrl = 'https://fal.ai/dashboard/billing';
+    $apiKey = trim($apiKey);
+    $empty = [
+        'ok' => false,
+        'available' => false,
+        'balance' => null,
+        'currency' => 'USD',
+        'label' => '',
+        'buy_url' => $buyUrl,
+        'error' => '',
+    ];
+    if ($apiKey === '') {
+        $empty['error'] = 'No fal.ai key recorded.';
+
+        return $empty;
+    }
+
+    $response = bandpromo_create_integrations_http_json(
+        'GET',
+        'https://api.fal.ai/v1/account/billing?expand=credits',
+        [
+            'Authorization' => 'Key ' . $apiKey,
+            'Accept' => 'application/json',
+        ],
+        null,
+        20
+    );
+    $decoded = json_decode($response['body'], true);
+    if (!$response['ok'] || !is_array($decoded)) {
+        $message = '';
+        if (is_array($decoded)) {
+            $err = $decoded['error'] ?? null;
+            if (is_array($err)) {
+                $message = trim((string) ($err['message'] ?? ''));
+            } elseif (is_string($err)) {
+                $message = trim($err);
+            }
+            if ($message === '') {
+                $message = trim((string) ($decoded['detail'] ?? $decoded['message'] ?? ''));
+            }
+        }
+        if ($message === '') {
+            $message = $response['error'] !== '' ? $response['error'] : 'Could not read fal balance.';
+        }
+        $empty['error'] = $message;
+
+        return $empty;
+    }
+
+    $credits = is_array($decoded['credits'] ?? null) ? $decoded['credits'] : null;
+    if ($credits === null || !isset($credits['current_balance'])) {
+        $empty['error'] = 'fal did not return a credit balance for this key (billing permission may be missing).';
+
+        return $empty;
+    }
+
+    $balance = (float) $credits['current_balance'];
+    $currency = trim((string) ($credits['currency'] ?? 'USD'));
+    if ($currency === '') {
+        $currency = 'USD';
+    }
+    $formatted = number_format($balance, 2, '.', '');
+    $label = $currency === 'USD'
+        ? ('$' . $formatted)
+        : ($formatted . ' ' . $currency);
+
+    return [
+        'ok' => true,
+        'available' => true,
+        'balance' => $balance,
+        'currency' => $currency,
+        'label' => $label,
+        'buy_url' => $buyUrl,
+        'error' => '',
+    ];
+}
+
+/**
+ * OpenAI has no supported remaining-balance API for ordinary project keys.
+ *
+ * @return array{ok:bool,available:bool,balance:?float,currency:string,label:string,buy_url:string,error:string}
+ */
+function bandpromo_create_integrations_openai_credits(): array
+{
+    return [
+        'ok' => false,
+        'available' => false,
+        'balance' => null,
+        'currency' => 'USD',
+        'label' => '',
+        'buy_url' => 'https://platform.openai.com/settings/organization/billing',
+        'error' => 'OpenAI does not expose remaining credit balance to ordinary API keys. Check billing in the OpenAI dashboard.',
+    ];
 }
 
 /**
@@ -559,6 +1059,12 @@ function bandpromo_create_integrations_status_payload(string $root, string $user
         ['id' => 'good', 'label' => 'Good'],
         ['id' => 'premium', 'label' => 'Premium'],
     ];
+    // Balance lookup is only useful on the Start ready view; skip the network call during setup.
+    $openaiCredits = bandpromo_create_integrations_openai_credits();
+    $falCredits = bandpromo_create_integrations_fal_credits('');
+    if (!empty($stored['setup_complete']) && $falConfigured) {
+        $falCredits = bandpromo_create_integrations_fal_credits($resolved['fal_api_key']);
+    }
 
     return [
         'openai_configured' => $openaiConfigured,
@@ -610,10 +1116,16 @@ function bandpromo_create_integrations_status_payload(string $root, string $user
             $videoTier
         ),
         'setup_complete' => !empty($stored['setup_complete']),
-        'prompt_tested' => !empty($stored['prompt_tested']),
-        'image_tested' => !empty($stored['image_tested']),
+        'openai_tested' => !empty($stored['openai_tested']),
+        'fal_tested' => !empty($stored['fal_tested']),
+        'prompt_tested' => !empty($stored['openai_tested']),
+        'image_tested' => !empty($stored['fal_tested']),
         'setup_completed_at_utc' => (string) $stored['setup_completed_at_utc'],
         'updated_at_utc' => (string) $stored['updated_at_utc'],
+        'start_proof_models' => bandpromo_create_integrations_start_proof_models(),
+        'last_results' => bandpromo_create_integrations_last_results_payload($root, $username),
+        'openai_credits' => $openaiCredits,
+        'fal_credits' => $falCredits,
     ];
 }
 
@@ -1024,7 +1536,144 @@ function bandpromo_create_integrations_openai_artwork_prompt(string $apiKey, str
 }
 
 /**
- * Artwork prompt via fal-ai/any-llm.
+ * Native OpenAI Images edit (proves the OpenAI key can create/edit stills with a logo reference).
+ *
+ * @return array{ok:bool,image_url:string,error:string,status:int,model:string,logo_attached:bool,cost?:array<string,mixed>,needs_setup?:bool,help?:string}
+ */
+function bandpromo_create_integrations_openai_image(
+    string $apiKey,
+    string $prompt,
+    string $logoImageUrl = '',
+    string $model = ''
+): array {
+    $apiKey = trim($apiKey);
+    $model = bandpromo_create_integrations_openai_native_image_model($model);
+    $prompt = trim($prompt);
+    $logoImageUrl = trim($logoImageUrl);
+    $logoUsable = $logoImageUrl !== ''
+        && (preg_match('#^https?://#i', $logoImageUrl) === 1 || preg_match('#^data:image/#i', $logoImageUrl) === 1);
+
+    if ($apiKey === '') {
+        return [
+            'ok' => false,
+            'image_url' => '',
+            'error' => 'OpenAI API key is missing.',
+            'status' => 0,
+            'model' => $model,
+            'logo_attached' => false,
+            'needs_setup' => true,
+            'help' => 'Add an OpenAI API key under Create → Start.',
+        ];
+    }
+    if ($prompt === '') {
+        return [
+            'ok' => false,
+            'image_url' => '',
+            'error' => 'Missing image prompt for OpenAI.',
+            'status' => 0,
+            'model' => $model,
+            'logo_attached' => false,
+        ];
+    }
+    if (!$logoUsable) {
+        return [
+            'ok' => false,
+            'image_url' => '',
+            'error' => 'OpenAI image proof needs a brand logo reference. Set one under Content → Branding, then try again.',
+            'status' => 0,
+            'model' => $model,
+            'logo_attached' => false,
+            'help' => 'Open Content → Branding and set a logo on the base brand.',
+        ];
+    }
+
+    $response = bandpromo_create_integrations_http_json(
+        'POST',
+        'https://api.openai.com/v1/images/edits',
+        [
+            'Authorization' => 'Bearer ' . $apiKey,
+            'Content-Type' => 'application/json',
+            'Accept' => 'application/json',
+        ],
+        [
+            'model' => $model,
+            'prompt' => $prompt,
+            'images' => [
+                ['image_url' => $logoImageUrl],
+            ],
+            'size' => '1024x1024',
+            'quality' => 'medium',
+            'output_format' => 'png',
+        ],
+        120
+    );
+
+    $decoded = json_decode($response['body'], true);
+    if (!$response['ok']) {
+        $message = '';
+        if (is_array($decoded)) {
+            $err = $decoded['error'] ?? null;
+            if (is_array($err)) {
+                $message = trim((string) ($err['message'] ?? ''));
+            } elseif (is_string($err)) {
+                $message = trim($err);
+            }
+        }
+        if ($message === '') {
+            $message = $response['error'] !== '' ? $response['error'] : 'OpenAI image request failed.';
+        }
+        $needsSetup = in_array($response['status'], [401, 403], true);
+
+        return [
+            'ok' => false,
+            'image_url' => '',
+            'error' => $message,
+            'status' => $response['status'],
+            'model' => $model,
+            'logo_attached' => true,
+            'needs_setup' => $needsSetup,
+            'help' => $needsSetup
+                ? 'Check the OpenAI key under Create → Start. Create or rotate keys at https://platform.openai.com/api-keys'
+                : '',
+        ];
+    }
+
+    $imageUrl = '';
+    if (is_array($decoded) && isset($decoded['data'][0]) && is_array($decoded['data'][0])) {
+        $row = $decoded['data'][0];
+        $imageUrl = trim((string) ($row['url'] ?? ''));
+        if ($imageUrl === '' && !empty($row['b64_json'])) {
+            $imageUrl = 'data:image/png;base64,' . trim((string) $row['b64_json']);
+        }
+    }
+    if ($imageUrl === '') {
+        return [
+            'ok' => false,
+            'image_url' => '',
+            'error' => 'OpenAI returned no image.',
+            'status' => $response['status'],
+            'model' => $model,
+            'logo_attached' => true,
+        ];
+    }
+
+    return [
+        'ok' => true,
+        'image_url' => $imageUrl,
+        'error' => '',
+        'status' => $response['status'],
+        'model' => $model,
+        'logo_attached' => true,
+        'cost' => [
+            'estimate_usd' => 0.0,
+            'estimate_label' => 'OpenAI Images · ' . $model,
+            'supports_logo' => true,
+        ],
+    ];
+}
+
+/**
+ * Artwork prompt via fal OpenRouter router (see create-model-catalog.json defaults).
  *
  * @return array{ok:bool,prompt:string,error:string,status:int,model:string,cost?:array<string,mixed>,needs_setup?:bool,help?:string}
  */
@@ -1054,9 +1703,12 @@ function bandpromo_create_integrations_fal_artwork_prompt(string $apiKey, string
         . 'Describe mood, colour, composition, and lighting instead of writing copy to render.';
     $user = "Write an artwork prompt for this base brand:\n\n" . $brandBrief;
 
+    $falEndpoint = bandpromo_create_integrations_catalog_llm_endpoint();
+    // fal openrouter/router defaults reasoning=false. Mandatory-reasoning models
+    // (e.g. Claude Sonnet 5.5) reject that with "Reasoning is mandatory…".
     $response = bandpromo_create_integrations_http_json(
         'POST',
-        'https://fal.run/fal-ai/any-llm',
+        'https://fal.run/' . ltrim($falEndpoint, '/'),
         [
             'Authorization' => 'Key ' . $apiKey,
             'Content-Type' => 'application/json',
@@ -1067,7 +1719,7 @@ function bandpromo_create_integrations_fal_artwork_prompt(string $apiKey, string
             'system_prompt' => $system,
             'prompt' => $user,
             'max_tokens' => 400,
-            'priority' => 'latency',
+            'reasoning' => true,
         ],
         60
     );
@@ -1118,7 +1770,22 @@ function bandpromo_create_integrations_fal_artwork_prompt(string $apiKey, string
             break;
         }
     }
-    $hint = is_array($meta) ? (string) ($meta['price_hint'] ?? '') : 'fal any-llm';
+    $hint = is_array($meta) ? (string) ($meta['price_hint'] ?? '') : 'fal OpenRouter';
+    $usage = is_array($decoded) && is_array($decoded['usage'] ?? null) ? $decoded['usage'] : null;
+    $promptTokens = is_array($usage) ? (int) ($usage['prompt_tokens'] ?? 0) : 0;
+    $completionTokens = is_array($usage) ? (int) ($usage['completion_tokens'] ?? 0) : 0;
+    $totalTokens = is_array($usage) ? (int) ($usage['total_tokens'] ?? ($promptTokens + $completionTokens)) : ($promptTokens + $completionTokens);
+    $estimate = 0.0;
+    if (is_array($usage) && isset($usage['cost']) && is_numeric($usage['cost'])) {
+        $estimate = (float) $usage['cost'];
+    } elseif (is_array($meta)) {
+        $inRate = (float) ($meta['input_per_mtok'] ?? 0);
+        $outRate = (float) ($meta['output_per_mtok'] ?? 0);
+        if ($inRate > 0 || $outRate > 0) {
+            $estimate = ($promptTokens / 1000000.0) * $inRate
+                + ($completionTokens / 1000000.0) * $outRate;
+        }
+    }
 
     return [
         'ok' => true,
@@ -1127,17 +1794,17 @@ function bandpromo_create_integrations_fal_artwork_prompt(string $apiKey, string
         'status' => $response['status'],
         'model' => $providerModel,
         'cost' => [
-            'prompt_tokens' => 0,
-            'completion_tokens' => 0,
-            'total_tokens' => 0,
-            'estimate_usd' => 0.0,
+            'prompt_tokens' => $promptTokens,
+            'completion_tokens' => $completionTokens,
+            'total_tokens' => $totalTokens,
+            'estimate_usd' => round($estimate, 8),
             'estimate_label' => $hint,
         ],
     ];
 }
 
 /**
- * Route artwork prompt to OpenAI or fal any-llm from a unified llm_model id.
+ * Route artwork prompt to OpenAI or fal OpenRouter from a unified llm_model id.
  *
  * @return array{ok:bool,prompt:string,error:string,status:int,model:string,route:string,cost?:array<string,mixed>,needs_setup?:bool,help?:string}
  */
@@ -1211,6 +1878,7 @@ function bandpromo_create_integrations_fal_build_request(string $model, string $
         'prompt' => $prompt,
         'num_images' => 1,
     ];
+    $variant = is_array($meta) ? trim((string) ($meta['variant'] ?? '')) : '';
 
     if ($family === 'qwen_edit') {
         // Classic Qwen edit takes a single image_url (not image_urls).
@@ -1218,7 +1886,10 @@ function bandpromo_create_integrations_fal_build_request(string $model, string $
         $payload['image_size'] = 'square_hd';
         $payload['output_format'] = 'png';
         $payload['enable_safety_checker'] = true;
-        $payload['acceleration'] = 'regular';
+    } elseif ($family === 'style_ref') {
+        // Recraft-style endpoints: pass the logo as the style/reference image when possible.
+        $payload['image_url'] = $logoImageUrl;
+        $payload['style_image_url'] = $logoImageUrl;
     } else {
         $payload['image_urls'] = [$logoImageUrl];
 
@@ -1227,10 +1898,7 @@ function bandpromo_create_integrations_fal_build_request(string $model, string $
             $payload['quality'] = 'low';
             $payload['input_fidelity'] = 'high';
             $payload['output_format'] = 'png';
-        } elseif ($family === 'meta_muse') {
-            $payload['aspect_ratio'] = '1:1';
-            $payload['output_format'] = 'png';
-        } elseif ($family === 'flux_flash_edit') {
+        } elseif ($family === 'flux_edit' || $family === 'flux_flash_edit') {
             $payload['image_size'] = 'square_hd';
             $payload['output_format'] = 'png';
             $payload['enable_safety_checker'] = true;
@@ -1238,16 +1906,25 @@ function bandpromo_create_integrations_fal_build_request(string $model, string $
             $payload['aspect_ratio'] = '1:1';
             $payload['resolution'] = '1k';
             $payload['output_format'] = 'png';
-        } elseif ($family === 'seedream_lite') {
+        } elseif ($family === 'seedream' || $family === 'seedream_lite') {
             $payload['image_size'] = 'square_hd';
             $payload['enable_safety_checker'] = true;
-        } else {
-            // Google Nano Banana 2 edit — cheapest Google tier for this test.
+        } elseif ($family === 'krea_edit') {
+            $payload['image_size'] = 'square_hd';
+            $payload['output_format'] = 'png';
+            if ($variant !== '') {
+                $payload['model'] = $variant;
+            }
+        } elseif ($family === 'nano_banana') {
             $payload['aspect_ratio'] = '1:1';
-            $payload['resolution'] = '0.5K';
+            $payload['resolution'] = '1K';
             $payload['output_format'] = 'png';
             $payload['limit_generations'] = true;
             $payload['system_prompt'] = 'Use the brand logo reference image. Keep the logo recognisable while following the prompt.';
+        } else {
+            $payload['aspect_ratio'] = '1:1';
+            $payload['image_size'] = 'square_hd';
+            $payload['output_format'] = 'png';
         }
     }
 
@@ -1544,10 +2221,24 @@ function bandpromo_create_integrations_fal_video(
     }
 
     $endpoint = 'https://queue.fal.run/' . $model;
+    $firstParam = is_array($meta) ? trim((string) ($meta['first_frame_parameter'] ?? 'image_url')) : 'image_url';
+    $lastParam = is_array($meta) ? trim((string) ($meta['last_frame_parameter'] ?? 'end_image_url')) : 'end_image_url';
+    if ($firstParam === '') {
+        $firstParam = 'image_url';
+    }
+    if ($lastParam === '') {
+        $lastParam = 'end_image_url';
+    }
     $payload = [
-        'prompt' => $prompt !== '' ? $prompt : 'Subtle living motion for promotional artwork, keep the logo recognisable.',
-        'image_url' => $logoImageUrl,
+        'prompt' => $prompt !== ''
+            ? $prompt
+            : 'Subtle living motion for promotional artwork. Keep the brand logo recognisable. '
+                . 'Create a perfect loop with constant motion from start to end — no ease-in or ease-out. '
+                . 'No audio.',
     ];
+    // Preferences tests reuse the brand logo for both endpoint frames.
+    $payload[$firstParam] = $logoImageUrl;
+    $payload[$lastParam] = $logoImageUrl;
 
     $submit = bandpromo_create_integrations_http_json(
         'POST',

@@ -18,11 +18,14 @@
 
 **Closed:** **v0.8.101 build 626** published — Create Start restored as connection proof (quiet ready + Reconfigure); Preferences subtab (per-panel Cheap|Good|Premium + test/Result + Save); localhost SSL CA for AVG; Preferences UI polish.
 
-**Active now:** Create tools beyond Start/Preferences later; operator may smoke Site update on a host.
+**Closed:** **v0.8.102 build 627** published — Create Start dual workhorse proofs (same text+image on OpenAI and fal; no Start model pickers); fal OpenRouter `reasoning: true`; durable last results for Start + Preferences; video test prompt = perfect loop, constant motion, no audio; catalogue JSON + instructions.
 
-**Last published:** **v0.8.101 build 626**. Prior: **624** prefs-on-Start (superseded); **623** less lettering; **621** 1000-char prompts.
+**Active now:** Catalogue **update function** + multi-provider Connect later. Living-art / blurb tool UIs stay later.
+
+**Last published:** **v0.8.102 build 627**. Prior: **626** Start connection proof + Preferences; **624** prefs-on-Start (superseded).
 
 **Parked / later:**
+- Create Preferences **catalogue update function** (refresh `create-model-catalog.json` from stored instructions when models change) — [ROADMAP.md](ROADMAP.md).
 - Create setup wizard (guided prefs) if still wanted later.
 - Create tool sub-tabs (blurb writer, artwork studio, living artwork) beyond Start + connection proof.
 - Files pool / living-cover picker latency (undercount disk probe + full Visual list for video-only pick).
@@ -32,7 +35,7 @@
 
 **Operator rule (this session):** Do **not** delete, prune, janitor-Apply, or discard any runtime files (`data/`, `media/`, `log/`, `backups/`, Ready archives, leftover `original/`) unless this user names the exact paths in the same message.
 
-**Next:** Optional smoke Create Start → Preferences after Site update. Living-art / blurb tool UIs stay later.
+**Next:** Optional fleet smoke of Create Start/Preferences on a live host. Catalogue updater when model lists drift. Living-art / blurb tool UIs stay later.
 
 ### Policy locked (do not reopen)
 
@@ -78,7 +81,7 @@
 - Large audio upload final chunk: return after assemble + spawn finalize worker only (do not sync master move / tags / scan / delivery on the upload request — HITZ proxy 504)
 - Player load-failure **Operator:** hints are admin/developer only (`BANDPROMO_IS_OPERATOR`); public listeners get title + soft detail only
 - Visual master embed: non-ASCII titles via UTF-8 ffmetadata (never `-metadata title=…` argv on ASCII hosts); video tag work dir beside master + EXDEV-safe replace
-- Create tab is **developer-only** until helper tools ship; AI keys + prefs are per signed-in developer; **Start** = connection proof only (hide after pass until Reconfigure, Dashboard-style); **Preferences** = separate LLM/Image/Video panels with per-panel Cheap|Good|Premium + test/Result + Save; media models must take reference images; brand logo required for image/video tests; localhost HTTPS may need `%USERPROFILE%\.bandpromo\php-ca-bundle.pem` when antivirus MITMs TLS
+- Create tab is **developer-only** until helper tools ship; AI keys + prefs are per signed-in developer; **Start** = connection proof (same text+image proof on each key — OpenAI and fal today — with fixed Good workhorse models; ready summary after both pass; Reconfigure to redo; last proof text/stills kept locally); **every connected key always has a proof test** (changing/clearing a key invalidates that proof); later multi-provider Connect may add more keys under the same rule; **Preferences** = Cheap|Good|Premium + test/Result + Save (last panel results kept); catalogue source `biblioteca/create-model-catalog.json` (+ `create-model-catalog-instructions.md`); media models need reference images; video needs first+last frame + loop/no-audio test prompt; brand logo required for image/video tests; localhost HTTPS may need `%USERPROFILE%\.bandpromo\php-ca-bundle.pem` when antivirus MITMs TLS; fal OpenRouter LLM calls set `reasoning: true`
 
 ### Local workspace
 

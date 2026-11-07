@@ -74,9 +74,10 @@ bandPromo is a modern, self-hosted platform for private music releases and fan e
 - Social sharing metadata and web manifest generation
 
 ### Create (AI helpers foundation)
-- **Developer-only for now** (proof of concept): **Create** tab between Content and Settings with a **Start** sub-tab — **Connect → Test of openAI for text → Test of fal.ai for images**
+- **Developer-only for now** (proof of concept): **Create** tab between Content and Settings — **Start** (connection proof) and **Preferences** (model choices)
 - Per developer OpenAI + fal.ai API keys stored under `data/admin-integrations/` (masked in the UI; optional `.env` `OPENAI_API_KEY` / `FAL_KEY` fallbacks)
-- **Create image prompt** / **Create image from prompt** use curated model pickers (cheapest defaults: OpenAI `gpt-6-luna`, fal `fal-ai/gpt-image-1.5/edit`; also GPT-6 Sol / Astra). Image models are reference-capable only — cheapest fal edit pick from OpenAI, Meta, Flux, Grok, Alibaba (Qwen), ByteDance, and Google; all attach the base brand logo
+- **Start** proves **each connected key** with the same text + image check (today: OpenAI and fal; fixed Good workhorse models — Preferences owns everyday picks). Ready summary only after every proof passes; changing or clearing a key invalidates that proof. Last successful proof text/stills are kept locally and shown again on reopen. Later Connect may add more providers under the same rule
+- **Preferences** Cheap|Good|Premium pickers for LLM / Image / Video load from [`biblioteca/create-model-catalog.json`](../biblioteca/create-model-catalog.json) (refresh rules in [`create-model-catalog-instructions.md`](../biblioteca/create-model-catalog-instructions.md)). Image/video need reference images (video: first + last frame); tests attach the base brand logo where required; last successful panel results are kept and restored on reopen
 
 ### Security & Privacy
 - Session-based authentication with admin vs listener role separation on admin surfaces

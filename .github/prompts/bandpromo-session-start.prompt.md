@@ -14,6 +14,8 @@ Run:
 powershell -ExecutionPolicy Bypass -File scripts/session-start.ps1 -BumpSession
 ```
 
+**Rename this chat** after the script finishes: call `cursor-app-control` → `rename_chat` with the title from the script’s `Chat title` line (form `Session v0.8.102` — session triple only, no build). If that line is missing, derive it from `VERSION` the same way (`Session` + `v<major>.<minor>.<session>`).
+
 Then respond with a compact startup summary that includes:
 
 - active environment and runtimes

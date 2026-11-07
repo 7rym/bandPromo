@@ -75,6 +75,7 @@ Session start:
 2. optionally bumps the **session** number in `VERSION` (`v0.8.4` → `v0.8.5`, build unchanged) — **only** with `-BumpSession` / operator request
 3. starts the PHP dev server in the background (`scripts/start-dev-server.ps1`)
 4. prints environment context, git state, backlog, and a recommended next focus
+5. with `-BumpSession`, prints a `Chat title` of `Session v<major>.<minor>.<session>` so the Cursor agent can rename the chat tab (PowerShell cannot rename chats itself)
 
 Flags: `-BumpSession`, `-SkipPull`, `-SkipDevServer` (`-SkipSessionBump` is a deprecated no-op; default is already no bump)
 

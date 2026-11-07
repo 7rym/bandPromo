@@ -517,6 +517,13 @@ Implementation order:
 - [ ] **Wizard entry points** — Release EPK, Pages, playlist/page descriptions, optional metadata/alt text.
 - [ ] **Draft → confirm → save** — generated text/assets stay drafts until operator confirms; assets enter Visual pool with role + origin tags.
 
+### Create Preferences model catalogue (maintain)
+
+- [x] **v0.8 PoC** — nine curated fal lists in `biblioteca/create-model-catalog.json`; Preferences loads them dynamically (no hardcoded page lists); curation instructions in `create-model-catalog-instructions.md`.
+- [x] **v0.8 PoC Start** — prove **both** OpenAI and fal with the same text+image check (fixed Good workhorse models; Preferences owns everyday picks); ready summary + fal balance when complete; key change/clear invalidates that provider’s proof.
+- [ ] **Catalogue update function** (v0.9+) — regenerate/replace the JSON from the stored instructions when models are announced or retired; ship updates without redesigning Create → Preferences. See [ROADMAP.md](ROADMAP.md) → Create Preferences model catalogue.
+- [ ] **Multi-provider Connect** (v0.9+) — operators add as many provider keys as they want; **each key always has a proof test**; Ready = every connected key proved.
+
 ## v0.8.4 active slice (visual media — merged into management slice above)
 
 Legacy heading kept for changelog references. **Do not start new work under this heading** — use **v0.8 management slice** instead.

@@ -260,9 +260,21 @@ $taskLabels = @(Get-WorkspaceTaskLabels -TasksFilePath $tasksPath)
 $todoSummary = Get-TodoSummary -TodoPath $todoPath -Limit $TodoLimit
 $recentChanges = @(Get-RecentChangelogEntries -ChangelogPath $changelogPath -Limit $ChangelogLimit)
 $currentVersion = Get-VersionLine -VersionPath $versionPath
+$chatTitle = $null
+if ($currentVersion -match '^(v\d+\.\d+\.\d+)\b') {
+    $chatTitle = 'Session {0}' -f $Matches[1]
+}
 
 Write-Output ('VERSION: {0}' -f $(if ($currentVersion) { $currentVersion } else { 'missing' }))
 Write-Output ''
+
+if ($shouldBumpSession -and $chatTitle) {
+    # Cursor agents rename the chat via rename_chat; PowerShell cannot do that itself.
+    Write-Output 'Chat title'
+    Write-Output ('  {0}' -f $chatTitle)
+    Write-Output ('  AGENT: call cursor-app-control rename_chat with title "{0}"' -f $chatTitle)
+    Write-Output ''
+}
 
 Write-Output 'Git'
 $gitStatus | ForEach-Object { Write-Output ('  {0}' -f $_) }

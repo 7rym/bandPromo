@@ -130,6 +130,24 @@ This is **not** the v2+ marketing machine (campaign calendars, scheduled social 
 
 See [TODO.md](TODO.md) → Content AI wizards and [PLATFORM-MODEL.md](PLATFORM-MODEL.md) → Brands.
 
+### Create Preferences model catalogue (v0.8 PoC → maintain in v0.9+)
+
+Developer-only **Create → Preferences** already offers Cheap|Good|Premium LLM / Image / Video choices. Those nine lists must stay **data-driven**, never hardcoded into admin HTML or page JS.
+
+**Current (repo-tracked PoC):**
+- Source of truth: [`biblioteca/create-model-catalog.json`](../biblioteca/create-model-catalog.json)
+- Refresh rules: [`biblioteca/create-model-catalog-instructions.md`](../biblioteca/create-model-catalog-instructions.md)
+- Runtime load: PHP reads the JSON on each Preferences status request; the page only renders whatever the API returns
+- Catalogue may change often as fal/OpenRouter models appear and retire — treat staleness as expected, not as a one-off ship
+
+**Later (required follow-up — do not leave as a manual-only tribal process):**
+- Add an explicit **catalogue update function** (developer/admin or scripted refresh) that regenerates or replaces `create-model-catalog.json` by following the stored curation instructions, records a verification date, and keeps Preferences on the new lists without a page redesign
+- Prefer a path that can ship catalogue updates independently of large app changes when only model rows move (Site update / package payload or equivalent)
+- Keep supplier diversity, uniqueness, reference-image / first-last-frame rules, and the “do not invent a seventh slot” rule intact when refreshing
+- **Multi-provider keys / services:** Start already proves OpenAI + fal with the same text+image check (fixed workhorse models; Preferences owns everyday picks). Later operators may add as many provider accounts as they want. **Rule (locked):** every connected key always has its own connection proof test; changing or clearing a key invalidates that proof until it passes again. Ready / `setup_complete` means every currently connected provider has passed its proof.
+
+Until that updater exists, operators/developers edit the tracked JSON in-repo and publish; Preferences continue to load whatever file is on the install.
+
 ## Identity strategy
 
 bandPromo should support both anonymous and registered users. **v0.8** locks the FAQ/login/shared-link and tier **definitions**; **v0.9** implements restricted anonymous entry and tier enforcement; **v1.x** expands OAuth and fan-credit mechanics.
