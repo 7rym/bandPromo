@@ -2,6 +2,7 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-11-07 12:40 - Publish Create → Start as connection proof only + Preferences subtab (per-panel Cheap|Good|Premium, test/Result, Save); localhost SSL CA bundle; Preferences UI polish.
 2026-11-06 14:45 - Create → Preferences polish: Content-style panel headers, fixed Test button row, drop duplicate muted price/meta lines, and show outputs under a Result heading.
 2026-11-06 14:40 - Localhost Create HTTPS: honour optional CA bundle at `%USERPROFILE%\.bandpromo\php-ca-bundle.pem` (or `BANDPROMO_SSL_CAFILE`) so antivirus HTTPS scanning roots (e.g. AVG) work with PHP OpenSSL without turning verification off.
 2026-11-06 14:35 - Create → Start restored as connection proof only (quiet ready + Reconfigure after pass, like Dashboard). Model prefs move to Create → Preferences: separate LLM / Image / Video panels with per-panel Cheap|Good|Premium, test + results, and Save for the signed-in account.

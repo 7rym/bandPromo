@@ -16,11 +16,11 @@
 
 **Closed:** **v0.8.101 build 624** published — Create Start prefs: Cheap|Good|Premium LLM/image/video (fal any-llm + OpenAI), register passed tests, configured summary + Reconfigure; wizard placeholder.
 
-**Closed (local):** Create Start restored as connection proof only (quiet ready + Reconfigure); Preferences subtab with per-panel Cheap|Good|Premium + test/Result + Save; localhost SSL CA bundle for AVG; Preferences UI polish.
+**Closed:** **v0.8.101 build 626** published — Create Start restored as connection proof (quiet ready + Reconfigure); Preferences subtab (per-panel Cheap|Good|Premium + test/Result + Save); localhost SSL CA for AVG; Preferences UI polish.
 
-**Active now:** Local checkpoint of Create Start/Preferences split — not published yet.
+**Active now:** Create tools beyond Start/Preferences later; operator may smoke Site update on a host.
 
-**Last published:** **v0.8.101 build 624**. Prior: **623** less lettering; **621** 1000-char prompts; **619** Luna/Sol/Astra.
+**Last published:** **v0.8.101 build 626**. Prior: **624** prefs-on-Start (superseded); **623** less lettering; **621** 1000-char prompts.
 
 **Parked / later:**
 - Create setup wizard (guided prefs) if still wanted later.
@@ -32,7 +32,7 @@
 
 **Operator rule (this session):** Do **not** delete, prune, janitor-Apply, or discard any runtime files (`data/`, `media/`, `log/`, `backups/`, Ready archives, leftover `original/`) unless this user names the exact paths in the same message.
 
-**Next:** Publish Create Start/Preferences when ready (`-Push -Publish`). Living-art / blurb tool UIs stay later.
+**Next:** Optional smoke Create Start → Preferences after Site update. Living-art / blurb tool UIs stay later.
 
 ### Policy locked (do not reopen)
 
