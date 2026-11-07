@@ -3030,7 +3030,7 @@ if ($tab === 'analytics') {
                             <div class="create-prefs-result" id="createPrefsVideoResult" hidden>
                                 <h4 class="create-prefs-result-title">Result</h4>
                                 <div class="create-prefs-result-body">
-                                    <video id="createPrefsVideoPreview" class="create-test-video" controls playsinline hidden></video>
+                                    <video id="createPrefsVideoPreview" class="create-test-video" controls playsinline loop muted hidden></video>
                                     <p class="status-text is-error" id="createPrefsVideoError" hidden></p>
                                 </div>
                             </div>

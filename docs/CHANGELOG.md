@@ -2,6 +2,8 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-11-07 16:55 - Publish Create → Preferences looping (muted) video Result preview.
+2026-11-07 16:50 - Create → Preferences video Result preview loops (and is muted) so operators can judge seamless looping.
 2026-11-07 16:45 - Publish Create → Start dual workhorse proofs (OpenAI + fal text+image), durable last results, fal reasoning fix, and video loop/no-audio prompt; Preferences catalogue from JSON.
 2026-11-07 16:30 - Create video test prompt also asks for no audio.
 2026-11-07 14:35 - Create stores last Start proofs and Preferences test results (local media copies) and shows them again when the page opens.

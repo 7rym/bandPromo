@@ -20,9 +20,11 @@
 
 **Closed:** **v0.8.102 build 627** published — Create Start dual workhorse proofs (same text+image on OpenAI and fal; no Start model pickers); fal OpenRouter `reasoning: true`; durable last results for Start + Preferences; video test prompt = perfect loop, constant motion, no audio; catalogue JSON + instructions.
 
+**Closed:** **v0.8.102 build 628** published — Preferences video Result preview loops (muted) so operators can judge seamless looping against the perfect-loop test prompt.
+
 **Active now:** Catalogue **update function** + multi-provider Connect later. Living-art / blurb tool UIs stay later.
 
-**Last published:** **v0.8.102 build 627**. Prior: **626** Start connection proof + Preferences; **624** prefs-on-Start (superseded).
+**Last published:** **v0.8.102 build 628**. Prior: **627** dual proofs + last results; **626** Start connection proof + Preferences.
 
 **Parked / later:**
 - Create Preferences **catalogue update function** (refresh `create-model-catalog.json` from stored instructions when models change) — [ROADMAP.md](ROADMAP.md).
