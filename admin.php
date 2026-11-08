@@ -2753,7 +2753,7 @@ if ($tab === 'analytics') {
             <div class="admin-help-box collapsed" id="help-create">
                 <?php if ($createTab === 'start'): ?>
                     <ul>
-                        <li>Start proves each connected API the same way: <strong>Connect → Prove OpenAI → Prove fal.ai</strong> (short text + logo-based still on each). Every key always has its own proof test.</li>
+                        <li>Start proves each connected API the same way (short text + logo-based still). Prove OpenAI and fal.ai in any order — each needs only its own key. Ready needs both proofs.</li>
                         <li>When all proofs pass, Start becomes a success summary with the last proof text and stills kept for this account (Reconfigure if you need to rotate keys). Changing a key clears that proof until you test again.</li>
                         <li>Start uses fixed Good workhorse models. Pick everyday models under <strong>Preferences</strong> (last panel test results are kept too). Keys stay with your signed-in developer account. Catalogue and player keep working without Create helpers.</li>
                     </ul>
@@ -2787,30 +2787,67 @@ if ($tab === 'analytics') {
             <div class="create-start-shell" id="createStartShell">
                 <section class="create-start-configured" id="createStartConfigured" hidden>
                     <article class="create-prefs-panel create-start-ready-panel" aria-labelledby="createStartReadyTitle">
-                        <header class="split-editor__header create-prefs-panel-head">
-                            <h3 id="createStartReadyTitle" class="split-editor__title">Connections ready</h3>
-                        </header>
-                        <div class="create-prefs-panel-body">
-                            <p class="create-start-ready-lead">
-                                OpenAI and fal.ai both passed their connection tests for this account. You’re set to use Create helpers — catalogue and player keep working without them.
-                            </p>
-                            <ul class="create-start-inspire">
-                                <li><strong>Writing:</strong> LLMs can draft inviting blurbs from your catalogue and brand content.</li>
-                                <li><strong>Artwork:</strong> Image models can create and reshape attractive stills with your logo as a reference.</li>
-                                <li><strong>Living art:</strong> Video models can animate artwork for that premium, moving feel.</li>
-                            </ul>
-                            <div class="create-start-balances" id="createStartBalances" hidden>
-                                <div class="create-start-balance" id="createStartFalBalance" hidden>
-                                    <span class="create-start-balance-label">fal.ai balance:</span>
-                                    <strong class="create-start-balance-value" id="createStartFalBalanceValue"></strong>
-                                    <a class="create-start-balance-link" id="createStartFalBuyLink" href="https://fal.ai/dashboard/billing" target="_blank" rel="noopener noreferrer">Buy credits</a>
+                        <div class="create-prefs-panel-body create-start-ready-body">
+                            <div class="create-start-ready-hero">
+                                <p class="create-start-ready-kicker">
+                                    <span class="create-start-ready-check" aria-hidden="true">✓</span>
+                                    All clear
+                                </p>
+                                <h3 id="createStartReadyTitle" class="create-start-ready-title">Connections ready</h3>
+                                <p class="create-start-ready-lead">
+                                    OpenAI and fal.ai both passed their connection tests for this account. You’re set to use Create helpers — catalogue and player keep working without them.
+                                </p>
+                            </div>
+
+                            <div class="create-start-status-grid" id="createStartBalances" hidden>
+                                <article class="create-start-status-card" id="createStartOpenAiBilling">
+                                    <header class="create-start-status-card-head">
+                                        <span class="create-start-status-name">OpenAI</span>
+                                        <span class="create-start-status-pill is-pass">Passed</span>
+                                    </header>
+                                    <p class="create-start-status-metric create-start-status-metric--soft">
+                                        Remaining credit isn’t published to API keys — OpenAI only shows it in their billing dashboard.
+                                    </p>
+                                    <div class="create-start-status-links">
+                                        <a class="create-start-balance-link" href="https://platform.openai.com/settings/organization/billing" target="_blank" rel="noopener noreferrer">Open billing</a>
+                                    </div>
+                                </article>
+                                <article class="create-start-status-card" id="createStartFalBalance">
+                                    <header class="create-start-status-card-head">
+                                        <span class="create-start-status-name">fal.ai</span>
+                                        <span class="create-start-status-pill is-pass">Passed</span>
+                                    </header>
+                                    <p class="create-start-status-metric">
+                                        <strong class="create-start-balance-value" id="createStartFalBalanceValue" hidden></strong>
+                                        <span class="create-start-balance-note" id="createStartFalBalanceNote"></span>
+                                    </p>
+                                    <div class="create-start-status-links">
+                                        <a class="create-start-balance-link" id="createStartFalBuyLink" href="https://fal.ai/dashboard/billing" target="_blank" rel="noopener noreferrer">Buy credits</a>
+                                        <a class="create-start-balance-link" id="createStartFalKeysLink" href="https://fal.ai/dashboard/keys" target="_blank" rel="noopener noreferrer" hidden>Manage keys</a>
+                                    </div>
+                                    <?php if ($currentUserRole === 'developer'): ?>
+                                    <p class="create-start-status-dev" id="createStartFalBalanceDev" hidden>
+                                        Needs <code>billing:usage:read</code> (BILLING / READONLY / FULL). Ordinary API-preset keys return 403.
+                                    </p>
+                                    <?php endif; ?>
+                                </article>
+                            </div>
+
+                            <div class="create-start-capability-grid" aria-label="What Create can do">
+                                <div class="create-start-capability">
+                                    <span class="create-start-capability-label">Writing</span>
+                                    <p>LLMs draft inviting blurbs from your catalogue and brand content.</p>
                                 </div>
-                                <div class="create-start-balance create-start-balance--soft" id="createStartOpenAiBilling">
-                                    <span class="create-start-balance-label">OpenAI:</span>
-                                    <span class="create-start-balance-note">Balance isn’t available via API key — check billing in the dashboard.</span>
-                                    <a class="create-start-balance-link" href="https://platform.openai.com/settings/organization/billing" target="_blank" rel="noopener noreferrer">Open billing</a>
+                                <div class="create-start-capability">
+                                    <span class="create-start-capability-label">Artwork</span>
+                                    <p>Image models create and reshape stills with your logo as a reference.</p>
+                                </div>
+                                <div class="create-start-capability">
+                                    <span class="create-start-capability-label">Living art</span>
+                                    <p>Video models animate artwork for that premium, moving feel.</p>
                                 </div>
                             </div>
+
                             <div class="create-start-last-results" id="createStartLastResults" hidden>
                                 <h4 class="create-start-last-results-title">Last connection proofs</h4>
                                 <div class="create-start-last-results-grid">
@@ -2829,8 +2866,8 @@ if ($tab === 'analytics') {
                                 </div>
                             </div>
                             <div class="card-actions create-start-ready-actions">
-                                <a class="btn btn-good" href="?tab=create&amp;crtab=preferences">Open Preferences</a>
                                 <button type="button" class="btn btn-available" id="createReconfigureBtn">Reconfigure</button>
+                                <a class="btn btn-good" href="?tab=create&amp;crtab=preferences">Open Preferences</a>
                             </div>
                         </div>
                     </article>
@@ -2855,7 +2892,7 @@ if ($tab === 'analytics') {
                                     <a href="https://platform.openai.com/api-keys" target="_blank" rel="noopener noreferrer">OpenAI</a>
                                     and
                                     <a href="https://fal.ai/dashboard/keys" target="_blank" rel="noopener noreferrer">fal.ai</a>
-                                    keys. Every key gets the same proof (short text + a logo-based still). Ongoing model picks live under Preferences. More providers can join later the same way.
+                                    keys. Prove each provider on its own (short text + a logo-based still). Ready needs both proofs. Ongoing model picks live under Preferences.
                                 </p>
                                 <div id="createKeysEmptyHelp" class="message warning create-keys-empty-help" hidden>
                                     No API keys recorded yet. Add keys below, then Save.
@@ -2866,17 +2903,21 @@ if ($tab === 'analytics') {
                                 <div class="create-keys-grid">
                                     <div class="form-group create-key-field">
                                         <label for="createOpenAiKey">OpenAI API key:</label>
-                                        <input type="text" id="createOpenAiKey" name="create_openai_api_key" class="create-key-input" autocomplete="off" spellcheck="false" placeholder="Paste key to set or replace">
+                                        <div class="create-key-input-shell">
+                                            <input type="text" id="createOpenAiKey" name="create_openai_api_key" class="create-key-input" autocomplete="off" spellcheck="false" placeholder="Paste key to set or replace">
+                                            <button type="button" class="create-key-clear-btn" id="createOpenAiClearBtn" aria-label="Clear OpenAI key" title="Clear OpenAI key" hidden>&times;</button>
+                                        </div>
                                     </div>
                                     <div class="form-group create-key-field">
                                         <label for="createFalKey">fal.ai API key:</label>
-                                        <input type="text" id="createFalKey" name="create_fal_api_key" class="create-key-input" autocomplete="off" spellcheck="false" placeholder="Paste key to set or replace">
+                                        <div class="create-key-input-shell">
+                                            <input type="text" id="createFalKey" name="create_fal_api_key" class="create-key-input" autocomplete="off" spellcheck="false" placeholder="Paste key to set or replace">
+                                            <button type="button" class="create-key-clear-btn" id="createFalClearBtn" aria-label="Clear fal.ai key" title="Clear fal.ai key" hidden>&times;</button>
+                                        </div>
                                     </div>
                                 </div>
                                 <div class="card-actions create-connect-actions">
                                     <button type="button" class="btn btn-good" id="createKeysSaveBtn">Save keys</button>
-                                    <button type="button" class="btn btn-available" id="createOpenAiClearBtn">Clear OpenAI</button>
-                                    <button type="button" class="btn btn-available" id="createFalClearBtn">Clear fal</button>
                                     <span id="createKeysStatus" class="status-text" aria-live="polite"></span>
                                 </div>
                             </div>

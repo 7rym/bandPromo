@@ -30,9 +30,11 @@
 
 **Closed:** **v0.8.102 build 632** published — Site update resilient to GitHub releases CDN 504s (short retries + API asset fallback). bandpromo.site was stuck on **628** checking updates.
 
-**Active now:** Confirm bandpromo.site (and other remotes) can Site-update to **632**. Catalogue updater later. Optional spend-capped endpoint smoke. Living-art / blurb tool UIs stay later.
+**Closed:** **v0.8.102 build 633** published — Create Start: independent OpenAI/fal proofs, inline × key clear, festive ready dashboard; fal wallet always shown (API-preset keys get billing-permission note); OpenAI copy explains no remaining-balance API.
 
-**Last published:** **v0.8.102 build 632**. Prior: **631** catalogue prices; **630**/**629** failed releases.
+**Active now:** Catalogue updater later. Optional: fal key with billing read to show $ on ready. Living-art / blurb tool UIs stay later.
+
+**Last published:** **v0.8.102 build 633**. Prior: **632** Site update GitHub resilience; **631** catalogue prices.
 
 **Parked / later:**
 - Create Preferences **catalogue update function** (refresh `create-model-catalog.json` from stored instructions when models change) — [ROADMAP.md](ROADMAP.md).
@@ -45,7 +47,7 @@
 
 **Operator rule (this session):** Do **not** delete, prune, janitor-Apply, or discard any runtime files (`data/`, `media/`, `log/`, `backups/`, Ready archives, leftover `original/`) unless this user names the exact paths in the same message.
 
-**Next:** On bandpromo.site, Site update to **632** (may need a few Check again presses while GitHub CDN is flaky). Catalogue updater when model lists drift. Living-art / blurb tool UIs stay later.
+**Next:** Catalogue updater when model lists drift. Living-art / blurb tool UIs stay later. To show fal $ on Start ready, use a key with billing read (BILLING/READONLY/FULL).
 
 ### Policy locked (do not reopen)
 

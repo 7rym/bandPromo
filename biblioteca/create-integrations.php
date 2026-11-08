@@ -820,12 +820,14 @@ function bandpromo_create_integrations_mask_key(string $key): string
 
 /**
  * Best-effort fal credit balance. Needs a key with billing:usage:read (BILLING / READONLY / FULL).
+ * Ordinary API-preset keys can run models but get HTTP 403 on this endpoint.
  *
- * @return array{ok:bool,available:bool,balance:?float,currency:string,label:string,buy_url:string,error:string}
+ * @return array{ok:bool,available:bool,balance:?float,currency:string,label:string,buy_url:string,keys_url:string,error:string,error_code:string}
  */
 function bandpromo_create_integrations_fal_credits(string $apiKey): array
 {
     $buyUrl = 'https://fal.ai/dashboard/billing';
+    $keysUrl = 'https://fal.ai/dashboard/keys';
     $apiKey = trim($apiKey);
     $empty = [
         'ok' => false,
@@ -834,7 +836,9 @@ function bandpromo_create_integrations_fal_credits(string $apiKey): array
         'currency' => 'USD',
         'label' => '',
         'buy_url' => $buyUrl,
+        'keys_url' => $keysUrl,
         'error' => '',
+        'error_code' => '',
     ];
     if ($apiKey === '') {
         $empty['error'] = 'No fal.ai key recorded.';
@@ -853,12 +857,15 @@ function bandpromo_create_integrations_fal_credits(string $apiKey): array
         20
     );
     $decoded = json_decode($response['body'], true);
+    $status = (int) ($response['status'] ?? 0);
     if (!$response['ok'] || !is_array($decoded)) {
         $message = '';
+        $errorType = '';
         if (is_array($decoded)) {
             $err = $decoded['error'] ?? null;
             if (is_array($err)) {
                 $message = trim((string) ($err['message'] ?? ''));
+                $errorType = trim((string) ($err['type'] ?? ''));
             } elseif (is_string($err)) {
                 $message = trim($err);
             }
@@ -866,17 +873,26 @@ function bandpromo_create_integrations_fal_credits(string $apiKey): array
                 $message = trim((string) ($decoded['detail'] ?? $decoded['message'] ?? ''));
             }
         }
+        // Typical model keys use the API preset and cannot call billing endpoints.
+        if ($status === 403 || $errorType === 'authorization_error') {
+            $empty['error'] = 'This fal key can run models, but fal will not share the wallet with it. Check balance on fal’s billing page, or create a key that includes billing read.';
+            $empty['error_code'] = 'billing_permission';
+
+            return $empty;
+        }
         if ($message === '') {
             $message = $response['error'] !== '' ? $response['error'] : 'Could not read fal balance.';
         }
         $empty['error'] = $message;
+        $empty['error_code'] = $status > 0 ? ('http_' . $status) : 'request_failed';
 
         return $empty;
     }
 
     $credits = is_array($decoded['credits'] ?? null) ? $decoded['credits'] : null;
     if ($credits === null || !isset($credits['current_balance'])) {
-        $empty['error'] = 'fal did not return a credit balance for this key (billing permission may be missing).';
+        $empty['error'] = 'fal did not return a credit balance for this key. Check billing on fal’s dashboard, or create a key that includes billing read.';
+        $empty['error_code'] = 'billing_permission';
 
         return $empty;
     }
@@ -898,14 +914,16 @@ function bandpromo_create_integrations_fal_credits(string $apiKey): array
         'currency' => $currency,
         'label' => $label,
         'buy_url' => $buyUrl,
+        'keys_url' => $keysUrl,
         'error' => '',
+        'error_code' => '',
     ];
 }
 
 /**
- * OpenAI has no supported remaining-balance API for ordinary project keys.
+ * OpenAI has no supported remaining-credit-balance API (not even Admin costs — that is spend only).
  *
- * @return array{ok:bool,available:bool,balance:?float,currency:string,label:string,buy_url:string,error:string}
+ * @return array{ok:bool,available:bool,balance:?float,currency:string,label:string,buy_url:string,error:string,error_code:string}
  */
 function bandpromo_create_integrations_openai_credits(): array
 {
@@ -916,7 +934,8 @@ function bandpromo_create_integrations_openai_credits(): array
         'currency' => 'USD',
         'label' => '',
         'buy_url' => 'https://platform.openai.com/settings/organization/billing',
-        'error' => 'OpenAI does not expose remaining credit balance to ordinary API keys. Check billing in the OpenAI dashboard.',
+        'error' => 'OpenAI does not publish remaining credit balance to API keys. Check prepaid credits and spend in the OpenAI billing dashboard.',
+        'error_code' => 'not_supported',
     ];
 }
 

@@ -2,6 +2,9 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-11-08 13:30 - Create → Start ready view: festive status dashboard; always show fal wallet card (API-preset keys get a clear billing-permission note instead of hiding); OpenAI copy explains no remaining-balance API exists.
+2026-11-08 13:20 - Create → Start ready actions: Reconfigure left, Open Preferences right.
+2026-11-08 13:05 - Create → Start: OpenAI and fal proofs run independently (own key only); key fields use an inline × clear instead of large Clear buttons.
 2026-11-08 12:15 - Site update: short GitHub fetch timeouts + retries, Atom-first tag resolve, and GitHub API asset fallback when the releases CDN 504s (fixes update check hanging behind nginx).
 2026-11-08 11:50 - Release package builder retries Demo PCF manifest download (GitHub CDN 504/timeouts from Actions); republish catalogue price work for testers.
 2026-11-08 11:40 - Republish Create catalogue price work after failed 629 release (demo-manifest 504); catalogue price helper scripts made CPython 3.6-compatible for the templates gate.

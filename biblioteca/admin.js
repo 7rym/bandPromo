@@ -16915,7 +16915,10 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 const balancesBox = document.getElementById('createStartBalances');
                 const falBalanceRow = document.getElementById('createStartFalBalance');
                 const falBalanceValue = document.getElementById('createStartFalBalanceValue');
+                const falBalanceNote = document.getElementById('createStartFalBalanceNote');
                 const falBuyLink = document.getElementById('createStartFalBuyLink');
+                const falKeysLink = document.getElementById('createStartFalKeysLink');
+                const falBalanceDev = document.getElementById('createStartFalBalanceDev');
                 const lastResultsBox = document.getElementById('createStartLastResults');
                 const lastOpenAiCard = document.getElementById('createStartLastOpenAi');
                 const lastOpenAiMeta = document.getElementById('createStartLastOpenAiMeta');
@@ -17000,16 +17003,47 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     }
                     balancesBox.hidden = false;
                     const fal = data.fal_credits && typeof data.fal_credits === 'object' ? data.fal_credits : null;
-                    if (falBalanceRow && falBalanceValue) {
-                        if (fal && fal.available === true && fal.label) {
-                            falBalanceRow.hidden = false;
+                    if (falBalanceRow) {
+                        falBalanceRow.hidden = false;
+                        falBalanceRow.classList.toggle('has-balance', !!(fal && fal.available === true && fal.label));
+                        falBalanceRow.classList.toggle('needs-attention', !(fal && fal.available === true && fal.label));
+                    }
+                    if (fal && fal.available === true && fal.label) {
+                        if (falBalanceValue) {
+                            falBalanceValue.hidden = false;
                             falBalanceValue.textContent = String(fal.label);
-                            if (falBuyLink instanceof HTMLAnchorElement && fal.buy_url) {
-                                falBuyLink.href = String(fal.buy_url);
-                            }
-                        } else {
-                            falBalanceRow.hidden = true;
                         }
+                        if (falBalanceNote) {
+                            falBalanceNote.textContent = 'prepaid credits left';
+                        }
+                        if (falKeysLink) {
+                            falKeysLink.hidden = true;
+                        }
+                        if (falBalanceDev) {
+                            falBalanceDev.hidden = true;
+                        }
+                    } else {
+                        if (falBalanceValue) {
+                            falBalanceValue.hidden = true;
+                            falBalanceValue.textContent = '';
+                        }
+                        if (falBalanceNote) {
+                            falBalanceNote.textContent = (fal && fal.error)
+                                ? String(fal.error)
+                                : 'Could not read fal balance for this key.';
+                        }
+                        if (falKeysLink) {
+                            falKeysLink.hidden = !(fal && fal.error_code === 'billing_permission');
+                            if (fal && fal.keys_url && falKeysLink instanceof HTMLAnchorElement) {
+                                falKeysLink.href = String(fal.keys_url);
+                            }
+                        }
+                        if (falBalanceDev) {
+                            falBalanceDev.hidden = !(fal && fal.error_code === 'billing_permission');
+                        }
+                    }
+                    if (falBuyLink instanceof HTMLAnchorElement && fal && fal.buy_url) {
+                        falBuyLink.href = String(fal.buy_url);
                     }
                 }
 
@@ -17035,7 +17069,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     if (!falTested) {
                         return 'fal';
                     }
-                    return 'fal';
+                    return 'ready';
                 }
 
                 function setButtonProposed(btn, proposed) {
@@ -17044,6 +17078,29 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     }
                     btn.classList.remove('btn-primary', 'btn-good', 'btn-available');
                     btn.classList.add(proposed ? 'btn-good' : 'btn-available');
+                }
+
+                function keyFieldHasClearable(input, configured) {
+                    if (!(input instanceof HTMLInputElement)) {
+                        return false;
+                    }
+                    if (configured) {
+                        return true;
+                    }
+                    return input.dataset.editing === '1' && input.value.trim() !== '';
+                }
+
+                function syncKeyClearButtons() {
+                    const openaiConfigured = openaiReady(latestIntegrations);
+                    const falConfigured = falReady(latestIntegrations);
+                    if (clearOpenAiBtn instanceof HTMLButtonElement) {
+                        clearOpenAiBtn.hidden = !keyFieldHasClearable(openAiInput, openaiConfigured);
+                        clearOpenAiBtn.disabled = busy;
+                    }
+                    if (clearFalBtn instanceof HTMLButtonElement) {
+                        clearFalBtn.hidden = !keyFieldHasClearable(falInput, falConfigured);
+                        clearFalBtn.disabled = busy;
+                    }
                 }
 
                 function applyShellMode(integrations) {
@@ -17080,19 +17137,27 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                             return;
                         }
                         panel.classList.remove('is-current', 'is-done', 'is-disabled');
-                        if (step === stage) {
-                            panel.classList.add('is-current');
-                        } else if (
-                            (step === 'connect' && hasOpenAi && hasFal) ||
-                            (step === 'openai' && openaiTested) ||
-                            (step === 'fal' && falTested)
-                        ) {
-                            panel.classList.add('is-done');
-                        } else if (
-                            (step === 'openai' && (!hasOpenAi || !hasFal)) ||
-                            (step === 'fal' && (!hasOpenAi || !hasFal || !openaiTested))
-                        ) {
+                        let current = false;
+                        let done = false;
+                        let disabled = false;
+                        if (step === 'connect') {
+                            done = hasOpenAi && hasFal;
+                            current = !done;
+                        } else if (step === 'openai') {
+                            done = openaiTested;
+                            disabled = !hasOpenAi;
+                            current = hasOpenAi && !openaiTested;
+                        } else if (step === 'fal') {
+                            done = falTested;
+                            disabled = !hasFal;
+                            current = hasFal && !falTested;
+                        }
+                        if (disabled) {
                             panel.classList.add('is-disabled');
+                        } else if (done) {
+                            panel.classList.add('is-done');
+                        } else if (current) {
+                            panel.classList.add('is-current');
                         }
                     });
 
@@ -17100,9 +17165,6 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                         if (!hasOpenAi) {
                             openAiProofLocked.hidden = false;
                             openAiProofLocked.textContent = 'Save an OpenAI key in Connect to unlock this proof.';
-                        } else if (!hasFal) {
-                            openAiProofLocked.hidden = false;
-                            openAiProofLocked.textContent = 'Save a fal.ai key in Connect as well — Start needs both keys before the proofs.';
                         } else {
                             openAiProofLocked.hidden = true;
                         }
@@ -17111,12 +17173,6 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                         if (!hasFal) {
                             falProofLocked.hidden = false;
                             falProofLocked.textContent = 'Save a fal.ai key in Connect to unlock this proof.';
-                        } else if (!hasOpenAi) {
-                            falProofLocked.hidden = false;
-                            falProofLocked.textContent = 'Save an OpenAI key in Connect as well — Start needs both keys before the proofs.';
-                        } else if (!openaiTested) {
-                            falProofLocked.hidden = false;
-                            falProofLocked.textContent = 'Pass the OpenAI proof first.';
                         } else {
                             falProofLocked.hidden = true;
                         }
@@ -17143,29 +17199,14 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                         saveBtn.disabled = busy;
                         setButtonProposed(saveBtn, stage === 'connect');
                     }
-                    if (clearOpenAiBtn instanceof HTMLButtonElement) {
-                        clearOpenAiBtn.disabled = busy;
-                        clearOpenAiBtn.classList.remove('btn-primary', 'btn-good');
-                        clearOpenAiBtn.classList.add('btn-available');
-                    }
-                    if (clearFalBtn instanceof HTMLButtonElement) {
-                        clearFalBtn.disabled = busy;
-                        clearFalBtn.classList.remove('btn-primary', 'btn-good');
-                        clearFalBtn.classList.add('btn-available');
-                    }
+                    syncKeyClearButtons();
                     if (openAiProofBtn instanceof HTMLButtonElement) {
-                        openAiProofBtn.disabled = busy || !hasOpenAi || !hasFal;
-                        setButtonProposed(openAiProofBtn, stage === 'openai' && !openaiTested);
-                        if (openaiTested && stage === 'openai') {
-                            setButtonProposed(openAiProofBtn, false);
-                        }
+                        openAiProofBtn.disabled = busy || !hasOpenAi;
+                        setButtonProposed(openAiProofBtn, hasOpenAi && !openaiTested);
                     }
                     if (falProofBtn instanceof HTMLButtonElement) {
-                        falProofBtn.disabled = busy || !hasOpenAi || !hasFal || !openaiTested;
-                        setButtonProposed(falProofBtn, stage === 'fal' && !falTested);
-                        if (falTested && stage === 'fal') {
-                            setButtonProposed(falProofBtn, false);
-                        }
+                        falProofBtn.disabled = busy || !hasFal;
+                        setButtonProposed(falProofBtn, hasFal && !falTested);
                     }
                 }
 
@@ -17215,12 +17256,17 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                             input.value = '';
                         }
                         input.placeholder = 'Paste key to set or replace';
+                        syncKeyClearButtons();
+                    });
+                    input.addEventListener('input', () => {
+                        syncKeyClearButtons();
                     });
                     input.addEventListener('blur', () => {
                         const display = getDisplay();
                         if (input.value.trim() === '') {
                             showKeyDisplay(input, display);
                         }
+                        syncKeyClearButtons();
                     });
                 }
 
@@ -17712,20 +17758,6 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                         }
                         return;
                     }
-                    if (!openaiReady(latestIntegrations) || !falReady(latestIntegrations)) {
-                        if (statusEl) {
-                            statusEl.textContent = 'Save both keys in Connect before running proofs.';
-                            statusEl.classList.add('is-error');
-                        }
-                        return;
-                    }
-                    if (!isOpenAi && !openaiTested) {
-                        if (statusEl) {
-                            statusEl.textContent = 'Pass the OpenAI proof first.';
-                            statusEl.classList.add('is-error');
-                        }
-                        return;
-                    }
 
                     clearProviderProofUi(provider);
                     if (isOpenAi) {
@@ -17829,11 +17861,11 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                             .then((integrations) => {
                                 if (keysStatus) {
                                     if (openaiReady(integrations) && falReady(integrations)) {
-                                        keysStatus.textContent = 'Saved. OpenAI and fal proofs are ready.';
+                                        keysStatus.textContent = 'Saved. Each proof can run on its own.';
                                     } else if (openaiReady(integrations)) {
-                                        keysStatus.textContent = 'Saved. Add a fal.ai key as well.';
+                                        keysStatus.textContent = 'Saved. OpenAI proof is ready — add fal.ai when you have it.';
                                     } else if (falReady(integrations)) {
-                                        keysStatus.textContent = 'Saved. Add an OpenAI key as well.';
+                                        keysStatus.textContent = 'Saved. fal.ai proof is ready — add OpenAI when you have it.';
                                     } else {
                                         keysStatus.textContent = 'Saved.';
                                     }
@@ -17851,7 +17883,26 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 }
 
                 if (clearOpenAiBtn) {
-                    clearOpenAiBtn.addEventListener('click', () => {
+                    clearOpenAiBtn.addEventListener('click', (event) => {
+                        event.preventDefault();
+                        event.stopPropagation();
+                        if (busy) {
+                            return;
+                        }
+                        const configured = openaiReady(latestIntegrations);
+                        if (openAiInput instanceof HTMLInputElement) {
+                            openAiInput.value = '';
+                            openAiInput.dataset.editing = '0';
+                        }
+                        if (!configured) {
+                            showKeyDisplay(openAiInput, openAiDisplay);
+                            syncKeyClearButtons();
+                            if (keysStatus) {
+                                keysStatus.textContent = '';
+                                keysStatus.classList.remove('is-error');
+                            }
+                            return;
+                        }
                         if (keysStatus) {
                             keysStatus.textContent = 'Clearing OpenAI key…';
                             keysStatus.classList.remove('is-error');
@@ -17874,7 +17925,26 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 }
 
                 if (clearFalBtn) {
-                    clearFalBtn.addEventListener('click', () => {
+                    clearFalBtn.addEventListener('click', (event) => {
+                        event.preventDefault();
+                        event.stopPropagation();
+                        if (busy) {
+                            return;
+                        }
+                        const configured = falReady(latestIntegrations);
+                        if (falInput instanceof HTMLInputElement) {
+                            falInput.value = '';
+                            falInput.dataset.editing = '0';
+                        }
+                        if (!configured) {
+                            showKeyDisplay(falInput, falDisplay);
+                            syncKeyClearButtons();
+                            if (keysStatus) {
+                                keysStatus.textContent = '';
+                                keysStatus.classList.remove('is-error');
+                            }
+                            return;
+                        }
                         if (keysStatus) {
                             keysStatus.textContent = 'Clearing fal key…';
                             keysStatus.classList.remove('is-error');
