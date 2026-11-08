@@ -24,11 +24,13 @@
 
 **Closed:** **v0.8.102 build 629** attempted — Preferences Price/About + slim/verified catalogue; GitHub release failed (demo-manifest HTTP 504); no tester package.
 
-**Closed:** **v0.8.102 build 630** published — same catalogue work + Python 3.6-compatible price helper scripts; release package available for testers.
+**Closed:** **v0.8.102 build 630** attempted — same catalogue work + 3.6-compatible helpers; release failed again (demo-manifest timeout from Actions).
+
+**Closed:** **v0.8.102 build 631** published — catalogue price verification for testers; Demo PCF manifest fetch retries in release builder.
 
 **Active now:** Catalogue **update function** + multi-provider Connect later. Optional smoke that every catalogue endpoint still runs (spend-capped). Living-art / blurb tool UIs stay later.
 
-**Last published:** **v0.8.102 build 630**. Prior: **629** failed release; **628** looping video Result.
+**Last published:** **v0.8.102 build 631**. Prior: **630**/**629** failed releases; **628** looping video Result.
 
 **Parked / later:**
 - Create Preferences **catalogue update function** (refresh `create-model-catalog.json` from stored instructions when models change) — [ROADMAP.md](ROADMAP.md).
@@ -41,7 +43,7 @@
 
 **Operator rule (this session):** Do **not** delete, prune, janitor-Apply, or discard any runtime files (`data/`, `media/`, `log/`, `backups/`, Ready archives, leftover `original/`) unless this user names the exact paths in the same message.
 
-**Next:** Confirm Site update sees **630** on a tester host. Catalogue updater when model lists drift. Optional spend-capped endpoint smoke. Living-art / blurb tool UIs stay later.
+**Next:** Confirm Site update sees **631** on a tester host. Catalogue updater when model lists drift. Optional spend-capped endpoint smoke. Living-art / blurb tool UIs stay later.
 
 ### Policy locked (do not reopen)
 

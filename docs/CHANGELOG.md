@@ -2,6 +2,7 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-11-08 11:50 - Release package builder retries Demo PCF manifest download (GitHub CDN 504/timeouts from Actions); republish catalogue price work for testers.
 2026-11-08 11:40 - Republish Create catalogue price work after failed 629 release (demo-manifest 504); catalogue price helper scripts made CPython 3.6-compatible for the templates gate.
 2026-11-07 18:15 - Create model catalogue prices verified from live OpenRouter + fal pricing/llms.txt/historical estimate APIs; each row stores `price_verified` + `price_source`.
 2026-11-07 18:00 - Create model catalogue slimmed to operator fields (`estimate_usd` + `recommended_for` + endpoints); dropped audit/lifecycle dump; Preferences price hints prefer `estimate_usd`.

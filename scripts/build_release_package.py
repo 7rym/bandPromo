@@ -23,6 +23,7 @@ import shutil
 import stat
 import subprocess
 import sys
+import time
 import urllib.request
 from typing import Dict, List, Optional, Tuple
 from zipfile import ZIP_DEFLATED, ZipFile
@@ -243,13 +244,27 @@ def load_demo_manifest(demo_manifest_url):
     # type: (Optional[str]) -> Optional[Dict[str, object]]
     if not demo_manifest_url:
         return None
-    try:
-        with urllib.request.urlopen(demo_manifest_url, timeout=60) as response:
-            raw = response.read()
-    except Exception as exc:
+    # GitHub release CDN occasionally 504s / times out from Actions; retry.
+    last_exc = None  # type: Optional[BaseException]
+    raw = None
+    for attempt in range(1, 6):
+        try:
+            request = urllib.request.Request(
+                demo_manifest_url,
+                headers={"User-Agent": "bandPromo-build-release-package/1.0"},
+            )
+            with urllib.request.urlopen(request, timeout=120) as response:
+                raw = response.read()
+            last_exc = None
+            break
+        except Exception as exc:
+            last_exc = exc
+            if attempt < 5:
+                time.sleep(min(30, 2 * attempt))
+    if last_exc is not None or raw is None:
         raise RuntimeError(
             "Could not load durable Demo PCF manifest from {0}: {1}".format(
-                demo_manifest_url, exc
+                demo_manifest_url, last_exc
             )
         )
     if raw.startswith(b"\xef\xbb\xbf"):
