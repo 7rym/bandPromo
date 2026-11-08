@@ -16872,6 +16872,9 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 const openAiProofLocked = document.getElementById('createOpenAiProofLocked');
                 const openAiProofModels = document.getElementById('createOpenAiProofModels');
                 const openAiProofResult = document.getElementById('createOpenAiProofResult');
+                const openAiProofWaiting = document.getElementById('createOpenAiProofWaiting');
+                const openAiProofWaitingLabel = document.getElementById('createOpenAiProofWaitingLabel');
+                const openAiProofOutput = document.getElementById('createOpenAiProofOutput');
                 const openAiProofBrandMeta = document.getElementById('createOpenAiProofBrandMeta');
                 const openAiProofPrompt = document.getElementById('createOpenAiProofPrompt');
                 const openAiProofLogoMeta = document.getElementById('createOpenAiProofLogoMeta');
@@ -16884,6 +16887,9 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                 const falProofLocked = document.getElementById('createFalProofLocked');
                 const falProofModels = document.getElementById('createFalProofModels');
                 const falProofResult = document.getElementById('createFalProofResult');
+                const falProofWaiting = document.getElementById('createFalProofWaiting');
+                const falProofWaitingLabel = document.getElementById('createFalProofWaitingLabel');
+                const falProofOutput = document.getElementById('createFalProofOutput');
                 const falProofBrandMeta = document.getElementById('createFalProofBrandMeta');
                 const falProofPrompt = document.getElementById('createFalProofPrompt');
                 const falProofLogoMeta = document.getElementById('createFalProofLogoMeta');
@@ -17103,16 +17109,20 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     }
 
                     if (openAiProofResult) {
-                        openAiProofResult.hidden = !(openaiTested || (openAiProofPrompt && openAiProofPrompt.textContent));
-                        if (!openaiTested && openAiProofPrompt && !openAiProofPrompt.textContent) {
-                            openAiProofResult.hidden = true;
-                        }
+                        const openAiWaiting = openAiProofWaiting && !openAiProofWaiting.hidden;
+                        openAiProofResult.hidden = !(
+                            openaiTested
+                            || openAiWaiting
+                            || (openAiProofPrompt && openAiProofPrompt.textContent)
+                        );
                     }
                     if (falProofResult) {
-                        falProofResult.hidden = !(falTested || (falProofPrompt && falProofPrompt.textContent));
-                        if (!falTested && falProofPrompt && !falProofPrompt.textContent) {
-                            falProofResult.hidden = true;
-                        }
+                        const falWaiting = falProofWaiting && !falProofWaiting.hidden;
+                        falProofResult.hidden = !(
+                            falTested
+                            || falWaiting
+                            || (falProofPrompt && falProofPrompt.textContent)
+                        );
                     }
 
                     if (saveBtn instanceof HTMLButtonElement) {
@@ -17200,6 +17210,31 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     });
                 }
 
+                function setProofWaiting(provider, isWaiting, label) {
+                    const isOpenAi = provider === 'openai';
+                    const resultEl = isOpenAi ? openAiProofResult : falProofResult;
+                    const waitingEl = isOpenAi ? openAiProofWaiting : falProofWaiting;
+                    const waitingLabel = isOpenAi ? openAiProofWaitingLabel : falProofWaitingLabel;
+                    const outputEl = isOpenAi ? openAiProofOutput : falProofOutput;
+                    const statusEl = isOpenAi ? openAiProofStatus : falProofStatus;
+                    if (resultEl) {
+                        resultEl.hidden = false;
+                    }
+                    if (waitingEl) {
+                        waitingEl.hidden = !isWaiting;
+                    }
+                    if (waitingLabel && isWaiting) {
+                        waitingLabel.textContent = label || 'Working…';
+                    }
+                    if (outputEl) {
+                        outputEl.hidden = !!isWaiting;
+                    }
+                    if (statusEl && isWaiting) {
+                        statusEl.classList.remove('is-error');
+                        statusEl.textContent = '';
+                    }
+                }
+
                 function clearProviderProofUi(provider) {
                     const isOpenAi = provider === 'openai';
                     const promptEl = isOpenAi ? openAiProofPrompt : falProofPrompt;
@@ -17210,6 +17245,8 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     const errorEl = isOpenAi ? openAiProofError : falProofError;
                     const helpEl = isOpenAi ? openAiProofHelp : falProofHelp;
                     const resultEl = isOpenAi ? openAiProofResult : falProofResult;
+                    const waitingEl = isOpenAi ? openAiProofWaiting : falProofWaiting;
+                    const outputEl = isOpenAi ? openAiProofOutput : falProofOutput;
                     const statusEl = isOpenAi ? openAiProofStatus : falProofStatus;
 
                     if (promptEl) {
@@ -17236,6 +17273,12 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     if (imageEl instanceof HTMLImageElement) {
                         imageEl.hidden = true;
                         imageEl.removeAttribute('src');
+                    }
+                    if (waitingEl) {
+                        waitingEl.hidden = true;
+                    }
+                    if (outputEl) {
+                        outputEl.hidden = false;
                     }
                     if (resultEl) {
                         resultEl.hidden = true;
@@ -17327,6 +17370,14 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                             ? `Last proof saved · ${String(row.cost_label)}`
                             : 'Last proof saved';
                         statusEl.classList.remove('is-error');
+                    }
+                    const waitingEl = isOpenAi ? openAiProofWaiting : falProofWaiting;
+                    const outputEl = isOpenAi ? openAiProofOutput : falProofOutput;
+                    if (waitingEl) {
+                        waitingEl.hidden = true;
+                    }
+                    if (outputEl) {
+                        outputEl.hidden = false;
                     }
                 }
 
@@ -17523,10 +17574,10 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     busy = isBusy === true;
                     busyProvider = busy ? String(provider || '') : '';
                     applyWorkflow(latestIntegrations);
-                    const statusEl = busyProvider === 'fal' ? falProofStatus : openAiProofStatus;
-                    if (busy && statusEl) {
-                        statusEl.classList.remove('is-error');
-                        statusEl.textContent = label || 'Working…';
+                    if (busy && (busyProvider === 'openai' || busyProvider === 'fal')) {
+                        setProofWaiting(busyProvider, true, label || 'Working…');
+                    } else if (!busy && (provider === 'openai' || provider === 'fal')) {
+                        setProofWaiting(provider, false);
                     }
                 }
 
@@ -17618,6 +17669,14 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     if (resultEl) {
                         resultEl.hidden = false;
                     }
+                    const waitingEl = isOpenAi ? openAiProofWaiting : falProofWaiting;
+                    const outputEl = isOpenAi ? openAiProofOutput : falProofOutput;
+                    if (waitingEl) {
+                        waitingEl.hidden = true;
+                    }
+                    if (outputEl) {
+                        outputEl.hidden = false;
+                    }
                 }
 
                 async function runProviderProof(provider) {
@@ -17687,6 +17746,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                             }),
                         });
                         const data = await resp.json().catch(() => null);
+                        setProofWaiting(provider, false);
                         fillProofResult(provider, data || {});
 
                         if (data && data.ok === true) {
@@ -17733,6 +17793,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                         } else {
                             falTested = false;
                         }
+                        setProofWaiting(provider, false);
                         if (statusEl) {
                             statusEl.textContent = error && error.message
                                 ? String(error.message)
@@ -17740,7 +17801,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                             statusEl.classList.add('is-error');
                         }
                     } finally {
-                        setBusy(false, '', '');
+                        setBusy(false, '', provider);
                     }
                 }
 
@@ -17871,25 +17932,37 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
 
                 const llmTierToggle = document.getElementById('createPrefsLlmTierToggle');
                 const llmSelect = document.getElementById('createPrefsLlmSelect');
+                const llmNote = document.getElementById('createPrefsLlmNote');
                 const llmTestBtn = document.getElementById('createPrefsLlmTestBtn');
                 const llmStatus = document.getElementById('createPrefsLlmStatus');
                 const llmResult = document.getElementById('createPrefsLlmResult');
+                const llmWaiting = document.getElementById('createPrefsLlmWaiting');
+                const llmWaitingLabel = document.getElementById('createPrefsLlmWaitingLabel');
+                const llmOutput = document.getElementById('createPrefsLlmOutput');
                 const llmPrompt = document.getElementById('createPrefsLlmPrompt');
                 const llmError = document.getElementById('createPrefsLlmError');
 
                 const imageTierToggle = document.getElementById('createPrefsImageTierToggle');
                 const imageSelect = document.getElementById('createPrefsImageSelect');
+                const imageNote = document.getElementById('createPrefsImageNote');
                 const imageTestBtn = document.getElementById('createPrefsImageTestBtn');
                 const imageStatus = document.getElementById('createPrefsImageStatus');
                 const imageResult = document.getElementById('createPrefsImageResult');
+                const imageWaiting = document.getElementById('createPrefsImageWaiting');
+                const imageWaitingLabel = document.getElementById('createPrefsImageWaitingLabel');
+                const imageOutput = document.getElementById('createPrefsImageOutput');
                 const imagePreview = document.getElementById('createPrefsImagePreview');
                 const imageError = document.getElementById('createPrefsImageError');
 
                 const videoTierToggle = document.getElementById('createPrefsVideoTierToggle');
                 const videoSelect = document.getElementById('createPrefsVideoSelect');
+                const videoNote = document.getElementById('createPrefsVideoNote');
                 const videoTestBtn = document.getElementById('createPrefsVideoTestBtn');
                 const videoStatus = document.getElementById('createPrefsVideoStatus');
                 const videoResult = document.getElementById('createPrefsVideoResult');
+                const videoWaiting = document.getElementById('createPrefsVideoWaiting');
+                const videoWaitingLabel = document.getElementById('createPrefsVideoWaitingLabel');
+                const videoOutput = document.getElementById('createPrefsVideoOutput');
                 const videoPreview = document.getElementById('createPrefsVideoPreview');
                 const videoError = document.getElementById('createPrefsVideoError');
 
@@ -17960,6 +18033,39 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     });
                 }
 
+                function shortModelOptionLabel(row) {
+                    const label = String((row && row.label) || (row && row.id) || '').trim();
+                    const vendor = String((row && row.vendor) || '').trim();
+                    if (label && vendor) {
+                        return vendor + ' — ' + label;
+                    }
+                    return label || vendor || 'Model';
+                }
+
+                function modelNoteHtml(meta) {
+                    if (!meta || typeof meta !== 'object') {
+                        return '';
+                    }
+                    const price = String(meta.price_hint || '').trim();
+                    // About = recommended_for; note only if recommended_for empty (legacy rows).
+                    const about = String(meta.recommended_for || meta.note || '').trim();
+                    const bits = [];
+                    bits.push('<strong>Price:</strong> ' + escapeHtml(price !== '' ? price : 'Not listed in catalogue'));
+                    if (about !== '') {
+                        bits.push('<strong>About:</strong> ' + escapeHtml(about));
+                    }
+                    return bits.join('<br>');
+                }
+
+                function updateModelNote(el, meta) {
+                    if (!el) {
+                        return;
+                    }
+                    const html = modelNoteHtml(meta);
+                    el.innerHTML = html;
+                    el.hidden = html === '';
+                }
+
                 function renderSelect(select, rows, selectedId, onPick) {
                     if (!(select instanceof HTMLSelectElement)) {
                         return;
@@ -17967,11 +18073,9 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     const selected = String(selectedId || (rows[0] && rows[0].id) || '');
                     select.innerHTML = rows.map((row) => {
                         const id = String(row.id || '');
-                        const vendor = row.vendor ? String(row.vendor) + ' — ' : '';
-                        const label = String(row.label || id);
-                        const hint = row.price_hint ? ` (${String(row.price_hint)})` : '';
+                        const label = shortModelOptionLabel(row);
                         const isSelected = id === selected ? ' selected' : '';
-                        return `<option value="${escapeHtml(id)}"${isSelected}>${escapeHtml(vendor + label + hint)}</option>`;
+                        return `<option value="${escapeHtml(id)}"${isSelected}>${escapeHtml(label)}</option>`;
                     }).join('');
                     select.onchange = () => onPick(String(select.value || ''));
                 }
@@ -17991,13 +18095,67 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                     }
                     renderSelect(llmSelect, llmRows, llmModel, (id) => {
                         llmModel = id;
+                        updateModelNote(llmNote, findMeta(llmRows, id));
                     });
                     renderSelect(imageSelect, imageRows, imageModel, (id) => {
                         imageModel = id;
+                        updateModelNote(imageNote, findMeta(imageRows, id));
                     });
                     renderSelect(videoSelect, videoRows, videoModel, (id) => {
                         videoModel = id;
+                        updateModelNote(videoNote, findMeta(videoRows, id));
                     });
+                    updateModelNote(llmNote, findMeta(llmRows, llmModel));
+                    updateModelNote(imageNote, findMeta(imageRows, imageModel));
+                    updateModelNote(videoNote, findMeta(videoRows, videoModel));
+                }
+
+                function setPrefsWaiting(kind, isWaiting, label) {
+                    const map = {
+                        llm: {
+                            result: llmResult,
+                            waiting: llmWaiting,
+                            waitingLabel: llmWaitingLabel,
+                            output: llmOutput,
+                            status: llmStatus,
+                        },
+                        image: {
+                            result: imageResult,
+                            waiting: imageWaiting,
+                            waitingLabel: imageWaitingLabel,
+                            output: imageOutput,
+                            status: imageStatus,
+                        },
+                        video: {
+                            result: videoResult,
+                            waiting: videoWaiting,
+                            waitingLabel: videoWaitingLabel,
+                            output: videoOutput,
+                            status: videoStatus,
+                        },
+                    };
+                    const refs = map[kind];
+                    if (!refs) {
+                        return;
+                    }
+                    if (refs.result) {
+                        refs.result.hidden = false;
+                    }
+                    if (refs.waiting) {
+                        refs.waiting.hidden = !isWaiting;
+                    }
+                    if (refs.waitingLabel && isWaiting) {
+                        refs.waitingLabel.textContent = label || 'Working…';
+                    }
+                    if (refs.output) {
+                        refs.output.hidden = !!isWaiting;
+                    }
+                    if (refs.status) {
+                        if (isWaiting) {
+                            refs.status.classList.remove('is-error');
+                            refs.status.textContent = '';
+                        }
+                    }
                 }
 
                 function hydratePrefsResults(integrations) {
@@ -18013,6 +18171,12 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                         }
                         if (llmError) {
                             llmError.hidden = true;
+                        }
+                        if (llmWaiting) {
+                            llmWaiting.hidden = true;
+                        }
+                        if (llmOutput) {
+                            llmOutput.hidden = false;
                         }
                         if (llmResult) {
                             llmResult.hidden = false;
@@ -18039,6 +18203,12 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                         if (imageError) {
                             imageError.hidden = true;
                         }
+                        if (imageWaiting) {
+                            imageWaiting.hidden = true;
+                        }
+                        if (imageOutput) {
+                            imageOutput.hidden = false;
+                        }
                         if (imageResult) {
                             imageResult.hidden = false;
                         }
@@ -18063,6 +18233,12 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                         }
                         if (videoError) {
                             videoError.hidden = true;
+                        }
+                        if (videoWaiting) {
+                            videoWaiting.hidden = true;
+                        }
+                        if (videoOutput) {
+                            videoOutput.hidden = false;
                         }
                         if (videoResult) {
                             videoResult.hidden = false;
@@ -18170,10 +18346,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                         image_model: imageModel,
                         video_model: videoModel,
                     });
-                    if (llmStatus) {
-                        llmStatus.classList.remove('is-error');
-                        llmStatus.textContent = 'Asking for an image prompt…';
-                    }
+                    setPrefsWaiting('llm', true, 'Asking for an image prompt…');
                     try {
                         const resp = await fetch('/biblioteca/test-create-connections.php', {
                             method: 'POST',
@@ -18190,8 +18363,8 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                         });
                         const data = await resp.json().catch(() => null);
                         const llm = data && data.llm ? data.llm : {};
-                        const brand = data && data.brand ? data.brand : {};
                         const ok = data && data.ok === true && llm.prompt;
+                        setPrefsWaiting('llm', false);
                         if (llmPrompt) {
                             llmPrompt.textContent = llm.prompt ? String(llm.prompt) : '';
                         }
@@ -18220,6 +18393,10 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                             }
                         }
                     } catch (error) {
+                        setPrefsWaiting('llm', false);
+                        if (llmResult) {
+                            llmResult.hidden = false;
+                        }
                         if (llmStatus) {
                             llmStatus.textContent = error && error.message
                                 ? String(error.message)
@@ -18255,10 +18432,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                         image_model: imageModel,
                         video_model: videoModel,
                     });
-                    if (imageStatus) {
-                        imageStatus.classList.remove('is-error');
-                        imageStatus.textContent = 'Asking fal for a still… this can take a minute.';
-                    }
+                    setPrefsWaiting('image', true, 'Asking fal for a still… this can take a minute.');
                     try {
                         const resp = await fetch('/biblioteca/test-create-connections.php', {
                             method: 'POST',
@@ -18275,7 +18449,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                         });
                         const data = await resp.json().catch(() => null);
                         const fal = data && data.fal ? data.fal : {};
-                        const brand = data && data.brand ? data.brand : {};
+                        setPrefsWaiting('image', false);
                         if (fal.ok && fal.image_url && imagePreview instanceof HTMLImageElement) {
                             imagePreview.src = String(fal.image_url);
                             imagePreview.hidden = false;
@@ -18305,6 +18479,10 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                             }
                         }
                     } catch (error) {
+                        setPrefsWaiting('image', false);
+                        if (imageResult) {
+                            imageResult.hidden = false;
+                        }
                         if (imageStatus) {
                             imageStatus.textContent = error && error.message
                                 ? String(error.message)
@@ -18340,10 +18518,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                         image_model: imageModel,
                         video_model: videoModel,
                     });
-                    if (videoStatus) {
-                        videoStatus.classList.remove('is-error');
-                        videoStatus.textContent = 'Asking fal for a short clip… this can take a minute.';
-                    }
+                    setPrefsWaiting('video', true, 'Asking fal for a short clip… this can take a minute.');
                     try {
                         const resp = await fetch('/biblioteca/test-create-connections.php', {
                             method: 'POST',
@@ -18360,7 +18535,7 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                         });
                         const data = await resp.json().catch(() => null);
                         const fal = data && data.fal ? data.fal : {};
-                        const brand = data && data.brand ? data.brand : {};
+                        setPrefsWaiting('video', false);
                         if (fal.ok && fal.video_url && videoPreview instanceof HTMLVideoElement) {
                             videoPreview.src = String(fal.video_url);
                             videoPreview.hidden = false;
@@ -18390,6 +18565,10 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                             }
                         }
                     } catch (error) {
+                        setPrefsWaiting('video', false);
+                        if (videoResult) {
+                            videoResult.hidden = false;
+                        }
                         if (videoStatus) {
                             videoStatus.textContent = error && error.message
                                 ? String(error.message)

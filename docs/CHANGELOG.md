@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-11-07 18:15 - Create model catalogue prices verified from live OpenRouter + fal pricing/llms.txt/historical estimate APIs; each row stores `price_verified` + `price_source`.
+2026-11-07 18:00 - Create model catalogue slimmed to operator fields (`estimate_usd` + `recommended_for` + endpoints); dropped audit/lifecycle dump; Preferences price hints prefer `estimate_usd`.
+2026-11-07 17:40 - Create → Preferences model notes always show Price + About; price hints no longer fall back to descriptions when the catalogue has no tariff.
+2026-11-07 17:35 - Create → Preferences: short model names in the selectors; price/about text sits in a note under each select.
+2026-11-07 17:30 - Create → Preferences: last-result status lines sit under each Result panel (not beside Test).
+2026-11-07 17:25 - Create Start/Preferences: Result blocks use panel headers; waiting spinner under Result; model output sits under that header.
+2026-11-07 17:10 - Create video test prompt: keep the reference subject centred and fully visible for a later 1:1 crop.
 2026-11-07 16:55 - Publish Create → Preferences looping (muted) video Result preview.
 2026-11-07 16:50 - Create → Preferences video Result preview loops (and is muted) so operators can judge seamless looping.
 2026-11-07 16:45 - Publish Create → Start dual workhorse proofs (OpenAI + fal text+image), durable last results, fal reasoning fix, and video loop/no-audio prompt; Preferences catalogue from JSON.

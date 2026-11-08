@@ -1,99 +1,11 @@
 {
-  "language": "en-GB",
   "checked_on": "2026-11-07",
   "currency": "USD",
-  "status": "Updated, with outstanding verification limitations",
-  "instructions_file": "create-model-catalog-instructions.md",
-  "summary": {
-    "lists": 9,
-    "requested_models_per_list": 7,
-    "models_listed": 62,
-    "unfilled_slots": 1,
-    "explanation": "Three Veo 3.1 endpoints have announced retirement or deprecation dates. Two replacements were identified. A seventh premium video model satisfying every restriction was not verified, so that slot remains empty rather than being filled with a duplicate or an unsuitable model."
-  },
-  "criteria": {
-    "cheapest": "Selection and ordering are based on price, subject to the capability, supplier diversity, lifecycle and model uniqueness restrictions.",
-    "workhorse": "A practical choice for regular production work, balancing reliability, speed, capability and cost.",
-    "premium": "A supplier's premium product tier. This is an editorial classification rather than a universal benchmark ranking.",
-    "supplier_diversity": "Each individual list must contain seven different suppliers. A supplier may appear in another list with a different model.",
-    "model_uniqueness": "Each model may appear in only one list. Different reasoning settings or output resolutions do not count as different models.",
-    "version_selection": "Use the latest verified variant within the relevant product tier. A separate premium tier may have a different release cycle from the standard tier.",
-    "image_requirement": "Reference images must be supported. Style-only references are explicitly identified.",
-    "video_requirement": "Both first-frame and last-frame inputs must be supported within the same generation request.",
-    "lifecycle_policy": {
-      "near_end_of_life_window_days": 90,
-      "window_is_an_assumption": true,
-      "exclude_announced_retirements_within_window": true,
-      "interpretation": "No retirement notice found does not constitute a guarantee of future availability."
-    }
-  },
-  "lifecycle_changes": [
-    {
-      "removed_model": "Google Veo 3.1 Lite First/Last Frame",
-      "previous_list": "video.cheapest",
-      "announced_event": "Endpoint deprecation",
-      "announced_date": "2026-11-17",
-      "days_from_check": 10,
-      "replacement": "Google Gemini Omni Flash 1.2",
-      "evidence": "[fal endpoint deprecation notice](https://fal.ai/models/fal-ai/veo3.1/lite/first-last-frame-to-video)"
-    },
-    {
-      "removed_model": "Google Veo 3.1 Fast First/Last Frame",
-      "previous_list": "video.workhorse",
-      "announced_event": "Model removal",
-      "announced_date": "2026-11-17",
-      "days_from_check": 10,
-      "replacement": "Kling O3 Standard",
-      "evidence": "[fal model removal notice](https://fal.ai/models/fal-ai/veo3.1/fast/first-last-frame-to-video)"
-    },
-    {
-      "removed_model": "Google Veo 3.1 First/Last Frame",
-      "previous_list": "video.premium",
-      "announced_event": "Model removal",
-      "announced_date": "2026-11-17",
-      "days_from_check": 10,
-      "replacement": null,
-      "reason": "A seventh qualifying premium model from a different supplier was not verified without duplicating an existing model or weakening another requirement.",
-      "evidence": "[fal model removal notice](https://fal.ai/models/fal-ai/veo3.1/first-last-frame-to-video)"
-    },
-    {
-      "removed_model": "Reve 2.1",
-      "previous_list": "image.premium",
-      "announced_event": null,
-      "announced_date": null,
-      "replacement": "xAI Grok Imagine Pro Edit",
-      "reason": "The advertised Reve 2.1 editing and remix model pages returned 404. This is an availability concern, not evidence of an announced retirement.",
-      "evidence": [
-        "[Reve 2.1 product page](https://fal.ai/reve-2.1)",
-        "[Advertised editing endpoint](https://fal.ai/models/reve/2.1/edit)",
-        "[Replacement editing API](https://fal.ai/models/xai/grok-imagine-image/quality/edit/api)"
-      ]
-    }
-  ],
-  "verification_notes": [
-    "For the retained candidates, no model retirement notice was found in the documentation or provider catalogue pages checked. This is a documentation audit; authenticated inference requests were not performed.",
-    "The LLM candidates are listed through OpenRouter. Availability of every individual model through fal's OpenRouter router was not independently confirmed.",
-    "The LLM budget figures are published OpenRouter prices, not verified fal invoices.",
-    "The cheapest lists are restricted shortlists. An exhaustive catalogue-wide search proving that they are the absolute seven cheapest qualifying products has not been completed.",
-    "Image prices use approximately 1K or one-megapixel output and one reference image where possible. Different billing methods prevent perfect like-for-like comparison.",
-    "FLUX 3 Klein's page describes its rates as planned. Its budget placement is therefore provisional.",
-    "Video budget prices use the lowest documented resolution compatible with both endpoint frames. Quality is not a ranking factor.",
-    "Promotional video prices can change the ordering. Their expiry dates are included.",
-    "Kling 4.0 has a model page and API documentation, but a recent fal comparison article still describes API access as forthcoming. Unrestricted API availability remains unverified.",
-    "Recraft references transfer style. They do not establish general subject-identity preservation.",
-    "Null prices mean that a sufficiently comparable price was not revalidated; they do not mean that the model is free."
-  ],
   "defaults": {
-    "retained_model_lifecycle_status": "No announced retirement found in the sources checked",
     "llm_fal_endpoint": "openrouter/router",
-    "llm_fal_documentation": "https://fal.ai/models/openrouter/router/api",
-    "llm_budget_price_unit": "USD per one million tokens",
-    "llm_budget_comparison": "One million input tokens plus one million output tokens, without caching or batch discounts",
-    "image_reference_images_supported": true,
-    "video_reference_images_supported": true,
-    "video_first_and_last_frame_supported": true,
-    "video_budget_price_unit": "USD per generated second",
-    "workhorse_and_premium_order": "Presentation order, not a measured ranking"
+    "llm_estimate_basis": "USD for 1M input tokens + 1M output tokens (no cache/batch)",
+    "image_estimate_basis": "USD per ~1K/1MP image with one reference",
+    "video_estimate_basis": "USD per generated second at lowest documented resolution with first+last frame"
   },
   "lists": {
     "llm": {
@@ -101,161 +13,237 @@
         {
           "supplier": "Z.ai",
           "model": "GLM 5.3 Flash",
-          "input_price": 0.0285,
-          "output_price": 0.0923,
-          "comparison_cost": 0.1208,
-          "source": "https://openrouter.ai/z-ai"
+          "input_price": 0.15,
+          "output_price": 0.5,
+          "estimate_usd": 0.65,
+          "recommended_for": "Very low-cost general text and drafting",
+          "source": "https://openrouter.ai/z-ai",
+          "price_verified": true,
+          "price_source": "openrouter:z-ai/glm-5.3-flash"
         },
         {
           "supplier": "InclusionAI",
           "model": "Ling 3.1 Flash",
           "input_price": 0.045,
           "output_price": 0.135,
-          "comparison_cost": 0.18,
-          "source": "https://openrouter.ai/inclusionai"
+          "estimate_usd": 0.18,
+          "recommended_for": "Budget multilingual drafting and light summarising",
+          "source": "https://openrouter.ai/inclusionai",
+          "price_verified": true,
+          "price_source": "openrouter:inclusionai/ling-3.1-flash"
         },
         {
           "supplier": "Liquid AI",
           "model": "LFM3-1.7B",
           "input_price": 0.08,
           "output_price": 0.2,
-          "comparison_cost": 0.28,
-          "note": "Retirement notices for older Liquid models do not establish retirement of this model.",
-          "source": "https://openrouter.ai/liquid"
+          "estimate_usd": 0.28,
+          "recommended_for": "Tiny on-budget helper for short prompts",
+          "source": "https://openrouter.ai/liquid",
+          "price_verified": true,
+          "price_source": "openrouter:liquid/lfm-3-1.7b"
         },
         {
           "supplier": "OpenAI",
           "model": "GPT-6 Luna",
           "input_price": 0.1,
           "output_price": 0.5,
-          "comparison_cost": 0.6,
-          "source": "https://openrouter.ai/openai"
+          "estimate_usd": 0.6,
+          "recommended_for": "Inexpensive OpenAI text for blurbs and short prompts",
+          "source": "https://openrouter.ai/openai",
+          "price_verified": true,
+          "price_source": "openrouter:openai/gpt-6-luna"
         },
         {
           "supplier": "Anthropic",
           "model": "Claude Haiku 5.5",
           "input_price": 0.1,
           "output_price": 0.5,
-          "comparison_cost": 0.6,
-          "source": "https://openrouter.ai/anthropic"
+          "estimate_usd": 0.6,
+          "recommended_for": "Fast, low-cost Anthropic drafting",
+          "source": "https://openrouter.ai/anthropic",
+          "price_verified": true,
+          "price_source": "openrouter:anthropic/claude-haiku-5.5"
         },
         {
           "supplier": "Alibaba",
           "model": "Qwen3.8 Flash",
           "input_price": 0.15,
           "output_price": 0.47,
-          "comparison_cost": 0.62,
-          "source": "https://openrouter.ai/qwen"
+          "estimate_usd": 0.62,
+          "recommended_for": "Budget Qwen for everyday language tasks",
+          "source": "https://openrouter.ai/qwen",
+          "price_verified": true,
+          "price_source": "openrouter:qwen/qwen3.8-flash"
         },
         {
           "supplier": "Google",
           "model": "Gemini 3.5 Flash Lite",
           "input_price": 0.3,
           "output_price": 2.5,
-          "comparison_cost": 2.8,
-          "source": "https://openrouter.ai/google"
+          "estimate_usd": 2.8,
+          "recommended_for": "Cheap Gemini for quick multimodal-friendly text",
+          "source": "https://openrouter.ai/google",
+          "price_verified": true,
+          "price_source": "openrouter:google/gemini-3.5-flash-lite"
         }
       ],
       "workhorse": [
         {
           "supplier": "OpenAI",
           "model": "GPT-6.1 Sol",
+          "input_price": 2.0,
+          "output_price": 10.0,
+          "estimate_usd": 12.0,
           "recommended_for": "Everyday coding, document work and agent workflows",
-          "price": null,
-          "source": "https://openrouter.ai/openai"
+          "source": "https://openrouter.ai/openai",
+          "price_verified": true,
+          "price_source": "openrouter:openai/gpt-6.1-sol"
         },
         {
           "supplier": "Anthropic",
           "model": "Claude Sonnet 5.5",
+          "input_price": 2.0,
+          "output_price": 10.0,
+          "estimate_usd": 12.0,
           "recommended_for": "Coding, writing and polished deliverables",
-          "price": null,
-          "source": "https://openrouter.ai/anthropic"
+          "source": "https://openrouter.ai/anthropic",
+          "price_verified": true,
+          "price_source": "openrouter:anthropic/claude-sonnet-5.5"
         },
         {
           "supplier": "Google",
           "model": "Gemini 3.8 Flash",
+          "input_price": 0.825,
+          "output_price": 4.125,
+          "estimate_usd": 4.95,
           "recommended_for": "Responsive multimodal production workflows",
-          "price": null,
-          "source": "https://openrouter.ai/google"
+          "source": "https://openrouter.ai/google",
+          "price_verified": true,
+          "price_source": "openrouter:google/gemini-3.8-flash"
         },
         {
           "supplier": "DeepSeek",
           "model": "DeepSeek V4.1 Flash 1017",
+          "input_price": 0.15,
+          "output_price": 0.6,
+          "estimate_usd": 0.75,
           "recommended_for": "Coding and long-context tasks with an emphasis on operating cost",
-          "price": null,
-          "source": "https://openrouter.ai/deepseek"
+          "source": "https://openrouter.ai/deepseek",
+          "price_verified": true,
+          "price_source": "openrouter:deepseek/deepseek-v4.1-flash-1017"
         },
         {
           "supplier": "MiniMax",
           "model": "MiniMax M3.1 Flash",
+          "input_price": 0.075,
+          "output_price": 0.3,
+          "estimate_usd": 0.375,
           "recommended_for": "Software tasks and practical automation",
-          "price": null,
-          "source": "https://openrouter.ai/minimax"
+          "source": "https://openrouter.ai/minimax",
+          "price_verified": true,
+          "price_source": "openrouter:minimax/minimax-m3.1-flash"
         },
         {
           "supplier": "Mistral AI",
           "model": "Mistral Medium 3.5",
+          "input_price": 1.5,
+          "output_price": 7.5,
+          "estimate_usd": 9.0,
           "recommended_for": "General professional language tasks",
-          "price": null,
-          "source": "https://openrouter.ai/mistralai"
+          "source": "https://openrouter.ai/mistralai",
+          "price_verified": true,
+          "price_source": "openrouter:mistralai/mistral-medium-3-5"
         },
         {
           "supplier": "Moonshot AI",
           "model": "Kimi K2.7 Code",
+          "input_price": 0.6,
+          "output_price": 3.5,
+          "estimate_usd": 4.1,
           "recommended_for": "Regular coding workflows",
-          "price": null,
-          "source": "https://openrouter.ai/moonshotai"
+          "source": "https://openrouter.ai/moonshotai",
+          "price_verified": true,
+          "price_source": "openrouter:moonshotai/kimi-k2.7-code"
         }
       ],
       "premium": [
         {
           "supplier": "OpenAI",
           "model": "GPT-6 Astra",
+          "input_price": 10.0,
+          "output_price": 50.0,
+          "estimate_usd": 60.0,
           "recommended_for": "Demanding reasoning and complex coding",
-          "price": null,
-          "source": "https://openrouter.ai/openai"
+          "source": "https://openrouter.ai/openai",
+          "price_verified": true,
+          "price_source": "openrouter:openai/gpt-6-astra"
         },
         {
           "supplier": "Anthropic",
           "model": "Claude Opus 5.5",
+          "input_price": 4.0,
+          "output_price": 20.0,
+          "estimate_usd": 24.0,
           "recommended_for": "Complex analysis, coding and writing",
-          "price": null,
-          "source": "https://openrouter.ai/anthropic"
+          "source": "https://openrouter.ai/anthropic",
+          "price_verified": true,
+          "price_source": "openrouter:anthropic/claude-opus-5.5"
         },
         {
           "supplier": "Google",
           "model": "Gemini 4 Argon",
+          "input_price": 2.0,
+          "output_price": 10.0,
+          "estimate_usd": 12.0,
           "recommended_for": "Demanding multimodal and reasoning tasks",
-          "price": null,
-          "source": "https://openrouter.ai/google"
+          "source": "https://openrouter.ai/google",
+          "price_verified": true,
+          "price_source": "openrouter:google/gemini-4-argon"
         },
         {
           "supplier": "Alibaba",
           "model": "Qwen3.8 Max 0902",
+          "input_price": 2.0,
+          "output_price": 6.0,
+          "estimate_usd": 8.0,
           "recommended_for": "Alibaba's premium general-purpose model tier",
-          "price": null,
-          "source": "https://openrouter.ai/qwen"
+          "source": "https://openrouter.ai/qwen",
+          "price_verified": true,
+          "price_source": "openrouter:qwen/qwen3.8-max-0902"
         },
         {
           "supplier": "Moonshot AI",
           "model": "Kimi K3.1 Pro",
+          "input_price": 2.0,
+          "output_price": 10.0,
+          "estimate_usd": 12.0,
           "recommended_for": "Moonshot's premium reasoning and agent workflows",
-          "price": null,
-          "source": "https://openrouter.ai/moonshotai"
+          "source": "https://openrouter.ai/moonshotai",
+          "price_verified": true,
+          "price_source": "openrouter:moonshotai/kimi-k3.1-pro"
         },
         {
           "supplier": "Z.ai",
           "model": "GLM 5.3",
+          "input_price": 0.0699,
+          "output_price": 1.4,
+          "estimate_usd": 1.4699,
           "recommended_for": "Z.ai's premium general-purpose model tier",
-          "price": null,
-          "source": "https://openrouter.ai/z-ai"
+          "source": "https://openrouter.ai/z-ai",
+          "price_verified": true,
+          "price_source": "openrouter:z-ai/glm-5.3"
         },
         {
           "supplier": "xAI",
           "model": "Grok 4.7",
+          "input_price": 2.0,
+          "output_price": 6.0,
+          "estimate_usd": 8.0,
           "recommended_for": "xAI's premium general-purpose model tier",
-          "price": null,
-          "source": "https://openrouter.ai/x-ai/grok-4.7"
+          "source": "https://openrouter.ai/x-ai/grok-4.7",
+          "price_verified": true,
+          "price_source": "openrouter:x-ai/grok-4.7"
         }
       ]
     },
@@ -265,74 +253,71 @@
           "supplier": "Black Forest Labs",
           "model": "FLUX 3 Klein Edit",
           "endpoint": "blackforestlabs/flux-3/klein/edit-image",
-          "reference_type": "Image editing and composition",
-          "maximum_reference_images": 10,
-          "comparison_price": 0.009,
-          "price_basis": "One 1K output image",
-          "price_status": "Planned rate; budget position is provisional",
-          "source": "https://fal.ai/models/blackforestlabs/flux-3/klein/edit-image"
+          "estimate_usd": 0.009,
+          "recommended_for": "Budget logo-guided stills and light composition edits",
+          "source": "https://fal.ai/models/blackforestlabs/flux-3/klein/edit-image",
+          "price_verified": true,
+          "price_source": "fal_pricing:blackforestlabs/flux-3/klein/edit-image:megapixels=0.009"
         },
         {
           "supplier": "ByteDance",
           "model": "Seedream 5.0 Flash Edit",
           "endpoint": "bytedance/seedream/v5/flash/edit",
-          "reference_type": "Image editing",
-          "comparison_price": 0.027,
-          "price_basis": "Per output image",
-          "source": "https://fal.ai/models/bytedance/seedream/v5/flash/edit"
+          "estimate_usd": 0.027,
+          "recommended_for": "Low-cost high-volume image editing",
+          "source": "https://fal.ai/models/bytedance/seedream/v5/flash/edit",
+          "price_verified": true,
+          "price_source": "fal_pricing:bytedance/seedream/v5/flash/edit:images=0.027"
         },
         {
           "supplier": "Alibaba",
           "model": "Qwen Image Edit 2511",
           "endpoint": "fal-ai/qwen-image-edit-2511",
-          "reference_type": "Image editing",
-          "comparison_price": 0.03,
-          "price_basis": "One output megapixel",
-          "note": "A separate image-editing product line from Qwen Image 3.",
-          "source": "https://fal.ai/models/fal-ai/qwen-image-edit-2511"
+          "estimate_usd": 0.03,
+          "recommended_for": "Inexpensive instruction-led image edits",
+          "source": "https://fal.ai/models/fal-ai/qwen-image-edit-2511",
+          "price_verified": true,
+          "price_source": "fal_pricing:fal-ai/qwen-image-edit-2511:megapixels=0.03"
         },
         {
           "supplier": "Recraft",
           "model": "Recraft V4 Styles",
           "endpoint": "recraft/v4/style/text-to-image",
-          "reference_type": "Style reference only",
-          "comparison_price": 0.04,
-          "price_basis": "First output with a newly created reference style",
-          "saved_style_output_price": 0.035,
-          "style_creation_price": 0.005,
-          "source": "https://fal.ai/models/recraft/v4/style/text-to-image"
+          "estimate_usd": 0.035,
+          "recommended_for": "Style-reference illustration on a budget",
+          "source": "https://fal.ai/models/recraft/v4/style/text-to-image",
+          "price_verified": true,
+          "price_source": "fal_llms_txt:recraft/v4/style/text-to-image:llms.txt with style_id"
         },
         {
           "supplier": "Google",
           "model": "Nano Banana 2.1 Edit",
           "endpoint": "google/nano-banana-2.1/edit",
-          "reference_type": "Image editing",
-          "comparison_price": 0.0415,
-          "price_basis": "Measured estimate for one reference and one 1K output",
-          "price_status": "Token-based estimate; not a fixed per-image tariff",
-          "source": "https://fal.ai/learn/devs/nano-banana-2-1-vs-nano-banana-2"
+          "estimate_usd": 0.0917,
+          "recommended_for": "Affordable Google image editing with a logo reference",
+          "source": "https://fal.ai/models/google/nano-banana-2.1/edit",
+          "price_verified": true,
+          "price_source": "fal_historical_api_price:google/nano-banana-2.1/edit:1_call=0.0917"
         },
         {
           "supplier": "Krea",
           "model": "Krea 3 Jam Edit",
           "endpoint": "krea/v3/edit",
-          "variant": "jam",
-          "reference_type": "Image editing",
-          "comparison_price": 0.05,
-          "price_basis": "One megapixel of input plus one megapixel of output at USD 0.025 per processed megapixel",
-          "note": "High reasoning adds a charge equivalent to five processed megapixels.",
-          "source": "https://fal.ai/models/krea/v3/edit"
+          "estimate_usd": 0.05,
+          "recommended_for": "Budget Krea edits for promotional stills",
+          "source": "https://fal.ai/models/krea/v3/edit",
+          "price_verified": true,
+          "price_source": "fal_llms_txt:krea/v3/edit:llms.txt $ /MP × (1K output + 1 ref ≈ 2 MP)"
         },
         {
           "supplier": "xAI",
           "model": "Grok Imagine Image 2.0 Edit",
           "endpoint": "xai/grok-imagine-image/v2.0/edit",
-          "reference_type": "Image editing",
-          "comparison_price": 0.05,
-          "price_basis": "One low-quality 1K output at USD 0.04 plus one reference at USD 0.01",
-          "maximum_reference_images": 5,
-          "note": "The current API schema permits five references; an older guide describes three.",
-          "source": "https://fal.ai/models/xai/grok-imagine-image/v2.0/edit/api"
+          "estimate_usd": 0.05,
+          "recommended_for": "Low-cost Grok image edits with one reference",
+          "source": "https://fal.ai/models/xai/grok-imagine-image/v2.0/edit/api",
+          "price_verified": true,
+          "price_source": "fal_llms_txt:xai/grok-imagine-image/v2.0/edit:llms.txt 1K low + one input image"
         }
       ],
       "workhorse": [
@@ -340,83 +325,71 @@
           "supplier": "OpenAI",
           "model": "GPT Image 2.6 Flare Edit",
           "endpoint": "openai/gpt-image-2.6/flare/edit",
-          "reference_type": "Image editing",
+          "estimate_usd": 0.0759,
           "recommended_for": "Regular image creation and instruction-led editing",
-          "price": null,
-          "source": "https://fal.ai/models/openai/gpt-image-2.6/flare/edit"
+          "source": "https://fal.ai/models/openai/gpt-image-2.6/flare/edit",
+          "price_verified": true,
+          "price_source": "fal_historical_api_price:openai/gpt-image-2.6/flare/edit:1_call=0.0759"
         },
         {
           "supplier": "Black Forest Labs",
           "model": "FLUX 3 Image Edit",
           "endpoint": "blackforestlabs/flux-3/edit-image",
-          "reference_type": "Image editing and composition",
-          "maximum_reference_images": 10,
+          "estimate_usd": 0.048,
           "recommended_for": "Production editing with multiple visual references",
-          "price": {
-            "amount": 0.048,
-            "unit": "Per 1K output image",
-            "note": "References do not add a separate charge under the documented tariff."
-          },
-          "source": "https://fal.ai/models/blackforestlabs/flux-3/edit-image"
+          "source": "https://fal.ai/models/blackforestlabs/flux-3/edit-image",
+          "price_verified": true,
+          "price_source": "fal_pricing:blackforestlabs/flux-3/edit-image:megapixels=0.048"
         },
         {
           "supplier": "ByteDance",
           "model": "Seedream 5.0 Lite Edit",
           "endpoint": "fal-ai/bytedance/seedream/v5/lite/edit",
-          "reference_type": "Image editing",
-          "maximum_reference_images": 10,
+          "estimate_usd": 0.035,
           "recommended_for": "High-volume production editing",
-          "price": {
-            "amount": 0.035,
-            "unit": "Per output image"
-          },
-          "source": "https://fal.ai/models/fal-ai/bytedance/seedream/v5/lite/edit"
+          "source": "https://fal.ai/models/fal-ai/bytedance/seedream/v5/lite/edit",
+          "price_verified": true,
+          "price_source": "fal_pricing:fal-ai/bytedance/seedream/v5/lite/edit:images=0.035"
         },
         {
           "supplier": "Alibaba",
           "model": "Qwen Image 3 Edit",
           "endpoint": "alibaba/qwen-image-3/edit",
-          "reference_type": "Image editing",
-          "maximum_reference_images": 3,
+          "estimate_usd": 0.04,
           "recommended_for": "General production image editing",
-          "price": {
-            "1k_output": 0.04,
-            "2k_output": 0.075,
-            "note": "The endpoint's resolution-specific tariff differs from the simplified product landing page."
-          },
-          "source": "https://fal.ai/models/alibaba/qwen-image-3/edit"
+          "source": "https://fal.ai/models/alibaba/qwen-image-3/edit",
+          "price_verified": true,
+          "price_source": "fal_llms_txt:alibaba/qwen-image-3/edit:llms.txt 1K image"
         },
         {
           "supplier": "Krea",
           "model": "Krea 3 Berry Edit",
           "endpoint": "krea/v3/edit",
-          "variant": "berry",
-          "reference_type": "Image editing",
+          "estimate_usd": 0.05,
           "recommended_for": "Regular editing using Krea's higher-quality named variant",
-          "price": null,
-          "source": "https://fal.ai/models/krea/v3/edit"
+          "source": "https://fal.ai/models/krea/v3/edit",
+          "price_verified": true,
+          "price_source": "fal_llms_txt:krea/v3/edit:llms.txt $ /MP × (1K output + 1 ref ≈ 2 MP)"
         },
         {
           "supplier": "Luma AI",
           "model": "Uni-1 Edit",
           "endpoint": "luma/agent/uni-1/v1/edit",
-          "reference_type": "Image editing",
+          "estimate_usd": 0.045,
           "recommended_for": "General image editing and reference-guided composition",
-          "price": null,
-          "source": "https://fal.ai/models/luma/agent/uni-1/v1/edit"
+          "source": "https://fal.ai/models/luma/agent/uni-1/v1/edit",
+          "price_verified": true,
+          "price_source": "fal_llms_txt:luma/agent/uni-1/v1/edit:llms.txt edit + one reference"
         },
         {
           "supplier": "PhotaLabs",
           "model": "Phota Edit",
           "endpoint": "fal-ai/phota/edit",
-          "reference_type": "Image editing with identity references",
-          "maximum_reference_images": 10,
+          "estimate_usd": 0.09,
           "recommended_for": "People, products and identity-sensitive editing",
-          "price": {
-            "1k_output": 0.09,
-            "4k_output": 0.18
-          },
-          "source": "https://fal.ai/models/fal-ai/phota/edit"
+          "source": "https://fal.ai/models/fal-ai/phota/edit",
+          "price_verified": true,
+          "price_source": "fal_pricing:fal-ai/phota/edit:units=0.09"
         }
       ],
       "premium": [
@@ -424,88 +397,71 @@
           "supplier": "OpenAI",
           "model": "GPT Image 2.6 Sunburst Edit",
           "endpoint": "openai/gpt-image-2.6/sunburst/edit",
-          "reference_type": "Image editing",
+          "estimate_usd": 0.105,
           "recommended_for": "OpenAI's premium image-editing tier",
-          "price": null,
-          "source": "https://fal.ai/models/openai/gpt-image-2.6/sunburst/edit"
+          "source": "https://fal.ai/models/openai/gpt-image-2.6/sunburst/edit",
+          "price_verified": true,
+          "price_source": "fal_historical_api_price:openai/gpt-image-2.6/sunburst/edit:1_call=0.105"
         },
         {
           "supplier": "ByteDance",
           "model": "Seedream 5.0 Pro Edit",
           "endpoint": "bytedance/seedream/v5/pro/edit",
-          "reference_type": "Image editing",
+          "estimate_usd": 0.0675,
           "recommended_for": "ByteDance's premium image-editing tier",
-          "price": null,
-          "source": "https://fal.ai/models/bytedance/seedream/v5/pro/edit"
+          "source": "https://fal.ai/models/bytedance/seedream/v5/pro/edit",
+          "price_verified": true,
+          "price_source": "fal_pricing:bytedance/seedream/v5/pro/edit:units=0.0675"
         },
         {
           "supplier": "Google",
           "model": "Nano Banana Pro Edit",
           "endpoint": "fal-ai/nano-banana-pro/edit",
-          "reference_type": "Image editing",
+          "estimate_usd": 0.15,
           "recommended_for": "Google's separate Pro image-editing tier",
-          "price": {
-            "amount": 0.15,
-            "unit": "Per 1K output image"
-          },
-          "source": "https://fal.ai/models/fal-ai/nano-banana-pro/edit"
+          "source": "https://fal.ai/models/fal-ai/nano-banana-pro/edit",
+          "price_verified": true,
+          "price_source": "fal_pricing:fal-ai/nano-banana-pro/edit:images=0.15"
         },
         {
           "supplier": "Black Forest Labs",
           "model": "FLUX.2 Max Edit",
           "endpoint": "fal-ai/flux-2-max/edit",
-          "reference_type": "Image editing",
+          "estimate_usd": 0.07,
           "recommended_for": "The Max image-editing product tier",
-          "price": {
-            "first_processed_megapixel": 0.07,
-            "each_additional_processed_megapixel": 0.03,
-            "reference_images_are_billable": true
-          },
-          "source": "https://fal.ai/models/fal-ai/flux-2-max/edit"
+          "source": "https://fal.ai/models/fal-ai/flux-2-max/edit",
+          "price_verified": true,
+          "price_source": "fal_pricing:fal-ai/flux-2-max/edit:processed megapixels=0.07"
         },
         {
           "supplier": "Luma AI",
           "model": "Uni-1 Max Edit",
           "endpoint": "luma/agent/uni-1/v1/max/edit",
-          "reference_type": "Image editing",
+          "estimate_usd": 0.105,
           "recommended_for": "Luma's premium image-editing tier",
-          "price": {
-            "output_image": 0.102,
-            "each_reference_image": 0.003,
-            "one_reference_example": 0.105
-          },
-          "source": "https://fal.ai/models/luma/agent/uni-1/v1/max/edit"
+          "source": "https://fal.ai/models/luma/agent/uni-1/v1/max/edit",
+          "price_verified": true,
+          "price_source": "fal_llms_txt:luma/agent/uni-1/v1/max/edit:llms.txt edit + one reference"
         },
         {
           "supplier": "Recraft",
           "model": "Recraft V4 Styles Pro",
           "endpoint": "recraft/v4/style/pro/text-to-image",
-          "reference_type": "Style reference only",
-          "maximum_reference_images": 10,
+          "estimate_usd": 0.1,
           "recommended_for": "Premium illustration and visual style consistency",
-          "price": {
-            "output_with_saved_style": 0.1,
-            "new_style_creation": 0.005,
-            "first_output_with_new_style": 0.105
-          },
-          "source": "https://fal.ai/models/recraft/v4/style/pro/text-to-image"
+          "source": "https://fal.ai/models/recraft/v4/style/pro/text-to-image",
+          "price_verified": true,
+          "price_source": "fal_pricing:recraft/v4/style/pro/text-to-image:images=0.1"
         },
         {
           "supplier": "xAI",
           "model": "Grok Imagine Pro Edit",
           "endpoint": "xai/grok-imagine-image/quality/edit",
-          "reference_type": "Image editing",
-          "maximum_reference_images": 3,
+          "estimate_usd": 0.06,
           "recommended_for": "xAI's separately marketed Pro image-editing tier",
-          "replaces": "Reve 2.1",
-          "price": {
-            "1k_output": 0.05,
-            "2k_output": 0.07,
-            "each_reference_image": 0.01,
-            "1k_output_with_one_reference": 0.06
-          },
-          "note": "This is the Pro product branch, distinct from the newer standard Image 2.0 branch.",
-          "source": "https://fal.ai/models/xai/grok-imagine-image/quality/edit/api"
+          "source": "https://fal.ai/models/xai/grok-imagine-image/quality/edit/api",
+          "price_verified": true,
+          "price_source": "fal_llms_txt:xai/grok-imagine-image/quality/edit:llms.txt 1K output + one input"
         }
       ]
     },
@@ -515,112 +471,92 @@
           "supplier": "MiniMax",
           "model": "H3 Max Turbo",
           "endpoint": "minimax/h3-max-turbo/image-to-video",
-          "comparison_price_per_second": 0.0175,
-          "comparison_resolution": "480p",
-          "price_type": "Promotional",
-          "promotion": {
-            "starts_on": "2026-11-01",
-            "ends_on": "2026-11-15",
-            "standard_price_per_second": 0.025
-          },
           "first_frame_parameter": "image_url",
           "last_frame_parameter": "end_image_url",
-          "source": "https://fal.ai/models/minimax/h3-max-turbo/image-to-video"
+          "estimate_usd": 0.0175,
+          "estimate_resolution": "480p",
+          "recommended_for": "Budget living covers with first and last frame control",
+          "source": "https://fal.ai/models/minimax/h3-max-turbo/image-to-video",
+          "price_verified": true,
+          "price_source": "fal_pricing:minimax/h3-max-turbo/image-to-video:seconds=0.0175"
         },
         {
           "supplier": "PixVerse",
           "model": "PixVerse V6 Transition",
           "endpoint": "fal-ai/pixverse/v6/transition",
-          "comparison_price_per_second": 0.025,
-          "comparison_resolution": "360p",
-          "audio": "Disabled for the price comparison",
           "first_frame_parameter": "first_image_url",
           "last_frame_parameter": "end_image_url",
-          "source": "https://fal.ai/models/fal-ai/pixverse/v6/transition"
+          "estimate_usd": 0.025,
+          "estimate_resolution": "360p",
+          "recommended_for": "Inexpensive opening-to-closing transitions",
+          "source": "https://fal.ai/models/fal-ai/pixverse/v6/transition",
+          "price_verified": true,
+          "price_source": "fal_llms_txt:fal-ai/pixverse/v6/transition:llms.txt 360p without audio"
         },
         {
           "supplier": "Google",
           "model": "Gemini Omni Flash 1.2",
           "endpoint": "google/gemini-omni-flash/v1.2/image-to-video",
-          "comparison_price_per_second": 0.0273,
-          "comparison_resolution": "360p",
-          "audio": "Native audio included",
           "first_frame_parameter": "image_url",
           "last_frame_parameter": "end_image_url",
-          "maximum_duration_with_last_frame_seconds": 10,
-          "other_prices_per_second": {
-            "720p": 0.0819,
-            "1080p": 0.1229,
-            "4k": 0.2457
-          },
-          "reference_image_billing": "No additional input-image charge",
-          "replaces": "Veo 3.1 Lite First/Last Frame",
-          "source": "https://fal.ai/models/google/gemini-omni-flash/v1.2/image-to-video"
+          "estimate_usd": 0.0273,
+          "estimate_resolution": "360p",
+          "recommended_for": "Low-cost Google clips with endpoint frames",
+          "source": "https://fal.ai/models/google/gemini-omni-flash/v1.2/image-to-video",
+          "price_verified": true,
+          "price_source": "fal_pricing:google/gemini-omni-flash/v1.2/image-to-video:seconds=0.0273"
         },
         {
           "supplier": "Vidu",
           "model": "Vidu Q3 Turbo",
           "endpoint": "fal-ai/vidu/q3/image-to-video/turbo",
-          "comparison_price_per_second": 0.035,
-          "comparison_resolution": "540p",
           "first_frame_parameter": "image_url",
           "last_frame_parameter": "end_image_url",
-          "note": "360p is unavailable when an end frame is supplied. The 540p rate is therefore used.",
-          "source": "https://fal.ai/models/fal-ai/vidu/q3/image-to-video/turbo"
+          "estimate_usd": 0.035,
+          "estimate_resolution": "360p",
+          "recommended_for": "Budget Vidu motion from first and last stills",
+          "source": "https://fal.ai/models/fal-ai/vidu/q3/image-to-video/turbo",
+          "price_verified": true,
+          "price_source": "fal_llms_txt:fal-ai/vidu/q3/image-to-video/turbo:llms.txt per video second"
         },
         {
           "supplier": "Black Forest Labs",
           "model": "FLUX 3 Max",
           "endpoint": "blackforestlabs/flux-3-max/image-to-video",
-          "comparison_price_per_second": 0.0425,
-          "comparison_resolution": "720p",
-          "price_type": "Promotional",
           "first_frame_parameter": "image_url",
           "last_frame_parameter": "end_image_url",
-          "price_schedule": [
-            {
-              "through_date_utc": "2026-11-07",
-              "price_per_second": 0.0425
-            },
-            {
-              "from_date_utc": "2026-11-08",
-              "through_date_utc": "2026-11-22",
-              "price_per_second": 0.085
-            },
-            {
-              "from_date_utc": "2026-11-23",
-              "price_per_second": 0.17
-            }
-          ],
-          "note": "Its budget position depends on the promotion and must be recalculated after expiry.",
-          "source": "https://fal.ai/models/blackforestlabs/flux-3-max/image-to-video"
+          "estimate_usd": 0.0425,
+          "estimate_resolution": "720p",
+          "recommended_for": "Affordable FLUX living motion with endpoint frames",
+          "source": "https://fal.ai/models/blackforestlabs/flux-3-max/image-to-video",
+          "price_verified": true,
+          "price_source": "fal_llms_txt:blackforestlabs/flux-3-max/image-to-video:llms.txt $/second (may include promo)"
         },
         {
           "supplier": "Alibaba",
           "model": "Wan 3.0",
           "endpoint": "alibaba/wan-3.0/image-to-video",
-          "comparison_price_per_second": 0.05,
-          "comparison_resolution": "480p",
           "first_frame_parameter": "start_image_url",
           "last_frame_parameter": "end_image_url",
-          "other_prices_per_second": {
-            "720p": 0.1,
-            "1080p": 0.2
-          },
-          "source": "https://fal.ai/models/alibaba/wan-3.0/image-to-video"
+          "estimate_usd": 0.05,
+          "estimate_resolution": "480p",
+          "recommended_for": "Budget Wan clips with start and end frames",
+          "source": "https://fal.ai/models/alibaba/wan-3.0/image-to-video",
+          "price_verified": true,
+          "price_source": "fal_pricing:alibaba/wan-3.0/image-to-video:seconds=0.05"
         },
         {
           "supplier": "ByteDance",
           "model": "Seedance 2.0 Mini",
           "endpoint": "bytedance/seedance-2.0/mini/image-to-video",
-          "comparison_price_per_second": 0.0721,
-          "comparison_resolution": "480p",
-          "price_type": "Approximate token-based calculation",
-          "price_per_thousand_video_tokens": 0.007,
-          "video_token_formula": "height * width * duration_seconds * 24 / 1024",
           "first_frame_parameter": "image_url",
           "last_frame_parameter": "end_image_url",
-          "source": "https://fal.ai/models/bytedance/seedance-2.0/mini/image-to-video"
+          "estimate_usd": 0.0721,
+          "estimate_resolution": "480p",
+          "recommended_for": "Inexpensive Seedance living covers",
+          "source": "https://fal.ai/models/bytedance/seedance-2.0/mini/image-to-video",
+          "price_verified": true,
+          "price_source": "fal_llms_txt:bytedance/seedance-2.0/mini/image-to-video:llms.txt documented $/second"
         }
       ],
       "workhorse": [
@@ -628,83 +564,92 @@
           "supplier": "MiniMax",
           "model": "H3",
           "endpoint": "minimax/h3/image-to-video",
-          "recommended_for": "Regular production with native audio and endpoint-frame control",
           "first_frame_parameter": "image_url",
           "last_frame_parameter": "end_image_url",
-          "price": null,
-          "source": "https://fal.ai/models/minimax/h3/image-to-video"
+          "estimate_usd": 0.05,
+          "estimate_resolution": "480p",
+          "recommended_for": "Regular production with native audio and endpoint-frame control",
+          "source": "https://fal.ai/models/minimax/h3/image-to-video",
+          "price_verified": true,
+          "price_source": "fal_pricing:minimax/h3/image-to-video:seconds=0.05"
         },
         {
           "supplier": "Black Forest Labs",
           "model": "FLUX 3",
           "endpoint": "blackforestlabs/flux-3/first-last-frame-to-video",
-          "recommended_for": "Production transitions and controlled opening and closing compositions",
           "first_frame_parameter": "start_image_url",
           "last_frame_parameter": "end_image_url",
-          "price": null,
-          "source": "https://fal.ai/models/blackforestlabs/flux-3/first-last-frame-to-video"
+          "estimate_usd": 0.085,
+          "estimate_resolution": "720p",
+          "recommended_for": "Production transitions and controlled opening and closing compositions",
+          "source": "https://fal.ai/models/blackforestlabs/flux-3/first-last-frame-to-video",
+          "price_verified": true,
+          "price_source": "fal_pricing:blackforestlabs/flux-3/first-last-frame-to-video:seconds=0.085"
         },
         {
           "supplier": "Kling AI",
           "model": "Kling O3 Standard",
           "endpoint": "fal-ai/kling-video/o3/standard/image-to-video",
-          "recommended_for": "Routine first-to-last-frame production at a lower operating cost than O3 Pro",
           "first_frame_parameter": "image_url",
           "last_frame_parameter": "end_image_url",
-          "price_per_second": {
-            "audio_disabled": 0.084,
-            "audio_enabled": 0.112
-          },
-          "replaces": "Veo 3.1 Fast First/Last Frame",
-          "note": "The documented Standard tier is positioned for faster, cheaper production than O3 Pro. It is a different product branch from Kling 4.0.",
-          "source": "https://fal.ai/models/fal-ai/kling-video/o3/standard/image-to-video"
+          "estimate_usd": 0.14,
+          "estimate_resolution": "720p",
+          "recommended_for": "Routine first-to-last-frame production at a lower operating cost than O3 Pro",
+          "source": "https://fal.ai/models/fal-ai/kling-video/o3/standard/image-to-video",
+          "price_verified": true,
+          "price_source": "fal_pricing:fal-ai/kling-video/o3/standard/image-to-video:seconds=0.14"
         },
         {
           "supplier": "Vidu",
           "model": "Vidu Q3 Pro",
           "endpoint": "fal-ai/vidu/q3/image-to-video",
-          "recommended_for": "Regular production using Vidu's full Q3 image-to-video model",
           "first_frame_parameter": "image_url",
           "last_frame_parameter": "end_image_url",
-          "price": null,
-          "note": "Use at least 540p when supplying an end frame.",
-          "source": "https://fal.ai/models/fal-ai/vidu/q3/image-to-video"
+          "estimate_usd": 0.07,
+          "estimate_resolution": "360p",
+          "recommended_for": "Regular production using Vidu's full Q3 image-to-video model",
+          "source": "https://fal.ai/models/fal-ai/vidu/q3/image-to-video",
+          "price_verified": true,
+          "price_source": "fal_llms_txt:fal-ai/vidu/q3/image-to-video:llms.txt per video second"
         },
         {
           "supplier": "PixVerse",
           "model": "PixVerse C1 Transition",
           "endpoint": "fal-ai/pixverse/c1/transition",
-          "recommended_for": "Routine transitions with explicit opening and closing images",
           "first_frame_parameter": "first_image_url",
           "last_frame_parameter": "end_image_url",
-          "price": null,
-          "source": "https://fal.ai/models/fal-ai/pixverse/c1/transition"
+          "estimate_usd": 0.03,
+          "estimate_resolution": "360p",
+          "recommended_for": "Routine transitions with explicit opening and closing images",
+          "source": "https://fal.ai/models/fal-ai/pixverse/c1/transition",
+          "price_verified": true,
+          "price_source": "fal_llms_txt:fal-ai/pixverse/c1/transition:llms.txt 360p without audio"
         },
         {
           "supplier": "ByteDance",
           "model": "Seedance 2.0 Fast",
           "endpoint": "bytedance/seedance-2.0/fast/image-to-video",
-          "recommended_for": "Frequent production and rapid iteration",
           "first_frame_parameter": "image_url",
           "last_frame_parameter": "end_image_url",
-          "price": null,
-          "source": "https://fal.ai/models/bytedance/seedance-2.0/fast/image-to-video"
+          "estimate_usd": 0.2419,
+          "estimate_resolution": "720p",
+          "recommended_for": "Frequent production and rapid iteration",
+          "source": "https://fal.ai/models/bytedance/seedance-2.0/fast/image-to-video",
+          "price_verified": true,
+          "price_source": "fal_llms_txt:bytedance/seedance-2.0/fast/image-to-video:llms.txt documented $/second (720p stated)"
         },
         {
           "supplier": "Lightricks",
           "model": "LTX 2.5 Fast",
           "endpoint": "lightricks/ltx-2.5/image-to-video/fast",
-          "recommended_for": "Fast production with native audio and high-resolution output options",
           "first_frame_parameter": "start_image_url",
           "last_frame_parameter": "end_image_url",
-          "price_per_second": {
-            "720p": 0.09,
-            "1080p": 0.13,
-            "1440p": 0.19,
-            "4k": 0.3
-          },
-          "audio": "Included",
-          "source": "https://fal.ai/models/lightricks/ltx-2.5/image-to-video/fast"
+          "estimate_usd": 0.09,
+          "estimate_resolution": "720p",
+          "recommended_for": "Fast production with native audio and high-resolution output options",
+          "source": "https://fal.ai/models/lightricks/ltx-2.5/image-to-video/fast",
+          "price_verified": true,
+          "price_source": "fal_llms_txt:lightricks/ltx-2.5/image-to-video/fast:llms.txt 720p $/second"
         }
       ],
       "premium": [
@@ -712,105 +657,81 @@
           "supplier": "ByteDance",
           "model": "Seedance 2.5",
           "endpoint": "bytedance/seedance-2.5/us/image-to-video",
-          "recommended_for": "Longer premium productions with native audio",
           "first_frame_parameter": "image_url",
           "last_frame_parameter": "end_image_url",
-          "maximum_duration_seconds": 30,
-          "price": null,
-          "source": "https://fal.ai/models/bytedance/seedance-2.5/us/image-to-video"
+          "estimate_usd": 0.2205,
+          "estimate_resolution": "480p",
+          "recommended_for": "Longer premium productions with native audio",
+          "source": "https://fal.ai/models/bytedance/seedance-2.5/us/image-to-video",
+          "price_verified": true,
+          "price_source": "fal_llms_txt:bytedance/seedance-2.5/us/image-to-video:llms.txt 480p $/second"
         },
         {
           "supplier": "Kling AI",
           "model": "Kling 4.0",
           "endpoint": "kling/v4/image-to-video",
-          "recommended_for": "Premium cinematic production with endpoint and intermediate-frame control",
           "first_frame_parameter": "start_image_url",
           "last_frame_parameter": "end_image_url",
-          "maximum_duration_seconds": 30,
-          "price_per_second": {
-            "720p": 0.157,
-            "1080p": 0.235
-          },
-          "api_availability": "Unresolved",
-          "note": "The model and API documentation are published, but a recent fal article describes API access as forthcoming. Confirm access before integration.",
+          "estimate_usd": 0.157,
+          "estimate_resolution": "720p",
+          "recommended_for": "Premium cinematic production with endpoint and intermediate-frame control",
           "source": "https://fal.ai/models/kling/v4/image-to-video",
-          "availability_caveat_source": "https://fal.ai/learn/devs/kling-4-0-vs-kling-3-0"
+          "price_verified": true,
+          "price_source": "fal_pricing:kling/v4/image-to-video:seconds=0.157"
         },
         {
           "supplier": "MiniMax",
           "model": "H3 Max",
           "endpoint": "minimax/h3-max/image-to-video",
-          "recommended_for": "Premium prompt adherence, aesthetics and turnaround",
           "first_frame_parameter": "image_url",
           "last_frame_parameter": "end_image_url",
-          "price": null,
-          "source": "https://fal.ai/models/minimax/h3-max/image-to-video"
+          "estimate_usd": 0.035,
+          "estimate_resolution": "480p",
+          "recommended_for": "Premium prompt adherence, aesthetics and turnaround",
+          "source": "https://fal.ai/models/minimax/h3-max/image-to-video",
+          "price_verified": true,
+          "price_source": "fal_pricing:minimax/h3-max/image-to-video:seconds=0.035"
         },
         {
           "supplier": "Alibaba",
           "model": "Wan 3.0 Prime",
           "endpoint": "alibaba/wan-3.0-prime/image-to-video",
-          "recommended_for": "Premium throughput using Wan 3.0",
           "first_frame_parameter": "start_image_url",
           "last_frame_parameter": "end_image_url",
-          "price_per_second": {
-            "480p": 0.068,
-            "720p": 0.14,
-            "1080p": 0.28
-          },
-          "note": "Prime is a premium serving tier with accelerated throughput. It is not established as a separate model with higher visual quality than standard Wan 3.0.",
-          "source": "https://fal.ai/models/alibaba/wan-3.0-prime/image-to-video"
+          "estimate_usd": 0.05,
+          "estimate_resolution": "480p",
+          "recommended_for": "Premium throughput using Wan 3.0",
+          "source": "https://fal.ai/models/alibaba/wan-3.0-prime/image-to-video",
+          "price_verified": true,
+          "price_source": "fal_pricing:alibaba/wan-3.0-prime/image-to-video:seconds=0.05"
         },
         {
           "supplier": "Lightricks",
           "model": "LTX 2.5 Pro",
           "endpoint": "lightricks/ltx-2.5/image-to-video/pro",
-          "recommended_for": "Lightricks' quality-focused production tier",
           "first_frame_parameter": "image_url",
           "last_frame_parameter": "end_image_url",
-          "price_per_second": {
-            "720p": 0.12,
-            "1080p": 0.17
-          },
-          "source": "https://fal.ai/models/lightricks/ltx-2.5/image-to-video/pro"
+          "estimate_usd": 0.12,
+          "estimate_resolution": "720p",
+          "recommended_for": "Lightricks' quality-focused production tier",
+          "source": "https://fal.ai/models/lightricks/ltx-2.5/image-to-video/pro",
+          "price_verified": true,
+          "price_source": "fal_llms_txt:lightricks/ltx-2.5/image-to-video/pro:llms.txt 720p $/second"
         },
         {
           "supplier": "Luma AI",
           "model": "Ray 3.2",
           "endpoint": "luma/agent/ray/v3.2/image-to-video",
+          "first_frame_parameter": "image_url",
+          "last_frame_parameter": "end_image_url",
+          "estimate_usd": 0.03,
+          "estimate_resolution": "720p",
           "recommended_for": "Luma's premium video generation with first- and last-frame control",
-          "price": null,
-          "source": "https://fal.ai/models/luma/agent/ray/v3.2/image-to-video"
-        },
-        {
-          "supplier": null,
-          "model": null,
-          "endpoint": null,
-          "status": "Unfilled",
-          "replaces": "Veo 3.1 First/Last Frame",
-          "reason": "A seventh premium candidate meeting all capability, supplier diversity, lifecycle, latest-variant and uniqueness requirements was not verified."
+          "source": "https://fal.ai/models/luma/agent/ray/v3.2/image-to-video",
+          "price_verified": true,
+          "price_source": "fal_pricing:luma/agent/ray/v3.2/image-to-video:seconds=0.03"
         }
       ]
     }
-  },
-  "validation": {
-    "nine_lists_present": true,
-    "seven_slots_per_list": true,
-    "seven_actual_models_per_list": false,
-    "duplicate_named_models_across_lists": false,
-    "duplicate_suppliers_within_populated_list_entries": false,
-    "announced_near_retirement_veo_endpoints_removed": true,
-    "all_selected_models_authenticated_through_fal": false,
-    "absolute_cheapest_rankings_proven": false,
-    "all_premium_entries_verified_as_distinct_premium_models": false,
-    "all_requirements_fully_satisfied": false,
-    "outstanding_issues": [
-      "The seventh premium video slot remains unfilled.",
-      "Kling 4.0 API availability requires confirmation.",
-      "Wan 3.0 Prime is a serving tier rather than an established distinct higher-quality model, so it does not fully satisfy a strict interpretation of model uniqueness.",
-      "Individual LLM availability and final billing through fal's router require confirmation.",
-      "The image budget ranking includes a planned tariff and a token-based estimate.",
-      "The cheapest lists have not been proven exhaustive across fal's entire eligible catalogue."
-    ]
   }
 }

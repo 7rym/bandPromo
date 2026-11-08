@@ -2899,14 +2899,25 @@ if ($tab === 'analytics') {
                                     <button type="button" class="btn btn-good" id="createOpenAiProofBtn" disabled>Run OpenAI proof</button>
                                     <span id="createOpenAiProofStatus" class="status-text" aria-live="polite"></span>
                                 </div>
-                                <div id="createOpenAiProofResult" class="create-test-result" hidden>
-                                    <p class="hint" id="createOpenAiProofBrandMeta"></p>
-                                    <pre class="create-test-prompt" id="createOpenAiProofPrompt"></pre>
-                                    <p class="hint" id="createOpenAiProofLogoMeta"></p>
-                                    <img id="createOpenAiProofImage" class="create-test-image" alt="OpenAI proof artwork" hidden>
-                                    <p class="hint" id="createOpenAiProofCost" hidden></p>
-                                    <p class="status-text is-error" id="createOpenAiProofError" hidden></p>
-                                    <p class="hint" id="createOpenAiProofHelp" hidden></p>
+                                <div id="createOpenAiProofResult" class="create-prefs-result create-test-result" hidden>
+                                    <header class="split-editor__header create-prefs-panel-head create-prefs-result-head">
+                                        <h4 class="split-editor__title">Result</h4>
+                                    </header>
+                                    <div class="create-prefs-result-body">
+                                        <div class="create-prefs-waiting" id="createOpenAiProofWaiting" hidden>
+                                            <span class="create-prefs-spinner" aria-hidden="true"></span>
+                                            <span class="create-prefs-waiting-label" id="createOpenAiProofWaitingLabel">Working…</span>
+                                        </div>
+                                        <div class="create-prefs-result-output" id="createOpenAiProofOutput">
+                                            <p class="hint" id="createOpenAiProofBrandMeta"></p>
+                                            <pre class="create-test-prompt" id="createOpenAiProofPrompt"></pre>
+                                            <p class="hint" id="createOpenAiProofLogoMeta"></p>
+                                            <img id="createOpenAiProofImage" class="create-test-image" alt="OpenAI proof artwork" hidden>
+                                            <p class="hint" id="createOpenAiProofCost" hidden></p>
+                                            <p class="status-text is-error" id="createOpenAiProofError" hidden></p>
+                                            <p class="hint" id="createOpenAiProofHelp" hidden></p>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         </section>
@@ -2928,14 +2939,25 @@ if ($tab === 'analytics') {
                                     <button type="button" class="btn btn-good" id="createFalProofBtn" disabled>Run fal proof</button>
                                     <span id="createFalProofStatus" class="status-text" aria-live="polite"></span>
                                 </div>
-                                <div id="createFalProofResult" class="create-test-result" hidden>
-                                    <p class="hint" id="createFalProofBrandMeta"></p>
-                                    <pre class="create-test-prompt" id="createFalProofPrompt"></pre>
-                                    <p class="hint" id="createFalProofLogoMeta"></p>
-                                    <img id="createFalProofImage" class="create-test-image" alt="fal proof artwork" hidden>
-                                    <p class="hint" id="createFalProofCost" hidden></p>
-                                    <p class="status-text is-error" id="createFalProofError" hidden></p>
-                                    <p class="hint" id="createFalProofHelp" hidden></p>
+                                <div id="createFalProofResult" class="create-prefs-result create-test-result" hidden>
+                                    <header class="split-editor__header create-prefs-panel-head create-prefs-result-head">
+                                        <h4 class="split-editor__title">Result</h4>
+                                    </header>
+                                    <div class="create-prefs-result-body">
+                                        <div class="create-prefs-waiting" id="createFalProofWaiting" hidden>
+                                            <span class="create-prefs-spinner" aria-hidden="true"></span>
+                                            <span class="create-prefs-waiting-label" id="createFalProofWaitingLabel">Working…</span>
+                                        </div>
+                                        <div class="create-prefs-result-output" id="createFalProofOutput">
+                                            <p class="hint" id="createFalProofBrandMeta"></p>
+                                            <pre class="create-test-prompt" id="createFalProofPrompt"></pre>
+                                            <p class="hint" id="createFalProofLogoMeta"></p>
+                                            <img id="createFalProofImage" class="create-test-image" alt="fal proof artwork" hidden>
+                                            <p class="hint" id="createFalProofCost" hidden></p>
+                                            <p class="status-text is-error" id="createFalProofError" hidden></p>
+                                            <p class="hint" id="createFalProofHelp" hidden></p>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         </section>
@@ -2964,16 +2986,25 @@ if ($tab === 'analytics') {
                                     <label class="create-model-label" for="createPrefsLlmSelect">Model:</label>
                                     <select id="createPrefsLlmSelect" class="create-model-select" aria-label="Text model"></select>
                                 </div>
+                                <p class="create-model-note" id="createPrefsLlmNote" hidden></p>
                             </div>
                             <div class="card-actions create-test-actions create-prefs-panel-actions">
                                 <button type="button" class="btn btn-good" id="createPrefsLlmTestBtn">Test text</button>
-                                <span id="createPrefsLlmStatus" class="status-text" aria-live="polite"></span>
                             </div>
                             <div class="create-prefs-result" id="createPrefsLlmResult" hidden>
-                                <h4 class="create-prefs-result-title">Result</h4>
+                                <header class="split-editor__header create-prefs-panel-head create-prefs-result-head">
+                                    <h4 class="split-editor__title">Result</h4>
+                                </header>
                                 <div class="create-prefs-result-body">
-                                    <pre class="create-test-prompt" id="createPrefsLlmPrompt"></pre>
-                                    <p class="status-text is-error" id="createPrefsLlmError" hidden></p>
+                                    <div class="create-prefs-waiting" id="createPrefsLlmWaiting" hidden>
+                                        <span class="create-prefs-spinner" aria-hidden="true"></span>
+                                        <span class="create-prefs-waiting-label" id="createPrefsLlmWaitingLabel">Working…</span>
+                                    </div>
+                                    <div class="create-prefs-result-output" id="createPrefsLlmOutput">
+                                        <pre class="create-test-prompt" id="createPrefsLlmPrompt"></pre>
+                                        <p class="status-text is-error" id="createPrefsLlmError" hidden></p>
+                                    </div>
+                                    <span id="createPrefsLlmStatus" class="status-text create-prefs-result-status" aria-live="polite"></span>
                                 </div>
                             </div>
                         </div>
@@ -2993,16 +3024,25 @@ if ($tab === 'analytics') {
                                     <label class="create-model-label" for="createPrefsImageSelect">Model:</label>
                                     <select id="createPrefsImageSelect" class="create-model-select" aria-label="Image model"></select>
                                 </div>
+                                <p class="create-model-note" id="createPrefsImageNote" hidden></p>
                             </div>
                             <div class="card-actions create-test-actions create-prefs-panel-actions">
                                 <button type="button" class="btn btn-good" id="createPrefsImageTestBtn">Test image</button>
-                                <span id="createPrefsImageStatus" class="status-text" aria-live="polite"></span>
                             </div>
                             <div class="create-prefs-result" id="createPrefsImageResult" hidden>
-                                <h4 class="create-prefs-result-title">Result</h4>
+                                <header class="split-editor__header create-prefs-panel-head create-prefs-result-head">
+                                    <h4 class="split-editor__title">Result</h4>
+                                </header>
                                 <div class="create-prefs-result-body">
-                                    <img id="createPrefsImagePreview" class="create-test-image" alt="Preference image test" hidden>
-                                    <p class="status-text is-error" id="createPrefsImageError" hidden></p>
+                                    <div class="create-prefs-waiting" id="createPrefsImageWaiting" hidden>
+                                        <span class="create-prefs-spinner" aria-hidden="true"></span>
+                                        <span class="create-prefs-waiting-label" id="createPrefsImageWaitingLabel">Working…</span>
+                                    </div>
+                                    <div class="create-prefs-result-output" id="createPrefsImageOutput">
+                                        <img id="createPrefsImagePreview" class="create-test-image" alt="Preference image test" hidden>
+                                        <p class="status-text is-error" id="createPrefsImageError" hidden></p>
+                                    </div>
+                                    <span id="createPrefsImageStatus" class="status-text create-prefs-result-status" aria-live="polite"></span>
                                 </div>
                             </div>
                         </div>
@@ -3022,16 +3062,25 @@ if ($tab === 'analytics') {
                                     <label class="create-model-label" for="createPrefsVideoSelect">Model:</label>
                                     <select id="createPrefsVideoSelect" class="create-model-select" aria-label="Video model"></select>
                                 </div>
+                                <p class="create-model-note" id="createPrefsVideoNote" hidden></p>
                             </div>
                             <div class="card-actions create-test-actions create-prefs-panel-actions">
                                 <button type="button" class="btn btn-good" id="createPrefsVideoTestBtn">Test video</button>
-                                <span id="createPrefsVideoStatus" class="status-text" aria-live="polite"></span>
                             </div>
                             <div class="create-prefs-result" id="createPrefsVideoResult" hidden>
-                                <h4 class="create-prefs-result-title">Result</h4>
+                                <header class="split-editor__header create-prefs-panel-head create-prefs-result-head">
+                                    <h4 class="split-editor__title">Result</h4>
+                                </header>
                                 <div class="create-prefs-result-body">
-                                    <video id="createPrefsVideoPreview" class="create-test-video" controls playsinline loop muted hidden></video>
-                                    <p class="status-text is-error" id="createPrefsVideoError" hidden></p>
+                                    <div class="create-prefs-waiting" id="createPrefsVideoWaiting" hidden>
+                                        <span class="create-prefs-spinner" aria-hidden="true"></span>
+                                        <span class="create-prefs-waiting-label" id="createPrefsVideoWaitingLabel">Working…</span>
+                                    </div>
+                                    <div class="create-prefs-result-output" id="createPrefsVideoOutput">
+                                        <video id="createPrefsVideoPreview" class="create-test-video" controls playsinline loop muted hidden></video>
+                                        <p class="status-text is-error" id="createPrefsVideoError" hidden></p>
+                                    </div>
+                                    <span id="createPrefsVideoStatus" class="status-text create-prefs-result-status" aria-live="polite"></span>
                                 </div>
                             </div>
                         </div>

@@ -149,20 +149,27 @@ function bandpromo_create_integrations_format_usd(float $amount, int $digits = 4
 }
 
 /**
+ * Prefer estimate_usd; dual-read legacy comparison_* / nested price for half-migrated catalogues.
+ *
  * @param array<string,mixed> $row
  */
 function bandpromo_create_integrations_llm_price_hint(array $row): string
 {
-    $comparison = isset($row['comparison_cost']) ? (float) $row['comparison_cost'] : 0.0;
-    if ($comparison > 0) {
-        return '~' . bandpromo_create_integrations_format_usd($comparison) . ' / 1M in+out';
+    $estimate = 0.0;
+    if (isset($row['estimate_usd']) && is_numeric($row['estimate_usd'])) {
+        $estimate = (float) $row['estimate_usd'];
+    } elseif (isset($row['comparison_cost']) && is_numeric($row['comparison_cost'])) {
+        $estimate = (float) $row['comparison_cost'];
+    } elseif (isset($row['input_price']) && is_numeric($row['input_price'])
+        && isset($row['output_price']) && is_numeric($row['output_price'])) {
+        $estimate = (float) $row['input_price'] + (float) $row['output_price'];
     }
-    $recommended = trim((string) ($row['recommended_for'] ?? ''));
-    if ($recommended !== '') {
-        return $recommended;
+    if ($estimate > 0) {
+        return '~' . bandpromo_create_integrations_format_usd($estimate) . ' / 1M in+out';
     }
 
-    return 'fal OpenRouter';
+    // Do not fall back to recommended_for — that belongs in the About line.
+    return '';
 }
 
 /**
@@ -170,6 +177,10 @@ function bandpromo_create_integrations_llm_price_hint(array $row): string
  */
 function bandpromo_create_integrations_image_price_hint(array $row): string
 {
+    if (isset($row['estimate_usd']) && is_numeric($row['estimate_usd']) && (float) $row['estimate_usd'] > 0) {
+        return '~' . bandpromo_create_integrations_format_usd((float) $row['estimate_usd']) . ' / image';
+    }
+
     if (isset($row['comparison_price']) && is_numeric($row['comparison_price'])) {
         $hint = '~' . bandpromo_create_integrations_format_usd((float) $row['comparison_price']) . ' / image';
         $status = trim((string) ($row['price_status'] ?? ''));
@@ -183,7 +194,15 @@ function bandpromo_create_integrations_image_price_hint(array $row): string
     $price = $row['price'] ?? null;
     if (is_array($price)) {
         if (isset($price['amount']) && is_numeric($price['amount'])) {
-            return '~' . bandpromo_create_integrations_format_usd((float) $price['amount']) . ' / image';
+            $unit = trim((string) ($price['unit'] ?? ''));
+            $hint = '~' . bandpromo_create_integrations_format_usd((float) $price['amount']);
+            if ($unit !== '') {
+                $hint .= ' / ' . $unit;
+            } else {
+                $hint .= ' / image';
+            }
+
+            return $hint;
         }
         if (isset($price['1k_output']) && is_numeric($price['1k_output'])) {
             return '~' . bandpromo_create_integrations_format_usd((float) $price['1k_output']) . ' / 1K';
@@ -197,15 +216,26 @@ function bandpromo_create_integrations_image_price_hint(array $row): string
         if (isset($price['first_output_with_new_style']) && is_numeric($price['first_output_with_new_style'])) {
             return '~' . bandpromo_create_integrations_format_usd((float) $price['first_output_with_new_style']) . ' / style+image';
         }
+        if (isset($price['output_image']) && is_numeric($price['output_image'])) {
+            $hint = '~' . bandpromo_create_integrations_format_usd((float) $price['output_image']) . ' / image';
+            if (isset($price['each_reference_image']) && is_numeric($price['each_reference_image'])) {
+                $hint .= ' + ~' . bandpromo_create_integrations_format_usd((float) $price['each_reference_image']) . ' / ref';
+            }
+
+            return $hint;
+        }
+        if (isset($price['first_processed_megapixel']) && is_numeric($price['first_processed_megapixel'])) {
+            $hint = '~' . bandpromo_create_integrations_format_usd((float) $price['first_processed_megapixel']) . ' / first MP';
+            if (isset($price['each_additional_processed_megapixel']) && is_numeric($price['each_additional_processed_megapixel'])) {
+                $hint .= ' + ~' . bandpromo_create_integrations_format_usd((float) $price['each_additional_processed_megapixel']) . ' / extra MP';
+            }
+
+            return $hint;
+        }
     }
 
-    $recommended = trim((string) ($row['recommended_for'] ?? ''));
-    if ($recommended !== '') {
-        return $recommended;
-    }
-    $ref = trim((string) ($row['reference_type'] ?? ''));
-
-    return $ref !== '' ? $ref : 'Reference image required';
+    // Do not fall back to recommended_for — that belongs in the About line.
+    return '';
 }
 
 /**
@@ -213,6 +243,9 @@ function bandpromo_create_integrations_image_price_hint(array $row): string
  */
 function bandpromo_create_integrations_image_estimate_usd(array $row): float
 {
+    if (isset($row['estimate_usd']) && is_numeric($row['estimate_usd'])) {
+        return (float) $row['estimate_usd'];
+    }
     if (isset($row['comparison_price']) && is_numeric($row['comparison_price'])) {
         return (float) $row['comparison_price'];
     }
@@ -234,6 +267,16 @@ function bandpromo_create_integrations_image_estimate_usd(array $row): float
  */
 function bandpromo_create_integrations_video_price_hint(array $row): string
 {
+    if (isset($row['estimate_usd']) && is_numeric($row['estimate_usd']) && (float) $row['estimate_usd'] > 0) {
+        $hint = '~' . bandpromo_create_integrations_format_usd((float) $row['estimate_usd']) . ' / s';
+        $res = trim((string) ($row['estimate_resolution'] ?? $row['comparison_resolution'] ?? ''));
+        if ($res !== '') {
+            $hint .= ' · ' . $res;
+        }
+
+        return $hint;
+    }
+
     if (isset($row['comparison_price_per_second']) && is_numeric($row['comparison_price_per_second'])) {
         $hint = '~' . bandpromo_create_integrations_format_usd((float) $row['comparison_price_per_second']) . ' / s';
         $res = trim((string) ($row['comparison_resolution'] ?? ''));
@@ -260,19 +303,29 @@ function bandpromo_create_integrations_video_price_hint(array $row): string
         }
     }
 
-    $recommended = trim((string) ($row['recommended_for'] ?? ''));
-    if ($recommended !== '') {
-        return $recommended;
+    if (isset($row['other_prices_per_second']) && is_array($row['other_prices_per_second'])) {
+        foreach (['480p', '720p', '1080p'] as $res) {
+            if (isset($row['other_prices_per_second'][$res]) && is_numeric($row['other_prices_per_second'][$res])) {
+                return '~' . bandpromo_create_integrations_format_usd((float) $row['other_prices_per_second'][$res])
+                    . ' / s · ' . $res;
+            }
+        }
     }
 
-    return 'First + last frame';
+    // Do not fall back to recommended_for — that belongs in the About line.
+    return '';
 }
 
 /**
+ * Five-second clip estimate for Start / Preferences cost labels.
+ *
  * @param array<string,mixed> $row
  */
 function bandpromo_create_integrations_video_estimate_usd(array $row): float
 {
+    if (isset($row['estimate_usd']) && is_numeric($row['estimate_usd'])) {
+        return (float) $row['estimate_usd'] * 5.0;
+    }
     if (isset($row['comparison_price_per_second']) && is_numeric($row['comparison_price_per_second'])) {
         return (float) $row['comparison_price_per_second'] * 5.0;
     }

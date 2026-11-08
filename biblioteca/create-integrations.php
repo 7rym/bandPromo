@@ -2233,6 +2233,8 @@ function bandpromo_create_integrations_fal_video(
         'prompt' => $prompt !== ''
             ? $prompt
             : 'Subtle living motion for promotional artwork. Keep the brand logo recognisable. '
+                . 'Keep the referenced image centred and fully visible inside a safe middle square — '
+                . 'nothing important near the edges, so a later 1:1 crop still shows the whole subject. '
                 . 'Create a perfect loop with constant motion from start to end — no ease-in or ease-out. '
                 . 'No audio.',
     ];
