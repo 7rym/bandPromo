@@ -14549,11 +14549,25 @@ document.querySelectorAll('.admin-help-box').forEach(box => {
                         const resp = await fetch('/biblioteca/check-package-update.php', {
                             credentials: 'same-origin',
                         });
-                        const data = await resp.json().catch(() => ({}));
+                        const rawText = await resp.text();
+                        let data = {};
+                        try {
+                            data = rawText ? JSON.parse(rawText) : {};
+                        } catch (parseError) {
+                            data = {};
+                        }
                         if (!resp.ok || !data || data.ok !== true) {
+                            let error = (data && data.error) ? data.error : 'Could not check for updates right now.';
+                            if (!data.error) {
+                                if (resp.status === 504 || /gateway time-?out/i.test(rawText || '')) {
+                                    error = 'The host timed out talking to GitHub. Wait a minute and press Check again.';
+                                } else if (resp.status >= 500) {
+                                    error = 'Update check failed (HTTP ' + resp.status + '). Try Check again shortly.';
+                                }
+                            }
                             renderPackageUpdateStatus({
                                 ok: false,
-                                error: (data && data.error) ? data.error : 'Could not check for updates right now.',
+                                error,
                             });
                             return;
                         }

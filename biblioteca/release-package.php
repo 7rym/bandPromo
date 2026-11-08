@@ -173,13 +173,19 @@ function bandpromo_release_https_download_setup_hint(): string
     return 'Enable the PHP ' . implode(' and ', $missing) . ' extension' . (count($missing) > 1 ? 's' : '') . ' in php.ini.';
 }
 
-function bandpromo_release_curl_profiles(): array
+/**
+ * @param int $timeoutSeconds Overall transfer timeout per attempt (keep short for Site update
+ *                            so shared-host nginx gateways do not 504 first).
+ * @return list<array<int,mixed>>
+ */
+function bandpromo_release_curl_profiles(int $timeoutSeconds = 120): array
 {
+    $timeoutSeconds = max(5, $timeoutSeconds);
     $classic = [
         CURLOPT_FOLLOWLOCATION => true,
         CURLOPT_MAXREDIRS => 10,
-        CURLOPT_CONNECTTIMEOUT => 20,
-        CURLOPT_TIMEOUT => 120,
+        CURLOPT_CONNECTTIMEOUT => min(15, $timeoutSeconds),
+        CURLOPT_TIMEOUT => $timeoutSeconds,
         CURLOPT_USERAGENT => 'bandPromo release helper',
         CURLOPT_FAILONERROR => false,
     ];
@@ -195,11 +201,33 @@ function bandpromo_release_curl_profiles(): array
     return [$classic, $http11, $http11v4];
 }
 
-function bandpromo_release_fetch_text(string $url): string {
+/**
+ * Fetch a small HTTPS text body. Prefer short timeouts + retries so Site update
+ * fails over before the host reverse-proxy returns a bare 504 HTML page.
+ */
+function bandpromo_release_fetch_text(string $url, int $timeoutSeconds = 25, int $attempts = 3): string {
+    $attempts = max(1, $attempts);
+    $lastError = 'unknown error';
+
+    for ($attempt = 1; $attempt <= $attempts; $attempt++) {
+        try {
+            return bandpromo_release_fetch_text_once($url, $timeoutSeconds);
+        } catch (Throwable $throwable) {
+            $lastError = $throwable->getMessage();
+            if ($attempt < $attempts) {
+                usleep(250000 * $attempt);
+            }
+        }
+    }
+
+    throw new RuntimeException('Release manifest fetch failed: ' . $lastError);
+}
+
+function bandpromo_release_fetch_text_once(string $url, int $timeoutSeconds = 25): string {
     if (function_exists('curl_init')) {
         $lastError = '';
         $lastStatus = 0;
-        foreach (bandpromo_release_curl_profiles() as $profile) {
+        foreach (bandpromo_release_curl_profiles($timeoutSeconds) as $profile) {
             $ch = curl_init($url);
             if ($ch === false) {
                 throw new RuntimeException('Could not initialize cURL for release manifest fetch.');
@@ -220,19 +248,18 @@ function bandpromo_release_fetch_text(string $url): string {
         }
 
         throw new RuntimeException(
-            'Release manifest fetch failed: '
-            . ($lastError !== '' ? $lastError : ('HTTP ' . $lastStatus))
+            $lastError !== '' ? $lastError : ('HTTP ' . $lastStatus)
         );
     }
 
     if (!bandpromo_release_https_download_available()) {
         $hint = bandpromo_release_https_download_setup_hint();
-        throw new RuntimeException('Release manifest fetch failed. ' . ($hint !== '' ? $hint : 'HTTPS download support is not configured.'));
+        throw new RuntimeException($hint !== '' ? $hint : 'HTTPS download support is not configured.');
     }
 
     $context = stream_context_create([
         'http' => [
-            'timeout' => 120,
+            'timeout' => $timeoutSeconds,
             'follow_location' => 1,
             'user_agent' => 'bandPromo release helper',
         ],
@@ -244,7 +271,7 @@ function bandpromo_release_fetch_text(string $url): string {
 
     $body = @file_get_contents($url, false, $context);
     if ($body === false || $body === '') {
-        throw new RuntimeException('Release manifest fetch failed. Check outbound HTTPS support and the manifest URL.');
+        throw new RuntimeException('Check outbound HTTPS support and the manifest URL.');
     }
 
     return (string) $body;
@@ -253,10 +280,46 @@ function bandpromo_release_fetch_text(string $url): string {
 function bandpromo_release_download_file(string $url, string $destination): void {
     bandpromo_release_ensure_dir(dirname($destination));
 
+    try {
+        bandpromo_release_download_file_direct($url, $destination);
+
+        return;
+    } catch (Throwable $cdnError) {
+        // When the releases CDN times out, pull bandPromo.zip via the GitHub API.
+        if (preg_match('#github\.com/.+/releases/download/.+/bandPromo\.zip$#i', $url) !== 1) {
+            throw $cdnError;
+        }
+        try {
+            $release = bandpromo_release_fetch_github_latest_release();
+            $asset = bandpromo_release_find_release_asset($release, 'bandPromo.zip');
+            if ($asset === null) {
+                throw new RuntimeException('Latest GitHub release has no bandPromo.zip asset.');
+            }
+            $bytes = bandpromo_release_fetch_github_asset_bytes($asset['id']);
+            if ($bytes === '') {
+                throw new RuntimeException('GitHub API returned an empty bandPromo.zip.');
+            }
+            if (file_put_contents($destination, $bytes) === false) {
+                throw new RuntimeException('Could not write downloaded package file.');
+            }
+
+            return;
+        } catch (Throwable $apiError) {
+            throw new RuntimeException(
+                'Package download failed: ' . $cdnError->getMessage()
+                . ' | API fallback: ' . $apiError->getMessage()
+            );
+        }
+    }
+}
+
+function bandpromo_release_download_file_direct(string $url, string $destination): void {
+    bandpromo_release_ensure_dir(dirname($destination));
+
     if (function_exists('curl_init')) {
         $lastError = '';
         $lastStatus = 0;
-        foreach (bandpromo_release_curl_profiles() as $profile) {
+        foreach (bandpromo_release_curl_profiles(600) as $profile) {
             $handle = fopen($destination, 'wb');
             if ($handle === false) {
                 throw new RuntimeException('Could not create temporary download file.');
@@ -270,7 +333,6 @@ function bandpromo_release_download_file(string $url, string $destination): void
 
             $options = $profile;
             $options[CURLOPT_FILE] = $handle;
-            $options[CURLOPT_TIMEOUT] = 600;
             curl_setopt_array($ch, $options);
 
             $ok = curl_exec($ch);
@@ -606,17 +668,19 @@ function bandpromo_release_fetch_github_releases_atom(string $atomUrl = BANDPROM
 
 function bandpromo_release_resolve_newest_release_tag(): ?string
 {
+    // Prefer Atom first: avoids api.github.com rate limits and is usually faster
+    // from shared hosts (CDN). Fall back to the Releases API when Atom fails.
     try {
-        $tag = bandpromo_release_pick_newest_release_tag(bandpromo_release_fetch_github_releases());
+        $tag = bandpromo_release_pick_newest_release_tag(bandpromo_release_fetch_github_releases_atom());
         if ($tag !== null) {
             return $tag;
         }
     } catch (Throwable $throwable) {
-        // Shared hosts often cannot call api.github.com (rate limit / block).
+        // Continue to API.
     }
 
     try {
-        return bandpromo_release_pick_newest_release_tag(bandpromo_release_fetch_github_releases_atom());
+        return bandpromo_release_pick_newest_release_tag(bandpromo_release_fetch_github_releases());
     } catch (Throwable $throwable) {
         return null;
     }
@@ -636,10 +700,113 @@ function bandpromo_release_resolve_manifest_url(string $manifestUrl = BANDPROMO_
     return $manifestUrl;
 }
 
-function bandpromo_release_load_manifest(string $manifestUrl = BANDPROMO_RELEASE_MANIFEST_URL): array {
-    $resolvedUrl = bandpromo_release_resolve_manifest_url($manifestUrl);
-    $body = bandpromo_release_fetch_text($resolvedUrl);
-    // Windows tools sometimes rewrite UTF-8 with a BOM; PHP json_decode rejects it.
+/**
+ * Download a release asset via the GitHub API (avoids flaky releases CDN).
+ */
+function bandpromo_release_fetch_github_asset_bytes(int $assetId): string
+{
+    $url = 'https://api.github.com/repos/' . BANDPROMO_GITHUB_REPOSITORY . '/releases/assets/' . $assetId;
+    if (!function_exists('curl_init')) {
+        throw new RuntimeException('GitHub asset download requires the PHP curl extension.');
+    }
+
+    $lastError = '';
+    $lastStatus = 0;
+    foreach (bandpromo_release_curl_profiles(45) as $profile) {
+        $ch = curl_init($url);
+        if ($ch === false) {
+            throw new RuntimeException('Could not initialize cURL for GitHub asset download.');
+        }
+        $options = $profile;
+        $options[CURLOPT_RETURNTRANSFER] = true;
+        $options[CURLOPT_HTTPHEADER] = [
+            'Accept: application/octet-stream',
+            'X-GitHub-Api-Version: 2022-11-28',
+        ];
+        curl_setopt_array($ch, $options);
+        $body = curl_exec($ch);
+        $lastStatus = (int) curl_getinfo($ch, CURLINFO_RESPONSE_CODE);
+        $lastError = curl_error($ch);
+        curl_close($ch);
+        if ($body !== false && is_string($body) && $body !== '' && $lastStatus > 0 && $lastStatus < 400) {
+            return $body;
+        }
+    }
+
+    throw new RuntimeException(
+        'GitHub asset download failed: ' . ($lastError !== '' ? $lastError : ('HTTP ' . $lastStatus))
+    );
+}
+
+/**
+ * @return array{id:int,name:string,browser_download_url:string}|null
+ */
+function bandpromo_release_find_release_asset(array $release, string $assetName): ?array
+{
+    $assets = $release['assets'] ?? null;
+    if (!is_array($assets)) {
+        return null;
+    }
+    foreach ($assets as $asset) {
+        if (!is_array($asset)) {
+            continue;
+        }
+        if (strcasecmp(trim((string) ($asset['name'] ?? '')), $assetName) !== 0) {
+            continue;
+        }
+        $id = (int) ($asset['id'] ?? 0);
+        if ($id <= 0) {
+            continue;
+        }
+
+        return [
+            'id' => $id,
+            'name' => (string) $asset['name'],
+            'browser_download_url' => trim((string) ($asset['browser_download_url'] ?? '')),
+        ];
+    }
+
+    return null;
+}
+
+function bandpromo_release_fetch_github_latest_release(): array
+{
+    $page = bandpromo_release_fetch_github_releases_page(
+        'https://api.github.com/repos/' . BANDPROMO_GITHUB_REPOSITORY . '/releases/latest'
+    );
+    $releases = $page['releases'] ?? null;
+    // /releases/latest returns a single object, not a list.
+    if (is_array($releases) && isset($releases['tag_name'])) {
+        return $releases;
+    }
+    if (is_array($releases) && isset($releases[0]) && is_array($releases[0])) {
+        return $releases[0];
+    }
+
+    throw new RuntimeException('GitHub latest release response was unexpected.');
+}
+
+function bandpromo_release_load_manifest_via_github_api(): array
+{
+    $release = bandpromo_release_fetch_github_latest_release();
+    $asset = bandpromo_release_find_release_asset($release, 'release-manifest.json');
+    if ($asset === null) {
+        throw new RuntimeException('Latest GitHub release has no release-manifest.json asset.');
+    }
+    $body = bandpromo_release_fetch_github_asset_bytes($asset['id']);
+    if (str_starts_with($body, "\xEF\xBB\xBF")) {
+        $body = substr($body, 3);
+    }
+    $decoded = json_decode($body, true);
+    if (!is_array($decoded)) {
+        throw new RuntimeException('GitHub API release-manifest.json is not valid JSON.');
+    }
+
+    return $decoded;
+}
+
+function bandpromo_release_decode_manifest_json(string $body): array
+{
     if (str_starts_with($body, "\xEF\xBB\xBF")) {
         $body = substr($body, 3);
     }
@@ -649,6 +816,44 @@ function bandpromo_release_load_manifest(string $manifestUrl = BANDPROMO_RELEASE
     }
 
     return $decoded;
+}
+
+function bandpromo_release_load_manifest(string $manifestUrl = BANDPROMO_RELEASE_MANIFEST_URL): array {
+    $errors = [];
+    $resolvedUrl = '';
+
+    // 1) Prefer a concrete tag CDN URL (resolved via Atom/API) with short retries.
+    try {
+        $resolvedUrl = bandpromo_release_resolve_manifest_url($manifestUrl);
+
+        return bandpromo_release_decode_manifest_json(
+            bandpromo_release_fetch_text($resolvedUrl, 20, 2)
+        );
+    } catch (Throwable $throwable) {
+        $errors[] = $throwable->getMessage();
+    }
+
+    // 2) Direct "latest/download" CDN URL (sometimes healthier than a tagged path).
+    if ($manifestUrl !== '' && $manifestUrl !== $resolvedUrl) {
+        try {
+            return bandpromo_release_decode_manifest_json(
+                bandpromo_release_fetch_text($manifestUrl, 20, 2)
+            );
+        } catch (Throwable $throwable) {
+            $errors[] = $throwable->getMessage();
+        }
+    }
+
+    // 3) GitHub API asset download — bypasses the releases CDN entirely.
+    try {
+        return bandpromo_release_load_manifest_via_github_api();
+    } catch (Throwable $throwable) {
+        $errors[] = $throwable->getMessage();
+    }
+
+    throw new RuntimeException(
+        'Could not load the published release manifest. ' . implode(' | ', $errors)
+    );
 }
 
 function bandpromo_release_load_manifest_file(string $path): array {
