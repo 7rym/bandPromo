@@ -12,8 +12,7 @@ Adds per-row:
   price_verified: true|false
   price_source: short provenance string
 """
-from __future__ import annotations
-
+from typing import Any, Dict, List, Optional, Tuple
 import json
 import os
 import re
@@ -37,7 +36,7 @@ def load_fal_key() -> str:
     return os.environ.get("FAL_KEY", "").strip()
 
 
-def http_json(method: str, url: str, headers: dict | None = None, body: dict | None = None, timeout: int = 45):
+def http_json(method: str, url: str, headers: Optional[Dict[str, Any]] = None, body: Optional[Dict[str, Any]] = None, timeout: int = 45):
     data = None
     hdrs = dict(headers or {})
     if body is not None:
@@ -67,8 +66,8 @@ def http_text(url: str, timeout: int = 30) -> str:
         return resp.read().decode("utf-8", errors="replace")
 
 
-def fal_pricing(api_key: str, endpoint_ids: list[str]) -> dict[str, dict]:
-    out: dict[str, dict] = {}
+def fal_pricing(api_key: str, endpoint_ids: List[str]) -> Dict[str, dict]:
+    out: Dict[str, dict] = {}
     for i in range(0, len(endpoint_ids), 20):
         batch = endpoint_ids[i : i + 20]
         qs = "&".join("endpoint_id=" + urllib.parse.quote(eid, safe="") for eid in batch)
@@ -94,7 +93,7 @@ def fal_pricing(api_key: str, endpoint_ids: list[str]) -> dict[str, dict]:
     return out
 
 
-def openrouter_by_id() -> dict[str, dict]:
+def openrouter_by_id() -> Dict[str, dict]:
     status, data = http_json("GET", "https://openrouter.ai/api/v1/models", {"Accept": "application/json"})
     if status != 200 or not isinstance(data, dict):
         raise RuntimeError(f"OpenRouter models failed: {status} {data}")
@@ -146,7 +145,7 @@ LLM_OPENROUTER_ID = {
 }
 
 
-def resolve_openrouter_id(supplier: str, model: str, source: str, or_models: dict[str, dict]) -> str | None:
+def resolve_openrouter_id(supplier: str, model: str, source: str, or_models: Dict[str, dict]) -> Optional[str]:
     key = (supplier, model)
     if key in LLM_OPENROUTER_ID and LLM_OPENROUTER_ID[key] in or_models:
         return LLM_OPENROUTER_ID[key]
@@ -167,7 +166,7 @@ def resolve_openrouter_id(supplier: str, model: str, source: str, or_models: dic
     return None if exact not in or_models else exact
 
 
-def parse_llms_txt_estimate(kind: str, endpoint: str, text: str) -> dict | None:
+def parse_llms_txt_estimate(kind: str, endpoint: str, text: str) -> Optional[Dict[str, Any]]:
     """Extract a catalogue-basis estimate from fal llms.txt prose."""
     # Normalize whitespace for regex
     flat = re.sub(r"\s+", " ", text)
@@ -362,7 +361,7 @@ def parse_llms_txt_estimate(kind: str, endpoint: str, text: str) -> dict | None:
     return None
 
 
-def map_fal_unit_to_estimate(kind: str, unit: str, unit_price: float) -> dict | None:
+def map_fal_unit_to_estimate(kind: str, unit: str, unit_price: float) -> Optional[Dict[str, Any]]:
     u = unit.strip().lower()
     if kind == "image":
         if u in ("image", "images"):
@@ -385,7 +384,7 @@ def round_money(value: float) -> float:
     return float(f"{value:.6f}".rstrip("0").rstrip(".") if "." in f"{value:.6f}" else f"{value:.6f}")
 
 
-def fal_historical_call_cost(api_key: str, endpoint: str) -> float | None:
+def fal_historical_call_cost(api_key: str, endpoint: str) -> Optional[float]:
     """Average USD per successful call from fal historical pricing estimate."""
     import time
 
@@ -422,7 +421,7 @@ def main() -> int:
     today = date.today().isoformat()
     catalog["checked_on"] = today
 
-    endpoints: list[tuple[str, str, dict]] = []
+    endpoints: List[Tuple[str, str, dict]] = []
     for kind in ("image", "video"):
         for tier, rows in (lists.get(kind) or {}).items():
             for row in rows or []:
@@ -436,7 +435,7 @@ def main() -> int:
     print("OpenRouter models...")
     or_models = openrouter_by_id()
 
-    llms_cache: dict[str, str] = {}
+    llms_cache: Dict[str, str] = {}
     changes = []
 
     # --- LLM ---

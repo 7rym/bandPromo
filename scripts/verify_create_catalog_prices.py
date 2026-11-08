@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 """Verify Create catalogue prices against fal pricing API + OpenRouter models."""
-from __future__ import annotations
-
+from typing import Any, Dict, List, Optional, Tuple
 import json
 import os
 import re
@@ -30,7 +29,7 @@ def load_dotenv_key(name: str) -> str:
     return os.environ.get(name, "").strip()
 
 
-def http_json(method: str, url: str, headers: dict[str, str] | None = None, timeout: int = 45):
+def http_json(method: str, url: str, headers: Optional[Dict[str, str]] = None, timeout: int = 45):
     req = urllib.request.Request(url, method=method)
     for k, v in (headers or {}).items():
         req.add_header(k, v)
@@ -49,9 +48,9 @@ def http_json(method: str, url: str, headers: dict[str, str] | None = None, time
         return 0, {"error": str(e)}
 
 
-def fal_pricing(api_key: str, endpoint_ids: list[str]) -> dict[str, dict]:
+def fal_pricing(api_key: str, endpoint_ids: List[str]) -> Dict[str, dict]:
     """Return endpoint_id -> price row from fal."""
-    out: dict[str, dict] = {}
+    out: Dict[str, dict] = {}
     # API accepts up to 50; keep batches small for clarity.
     for i in range(0, len(endpoint_ids), 20):
         batch = endpoint_ids[i : i + 20]
@@ -81,11 +80,11 @@ def fal_pricing(api_key: str, endpoint_ids: list[str]) -> dict[str, dict]:
     return out
 
 
-def openrouter_models() -> dict[str, dict]:
+def openrouter_models() -> Dict[str, dict]:
     status, data = http_json("GET", "https://openrouter.ai/api/v1/models", {"Accept": "application/json"})
     if status != 200 or not isinstance(data, dict):
         return {"__error__": {"ok": False, "status": status, "error": data}}
-    by_id: dict[str, dict] = {}
+    by_id: Dict[str, dict] = {}
     for row in data.get("data") or []:
         if not isinstance(row, dict):
             continue
@@ -117,9 +116,9 @@ def slugify_token(value: str) -> str:
     return value.strip("-.")
 
 
-def guess_openrouter_ids(supplier: str, model: str, source: str) -> list[str]:
+def guess_openrouter_ids(supplier: str, model: str, source: str) -> List[str]:
     """Generate candidate OpenRouter ids from catalogue fields."""
-    candidates: list[str] = []
+    candidates: List[str] = []
     src = (source or "").strip()
     m = re.search(r"openrouter\.ai/([^/?#]+(?:/[^/?#]+)?)", src, re.I)
     if m:
@@ -160,7 +159,7 @@ def guess_openrouter_ids(supplier: str, model: str, source: str) -> list[str]:
     return out
 
 
-def match_openrouter(or_models: dict[str, dict], supplier: str, model: str, source: str) -> dict:
+def match_openrouter(or_models: Dict[str, dict], supplier: str, model: str, source: str) -> dict:
     if "__error__" in or_models:
         return {"ok": False, "error": or_models["__error__"]}
     candidates = guess_openrouter_ids(supplier, model, source)
@@ -197,9 +196,9 @@ def main() -> int:
     catalog = json.loads(CATALOG.read_text(encoding="utf-8"))
     lists = catalog.get("lists") or {}
 
-    image_eps: list[tuple[str, str, dict]] = []
-    video_eps: list[tuple[str, str, dict]] = []
-    llm_rows: list[tuple[str, dict]] = []
+    image_eps: List[Tuple[str, str, dict]] = []
+    video_eps: List[Tuple[str, str, dict]] = []
+    llm_rows: List[Tuple[str, dict]] = []
 
     for tier, rows in (lists.get("image") or {}).items():
         for row in rows or []:
@@ -305,7 +304,7 @@ def main() -> int:
 
     report["fal_endpoints"] = fal_prices
 
-    def summarise(rows: list[dict]) -> dict:
+    def summarise(rows: List[Dict[str, Any]]) -> dict:
         ok = sum(1 for r in rows if r.get("fal", r.get("openrouter", {})).get("ok"))
         return {"total": len(rows), "verified": ok, "unverified": len(rows) - ok}
 
