@@ -32,6 +32,8 @@
 
 **Closed:** **v0.8.102 build 633** published — Create Start: independent OpenAI/fal proofs, inline × key clear, festive ready dashboard; fal wallet always shown (API-preset keys get billing-permission note); OpenAI copy explains no remaining-balance API.
 
+**Closed:** **v0.8.103** — session bookkeeping only (no product changes). Last tester package remains **build 633**.
+
 **Active now:** Catalogue updater later. Optional: fal key with billing read to show $ on ready. Living-art / blurb tool UIs stay later.
 
 **Last published:** **v0.8.102 build 633**. Prior: **632** Site update GitHub resilience; **631** catalogue prices.

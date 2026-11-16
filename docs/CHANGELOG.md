@@ -2,6 +2,7 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-11-16 21:05 - Session v0.8.103 closed with no product changes (session bookkeeping only; last published tester package remains build 633).
 2026-11-08 13:30 - Create → Start ready view: festive status dashboard; always show fal wallet card (API-preset keys get a clear billing-permission note instead of hiding); OpenAI copy explains no remaining-balance API exists.
 2026-11-08 13:20 - Create → Start ready actions: Reconfigure left, Open Preferences right.
 2026-11-08 13:05 - Create → Start: OpenAI and fal proofs run independently (own key only); key fields use an inline × clear instead of large Clear buttons.
