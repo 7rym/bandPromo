@@ -30,7 +30,10 @@ Tracked application updates must preserve that runtime state.
 
 ## Local PHP Dev Server
 
-`scripts/start-dev-server.ps1` runs PHP's built-in server for local admin and site testing. It spawns PHP as a detached background process and exits immediately (no long-lived terminal). Request output goes to `log/dev-server.log`; stop it with `scripts/stop-dev-server.ps1`. It does **not** read Apache `.htaccess` rules.
+- **Windows:** `scripts/start-dev-server.ps1` / `scripts/stop-dev-server.ps1`
+- **Linux:** `bash scripts/start-dev-server.sh` / `bash scripts/stop-dev-server.sh`
+
+Both start PHP's built-in server for local admin and site testing (detached; log at `log/dev-server.log`). They do **not** read Apache `.htaccess` rules. After copying a Windows working tree onto Linux, rebuild `scripts/vendor/` for the Linux ABI before Site health / Publish (Windows vendor packages are not reusable).
 
 Player path URLs (`/play/{playlist}`, `/play/{playlist}/{track}`, `/play/{playlist}/{release}/{track}`) are parsed inside `play/index.php` (query `?playlist=` still wins). That keeps deep links working on php -S and on hosts missing `play/.htaccess`.
 

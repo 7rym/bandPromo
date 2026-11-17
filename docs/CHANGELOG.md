@@ -2,6 +2,8 @@
 
 All notable changes to this project will be documented in this file.
 
+2026-11-17 13:35 - Publish Linux developer helpers (`scripts/session-start.sh`, `session-end.sh`, `start-dev-server.sh`, `stop-dev-server.sh`, `verify-dev-environment.sh`) plus `prepare-dev-environment-transfer.ps1`; DEVELOPMENT notes Linux vendor rebuild after Windows copy.
+2026-11-17 11:40 - Linux developer helpers: `scripts/session-start.sh`, `session-end.sh`, `start-dev-server.sh`, `stop-dev-server.sh`, `verify-dev-environment.sh`; Cursor shell rule is OS-aware (bash on Linux, PowerShell on Windows); env-transfer handoff updated for Linux (rebuild `scripts/vendor` after copy).
 2026-11-16 21:05 - Session v0.8.103 closed with no product changes (session bookkeeping only; last published tester package remains build 633).
 2026-11-08 13:30 - Create → Start ready view: festive status dashboard; always show fal wallet card (API-preset keys get a clear billing-permission note instead of hiding); OpenAI copy explains no remaining-balance API exists.
 2026-11-08 13:20 - Create → Start ready actions: Reconfigure left, Open Preferences right.

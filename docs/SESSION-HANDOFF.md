@@ -34,9 +34,11 @@
 
 **Closed:** **v0.8.103** — session bookkeeping only (no product changes). Last tester package remains **build 633**.
 
-**Active now:** Catalogue updater later. Optional: fal key with billing read to show $ on ready. Living-art / blurb tool UIs stay later.
+**Closed:** **v0.8.103 build 635** published — Linux developer session helpers (`scripts/*.sh`), OS-aware Cursor shell guidance, env-transfer handoff for Linux (rebuild `scripts/vendor` after Windows→Linux copy). Local master transfer bundle is separate from this release.
 
-**Last published:** **v0.8.102 build 633**. Prior: **632** Site update GitHub resilience; **631** catalogue prices.
+**Active now:** Catalogue updater later. Optional: fal key with billing read to show $ on ready. Living-art / blurb tool UIs stay later. Finish Linux env restore on the new machine using the transfer bundle + `NEW-AGENT-HANDOFF.md`.
+
+**Last published:** **v0.8.103 build 635**. Prior: **633** Create Start ready polish; **632** Site update GitHub resilience.
 
 **Parked / later:**
 - Create Preferences **catalogue update function** (refresh `create-model-catalog.json` from stored instructions when models change) — [ROADMAP.md](ROADMAP.md).
